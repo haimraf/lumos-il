@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* פונטים קלאסיים של הוגוורטס */
+  --font-cinzel: var(--font-cinzel);
+  --font-crimson: var(--font-crimson);
+  --font-courier: var(--font-courier);
+
+  /* אנימציות "לומוס" */
+  --animate-shimmer: shimmer 2.5s infinite linear;
+  --animate-pulse-slow: pulse-glow 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 8s ease-in-out infinite;
+  /* תוספת לתנועה עדינה יותר */
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      opacity: 0.3;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.6;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+}
+
+/* הגדרות בסיס למראה הכהה העמוק */
+:root {
+  --background: #020617;
+  /* Slate-950 */
+  --foreground: #f8fafc;
+  /* Slate-50 */
+  --selection-bg: rgba(245, 158, 11, 0.3);
+  /* הילת בחירה זהובה */
+  --selection-text: #fef3c7;
+  /* טקסט צהבהב בבחירה */
+}
+
+/* הגדרות גלובליות */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-crimson), serif;
+  /* פונט ברירת מחדל כמו בספרים */
+
+  /* החלקת פונטים (קריטי לפונטים עם סריפים כמו שלנו) */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  /* ביטול ריבוע כחול בלחיצה במובייל */
+}
+
+/* אפקט טקסטורה של אבן/חלל גלובלי */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url('https://www.transparenttextures.com/patterns/dark-matter.png');
+  opacity: 0.05;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* יישור טקסט וגובה שורה בסיסי לעברית */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-cinzel), serif;
+  line-height: 1.2;
+}
+
+/* צבע סימון טקסט עם העכבר */
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+/* -------------------------------------- */
+/* SCROLLBAR גלובלי לאווירת קסם אפלה     */
+/* -------------------------------------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.2);
+  /* זהב עמוק ודהוי */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.5);
+  /* מתעורר לחיים במעבר עכבר */
+}
+
+/* פס גלילה מיוחד לקלפים ומגילות (ניתן להשתמש כקלאס) */
+.custom-parchment-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-parchment-scrollbar::-webkit-scrollbar-track {
+  background: rgba(139, 69, 19, 0.03);
+}
+
+.custom-parchment-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(139, 69, 19, 0.3);
+  border-radius: 10px;
+}
+
+/* -------------------------------------- */
+/* ACCESSIBILITY & FOCUS STATES         */
+/* -------------------------------------- */
+/* במקום המסגרת הכחולה הרגילה בניווט מקלדת, מסגרת זהב */
+*:focus-visible {
+  outline: 2px solid rgba(245, 158, 11, 0.6);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* -------------------------------------- */
+/* UTILITY CLASSES                       */
+/* -------------------------------------- */
+.glass-panel {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  /* תמיכה בספארי */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.gold-glow {
+  text-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+}
