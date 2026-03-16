@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { Shield, Hammer, Eye, MessageSquareX, Gavel, ScrollText } from "lucide-react";
+import SecretQuestWord from "@/components/SecretQuestWord"; // <-- ייבוא המילה הסודית
 
 export const metadata: Metadata = {
   title: "חוקי הטירה | LUMOS IL - משרד הקסמים",
@@ -61,7 +62,7 @@ export default function RulesPage() {
           </h1>
 
           <p className="font-crimson text-2xl md:text-4xl text-amber-100/90 italic font-bold max-w-3xl mx-auto leading-tight">
-            &quot;אלו הם הכללים שישמרו על הקסם בטוח וטהור עבור כולם.&quot;
+            &quot;אלו הם הכללים שישמרו על <SecretQuestWord word="הקסם" /> בטוח וטהור עבור כולם.&quot;
           </p>
         </div>
 

@@ -1,163 +1,306 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { ScrollText, Calendar, User, ArrowRight, Sparkles } from "lucide-react";
-import Link from "next/link";
+import {
+  ScrollText, ArrowRight, X, Send, MessageSquare,
+  BarChart3, Flag, AlertTriangle, EyeOff, Eye, Image as ImageIcon
+} from "lucide-react";
 
+// --- Interfaces ---
 interface NewsItem {
   id: string;
   title: string;
   content: string;
   created_at: string;
   author?: string;
+  meta_title?: string;
+  meta_description?: string;
   image_url?: string;
 }
 
 export default function NewsPage() {
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     const fetchNews = async () => {
-      try {
-        setIsLoading(true);
-        setErrorStatus(null);
-        
-        const { data, error } = await supabase
-          .from("news")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-        setNews(data || []);
-      } catch (err: any) {
-        console.error("Error fetching news:", err);
-        setErrorStatus(err.message || "נכשלה טעינת העדכונים");
-      } finally {
-        setIsLoading(false);
-      }
+      setIsLoading(true);
+      const { data } = await supabase.from("news").select("*").order("created_at", { ascending: false });
+      setNews(data || []);
+      setIsLoading(false);
     };
-
     fetchNews();
   }, [supabase]);
+
+  useEffect(() => {
+    if (selectedNews) {
+      document.body.style.overflow = 'hidden';
+      if (selectedNews.meta_title || selectedNews.title) {
+        document.title = selectedNews.meta_title || selectedNews.title;
+      }
+    } else {
+      document.body.style.overflow = 'unset';
+      document.title = "הנביא היומי | LUMOS IL";
+    }
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedNews(null); };
+    window.addEventListener("keydown", handleEsc);
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedNews]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="w-16 h-16 border-t-2 border-amber-500 rounded-full animate-spin"></div>
+        <div className="w-16 h-16 border-t-4 border-amber-500 border-solid rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#020617] text-[#f8fafc] py-20 px-6" dir="rtl">
+    <div className="min-h-screen bg-[#020617] text-[#f8fafc] py-20 px-6 font-assistant" dir="rtl">
+
+      <style>{`
+        .prose-magic h1 { font-family: 'Cinzel', serif; font-size: 2.5rem; margin-bottom: 1rem; color: #f59e0b; }
+        .prose-magic p { margin-bottom: 1.2rem; line-height: 1.8; }
+        .prose-magic strong { color: #fef3c7; font-weight: 800; }
+        .prose-magic ul { list-style-type: disc; margin-right: 1.5rem; margin-bottom: 1rem; }
+        .prose-magic a { color: #f59e0b; text-decoration: underline; }
+        .prose-magic img { border-radius: 1rem; border: 2px solid rgba(245, 158, 11, 0.2); margin: 2rem 0; }
+      `}</style>
+
       <div className="max-w-4xl mx-auto space-y-16">
-        
-        {/* Header */}
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-full border border-amber-500/20 mb-4">
             <ScrollText size={40} className="text-amber-500" />
           </div>
           <h1 className="font-cinzel text-5xl md:text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-500">
-            נביא היומי
+            הנביא היומי
           </h1>
-          <p className="font-crimson text-xl md:text-2xl text-white/60 italic">
-            כל העדכונים מעולם הקסמים של לומוס ישראל
-          </p>
         </div>
 
-        {/* News Feed */}
         <div className="grid grid-cols-1 gap-12">
-          {errorStatus ? (
-            <div className="text-center py-20 space-y-6 bg-red-500/10 border border-red-500/20 rounded-3xl backdrop-blur-sm">
-              <Sparkles size={48} className="text-red-500/40 mx-auto" />
-              <p className="font-crimson text-2xl text-red-500/80 italic font-bold">תקלה בתקשורת עם משרד הקסמים. נסו שוב מאוחר יותר.</p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="font-cinzel text-sm text-white/60 hover:text-white underline underline-offset-8 decoration-amber-500/50"
-              >
-                נסה שוב
-              </button>
+          {news.map((item) => (
+            <div key={item.id} className="group relative bg-[#e2d1b0] text-[#020617] rounded-sm shadow-xl border border-[#8b6a3a]/30 p-8 md:p-10 flex flex-col md:flex-row gap-8" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')" }}>
+              {item.image_url && (
+                <div className="w-full md:w-48 h-48 shrink-0 rounded-lg overflow-hidden border-2 border-amber-900/10 shadow-lg order-1 md:order-2">
+                  <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                </div>
+              )}
+              <div className="flex-1 space-y-4 order-2 md:order-1 text-right">
+                <h2 className="font-cinzel text-3xl font-black leading-tight">{item.title}</h2>
+                <p className="font-crimson text-xl leading-relaxed opacity-80 line-clamp-3">
+                  {item.content.replace(/<[^>]*>?/gm, '').slice(0, 180)}...
+                </p>
+                <button onClick={() => setSelectedNews(item)} className="flex items-center gap-2 font-cinzel text-lg font-bold uppercase border-b-2 border-[#020617] transition-all hover:bg-black/5">
+                  להמשך קריאה <ArrowRight size={20} className="rotate-180" />
+                </button>
+              </div>
             </div>
-          ) : news.length > 0 ? (
-            news.map((item, index) => (
-              <NewsCard key={item.id} item={item} index={index} />
-            ))
-          ) : (
-            <div className="text-center py-20 space-y-6 bg-white/5 border border-white/5 rounded-3xl backdrop-blur-sm">
-              <Sparkles size={48} className="text-amber-500/20 mx-auto" />
-              <p className="font-crimson text-2xl text-white/40 italic">הינשופים בדרך... אין עדכונים חדשים כרגע.</p>
-            </div>
-          )}
+          ))}
         </div>
       </div>
+
+      {selectedNews && (
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-[#020617]/95 backdrop-blur-md pt-0 md:pt-10 px-0 md:px-4">
+          <div className="relative w-full max-w-4xl bg-[#e2d1b0] text-[#020617] shadow-2xl border-x-0 md:border-4 border-amber-700/30 min-h-screen md:min-h-0 mb-0 md:mb-10 animate-in fade-in zoom-in duration-300" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')" }}>
+            <button onClick={() => setSelectedNews(null)} className="fixed top-6 left-6 md:absolute md:top-6 md:left-6 p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors z-[10000]"><X size={32} /></button>
+
+            <div className="p-8 md:p-16 space-y-8 text-right pt-20 md:pt-16">
+              {selectedNews.image_url && (
+                <div className="w-full h-64 md:h-[450px] rounded-2xl overflow-hidden mb-10 shadow-2xl border-4 border-amber-900/10">
+                  <img src={selectedNews.image_url} alt={selectedNews.title} className="w-full h-full object-cover" />
+                </div>
+              )}
+              <header className="space-y-4 border-b-2 border-[#020617]/20 pb-8 text-center">
+                <p className="font-cinzel text-sm font-bold opacity-60 uppercase tracking-widest">
+                  {new Date(selectedNews.created_at).toLocaleDateString("he-IL")} | מאת: {selectedNews.author || "כתב מערכת"}
+                </p>
+                <h2 className="font-cinzel text-4xl md:text-7xl font-black leading-tight">{selectedNews.title}</h2>
+              </header>
+              <div
+                className="prose-magic font-crimson text-2xl md:text-3xl leading-relaxed whitespace-pre-wrap text-justify"
+                dangerouslySetInnerHTML={{ __html: selectedNews.content }}
+              />
+              <PollComponent newsId={selectedNews.id} />
+              <div className="mt-16 pt-8 border-t-4 border-[#020617]/10">
+                <CommentsSection newsId={selectedNews.id} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function NewsCard({ item, index }: { item: NewsItem; index: number }) {
-  const date = new Date(item.created_at).toLocaleDateString("he-IL", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+function PollComponent({ newsId }: { newsId: string }) {
+  const [poll, setPoll] = useState<any>(null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const supabase = createClient();
+
+  const fetchPollData = useCallback(async () => {
+    const { data: pollData } = await supabase.from('polls').select('*, poll_options(*)').eq('news_id', newsId).maybeSingle();
+    if (pollData) {
+      setPoll(pollData);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: vote } = await supabase.from('poll_votes').select('*').eq('poll_id', pollData.id).eq('user_id', session.user.id).maybeSingle();
+        if (vote) setHasVoted(true);
+      }
+    }
+  }, [newsId, supabase]);
+
+  useEffect(() => { fetchPollData(); }, [fetchPollData]);
+
+  const handleVote = async () => {
+    if (!selectedOption || isSubmitting) return;
+    setIsSubmitting(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { alert("יש להתחבר להצבעה!"); setIsSubmitting(false); return; }
+    const { error } = await supabase.from('poll_votes').insert([{ poll_id: poll.id, user_id: user.id, option_id: selectedOption }]);
+    if (!error) {
+      await supabase.rpc('increment_vote', { option_id: selectedOption });
+      await fetchPollData();
+      setHasVoted(true);
+    }
+    setIsSubmitting(false);
+  };
+
+  if (!poll) return null;
+  const totalVotes = poll.poll_options.reduce((acc: number, opt: any) => acc + (opt.votes_count || 0), 0);
 
   return (
-    <div 
-      className="group relative bg-[#e2d1b0] text-[#020617] rounded-sm overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#8b6a3a]/30 animate-ink-bleed"
-      style={{ 
-        backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')",
-        animationDelay: `${index * 0.2}s`
-      }}
-    >
-      {/* Decorative Blueprint Lines */}
-      <div className="absolute inset-0 pointer-events-none opacity-10">
-        <div className="absolute top-0 left-0 w-full h-px bg-[#020617] translate-y-8"></div>
-        <div className="absolute top-0 left-0 w-px h-full bg-[#020617] translate-x-8"></div>
-        <div className="absolute bottom-0 left-0 w-full h-px bg-[#020617] -translate-y-8"></div>
-        <div className="absolute top-0 right-0 w-px h-full bg-[#020617] -translate-x-8"></div>
-      </div>
+    <div className="bg-[#020617]/5 p-8 border-2 border-dashed border-amber-800/30 my-12 rounded-lg">
+      <h4 className="font-cinzel text-2xl font-black mb-8 flex items-center gap-3"><BarChart3 size={28} className="text-amber-800" /> סקר הנביא</h4>
+      {hasVoted ? (
+        <div className="space-y-6">
+          {poll.poll_options.map((opt: any) => {
+            const p = totalVotes > 0 ? Math.round(((opt.votes_count || 0) / totalVotes) * 100) : 0;
+            return (
+              <div key={opt.id} className="space-y-2">
+                <div className="flex justify-between font-crimson text-xl font-bold"><span>{p}%</span><span>{opt.option_text}</span></div>
+                <div className="w-full bg-black/10 h-4 rounded-full overflow-hidden shadow-inner"><div className="bg-amber-600 h-full transition-all duration-1000" style={{ width: `${p}%` }}></div></div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {poll.poll_options.map((opt: any) => (
+            <button key={opt.id} onClick={() => setSelectedOption(opt.id)} className={`w-full text-right p-5 border-2 transition-all font-crimson text-2xl rounded-xl ${selectedOption === opt.id ? 'bg-amber-500 border-amber-800 text-[#020617] font-bold' : 'bg-white/40 border-amber-900/10 hover:bg-amber-500/10'}`}>{opt.option_text}</button>
+          ))}
+          <button onClick={handleVote} disabled={!selectedOption || isSubmitting} className="mt-6 w-full py-5 bg-[#020617] text-white font-cinzel text-xl font-black">הצבעה 🪄</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
-      <div className="p-8 md:p-12 space-y-6 relative z-10">
-        <div className="flex flex-wrap items-center gap-6 text-sm font-cinzel uppercase tracking-widest opacity-60">
-          <div className="flex items-center gap-2">
-            <Calendar size={14} />
-            <span>{date}</span>
-          </div>
-          {item.author && (
-            <div className="flex items-center gap-2">
-              <User size={14} />
-              <span>{item.author}</span>
+function CommentsSection({ newsId }: { newsId: string }) {
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [reportingComment, setReportingComment] = useState<any | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
+  const supabase = createClient();
+
+  const fetchData = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      setCurrentUserId(session.user.id);
+      const { data: blocks } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', session.user.id);
+      if (blocks) setBlockedUserIds(blocks.map(b => b.blocked_id));
+    }
+    const { data } = await supabase.from("comments").select("*, profiles (full_name, house, role)").eq("news_id", newsId).order("created_at", { ascending: true });
+    if (data) setComments(data);
+  }, [newsId, supabase]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handlePost = async () => {
+    if (!newComment.trim() || !currentUserId) return;
+    setIsPosting(true);
+    const { error } = await supabase.from("comments").insert([{ news_id: newsId, user_id: currentUserId, content: newComment, user_name: "קוסם" }]);
+    if (!error) { setNewComment(""); fetchData(); }
+    setIsPosting(false);
+  };
+
+  const handleSendReport = async () => {
+    if (!reportReason || !reportingComment) return;
+    setIsReporting(true);
+    const { error } = await supabase.from('reports').insert([{ reporter_id: currentUserId, target_id: reportingComment.id, target_type: 'comment', reason: reportReason, content_preview: reportingComment.content, status: 'pending' }]);
+    if (!error) { alert("דווח למשרד הקסמים."); setReportingComment(null); setReportReason(""); }
+    setIsReporting(false);
+  };
+
+  const handleToggleMute = async (targetId: string, isMuted: boolean) => {
+    if (isMuted) {
+      await supabase.from('blocks').delete().eq('blocker_id', currentUserId).eq('blocked_id', targetId);
+      setBlockedUserIds(p => p.filter(id => id !== targetId));
+    } else {
+      await supabase.from('blocks').insert({ blocker_id: currentUserId, blocked_id: targetId });
+      setBlockedUserIds(p => [...p, targetId]);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <h3 className="font-cinzel text-3xl font-black flex items-center gap-3"><MessageSquare className="text-amber-800" /> תגובות הקהילה</h3>
+      <div className="flex flex-col md:flex-row gap-4">
+        <input value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="כתיבת תגובה..." className="flex-1 bg-white/50 border-2 border-amber-900/20 p-5 font-crimson text-2xl outline-none rounded-xl" />
+        <button onClick={handlePost} disabled={isPosting} className="bg-[#020617] text-white px-12 py-5 font-cinzel font-black rounded-xl">שליחה</button>
+      </div>
+      <div className="space-y-6">
+        {comments.map((c) => {
+          const isMuted = blockedUserIds.includes(c.user_id);
+          if (isMuted) return (
+            <div key={c.id} className="p-5 border-r-8 border-gray-400 bg-gray-100/50 rounded-lg flex justify-between items-center opacity-70">
+              <p className="font-crimson text-xl italic text-gray-500">תגובה מוסתרת.</p>
+              <button onClick={() => handleToggleMute(c.user_id, true)} className="text-sm font-bold bg-gray-200 px-4 py-2 rounded-full"><Eye size={16} /></button>
             </div>
-          )}
-        </div>
-
-        <h2 className="font-cinzel text-3xl md:text-4xl font-black leading-tight group-hover:text-amber-800 transition-colors">
-          {item.title}
-        </h2>
-
-        <div className="font-crimson text-xl leading-relaxed whitespace-pre-wrap">
-          {item.content}
-        </div>
-
-        <div className="pt-6 border-t border-[#020617]/10 flex justify-between items-center">
-          <Link 
-            href="#"
-            className="group/btn flex items-center gap-2 font-cinzel text-sm font-bold uppercase tracking-widest border-b-2 border-transparent hover:border-[#020617] transition-all"
-          >
-            קרא עוד <ArrowRight size={16} className="rotate-180 group-hover/btn:-translate-x-1 transition-transform" />
-          </Link>
-          <div className="text-[10px] font-cinzel opacity-40 uppercase tracking-widest">
-            Ref: L-MN-{item.id.slice(0, 4)}
+          );
+          return (
+            <div key={c.id} className="p-8 border-r-8 border-amber-700 bg-white/40 rounded-lg shadow-md animate-in fade-in">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="font-cinzel text-2xl font-black text-amber-900">{c.profiles?.full_name || "קוסם"}</p>
+                  <p className="text-xs opacity-50 font-bold uppercase">{c.profiles?.house || 'ללא בית'}</p>
+                </div>
+                {currentUserId !== c.user_id && (
+                  <div className="flex items-center gap-3 opacity-30 hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleToggleMute(c.user_id, false)}><EyeOff size={18} /></button>
+                    <button onClick={() => setReportingComment(c)} className="text-red-800"><Flag size={18} /></button>
+                  </div>
+                )}
+              </div>
+              <p className="font-crimson text-2xl text-gray-800 leading-relaxed">{c.content}</p>
+            </div>
+          );
+        })}
+      </div>
+      {reportingComment && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
+          <div className="bg-[#fdfaf5] w-full max-w-md rounded-[3rem] p-10 space-y-8 shadow-2xl">
+            <h4 className="font-cinzel text-2xl font-black text-red-900 flex items-center gap-3"><AlertTriangle size={32} /> דיווח</h4>
+            <div className="grid grid-cols-1 gap-4">
+              {['תוכן פוגעני', 'ספוילרים', 'אחר'].map((r) => (
+                <button key={r} onClick={() => setReportReason(r)} className={`w-full text-right p-5 rounded-2xl border-2 font-bold text-xl ${reportReason === r ? 'bg-red-900 text-white' : 'bg-white border-gray-100'}`}>{r}</button>
+              ))}
+            </div>
+            <div className="flex gap-4"><button onClick={handleSendReport} disabled={!reportReason || isReporting} className="flex-1 py-5 bg-red-900 text-white rounded-2xl font-black">דווח</button><button onClick={() => setReportingComment(null)} className="flex-1 py-5 bg-gray-200 rounded-2xl">ביטול</button></div>
           </div>
         </div>
-      </div>
-      
-      {/* Ink Bleed Texture Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-[#020617]/5 to-transparent pointer-events-none"></div>
+      )}
     </div>
   );
 }

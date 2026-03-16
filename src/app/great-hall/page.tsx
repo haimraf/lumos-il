@@ -10,12 +10,16 @@ import {
     Zap,
     Info,
     Shield,
-    Users
+    Users,
+    Flag,
+    AlertTriangle,
+    EyeOff,
+    Eye
 } from "lucide-react";
 
 /**
- * LUMOS IL - THE GREAT HALL V4.1 (Complete Version)
- * כולל: תיקון כיווני בועות צ'אט, חילוץ שמות אוטומטי (Auto-Healing) וגלילה ריאקטיבית.
+ * LUMOS IL - THE GREAT HALL V4.2 (Safe & Realtime)
+ * כולל: חילוץ שמות, גלילה ריאקטיבית, מערכת דיווחים ומערכת השתקות.
  */
 
 type Message = {
@@ -58,9 +62,14 @@ export default function GreatHall() {
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    // States למערכות הבטיחות
+    const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+    const [reportingMessage, setReportingMessage] = useState<Message | null>(null);
+    const [reportReason, setReportReason] = useState("");
+    const [isReporting, setIsReporting] = useState(false);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // מנגנון גלילה חכם וריאקטיבי 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
@@ -73,19 +82,23 @@ export default function GreatHall() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session || !isMounted) return;
 
-            setMyId(session.user.id);
+            const userId = session.user.id;
+            setMyId(userId);
 
-            // חילוץ שם
             const extractedName = session.user.email ? session.user.email.split('@')[0] : "קוסם/ת";
             setMyName(extractedName);
 
-            // --- קסם הריפוי: עדכון השם בתיק האישי אם הוא חסר ---
-            const { data: profileCheck } = await supabase.from('profiles').select('full_name, role, house').eq('id', session.user.id).single();
+            const { data: profileCheck } = await supabase.from('profiles').select('full_name, role, house').eq('id', userId).single();
 
             if (!profileCheck?.full_name || profileCheck.full_name === 'Wizard') {
-                await supabase.from('profiles').update({ full_name: extractedName }).eq('id', session.user.id);
+                await supabase.from('profiles').update({ full_name: extractedName }).eq('id', userId);
             }
-            // -----------------------------------------------------
+
+            // חילוץ המשתמשים החסומים לפני טעינת ההודעות
+            const { data: blocks } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', userId);
+            if (blocks && isMounted) {
+                setBlockedUserIds(blocks.map(b => b.blocked_id));
+            }
 
             const { data } = await supabase
                 .from('messages')
@@ -101,12 +114,10 @@ export default function GreatHall() {
                     if (!isMounted) return;
                     const state = channel.presenceState();
                     const rawUsers = Object.values(state).flat();
-
                     const uniqueUsersMap = new Map();
                     rawUsers.forEach((u: any) => {
                         if (u.user_id) uniqueUsersMap.set(u.user_id, u);
                     });
-
                     setOnlineUsers(Array.from(uniqueUsersMap.values()));
                 })
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
@@ -123,7 +134,7 @@ export default function GreatHall() {
                 .subscribe(async (status) => {
                     if (status === 'SUBSCRIBED' && isMounted) {
                         await channel.track({
-                            user_id: session.user.id,
+                            user_id: userId,
                             name: profileCheck?.full_name || extractedName,
                             role: profileCheck?.role || 'תלמיד/ה',
                             house: profileCheck?.house || 'Unknown'
@@ -148,6 +159,42 @@ export default function GreatHall() {
         await supabase.from('messages').insert({ content, user_id: myId });
     };
 
+    // פונקציות הבטיחות וההשתקה
+    const handleToggleMute = async (targetUserId: string, userName: string, isCurrentlyMuted: boolean) => {
+        if (!myId) return;
+
+        if (isCurrentlyMuted) {
+            const { error } = await supabase.from('blocks').delete().eq('blocker_id', myId).eq('blocked_id', targetUserId);
+            if (!error) setBlockedUserIds(prev => prev.filter(id => id !== targetUserId));
+        } else {
+            if (confirm(`האם אתה בטוח שברצונך להסתיר את ההודעות של ${userName}?`)) {
+                const { error } = await supabase.from('blocks').insert({ blocker_id: myId, blocked_id: targetUserId });
+                if (!error || error.code === '23505') setBlockedUserIds(prev => [...prev, targetUserId]);
+            }
+        }
+    };
+
+    const handleSendReport = async () => {
+        if (!reportReason || !reportingMessage || !myId) return;
+        setIsReporting(true);
+
+        const { error } = await supabase.from('reports').insert([{
+            reporter_id: myId,
+            target_id: reportingMessage.id,
+            target_type: 'chat', // שים לב - זה צ'אט ולא תגובה!
+            reason: reportReason,
+            content_preview: reportingMessage.content,
+            status: 'pending'
+        }]);
+
+        if (!error) {
+            alert("הדיווח התקבל במשרד הקסמים.");
+            setReportingMessage(null);
+            setReportReason("");
+        }
+        setIsReporting(false);
+    };
+
     if (isLoading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
             <div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div>
@@ -163,7 +210,6 @@ export default function GreatHall() {
       `}</style>
 
             <div className="relative w-full max-w-7xl mx-auto px-4 py-4 flex flex-col h-[calc(100vh-120px)]" dir="rtl">
-
                 <nav className="flex justify-between items-center mb-6 px-2">
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard" className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white">
@@ -181,7 +227,7 @@ export default function GreatHall() {
                 </nav>
 
                 <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
-
+                    {/* סרגל צד - ללא שינוי */}
                     <aside className="hidden lg:flex flex-col gap-6 w-80 shrink-0 overflow-y-auto custom-scrollbar">
                         <section className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
                             <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-white/80 uppercase mb-8 border-b border-white/10 pb-4 flex items-center gap-2 font-bold">
@@ -238,6 +284,7 @@ export default function GreatHall() {
                         </section>
                     </aside>
 
+                    {/* אזור הצ'אט */}
                     <section className="flex-1 flex flex-col bg-black/60 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
                         <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 custom-scrollbar" role="log" aria-live="polite">
 
@@ -261,6 +308,25 @@ export default function GreatHall() {
                                     displayName = msg.profiles.email.split('@')[0];
                                 }
 
+                                const isMuted = blockedUserIds.includes(msg.user_id);
+
+                                // רינדור של הודעה מושתקת בצ'אט
+                                if (isMuted) {
+                                    return (
+                                        <div key={msg.id} className="flex w-full justify-start animate-in fade-in">
+                                            <div className="flex items-center justify-between p-3 rounded-[2rem] border border-white/5 bg-white/[0.02] text-white/40 w-full max-w-[85%] md:max-w-[60%]">
+                                                <span className="font-crimson italic text-sm">ההודעה של {displayName} הוסתרה.</span>
+                                                <button
+                                                    onClick={() => handleToggleMute(msg.user_id, displayName, true)}
+                                                    className="flex items-center gap-1 font-cinzel text-[10px] bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 transition-colors text-white/80"
+                                                >
+                                                    <Eye size={12} />ביטול השתקה
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
                                 return (
                                     <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`flex gap-3 max-w-[95%] md:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -279,9 +345,9 @@ export default function GreatHall() {
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className={`relative p-6 rounded-[2.5rem] border shadow-xl ${isMe
-                                                        ? 'rounded-tl-none border-white/20 bg-white/[0.08] text-right'
-                                                        : `rounded-tr-none ${h.border} ${h.bg} text-right`
+                                                <div className={`relative p-6 rounded-[2.5rem] border shadow-xl group ${isMe
+                                                    ? 'rounded-tl-none border-white/20 bg-white/[0.08] text-right'
+                                                    : `rounded-tr-none ${h.border} ${h.bg} text-right`
                                                     }`}>
                                                     <p className="text-white text-lg md:text-xl font-crimson leading-relaxed break-words select-text">
                                                         {msg.content}
@@ -291,9 +357,23 @@ export default function GreatHall() {
                                                             <Wand2 size={12} className="text-amber-500/40" />
                                                             {msg.profiles?.wand_type || 'שרביט טרם נבחר'}
                                                         </span>
-                                                        <time className="shrink-0 font-bold bg-black/40 px-3 py-1 rounded-full border border-white/5">
-                                                            {new Date(msg.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                        </time>
+
+                                                        <div className="flex items-center gap-3">
+                                                            {/* כפתורי בטיחות בצ'אט (רק להודעות של אחרים) */}
+                                                            {!isMe && (
+                                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button onClick={() => handleToggleMute(msg.user_id, displayName, false)} className="hover:text-white p-1" title="השתק קוסם">
+                                                                        <EyeOff size={14} />
+                                                                    </button>
+                                                                    <button onClick={() => setReportingMessage(msg)} className="hover:text-red-400 p-1" title="דדיווח למשרד הקסמים">
+                                                                        <Flag size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                            <time className="shrink-0 font-bold bg-black/40 px-3 py-1 rounded-full border border-white/5">
+                                                                {new Date(msg.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                            </time>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -304,13 +384,13 @@ export default function GreatHall() {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        <form onSubmit={sendMessage} className="p-6 bg-black/80 border-t border-white/10 flex gap-4 items-center">
+                        <form onSubmit={sendMessage} className="p-6 bg-black/80 border-t border-white/10 flex gap-4 items-center z-10">
                             <div className="flex-1 relative">
                                 <input
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     className="w-full bg-white/[0.08] border border-white/20 rounded-2xl px-6 py-5 text-white font-crimson text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
-                                    placeholder="לחש הודעה לאולם..."
+                                    placeholder="ללחוש הודעה לאולם..."
                                     disabled={!myId}
                                 />
                                 <Wand2 className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20" size={18} />
@@ -326,6 +406,34 @@ export default function GreatHall() {
                     </section>
                 </div>
             </div>
+
+            {/* מודאל דיווח במראה מתאים ללילה/צ'אט */}
+            {reportingMessage && (
+                <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" dir="rtl">
+                    <div className="bg-[#111] text-white w-full max-w-md rounded-[2rem] border-2 border-red-900/50 p-8 space-y-6 shadow-2xl animate-in zoom-in duration-300">
+                        <h4 className="font-cinzel text-xl font-bold text-red-500 flex items-center gap-2">
+                            <AlertTriangle size={24} /> דיווח על הודעה באולם
+                        </h4>
+                        <div className="grid grid-cols-1 gap-3">
+                            {['הצפה (Spam)', 'שפה פוגענית', 'הטרדה', 'אחר'].map((r) => (
+                                <button
+                                    key={r}
+                                    onClick={() => setReportReason(r)}
+                                    className={`w-full text-right p-4 rounded-xl border transition-all font-bold ${reportReason === r ? 'bg-red-900/50 border-red-500 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80'}`}
+                                >
+                                    {r}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-4">
+                            <button onClick={handleSendReport} disabled={!reportReason || isReporting} className="flex-1 py-4 bg-red-700 text-white rounded-xl font-cinzel font-bold hover:bg-red-600 disabled:opacity-30">
+                                {isReporting ? 'שולח...' : 'דיווח למשרד הקסמים'}
+                            </button>
+                            <button onClick={() => setReportingMessage(null)} className="flex-1 py-4 bg-white/10 text-white hover:bg-white/20 rounded-xl font-cinzel font-bold">ביטול</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

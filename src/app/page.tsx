@@ -7,8 +7,8 @@ import HouseCupLeaderboard from "@/components/HouseCupLeaderboard";
 import { Sparkles, Mail, Trophy, Users, Star, ArrowRight, X, Lock, ScrollText, Wand2 } from "lucide-react";
 
 /**
- * LUMOS IL - LANDING V14.2
- * שדרוגים: הוספת שורת טיפ סודית (Easter Egg Hint) מעוצבת בעמוד הראשי.
+ * LUMOS IL - LANDING V14.3 (The Inclusive Magic Update)
+ * שדרוגים: שפה א-מגדרית מקיפה ותוספת סקשן העצמה נשית/שוויונית.
  */
 
 export default function Home() {
@@ -167,17 +167,6 @@ export default function Home() {
         }
         .seal-pulse { animation: sealPulse 2.5s ease-in-out infinite; }
 
-        /* ========== PARTICLE SPARKLES ========== */
-        @keyframes particleFly {
-          0%   { transform: translate(0,0) scale(0); opacity: 1; }
-          100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
-        }
-        .particle {
-          position: absolute;
-          pointer-events: none;
-          animation: particleFly 1s ease-out forwards;
-        }
-
         /* ========== MODAL ENTRANCE ========== */
         @keyframes modalIn {
           from { opacity: 0; transform: scale(0.92) translateY(20px); }
@@ -252,7 +241,7 @@ export default function Home() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => e.key === 'Enter' && handleOpenEnvelope()}
-                  aria-label="פתח את המעטפה"
+                  aria-label="פתיחת המעטפה"
                 >
                   {/* גוף המעטפה */}
                   <div className="relative w-full h-[300px] md:h-[360px] rounded-lg overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.7)] border border-amber-900/20"
@@ -319,13 +308,13 @@ export default function Home() {
                         <h2 className="font-cinzel text-3xl md:text-4xl font-black tracking-tight text-center">הודעת קבלה רשמית</h2>
                       </div>
 
-                      {/* Body */}
+                      {/* Body - שפה א-מגדרית שוויונית */}
                       <div className="space-y-6 md:space-y-8 font-crimson text-xl md:text-2xl leading-relaxed italic">
-                        <p className="font-bold not-italic text-2xl md:text-3xl mb-2">קוסם/ת יקר/ה,</p>
+                        <p className="font-bold not-italic text-2xl md:text-3xl mb-2">מכשפה או קוסם יקרים,</p>
 
-                        <p>אנו שמחים להודיעך כי נמצא עבורך מקום בבית הספר הגבוה לקוסמות ולכישוף של קהילת <strong>Lumos IL</strong>. מכתב זה מהווה אישור רשמי להצטרפותך לקהילה הגדולה והאיכותית ביותר בישראל.</p>
+                        <p>אנו שמחים להודיעכם כי נמצא עבורכם מקום בבית הספר הגבוה לקוסמות ולכישוף של קהילת <strong>Lumos IL</strong>. מכתב זה מהווה אישור רשמי להצטרפותכם לקהילה הגדולה והאיכותית ביותר בישראל.</p>
 
-                        <p>בהוגוורטס שלנו, תמצא/י שותפים לדרך, שיעורי כשפים, תחרויות בין בתים ומרחב בטוח לחלוק את אהבתך לעולם הקסמים. שערי הטירה פתוחים כעת בפניך.</p>
+                        <p>בהוגוורטס שלנו, תמצאו שותפים לדרך, שיעורי כשפים, תחרויות בין בתים ומרחב בטוח לחלוק את אהבתכם לעולם הקסמים. שערי הטירה פתוחים כעת בפניכם.</p>
 
                         <div className="bg-amber-900/[0.04] p-6 rounded-lg border-r-4 border-amber-800/25 my-8 not-italic">
                           <h4 className="font-cinzel text-lg font-bold mb-4 uppercase tracking-widest text-amber-950">רשימת ציוד נדרשת:</h4>
@@ -333,14 +322,14 @@ export default function Home() {
                             <li className="flex items-center gap-3">✨ שרביט אחד (ניתן לרכוש באוליבנדר)</li>
                             <li className="flex items-center gap-3">✨ גלימת בית רשמית</li>
                             <li className="flex items-center gap-3">✨ רוח הרפתקנית ותעוזה</li>
-                            <li className="flex items-center gap-3">✨ נאמנות מוחלטת לחברי הבית שלך</li>
+                            <li className="flex items-center gap-3">✨ נאמנות מוחלטת לחברי הבית שלכם</li>
                           </ul>
                         </div>
 
-                        <p>מצנפת המיון כבר מחכה בקוצר רוח ללחוש באוזנך את גורלך. האם תהיה גריפינדור אמיץ? או אולי סלית'רין שאפתן?</p>
+                        <p>מצנפת המיון כבר מחכה בקוצר רוח ללחוש באוזניכם את גורלכם. האם תגלו אומץ לב כגריפינדור? או אולי שאפתנות כסלית'רין?</p>
 
                         <p className="text-lg opacity-70 border-t border-amber-900/10 pt-6">
-                          אנו מצפים לינשוף שלך לא יאוחר מהיום בחצות.<br /><br />
+                          אנו מצפים לינשוף שלכם לא יאוחר מהיום בחצות.<br /><br />
                           בכבוד רב,<br />
                           <strong className="text-2xl">הנהלת Lumos IL</strong>
                         </p>
@@ -360,7 +349,7 @@ export default function Home() {
                           onClick={() => setIsModalOpen(true)}
                           className="shimmer-btn group relative w-full text-amber-950 py-6 md:py-7 rounded-md font-cinzel text-xl md:text-2xl font-black shadow-2xl flex items-center justify-center gap-4 transition-transform active:scale-95 hover:scale-[1.01] overflow-hidden"
                         >
-                          <span className="relative z-10">היכנס בשערי הטירה</span>
+                          <span className="relative z-10">כניסה לשערי הטירה</span>
                           <ArrowRight className="relative z-10 group-hover:-translate-x-2 transition-transform rotate-180" size={24} />
                         </button>
                       </div>
@@ -385,10 +374,23 @@ export default function Home() {
           {!isOpen && (
             <div className="mt-8 hint-bounce">
               <p className="font-crimson text-xl md:text-2xl italic flex items-center gap-3 text-amber-500/70">
-                <Sparkles size={20} /> גע במעטפה כדי לגלות את גורלך
+                <Sparkles size={20} /> פתיחת המעטפה תחשוף את גורלכם
               </p>
             </div>
           )}
+        </section>
+
+        {/* ===== WITCHES & WIZARDS EMPOWERMENT SECTION (NEW!) ===== */}
+        <section className="relative z-10 py-16 px-6 max-w-5xl mx-auto text-center space-y-8 animate-in fade-in duration-1000 delay-500">
+          <div className="inline-flex items-center justify-center p-3 bg-amber-500/10 rounded-full border border-amber-500/20 mb-4">
+            <Sparkles size={32} className="text-amber-500" />
+          </div>
+          <h2 className="font-cinzel text-3xl md:text-5xl font-black text-white">
+            כוחן של <span className="text-amber-500">המכשפות</span> והקוסמים
+          </h2>
+          <p className="font-crimson text-xl md:text-2xl text-white/70 max-w-3xl mx-auto leading-relaxed">
+            היסטוריית הקסם מעולם לא הייתה שלמה לולא המכשפות המבריקות שעיצבו אותה - מהרמיוני גריינג'ר ועד מינרווה מקגונגל. בטירת Lumos IL, אנו גאים לבנות קהילה שוויונית, בטוחה ומעצימה, שבה לכל מכשפה וקוסם יש קול, השפעה, ומקום בשולחן האולם הגדול.
+          </p>
         </section>
 
         {/* ===== HOUSE CUP ===== */}
@@ -422,7 +424,7 @@ export default function Home() {
 
                 <div className="text-center space-y-2">
                   <h3 className="font-cinzel text-4xl tracking-tight font-bold text-white">שערי הטירה</h3>
-                  <p className="font-crimson text-lg text-amber-500/50 italic">הזן את פרטי הקסם שלך</p>
+                  <p className="font-crimson text-lg text-amber-500/50 italic">הזנת פרטי הקסם שלך</p>
                 </div>
 
                 <form onSubmit={handleAuth} className="w-full space-y-6">
@@ -461,7 +463,7 @@ export default function Home() {
                   onClick={() => setIsLoginMode(!isLoginMode)}
                   className="font-crimson text-white/30 hover:text-white/60 transition-all text-base underline underline-offset-[10px] outline-none"
                 >
-                  {isLoginMode ? "עדיין לא קיבלת מכתב זימון? הירשם" : "כבר יש לך מכתב? התחבר"}
+                  {isLoginMode ? "טרם התקבל מכתב זימון? להרשמה" : "כבר קיבלתם מכתב? להתחברות"}
                 </button>
               </div>
             </div>

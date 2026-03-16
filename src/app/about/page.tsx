@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { Sparkles, Star, Zap, Users, ShieldCheck, Wand2, Compass } from "lucide-react";
+import Link from "next/link"; // <-- ייבוא קריטי לניתוב הכפתור
 
 export const metadata: Metadata = {
   title: "הסיפור מאחורי האור | LUMOS IL",
@@ -44,13 +45,13 @@ export default function AboutPage() {
             </h2>
             <div className="space-y-6 text-white">
               <p>
-                הכל התחיל מהרצון להחזיר את תחושת הקהילה האמיתית. זוכרים את הימים של **Habbo** או **Club Penguin**? את המקומות שבהם הייתה לכם זהות, בית וחברים?
+                הכל התחיל מהרצון להחזיר את תחושת הקהילה האמיתית. זוכרים את הימים של <span className="font-black text-amber-400">Habbo</span> או <span className="font-black text-amber-400">Club Penguin</span>? את המקומות שבהם הייתה לכם זהות אמיתית, חדר משלכם וחברים מכל הארץ?
               </p>
               <p>
-                לקחנו את הנוסטלגיה ההיא, שילבנו אותה עם העולם המופלא של הארי פוטר, ויצרנו את <span className="text-amber-500 font-bold">Lumos IL</span>.
+                לקחנו את הגעגוע העמוק ההוא, שילבנו אותו עם העולם המופלא של הארי פוטר שכולנו גדלנו עליו, ויצרנו את <span className="text-amber-500 font-bold">Lumos IL</span>.
               </p>
-              <p className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20">
-                כאן, כל אחד הוא לא רק &quot;משתמש&quot; - הוא קוסם. עם בית, שרביט, וסיפור משלו.
+              <p className="bg-amber-500/10 p-5 rounded-xl border border-amber-500/30 text-amber-50">
+                כאן, אינכם רק &quot;משתמשים&quot; אנונימיים במסך - אתם קוסמים ומכשפות. יש לכם בית להתגאות בו, שרביט שבחר בכם, וסיפור שרק מחכה שתיצרו אותו.
               </p>
             </div>
           </div>
@@ -74,17 +75,17 @@ export default function AboutPage() {
             <ValueCard
               icon={<Users size={40} />}
               title="קהילה חיה"
-              description="אנחנו מאמינים בשיח מכבד, חברויות חדשות ומרחב שבו כל אחד יכול להיות הוא עצמו."
+              description="אנחנו מאמינים בשיח מכבד, חברויות חדשות ומרחב בטוח שבו כל אחד יכול להיות בדיוק מי שהוא."
             />
             <ValueCard
               icon={<Star size={40} />}
               title="חוויה אינטראקטיבית"
-              description="מטקס המיון ועד מפת הקונדסאים - הכל נבנה כדי שתהיו חלק מהעולם, לא רק צופים מהצד."
+              description="מטקס המיון המותח ועד מפת הקונדסאים - הכל נבנה כדי שתהיו חלק מהעולם, ולא רק צופים מהצד."
             />
             <ValueCard
               icon={<ShieldCheck size={40} />}
               title="נאמנות ליצירה"
-              description="האתר נבנה על ידי מעריצים, עבור מעריצים. כל פרט קטן מכבד את העולם שכולנו אוהבים."
+              description="האתר נבנה באהבה על ידי מעריצים, עבור מעריצים. כל פרט קטן נועד לכבד את העולם שכולנו אוהבים."
             />
           </div>
         </section>
@@ -98,13 +99,14 @@ export default function AboutPage() {
               השרביט מחכה לך
             </h2>
             <p className="font-crimson text-2xl md:text-3xl text-amber-100 italic max-w-2xl mx-auto font-bold leading-snug">
-              אלפי קוסמים כבר מצאו את הבית שלהם. הגיע הזמן שתמצא את שלך.
+              אלפי קוסמים כבר מצאו את הבית שלהם. הגיע הזמן שתיכנסו בשערי הטירה.
             </p>
 
             <div className="pt-6">
-              <button className="bg-amber-500 text-black px-12 py-6 rounded-full font-cinzel font-black text-2xl hover:bg-amber-400 hover:scale-105 active:scale-95 transition-all shadow-[0_20px_50px_rgba(245,158,11,0.4)]">
+              {/* החלפנו את ה-button הרגיל ב-Link אמיתי שמוביל לדאשבורד */}
+              <Link href="/dashboard" className="inline-block bg-amber-500 text-black px-12 py-6 rounded-full font-cinzel font-black text-2xl hover:bg-amber-400 hover:scale-105 active:scale-95 transition-all shadow-[0_20px_50px_rgba(245,158,11,0.4)]">
                 היכנסו לטירה עכשיו
-              </button>
+              </Link>
             </div>
           </div>
         </section>

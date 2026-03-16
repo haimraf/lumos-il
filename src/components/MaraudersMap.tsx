@@ -6,8 +6,8 @@ import { Map as MapIcon, Footprints, Ghost, Sparkles, Bell } from "lucide-react"
 import Link from "next/link";
 
 /**
- * LUMOS IL - MARAUDER'S MAP V2.6 (The "Profile Sync" Fix)
- * תיקון: שינוי שם המשתנה מ-data ל-profile וסנכרון ספירה ייחודית.
+ * LUMOS IL - MARAUDER'S MAP V2.7 (Global Presence Sync)
+ * עכשיו מחובר לערוץ הגלובלי ומסנכרן נוכחות מכל רחבי הטירה.
  */
 
 export default function MaraudersMap() {
@@ -16,7 +16,8 @@ export default function MaraudersMap() {
     const CASTLE_GHOSTS = 5;
 
     useEffect(() => {
-        const channel = supabase.channel('castle_presence', {
+        // התחברות לערוץ הגלובלי של כל האתר
+        const channel = supabase.channel('lumos_global_presence', {
             config: { presence: { key: 'wizard' } }
         });
 
@@ -38,21 +39,25 @@ export default function MaraudersMap() {
                 if (status === 'SUBSCRIBED') {
                     const { data: { session } } = await supabase.auth.getSession();
                     let name = "קוסם מסתורי";
+                    let house = "Unknown";
 
                     if (session) {
                         const { data: profile } = await supabase
                             .from('profiles')
-                            .select('full_name')
+                            .select('full_name, house')
                             .eq('id', session.user.id)
                             .single();
 
-                        // כאן היה הבאג - תוקן מ-data ל-profile
-                        if (profile?.full_name) {
-                            name = profile.full_name;
-                        }
+                        if (profile?.full_name) name = profile.full_name;
+                        if (profile?.house) house = profile.house;
                     }
 
-                    await channel.track({ user_name: name });
+                    // משדרים את אותם הנתונים כמו המפה הגדולה
+                    await channel.track({
+                        user_name: name,
+                        house: house,
+                        online_at: new Date().toISOString()
+                    });
                 }
             });
 
