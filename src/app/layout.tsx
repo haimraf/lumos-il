@@ -75,6 +75,9 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" className={`${assistant.variable} ${cinzel.variable} ${crimson.variable}`}>
       <head>
+        {/* תג אימות Google Search Console */}
+        <meta name="google-site-verification" content="f0JJtqq026fd7gIfYbuVC6IPDvvnl8e0R2FFpRkWFNQ" />
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
