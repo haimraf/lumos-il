@@ -14,8 +14,15 @@ import {
   ShoppingBag,
   ShieldCheck,
   ChevronLeft,
-  LogOut // הוספנו חזרה את האייקון
+  LogOut
 } from "lucide-react";
+import { useOwlMail } from "@/components/OwlMail";
+import MaraudersMap from "@/components/MaraudersMap"; // <-- הוספנו את מפת הקונדסאים
+
+/**
+ * LUMOS IL - DASHBOARD V8.2
+ * שדרוג: שילוב מפת הקונדסאים ב-Sidebar להצגת פעילות חיה בטירה.
+ */
 
 const HOUSE_THEMES: Record<string, {
   cardBg: string;
@@ -72,8 +79,11 @@ const HOUSE_THEMES: Record<string, {
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { sendOwl } = useOwlMail();
+
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
+  const [hasWelcomed, setHasWelcomed] = useState(false);
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -93,9 +103,15 @@ export default function DashboardPage() {
 
       setProfile({ ...profileData, email: session.user.email });
       setIsLoading(false);
+
+      if (!hasWelcomed) {
+        const houseName = HOUSE_THEMES[profileData.house]?.nameHe || "הטירה";
+        sendOwl("ברוכים השבים!", `שמחים לראות אותך שוב בחדר המועדון של ${houseName}.`, "info");
+        setHasWelcomed(true);
+      }
     };
     fetchUserAndProfile();
-  }, [router, supabase]);
+  }, [router, supabase, sendOwl, hasWelcomed]);
 
   if (isLoading) {
     return (
@@ -109,87 +125,105 @@ export default function DashboardPage() {
   const theme = HOUSE_THEMES[profile?.house] || HOUSE_THEMES['Gryffindor'];
 
   return (
-    <div className="relative w-full max-w-7xl mx-auto px-6 py-8 lg:py-12" dir="rtl">
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2.5s infinite linear;
+        }
+      `}</style>
 
-      <div className="fixed inset-0 z-[-1] pointer-events-none">
-        <div className={`absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full ${theme.nebula} blur-[120px] animate-pulse-slow opacity-60`}></div>
-      </div>
+      <div className="relative w-full max-w-7xl mx-auto px-6 py-8 lg:py-12" dir="rtl">
+        <div className="fixed inset-0 z-[-1] pointer-events-none">
+          <div className={`absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full ${theme.nebula} blur-[120px] animate-pulse opacity-60`}></div>
+        </div>
 
-      <div className="flex flex-col lg:flex-row gap-10 items-start">
+        <div className="flex flex-col lg:flex-row gap-10 items-start">
 
-        {/* SIDEBAR: STATS */}
-        <aside className="w-full lg:w-80 order-2 lg:order-1 shrink-0">
-          <div className={`rounded-[2.5rem] border ${theme.borderColor} bg-black/40 backdrop-blur-3xl p-8 shadow-2xl space-y-10`}>
-            <h3 className="font-cinzel text-[10px] tracking-[0.5em] text-white/30 text-center uppercase border-b border-white/5 pb-4 italic">Wizard Profile</h3>
+          {/* SIDEBAR: STATS & MAP */}
+          <aside className="w-full lg:w-80 order-2 lg:order-1 shrink-0">
+            <div className={`rounded-[2.5rem] border ${theme.borderColor} bg-black/40 backdrop-blur-3xl p-8 shadow-2xl flex flex-col gap-8`}>
+              <h3 className="font-cinzel text-[10px] tracking-[0.5em] text-white/30 text-center uppercase border-b border-white/5 pb-4 italic">
+                Wizard Profile
+              </h3>
 
-            <div className="space-y-8">
-              <StatItem icon={User} label="דרגה" value={profile?.role} theme={theme} />
-              <StatItem icon={Coins} label="גליאונים" value={profile?.galleons} theme={theme} highlight="text-amber-500" />
-              <StatItem icon={Trophy} label="נקודות" value={profile?.points_contributed} theme={theme} />
+              <div className="space-y-8 flex-1">
+                <StatItem icon={User} label="דרגה" value={profile?.role || "תלמיד שנה א'"} theme={theme} />
+                <StatItem icon={Coins} label="גליאונים" value={profile?.galleons || 100} theme={theme} highlight="text-amber-500" />
+                <StatItem icon={Trophy} label="נקודות" value={profile?.points || 0} theme={theme} />
 
-              <div className="pt-8 border-t border-white/5">
-                <div className="bg-white/[0.03] rounded-2xl p-6 flex flex-col items-center gap-4 text-center border border-white/5 group relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer pointer-events-none"></div>
-                  <div className={`p-3 rounded-full bg-white/5 ${theme.accentText} shadow-inner`}>
-                    <Wand2 size={24} />
-                  </div>
-                  <div>
-                    <p className="text-[9px] text-white/20 uppercase tracking-[0.3em] mb-2 font-cinzel">ליבת השרביט</p>
-                    <p className={`text-sm font-crimson font-medium italic ${profile?.wand_type ? "text-amber-200" : "text-white/10"}`}>
-                      {profile?.wand_type || "טרם נבחר שרביט"}
-                    </p>
+                {/* --- מפת הקונדסאים (התווספה כאן) --- */}
+                <div className="pt-4">
+                  <MaraudersMap />
+                </div>
+                {/* ---------------------------------- */}
+
+                <div className="pt-8 border-t border-white/5">
+                  <div className="bg-white/[0.03] rounded-2xl p-6 flex flex-col items-center gap-4 text-center border border-white/5 group relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:animate-shimmer pointer-events-none"></div>
+                    <div className={`p-3 rounded-full bg-white/5 ${theme.accentText} shadow-inner`}>
+                      <Wand2 size={24} />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-white/20 uppercase tracking-[0.3em] mb-2 font-cinzel">ליבת השרביט</p>
+                      <p className={`text-sm font-crimson font-medium italic ${profile?.wand_type ? "text-amber-200" : "text-white/10"}`}>
+                        {profile?.wand_type || "טרם נבחר שרביט"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <button
+                onClick={async () => { await supabase.auth.signOut(); router.push('/'); }}
+                className="w-full pt-8 mt-4 flex items-center justify-center gap-3 text-[10px] text-red-400/50 hover:text-red-400 font-cinzel tracking-widest uppercase transition-all border-t border-white/5 group/out"
+              >
+                <LogOut size={14} className="group-hover/out:-translate-x-1 transition-transform" />
+                <span>יציאה בטוחה</span>
+              </button>
             </div>
+          </aside>
 
-            {/* כפתור Logout משוחזר ומשופר */}
-            <button
-              onClick={async () => { await supabase.auth.signOut(); router.push('/'); }}
-              className="w-full pt-8 flex items-center justify-center gap-3 text-[10px] text-red-400/50 hover:text-red-400 font-cinzel tracking-widest uppercase transition-all border-t border-white/5 group/out"
-            >
-              <LogOut size={14} className="group-hover/out:-translate-x-1 transition-transform" />
-              <span>יציאה בטוחה</span>
-            </button>
-          </div>
-        </aside>
+          {/* MAIN CONTENT AREA */}
+          <div className="flex-1 order-1 lg:order-2 space-y-10 w-full">
+            <section className={`relative overflow-hidden rounded-[3rem] border ${theme.borderColor} ${theme.cardBg} p-10 md:p-16 shadow-2xl ${theme.glowColor}`}>
+              <div className="relative z-10 flex flex-col gap-8">
+                <div className="flex items-center gap-3 opacity-40">
+                  <span className="h-[1px] w-10 bg-amber-500"></span>
+                  <span className="font-cinzel text-[10px] tracking-[0.4em] text-amber-500 uppercase">Room of Requirement</span>
+                </div>
 
-        {/* MAIN CONTENT AREA */}
-        <div className="flex-1 order-1 lg:order-2 space-y-10 w-full">
-          <section className={`relative overflow-hidden rounded-[3rem] border ${theme.borderColor} ${theme.cardBg} p-10 md:p-16 shadow-2xl ${theme.glowColor}`}>
-            <div className="relative z-10 flex flex-col gap-8">
-              <div className="flex items-center gap-3 opacity-40">
-                <span className="h-[1px] w-10 bg-amber-500"></span>
-                <span className="font-cinzel text-[10px] tracking-[0.4em] text-amber-500 uppercase">Room of Requirement</span>
+                <div className="space-y-4">
+                  <h2 className="font-cinzel text-xl text-white/40 tracking-widest leading-none">ברוכים הבאים לבית</h2>
+                  <h1 className={`font-cinzel text-5xl md:text-[7rem] font-black tracking-tighter leading-none ${theme.accentText}`}>
+                    {theme.nameHe}
+                  </h1>
+                </div>
+
+                <div className={`mt-2 border-r-4 ${theme.borderColor} pr-6 max-w-xl`}>
+                  <p className={`font-crimson text-xl md:text-2xl leading-relaxed text-white/70 italic`}>
+                    "{theme.description}"
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <h2 className="font-cinzel text-xl text-white/40 tracking-widest leading-none">ברוכים הבאים לבית</h2>
-                <h1 className={`font-cinzel text-5xl md:text-[7rem] font-black tracking-tighter leading-none ${theme.accentText}`}>
-                  {theme.nameHe}
-                </h1>
+              <div className={`absolute -bottom-20 -left-20 opacity-[0.03] ${theme.accentText} pointer-events-none`}>
+                <ShieldCheck size={400} />
               </div>
+            </section>
 
-              <div className={`mt-2 border-r-4 ${theme.borderColor} pr-6 max-w-xl`}>
-                <p className={`font-crimson text-xl md:text-2xl leading-relaxed text-white/70 italic`}>
-                  "{theme.description}"
-                </p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <ActionCard href="/great-hall" icon={Users} title="האולם הגדול" desc="קהילה ושיחות" theme={theme} />
+              <ActionCard href="/ollivanders" icon={ShoppingBag} title="סמטת דיאגון" desc="ציוד ושרביטים" theme={theme} />
+              <ActionCard href="/quests" icon={ScrollText} title="לוח משימות" desc="צבירת נקודות" theme={theme} />
             </div>
-
-            <div className={`absolute -bottom-20 -left-20 opacity-[0.03] ${theme.accentText} pointer-events-none`}>
-              <ShieldCheck size={400} />
-            </div>
-          </section>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <ActionCard href="/great-hall" icon={Users} title="האולם הגדול" desc="קהילה ושיחות" theme={theme} />
-            <ActionCard href="/ollivanders" icon={ShoppingBag} title="סמטת דיאגון" desc="ציוד ושרביטים" theme={theme} />
-            <ActionCard href="/quests" icon={ScrollText} title="לוח משימות" desc="צבירת נקודות" theme={theme} />
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -204,7 +238,7 @@ function StatItem({ icon: Icon, label, value, theme, highlight }: any) {
         <span className="text-xs font-crimson text-white/40 tracking-widest uppercase">{label}</span>
       </div>
       <span className={`font-cinzel font-bold text-lg ${highlight || theme.textColor}`}>
-        {value || 0}
+        {value}
       </span>
     </div>
   );

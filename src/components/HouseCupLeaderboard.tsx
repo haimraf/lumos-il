@@ -4,42 +4,46 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 /**
- * LUMOS IL - HOUSE CUP LEADERBOARD V6.0
- * שדרוג: אפקטים של זכוכית (Glassmorphism), נוזל קסום דינמי, ושימוש באנימציות CSS.
+ * LUMOS IL - HOUSE CUP LEADERBOARD V6.2
+ * שדרוג: תמיכה בנגישות, תיקון עקומות אנימציה, ותיקון באג הקווים התחתונים (Tailwind Static Scan).
  */
 
 const HOUSES = [
   {
     id: 'Gryffindor',
     name: 'גריפינדור',
-    colorFrom: '#7f1d1d', // אדום עמוק
+    colorFrom: '#7f1d1d',
     colorTo: '#ef4444',
     glow: 'rgba(239, 68, 68, 0.4)',
-    textColor: 'text-red-400'
+    textColor: 'text-red-400',
+    lineColor: 'bg-red-400'
   },
   {
     id: 'Slytherin',
     name: "סלית'רין",
-    colorFrom: '#064e3b', // ירוק ברקת
+    colorFrom: '#064e3b',
     colorTo: '#10b981',
     glow: 'rgba(16, 185, 129, 0.4)',
-    textColor: 'text-emerald-400'
+    textColor: 'text-emerald-400',
+    lineColor: 'bg-emerald-400'
   },
   {
     id: 'Ravenclaw',
     name: 'רייבנקלו',
-    colorFrom: '#1e3a8a', // כחול עמוק
+    colorFrom: '#1e3a8a',
     colorTo: '#3b82f6',
     glow: 'rgba(59, 130, 246, 0.4)',
-    textColor: 'text-blue-400'
+    textColor: 'text-blue-400',
+    lineColor: 'bg-blue-400'
   },
   {
     id: 'Hufflepuff',
     name: 'הפלפאף',
-    colorFrom: '#78350f', // ענבר-זהב
+    colorFrom: '#78350f',
     colorTo: '#f59e0b',
     glow: 'rgba(245, 158, 11, 0.4)',
-    textColor: 'text-amber-400'
+    textColor: 'text-amber-400',
+    lineColor: 'bg-amber-400'
   },
 ];
 
@@ -120,10 +124,17 @@ export default function HouseCupLeaderboard() {
                 </span>
               </div>
 
-              {/* המבחנה עצמה */}
-              <div className="relative w-12 h-56 md:w-16 md:h-72 lg:w-20 lg:h-80 rounded-t-full rounded-b-3xl glass-panel shadow-2xl flex items-end overflow-hidden group/tube">
+              {/* המבחנה עצמה (מונגשת לקוראי מסך) */}
+              <div
+                role="progressbar"
+                aria-label={`נקודות גביע הבתים עבור ${house.name}`}
+                aria-valuenow={points}
+                aria-valuemin={0}
+                aria-valuemax={maxPoints}
+                className="relative w-12 h-56 md:w-16 md:h-72 lg:w-20 lg:h-80 rounded-t-full rounded-b-3xl glass-panel shadow-2xl flex items-end overflow-hidden group/tube"
+              >
 
-                {/* אפקט השתקפות על הזכוכית (משתמש באנימציית shimmer מה-CSS) */}
+                {/* אפקט השתקפות על הזכוכית */}
                 <div className="absolute inset-0 opacity-20 pointer-events-none z-20">
                   <div className="absolute top-0 left-1/4 w-[2px] h-full bg-white/30 blur-[1px]"></div>
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer"></div>
@@ -131,7 +142,7 @@ export default function HouseCupLeaderboard() {
 
                 {/* הנוזל הקסום */}
                 <div
-                  className="w-full relative transition-all duration-[2500ms] ease-out-expo"
+                  className="w-full relative transition-all duration-[2000ms] ease-out"
                   style={{
                     height: `${fillHeight}%`,
                     background: `linear-gradient(to top, ${house.colorFrom}, ${house.colorTo})`,
@@ -162,7 +173,7 @@ export default function HouseCupLeaderboard() {
                 <span className="font-cinzel text-[10px] md:text-xs tracking-[0.2em] font-bold text-white/60 uppercase group-hover:text-white transition-colors">
                   {house.name}
                 </span>
-                <div className={`w-0 h-[1px] ${house.textColor.replace('text', 'bg')} transition-all duration-500 group-hover:w-full opacity-50`}></div>
+                <div className={`w-0 h-[1px] ${house.lineColor} transition-all duration-500 group-hover:w-full opacity-50`}></div>
               </div>
 
             </div>

@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
-    Send,
     Wand2,
     ChevronRight,
     Sparkles,
@@ -15,8 +14,8 @@ import {
 } from "lucide-react";
 
 /**
- * LUMOS IL - THE GREAT HALL V3.2
- * תיקון: הוספת Cleanup ל-WebSockets למניעת באג רשימת מחוברים ריקה במעבר עמודים.
+ * LUMOS IL - THE GREAT HALL V4.1 (Complete Version)
+ * כולל: תיקון כיווני בועות צ'אט, חילוץ שמות אוטומטי (Auto-Healing) וגלילה ריאקטיבית.
  */
 
 type Message = {
@@ -58,13 +57,16 @@ export default function GreatHall() {
     const [myName, setMyName] = useState<string>("קוסם/ת");
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // מנגנון גלילה חכם וריאקטיבי 
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
 
     useEffect(() => {
         let isMounted = true;
-        // חשוב: הגדרת הערוץ מחוץ ל-setup כדי שנוכל לסגור אותו בסוף
         const channel = supabase.channel('great_hall_v2');
 
         const setup = async () => {
@@ -72,8 +74,18 @@ export default function GreatHall() {
             if (!session || !isMounted) return;
 
             setMyId(session.user.id);
+
+            // חילוץ שם
             const extractedName = session.user.email ? session.user.email.split('@')[0] : "קוסם/ת";
             setMyName(extractedName);
+
+            // --- קסם הריפוי: עדכון השם בתיק האישי אם הוא חסר ---
+            const { data: profileCheck } = await supabase.from('profiles').select('full_name, role, house').eq('id', session.user.id).single();
+
+            if (!profileCheck?.full_name || profileCheck.full_name === 'Wizard') {
+                await supabase.from('profiles').update({ full_name: extractedName }).eq('id', session.user.id);
+            }
+            // -----------------------------------------------------
 
             const { data } = await supabase
                 .from('messages')
@@ -83,7 +95,6 @@ export default function GreatHall() {
 
             if (data && isMounted) setMessages(data as any);
             if (isMounted) setIsLoading(false);
-            setTimeout(scrollToBottom, 300);
 
             channel
                 .on('presence', { event: 'sync' }, () => {
@@ -104,19 +115,18 @@ export default function GreatHall() {
                         .select('*, profiles(house, role, wand_type, full_name, email)')
                         .eq('id', payload.new.id)
                         .single();
+
                     if (m && isMounted) {
                         setMessages(prev => [...prev, m as any]);
-                        setTimeout(scrollToBottom, 50);
                     }
                 })
                 .subscribe(async (status) => {
                     if (status === 'SUBSCRIBED' && isMounted) {
-                        const { data: p } = await supabase.from('profiles').select('role, house').eq('id', session.user.id).single();
                         await channel.track({
                             user_id: session.user.id,
-                            name: extractedName,
-                            role: p?.role || 'תלמיד/ה',
-                            house: p?.house || 'Unknown'
+                            name: profileCheck?.full_name || extractedName,
+                            role: profileCheck?.role || 'תלמיד/ה',
+                            house: profileCheck?.house || 'Unknown'
                         });
                     }
                 });
@@ -124,7 +134,6 @@ export default function GreatHall() {
 
         setup();
 
-        // הלחש המסיר: סוגר את ערוץ התקשורת כשעוזבים את העמוד
         return () => {
             isMounted = false;
             supabase.removeChannel(channel);
@@ -134,7 +143,7 @@ export default function GreatHall() {
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || !myId) return;
-        const content = newMessage;
+        const content = newMessage.trim();
         setNewMessage("");
         await supabase.from('messages').insert({ content, user_id: myId });
     };
@@ -147,163 +156,176 @@ export default function GreatHall() {
     );
 
     return (
-        <div className="relative w-full max-w-7xl mx-auto px-4 py-4 flex flex-col h-[calc(100vh-120px)]" dir="rtl">
+        <>
+            <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.4); border-radius: 10px; }
+      `}</style>
 
-            <nav className="flex justify-between items-center mb-6 px-2">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard" className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white">
-                        <ChevronRight size={24} />
-                    </Link>
-                    <h1 className="font-cinzel text-xl md:text-3xl font-black tracking-widest flex items-center gap-3 text-white">
-                        האולם הגדול <Sparkles className="text-amber-500" size={18} />
-                    </h1>
-                </div>
+            <div className="relative w-full max-w-7xl mx-auto px-4 py-4 flex flex-col h-[calc(100vh-120px)]" dir="rtl">
 
-                <div className="bg-emerald-500/20 border border-emerald-500/40 px-4 py-1.5 rounded-full flex items-center gap-2">
-                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]"></span>
-                    <span className="text-emerald-300 text-[11px] font-black uppercase font-cinzel tracking-wider">{onlineUsers.length} נוכחים</span>
-                </div>
-            </nav>
+                <nav className="flex justify-between items-center mb-6 px-2">
+                    <div className="flex items-center gap-4">
+                        <Link href="/dashboard" className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white">
+                            <ChevronRight size={24} />
+                        </Link>
+                        <h1 className="font-cinzel text-xl md:text-3xl font-black tracking-widest flex items-center gap-3 text-white">
+                            האולם הגדול <Sparkles className="text-amber-500" size={18} />
+                        </h1>
+                    </div>
 
-            <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
+                    <div className="bg-emerald-500/20 border border-emerald-500/40 px-4 py-1.5 rounded-full flex items-center gap-2">
+                        <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]"></span>
+                        <span className="text-emerald-300 text-[11px] font-black uppercase font-cinzel tracking-wider">{onlineUsers.length} נוכחים</span>
+                    </div>
+                </nav>
 
-                <aside className="hidden lg:flex flex-col gap-6 w-80 shrink-0 overflow-y-auto custom-scrollbar">
+                <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
 
-                    <section className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
-                        <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-white/80 uppercase mb-8 border-b border-white/10 pb-4 flex items-center gap-2 font-bold">
-                            <Users size={14} className="text-amber-500" /> נוכחים בהיכל
-                        </h3>
-                        <div className="space-y-6">
-                            {onlineUsers.map((u, i) => {
-                                const h = HOUSE_CONFIG[u.house] || HOUSE_CONFIG['Unknown'];
-                                const r = RANK_CONFIG[u.role] || RANK_CONFIG['תלמיד/ה'];
+                    <aside className="hidden lg:flex flex-col gap-6 w-80 shrink-0 overflow-y-auto custom-scrollbar">
+                        <section className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
+                            <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-white/80 uppercase mb-8 border-b border-white/10 pb-4 flex items-center gap-2 font-bold">
+                                <Users size={14} className="text-amber-500" /> נוכחים בהיכל
+                            </h3>
+                            <div className="space-y-6">
+                                {onlineUsers.map((u, i) => {
+                                    const h = HOUSE_CONFIG[u.house] || HOUSE_CONFIG['Unknown'];
+                                    const r = RANK_CONFIG[u.role] || RANK_CONFIG['תלמיד/ה'];
+                                    return (
+                                        <div key={i} className="flex items-start gap-4">
+                                            <span className="text-2xl pt-1">{h.icon}</span>
+                                            <div className="flex flex-col gap-1.5">
+                                                <span className="text-base font-bold tracking-wide text-white leading-tight">{u.name}</span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    <span className={`text-[8px] px-2 py-0.5 rounded-full border leading-none font-black uppercase tracking-widest ${r.class}`}>{r.label}</span>
+                                                    <span className={`text-[8px] px-2 py-0.5 rounded-full border leading-none font-black uppercase tracking-widest ${h.bg} ${h.border} ${h.color}`}>{h.label}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+
+                        <section className="bg-white/[0.03] border border-white/10 rounded-[2rem] p-8 shadow-xl space-y-8">
+                            <div>
+                                <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-amber-500/90 uppercase mb-4 border-b border-amber-500/20 pb-2 flex items-center gap-2 font-bold">
+                                    <Info size={14} /> דרגות
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {UNIQUE_RANKS.map(key => (
+                                        <span key={key} className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-md ${RANK_CONFIG[key].class}`}>
+                                            {RANK_CONFIG[key].label}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-amber-500/90 uppercase mb-4 border-b border-amber-500/20 pb-2 flex items-center gap-2 font-bold">
+                                    <Shield size={14} /> בתים
+                                </h3>
+                                <div className="space-y-3">
+                                    {Object.entries(HOUSE_CONFIG).filter(([k]) => k !== 'Unknown').map(([k, h]) => (
+                                        <div key={k} className="flex items-center gap-3">
+                                            <span className="text-xl">{h.icon}</span>
+                                            <span className={`px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest shadow-md ${h.bg} ${h.border} ${h.color}`}>
+                                                {h.label}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+                    </aside>
+
+                    <section className="flex-1 flex flex-col bg-black/60 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
+                        <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 custom-scrollbar" role="log" aria-live="polite">
+
+                            {messages.length === 0 && (
+                                <div className="h-full flex items-center justify-center opacity-30 font-cinzel text-2xl text-white">
+                                    האולם שקט... היה הראשון להטיל לחש!
+                                </div>
+                            )}
+
+                            {messages.map((msg) => {
+                                const isMe = myId === msg.user_id;
+                                const h = HOUSE_CONFIG[msg.profiles?.house || 'Unknown'] || HOUSE_CONFIG['Unknown'];
+                                const r = RANK_CONFIG[msg.profiles?.role || 'תלמיד/ה'] || RANK_CONFIG['תלמיד/ה'];
+
+                                let displayName = "קוסם/ת";
+                                if (isMe) {
+                                    displayName = myName;
+                                } else if (msg.profiles?.full_name && msg.profiles.full_name !== 'Wizard') {
+                                    displayName = msg.profiles.full_name;
+                                } else if (msg.profiles?.email) {
+                                    displayName = msg.profiles.email.split('@')[0];
+                                }
+
                                 return (
-                                    <div key={i} className="flex items-start gap-4">
-                                        <span className="text-2xl pt-1">{h.icon}</span>
-                                        <div className="flex flex-col gap-1.5">
-                                            <span className="text-base font-bold tracking-wide text-white leading-tight">{u.name}</span>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                <span className={`text-[8px] px-2 py-0.5 rounded-full border leading-none font-black uppercase tracking-widest ${r.class}`}>{r.label}</span>
-                                                <span className={`text-[8px] px-2 py-0.5 rounded-full border leading-none font-black uppercase tracking-widest ${h.bg} ${h.border} ${h.color}`}>{h.label}</span>
+                                    <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`flex gap-3 max-w-[95%] md:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                            <span className="text-3xl drop-shadow-md shrink-0 pt-2">{h.icon}</span>
+                                            <div className="flex flex-col gap-2">
+                                                <div className={`flex flex-col sm:flex-row items-baseline gap-2 ${isMe ? 'self-start sm:flex-row-reverse' : 'self-start'}`}>
+                                                    <span className="text-base font-cinzel font-black text-white tracking-widest min-h-[24px]">
+                                                        {displayName}
+                                                    </span>
+                                                    <div className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                        <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${r.class}`}>
+                                                            {r.label}
+                                                        </span>
+                                                        <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${h.bg} ${h.border} ${h.color}`}>
+                                                            {h.label}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className={`relative p-6 rounded-[2.5rem] border shadow-xl ${isMe
+                                                        ? 'rounded-tl-none border-white/20 bg-white/[0.08] text-right'
+                                                        : `rounded-tr-none ${h.border} ${h.bg} text-right`
+                                                    }`}>
+                                                    <p className="text-white text-lg md:text-xl font-crimson leading-relaxed break-words select-text">
+                                                        {msg.content}
+                                                    </p>
+                                                    <div className={`mt-5 flex items-center justify-between gap-4 text-white/40 text-[10px] border-t border-white/10 pt-4 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                        <span className={`italic font-mono uppercase tracking-widest flex items-center gap-2 font-bold ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                            <Wand2 size={12} className="text-amber-500/40" />
+                                                            {msg.profiles?.wand_type || 'שרביט טרם נבחר'}
+                                                        </span>
+                                                        <time className="shrink-0 font-bold bg-black/40 px-3 py-1 rounded-full border border-white/5">
+                                                            {new Date(msg.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                        </time>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 );
                             })}
+                            <div ref={messagesEndRef} />
                         </div>
-                    </section>
 
-                    <section className="bg-white/[0.03] border border-white/10 rounded-[2rem] p-8 shadow-xl space-y-8">
-                        <div>
-                            <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-amber-500/90 uppercase mb-4 border-b border-amber-500/20 pb-2 flex items-center gap-2 font-bold">
-                                <Info size={14} /> דרגות
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                                {UNIQUE_RANKS.map(key => (
-                                    <span key={key} className={`px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest shadow-md ${RANK_CONFIG[key].class}`}>
-                                        {RANK_CONFIG[key].label}
-                                    </span>
-                                ))}
+                        <form onSubmit={sendMessage} className="p-6 bg-black/80 border-t border-white/10 flex gap-4 items-center">
+                            <div className="flex-1 relative">
+                                <input
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    className="w-full bg-white/[0.08] border border-white/20 rounded-2xl px-6 py-5 text-white font-crimson text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
+                                    placeholder="לחש הודעה לאולם..."
+                                    disabled={!myId}
+                                />
+                                <Wand2 className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20" size={18} />
                             </div>
-                        </div>
-                        <div>
-                            <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-amber-500/90 uppercase mb-4 border-b border-amber-500/20 pb-2 flex items-center gap-2 font-bold">
-                                <Shield size={14} /> בתים
-                            </h3>
-                            <div className="space-y-3">
-                                {Object.entries(HOUSE_CONFIG).filter(([k]) => k !== 'Unknown').map(([k, h]) => (
-                                    <div key={k} className="flex items-center gap-3">
-                                        <span className="text-xl">{h.icon}</span>
-                                        <span className={`px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest shadow-md ${h.bg} ${h.border} ${h.color}`}>
-                                            {h.label}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                            <button
+                                type="submit"
+                                disabled={!newMessage.trim()}
+                                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 text-amber-950 p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0"
+                            >
+                                <Zap size={24} />
+                            </button>
+                        </form>
                     </section>
-                </aside>
-
-                <section className="flex-1 flex flex-col bg-black/60 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
-                    <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-12 custom-scrollbar" role="log" aria-live="polite">
-                        {messages.map((msg) => {
-                            const isMe = myId === msg.user_id;
-                            const h = HOUSE_CONFIG[msg.profiles?.house || 'Unknown'] || HOUSE_CONFIG['Unknown'];
-                            const r = RANK_CONFIG[msg.profiles?.role || 'תלמיד/ה'] || RANK_CONFIG['תלמיד/ה'];
-
-                            let displayName = "קוסם/ת";
-                            if (isMe) {
-                                displayName = myName;
-                            } else if (msg.profiles?.full_name && msg.profiles.full_name !== 'Wizard') {
-                                displayName = msg.profiles.full_name;
-                            } else if (msg.profiles?.email) {
-                                displayName = msg.profiles.email.split('@')[0];
-                            }
-
-                            return (
-                                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-start' : 'items-end'}`}>
-
-                                    <div className={`flex items-center gap-3 mb-3 px-2 ${isMe ? 'flex-row' : 'flex-row-reverse'}`}>
-                                        <span className="text-3xl drop-shadow-md">{h.icon}</span>
-                                        <div className={`flex flex-col sm:flex-row items-baseline gap-2 ${isMe ? 'text-right' : 'text-left'}`}>
-                                            <span className="text-base font-cinzel font-black text-white tracking-widest min-h-[24px]">
-                                                {displayName}
-                                            </span>
-                                            <div className="flex gap-2">
-                                                <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${r.class}`}>
-                                                    {r.label}
-                                                </span>
-                                                <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${h.bg} ${h.border} ${h.color}`}>
-                                                    {h.label}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className={`relative max-w-[95%] md:max-w-[75%] p-6 rounded-[2.5rem] border transition-all shadow-xl ${isMe
-                                            ? 'rounded-tl-none border-white/20 bg-white/[0.08]'
-                                            : `rounded-tr-none ${h.border} ${h.bg}`
-                                        }`}>
-                                        <p className="text-white text-lg md:text-xl font-crimson leading-relaxed text-right break-words select-text">
-                                            {msg.content}
-                                        </p>
-                                        <div className="mt-5 flex flex-col md:flex-row justify-between md:items-center gap-3 text-white/40 text-[10px] border-t border-white/10 pt-4">
-                                            <span className="italic font-mono uppercase tracking-widest flex items-center gap-2 font-bold">
-                                                <Wand2 size={12} className="text-amber-500/40" />
-                                                {msg.profiles?.wand_type || 'שרביט טרם נבחר'}
-                                            </span>
-                                            <time className="shrink-0 font-bold bg-black/40 px-3 py-1 rounded-full border border-white/5">
-                                                {new Date(msg.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                            </time>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        <div ref={messagesEndRef} />
-                    </div>
-
-                    <form onSubmit={sendMessage} className="p-6 bg-black/80 border-t border-white/10 flex gap-4 items-center">
-                        <div className="flex-1 relative">
-                            <input
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                className="w-full bg-white/[0.08] border border-white/20 rounded-2xl px-6 py-5 text-white font-crimson text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
-                                placeholder="לחש הודעה לאולם..."
-                            />
-                            <Wand2 className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20" size={18} />
-                        </div>
-                        <button type="submit" className="bg-amber-600 hover:bg-amber-500 text-amber-950 p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0">
-                            <Zap size={24} />
-                        </button>
-                    </form>
-                </section>
+                </div>
             </div>
-
-            <style jsx>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.4); border-radius: 10px; }
-            `}</style>
-        </div>
+        </>
     );
 }

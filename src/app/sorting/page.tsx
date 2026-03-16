@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Sparkles, Wand2, Moon, Compass, Ghost, Zap, Scroll, Skull } from "lucide-react";
+import { Sparkles, Wand2, Moon, Compass, Zap, Scroll, Skull } from "lucide-react";
 
 /**
- * LUMOS IL - THE SORTING HAT V8.0 (The "Mind-Blower" Edition)
- * שדרוג: שאלות לור עמוקות, לוגיקת Hatstall, ואנימציות פרימיום.
+ * LUMOS IL - THE SORTING HAT V8.1
+ * שדרוג: תיקון מבנה ה-HTML ב-Reveal State וסידור הכפתור להמשך לדאשבורד.
  */
 
 const HOUSES = [
@@ -99,17 +99,26 @@ export default function SortingPage() {
     if (isAuthenticating || assignedHouse || (isAnswering && !isSorting)) return;
     let msgIndex = 0;
     let charIndex = 0;
+
+    // Cleanup logic to prevent memory leaks if component unmounts during typing
+    let typingTimeout: NodeJS.Timeout;
+
     const type = () => {
       const fullText = isSorting ? "מעניין... מעניין מאוד. אני רואה הכל... הנה ההחלטה שלי!" : initialMessages[msgIndex];
       if (charIndex <= fullText.length) {
         setTypewriterText(fullText.slice(0, charIndex));
         charIndex++;
-        setTimeout(type, 40);
+        typingTimeout = setTimeout(type, 40);
       } else if (!isSorting && msgIndex < initialMessages.length - 1) {
-        setTimeout(() => { msgIndex++; charIndex = 0; type(); }, 1200);
-      } else { setIsTypingFinished(true); }
+        typingTimeout = setTimeout(() => { msgIndex++; charIndex = 0; type(); }, 1200);
+      } else {
+        setIsTypingFinished(true);
+      }
     };
+
     type();
+
+    return () => clearTimeout(typingTimeout);
   }, [isAuthenticating, isSorting, isAnswering, assignedHouse]);
 
   const handleAnswer = async (selectedHouse: string) => {
@@ -157,7 +166,12 @@ export default function SortingPage() {
               "{assignedHouse.bio}"
             </p>
           </div>
-          <button onClick={() => router.push('/dashboard')} className="mt-12 bg-white text-black px-16 py-6 rounded-full font-cinzel font-bold text-xl hover:bg-amber-500 hover:scale-110 transition-all shadow-2xl">
+
+          {/* תוקן מיקום הכפתור - עכשיו יושב מסודר למטה */}
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="mt-8 bg-white/10 border border-white/30 backdrop-blur-md text-white px-12 py-5 rounded-full font-cinzel font-bold text-lg tracking-widest hover:bg-white hover:text-black hover:scale-105 transition-all shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95"
+          >
             להמשך לחדר המועדון
           </button>
         </div>
@@ -172,19 +186,21 @@ export default function SortingPage() {
       <main className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-6 relative overflow-hidden" dir="rtl">
         <div className="absolute inset-0 opacity-[0.05] bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')] pointer-events-none"></div>
         <div className="relative z-10 w-full max-w-4xl glass-panel p-10 md:p-20 rounded-[4rem] border-amber-900/20 shadow-[0_0_100px_rgba(0,0,0,0.8)]" style={{ backgroundImage: "linear-gradient(135deg, #fdfaf5 0%, #f3eedc 100%)" }}>
-          <div className="absolute top-[-30px] right-[-30px] opacity-10 rotate-12"><Skull size={200} className="text-amber-900" /></div>
+          <div className="absolute top-[-30px] right-[-30px] opacity-10 rotate-12 pointer-events-none"><Skull size={200} className="text-amber-900" /></div>
+
           <div className="relative z-10 flex flex-col items-center text-center">
             <div className="mb-12 animate-float">{question.icon}</div>
-            <span className="font-cinzel text-xs tracking-[0.6em] text-amber-800/40 uppercase mb-4">Question {currentQuestionIndex + 1}</span>
-            <h2 className="font-crimson text-3xl md:text-6xl font-black text-[#2d1b0a] mb-16 leading-[1.2]">
+            <span className="font-cinzel text-xs tracking-[0.6em] text-amber-800/40 uppercase mb-4 font-bold">שאלה {currentQuestionIndex + 1} מתוך {QUESTIONS.length}</span>
+            <h2 className="font-crimson text-3xl md:text-5xl font-black text-[#2d1b0a] mb-12 md:mb-16 leading-[1.3]">
               {question.text}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full">
               {question.options.map((opt, i) => (
-                <button key={i} onClick={() => handleAnswer(opt.house)} className="group relative w-full p-8 text-right rounded-3xl border border-amber-900/10 bg-black/[0.03] hover:bg-white hover:border-amber-500 transition-all duration-300 shadow-sm hover:shadow-2xl overflow-hidden">
-                  <span className="font-crimson text-xl md:text-2xl text-[#3d2b1a] block group-hover:text-black leading-tight transition-colors">{opt.text}</span>
-                  <Wand2 className="absolute left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all text-amber-600 group-hover:rotate-45" size={24} />
-                  <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                <button key={i} onClick={() => handleAnswer(opt.house)} className="group relative w-full p-6 md:p-8 text-right rounded-3xl border border-amber-900/10 bg-black/[0.03] hover:bg-white hover:border-amber-500 transition-all duration-300 shadow-sm hover:shadow-2xl overflow-hidden active:scale-[0.98]">
+                  <span className="font-crimson text-xl md:text-2xl text-[#3d2b1a] block group-hover:text-black leading-tight transition-colors relative z-10">{opt.text}</span>
+                  <Wand2 className="absolute left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all text-amber-600 group-hover:rotate-45 z-10" size={24} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 z-0"></div>
                 </button>
               ))}
             </div>
@@ -204,15 +220,20 @@ export default function SortingPage() {
             <Compass size={130} className="text-amber-600 group-hover:rotate-90 transition-transform duration-1000" />
           </div>
         </div>
-        <div className="min-h-[200px] flex items-center justify-center">
-          <p className="font-crimson text-4xl md:text-7xl text-white/95 leading-relaxed italic drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+
+        <div className="min-h-[200px] flex items-center justify-center px-4">
+          <p className="font-crimson text-3xl md:text-6xl text-white/95 leading-relaxed italic drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] max-w-3xl">
             {typewriterText}
-            <span className="animate-pulse ml-1 inline-block w-1 h-16 bg-amber-500"></span>
+            <span className="animate-pulse ml-1 inline-block w-1 h-12 md:h-16 bg-amber-500 relative top-2"></span>
           </p>
         </div>
+
         {!isSorting && isTypingFinished && (
-          <button onClick={() => setIsAnswering(true)} className="font-cinzel text-xl bg-amber-600 text-white px-20 py-7 rounded-full hover:bg-amber-500 hover:scale-110 transition-all shadow-[0_0_60px_rgba(217,119,6,0.4)] group">
-            <span className="flex items-center gap-5">
+          <button
+            onClick={() => setIsAnswering(true)}
+            className="font-cinzel text-xl bg-amber-600 text-amber-950 px-16 md:px-20 py-6 md:py-7 rounded-full hover:bg-amber-500 hover:scale-105 active:scale-95 transition-all shadow-[0_0_60px_rgba(217,119,6,0.4)] group"
+          >
+            <span className="flex items-center gap-5 font-black tracking-widest uppercase">
               <Zap className="group-hover:text-yellow-200 transition-colors" />
               התחל בטקס המיון
             </span>
