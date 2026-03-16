@@ -5,8 +5,8 @@ import Footer from "@/components/Footer";
 import { OwlMailProvider } from "@/components/OwlMail";
 import MagicSpells from "@/components/MagicSpells";
 import CookieBanner from "@/components/CookieBanner";
-import MagicTicker from "@/components/MagicTicker"; // המרצד החדש
-import HouseElfHelper from "@/components/HouseElfHelper"; // גמד הבית
+import MagicTicker from "@/components/MagicTicker";
+import HouseElfHelper from "@/components/HouseElfHelper";
 
 const assistant = Assistant({
   subsets: ["hebrew", "latin"],
@@ -37,8 +37,49 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // נתוני ה-Schema להזרקה לבינה מלאכותית וגוגל
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://www.lumos-il.co.il/#website",
+        "url": "https://www.lumos-il.co.il",
+        "name": "לומוס IL - קהילת הארי פוטר הישראלית",
+        "description": "הבית הדיגיטלי הרשמי למעריצי הארי פוטר בישראל. גביע הבתים, חדשות הנביא היומי וקהילה קסומה.",
+        "publisher": { "@id": "https://www.lumos-il.co.il/#organization" },
+        "inLanguage": "he-IL"
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://www.lumos-il.co.il/#organization",
+        "name": "לומוס IL",
+        "url": "https://www.lumos-il.co.il",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://www.lumos-il.co.il/images/logo.png"
+        },
+        "sameAs": [
+          "https://www.facebook.com/groups/lumosil"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "admin@lumos-il.co.il",
+          "availableLanguage": "Hebrew"
+        }
+      }
+    ]
+  };
+
   return (
     <html lang="he" dir="rtl" className={`${assistant.variable} ${cinzel.variable} ${crimson.variable}`}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="antialiased bg-[#020617] text-[#f8fafc] font-assistant">
         <OwlMailProvider>
           {/* מערכת הלחשים הגלובלית */}
@@ -59,7 +100,7 @@ export default function RootLayout({
 
             <Footer />
 
-            {/* גמד הבית העוזר - מופיע בפינה התחתונה מעל לטיקר */}
+            {/* גמד הבית העוזר - מופיע בפינה התחתונה */}
             <HouseElfHelper />
           </div>
 
