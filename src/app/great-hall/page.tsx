@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 import {
     Wand2,
     ChevronRight,
@@ -14,12 +15,13 @@ import {
     Flag,
     AlertTriangle,
     EyeOff,
-    Eye
+    Eye,
+    Loader2,
+    Smile
 } from "lucide-react";
 
 /**
- * LUMOS IL - THE GREAT HALL V4.2 (Safe & Realtime)
- * כולל: חילוץ שמות, גלילה ריאקטיבית, מערכת דיווחים ומערכת השתקות.
+ * LUMOS IL - THE GREAT HALL V4.4 (Gold Edition + Emojis)
  */
 
 type Message = {
@@ -61,6 +63,10 @@ export default function GreatHall() {
     const [myName, setMyName] = useState<string>("קוסם/ת");
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSending, setIsSending] = useState(false);
+
+    // סטייט חדש לאימוג'ים
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
     // States למערכות הבטיחות
     const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
@@ -69,10 +75,25 @@ export default function GreatHall() {
     const [isReporting, setIsReporting] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const emojiPickerRef = useRef<HTMLDivElement>(null); // רפרנס לסגירת חלונית קליק בחוץ
 
+    // גלילה אוטומטית למטה
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
     }, [messages]);
+
+    // סגירת האימוג'י כשלוחצים מחוץ לחלונית
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+                setShowEmojiPicker(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
@@ -94,7 +115,6 @@ export default function GreatHall() {
                 await supabase.from('profiles').update({ full_name: extractedName }).eq('id', userId);
             }
 
-            // חילוץ המשתמשים החסומים לפני טעינת ההודעות
             const { data: blocks } = await supabase.from('blocks').select('blocked_id').eq('blocker_id', userId);
             if (blocks && isMounted) {
                 setBlockedUserIds(blocks.map(b => b.blocked_id));
@@ -151,15 +171,29 @@ export default function GreatHall() {
         };
     }, [supabase]);
 
-    const sendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !myId) return;
-        const content = newMessage.trim();
-        setNewMessage("");
-        await supabase.from('messages').insert({ content, user_id: myId });
+    const onEmojiClick = (emojiObject: any) => {
+        setNewMessage(prevInput => prevInput + emojiObject.emoji);
     };
 
-    // פונקציות הבטיחות וההשתקה
+    const sendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || !myId || isSending) return;
+
+        setIsSending(true);
+        const content = newMessage.trim();
+        setNewMessage("");
+        setShowEmojiPicker(false); // סוגר את האימוג'ים בשליחה
+
+        try {
+            await supabase.from('messages').insert({ content, user_id: myId });
+        } catch (error) {
+            console.error("שגיאה בשליחת הודעה:", error);
+            setNewMessage(content);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
     const handleToggleMute = async (targetUserId: string, userName: string, isCurrentlyMuted: boolean) => {
         if (!myId) return;
 
@@ -181,7 +215,7 @@ export default function GreatHall() {
         const { error } = await supabase.from('reports').insert([{
             reporter_id: myId,
             target_id: reportingMessage.id,
-            target_type: 'chat', // שים לב - זה צ'אט ולא תגובה!
+            target_type: 'chat',
             reason: reportReason,
             content_preview: reportingMessage.content,
             status: 'pending'
@@ -207,6 +241,7 @@ export default function GreatHall() {
             <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.4); border-radius: 10px; }
+        .emoji-picker-react { --epr-bg-color: #1a1a1a !important; --epr-category-label-bg-color: #1a1a1a !important; --epr-text-color: #f8fafc !important; border-color: rgba(255,255,255,0.1) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important; }
       `}</style>
 
             <div className="relative w-full max-w-7xl mx-auto px-4 py-4 flex flex-col h-[calc(100vh-120px)]" dir="rtl">
@@ -227,7 +262,7 @@ export default function GreatHall() {
                 </nav>
 
                 <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
-                    {/* סרגל צד - ללא שינוי */}
+                    {/* סרגל צד */}
                     <aside className="hidden lg:flex flex-col gap-6 w-80 shrink-0 overflow-y-auto custom-scrollbar">
                         <section className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
                             <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-white/80 uppercase mb-8 border-b border-white/10 pb-4 flex items-center gap-2 font-bold">
@@ -285,7 +320,7 @@ export default function GreatHall() {
                     </aside>
 
                     {/* אזור הצ'אט */}
-                    <section className="flex-1 flex flex-col bg-black/60 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden">
+                    <section className="flex-1 flex flex-col bg-black/60 border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden relative">
                         <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 custom-scrollbar" role="log" aria-live="polite">
 
                             {messages.length === 0 && (
@@ -300,17 +335,16 @@ export default function GreatHall() {
                                 const r = RANK_CONFIG[msg.profiles?.role || 'תלמיד/ה'] || RANK_CONFIG['תלמיד/ה'];
 
                                 let displayName = "קוסם/ת";
-                                if (isMe) {
-                                    displayName = myName;
-                                } else if (msg.profiles?.full_name && msg.profiles.full_name !== 'Wizard') {
+                                if (msg.profiles?.full_name && msg.profiles.full_name !== 'Wizard') {
                                     displayName = msg.profiles.full_name;
                                 } else if (msg.profiles?.email) {
                                     displayName = msg.profiles.email.split('@')[0];
+                                } else if (isMe) {
+                                    displayName = myName;
                                 }
 
                                 const isMuted = blockedUserIds.includes(msg.user_id);
 
-                                // רינדור של הודעה מושתקת בצ'אט
                                 if (isMuted) {
                                     return (
                                         <div key={msg.id} className="flex w-full justify-start animate-in fade-in">
@@ -359,13 +393,12 @@ export default function GreatHall() {
                                                         </span>
 
                                                         <div className="flex items-center gap-3">
-                                                            {/* כפתורי בטיחות בצ'אט (רק להודעות של אחרים) */}
                                                             {!isMe && (
                                                                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                     <button onClick={() => handleToggleMute(msg.user_id, displayName, false)} className="hover:text-white p-1" title="השתק קוסם">
                                                                         <EyeOff size={14} />
                                                                     </button>
-                                                                    <button onClick={() => setReportingMessage(msg)} className="hover:text-red-400 p-1" title="דדיווח למשרד הקסמים">
+                                                                    <button onClick={() => setReportingMessage(msg)} className="hover:text-red-400 p-1" title="דיווח למשרד הקסמים">
                                                                         <Flag size={14} />
                                                                     </button>
                                                                 </div>
@@ -384,30 +417,53 @@ export default function GreatHall() {
                             <div ref={messagesEndRef} />
                         </div>
 
+                        {/* תפריט אימוג'ים */}
+                        {showEmojiPicker && (
+                            <div ref={emojiPickerRef} className="absolute bottom-28 right-6 z-50 animate-in slide-in-from-bottom-5">
+                                <EmojiPicker
+                                    theme={Theme.DARK}
+                                    onEmojiClick={onEmojiClick}
+                                    searchDisabled={true}
+                                    skinTonesDisabled={true}
+                                />
+                            </div>
+                        )}
+
                         <form onSubmit={sendMessage} className="p-6 bg-black/80 border-t border-white/10 flex gap-4 items-center z-10">
-                            <div className="flex-1 relative">
+                            <div className="flex-1 relative flex items-center">
+                                {/* כפתור אימוג'י בתוך ה-input */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEmojiPicker(prev => !prev)}
+                                    className="absolute right-4 text-white/40 hover:text-amber-400 transition-colors z-10"
+                                    title="הוסף סמיילי"
+                                >
+                                    <Smile size={24} />
+                                </button>
+
                                 <input
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    className="w-full bg-white/[0.08] border border-white/20 rounded-2xl px-6 py-5 text-white font-crimson text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
+                                    className="w-full bg-white/[0.08] border border-white/20 rounded-2xl pr-14 pl-12 py-5 text-white font-crimson text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
                                     placeholder="ללחוש הודעה לאולם..."
-                                    disabled={!myId}
+                                    disabled={!myId || isSending}
                                 />
-                                <Wand2 className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20" size={18} />
+                                <Wand2 className="absolute left-6 text-white/20" size={18} />
                             </div>
+
                             <button
                                 type="submit"
-                                disabled={!newMessage.trim()}
-                                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 text-amber-950 p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0"
+                                disabled={!newMessage.trim() || isSending}
+                                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 text-amber-950 p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0 flex items-center justify-center w-16 h-16"
                             >
-                                <Zap size={24} />
+                                {isSending ? <Loader2 size={24} className="animate-spin" /> : <Zap size={24} />}
                             </button>
                         </form>
                     </section>
                 </div>
             </div>
 
-            {/* מודאל דיווח במראה מתאים ללילה/צ'אט */}
+            {/* מודאל דיווח */}
             {reportingMessage && (
                 <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" dir="rtl">
                     <div className="bg-[#111] text-white w-full max-w-md rounded-[2rem] border-2 border-red-900/50 p-8 space-y-6 shadow-2xl animate-in zoom-in duration-300">
@@ -426,7 +482,8 @@ export default function GreatHall() {
                             ))}
                         </div>
                         <div className="flex gap-4">
-                            <button onClick={handleSendReport} disabled={!reportReason || isReporting} className="flex-1 py-4 bg-red-700 text-white rounded-xl font-cinzel font-bold hover:bg-red-600 disabled:opacity-30">
+                            <button onClick={handleSendReport} disabled={!reportReason || isReporting} className="flex-1 py-4 bg-red-700 text-white rounded-xl font-cinzel font-bold hover:bg-red-600 disabled:opacity-30 flex items-center justify-center gap-2">
+                                {isReporting && <Loader2 size={16} className="animate-spin" />}
                                 {isReporting ? 'שולח...' : 'דיווח למשרד הקסמים'}
                             </button>
                             <button onClick={() => setReportingMessage(null)} className="flex-1 py-4 bg-white/10 text-white hover:bg-white/20 rounded-xl font-cinzel font-bold">ביטול</button>
