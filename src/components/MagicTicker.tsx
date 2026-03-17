@@ -10,7 +10,7 @@ export default function MagicTicker() {
     const supabase = createClient();
 
     useEffect(() => {
-        // 1. הבאת הנתונים הסטטיים/מתעדכנים פחות (חדשות ובתים)
+        // 1. הבאת הנתונים הסטטיים/מתעדכנים פחות
         const fetchTickerData = async () => {
             const { data: p } = await supabase.from('profiles').select('house, points_contributed');
             const sums = p?.reduce((acc: any, curr: any) => {
@@ -31,18 +31,36 @@ export default function MagicTicker() {
         fetchTickerData();
         const interval = setInterval(fetchTickerData, 60000);
 
-        // 2. חיבור ל-Realtime עבור כמות המחוברים בטירה
-        const channel = supabase.channel('lumos_global_presence');
-        channel.on('presence', { event: 'sync' }, () => {
-            const state = channel.presenceState();
-            // ספירת כל המשתמשים המחוברים כרגע
-            const totalOnline = Object.values(state).flat().length;
-            setOnlineCount(totalOnline);
-        }).subscribe();
+        // 2. חיבור ל-Realtime - התיקון הקריטי!
+        let channel: any;
+
+        const setupPresence = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return; // רק קוסמים מחוברים נספרים
+
+            channel = supabase.channel('lumos_global_presence');
+
+            channel.on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                const rawUsers = Object.values(state).flat();
+
+                // סופרים משתמשים ייחודיים בלבד (גם אם מישהו פתח בטלפון ובמחשב)
+                const uniqueUsers = new Set(rawUsers.map((u: any) => u.user_id)).size;
+
+                setOnlineCount(uniqueUsers);
+            }).subscribe(async (status: string) => {
+                if (status === 'SUBSCRIBED') {
+                    // כאן אנחנו משדרים לכל הטירה "אני מחובר!" כדי שהספירה תהיה נכונה
+                    await channel.track({ user_id: session.user.id });
+                }
+            });
+        };
+
+        setupPresence();
 
         return () => {
             clearInterval(interval);
-            supabase.removeChannel(channel);
+            if (channel) supabase.removeChannel(channel);
         };
     }, [supabase]);
 
@@ -54,9 +72,7 @@ export default function MagicTicker() {
 
     return (
         <div className="w-full bg-[#020617]/80 border-b border-amber-500/30 py-2.5 overflow-hidden whitespace-nowrap z-[100] backdrop-blur-md" dir="rtl">
-            {/* הוספנו w-max כדי להבטיח שהאנימציה תחשב נכון את הרוחב */}
             <div className="flex animate-marquee gap-16 items-center w-max">
-                {/* משלשים את המערך כדי שהלולאה תהיה אינסופית וחלקה גם במסכים גדולים */}
                 {[...displayMessages, ...displayMessages, ...displayMessages].map((text, i) => (
                     <span
                         key={i}
@@ -71,7 +87,7 @@ export default function MagicTicker() {
             <style>{`
                 @keyframes marquee {
                     0% { transform: translateX(0); }
-                    100% { transform: translateX(33.33%); } /* מתוקן ל-RTL ולמערך המשולש */
+                    100% { transform: translateX(33.33%); }
                 }
                 .animate-marquee {
                     display: inline-flex;
