@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
-  ScrollText, ArrowRight, X, Send, MessageSquare,
-  BarChart3, Flag, AlertTriangle, EyeOff, Eye, Image as ImageIcon
+  ScrollText, ArrowRight, X, MessageSquare,
+  BarChart3, Flag, AlertTriangle, EyeOff, Eye
 } from "lucide-react";
+import { useOwlMail } from "@/components/OwlMail";
 
 // --- Interfaces ---
 interface NewsItem {
@@ -20,43 +22,69 @@ interface NewsItem {
 }
 
 export default function NewsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#020617] flex items-center justify-center"><div className="w-16 h-16 border-t-4 border-amber-500 rounded-full animate-spin"></div></div>}>
+      <NewsContent />
+    </Suspense>
+  );
+}
+
+function NewsContent() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
+  const initialCheckDone = useRef(false);
 
+  const supabase = createClient();
+  const searchParams = useSearchParams();
+
+  // 1. טעינת חדשות ראשונית (בלי ריצודים)
   useEffect(() => {
     const fetchNews = async () => {
-      setIsLoading(true);
       const { data } = await supabase.from("news").select("*").order("created_at", { ascending: false });
-      setNews(data || []);
+      const newsData = data || [];
+      setNews(newsData);
       setIsLoading(false);
+
+      // בדיקת URL רק בטעינה הראשונה
+      if (!initialCheckDone.current) {
+        const articleId = searchParams.get("article");
+        if (articleId) {
+          const found = newsData.find(n => n.id === articleId);
+          if (found) setSelectedNews(found);
+        }
+        initialCheckDone.current = true;
+      }
     };
     fetchNews();
   }, [supabase]);
 
+  // 2. עדכון ה-URL והכותרת בזמן אמת
   useEffect(() => {
     if (selectedNews) {
       document.body.style.overflow = 'hidden';
-      if (selectedNews.meta_title || selectedNews.title) {
-        document.title = selectedNews.meta_title || selectedNews.title;
-      }
+      document.title = selectedNews.meta_title || selectedNews.title;
+      const newUrl = `${window.location.pathname}?article=${selectedNews.id}`;
+      window.history.replaceState({ path: newUrl }, '', newUrl);
     } else {
       document.body.style.overflow = 'unset';
       document.title = "הנביא היומי | LUMOS IL";
+      if (initialCheckDone.current && window.location.search.includes("article=")) {
+        window.history.replaceState({ path: window.location.pathname }, '', window.location.pathname);
+      }
     }
+  }, [selectedNews]);
+
+  useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedNews(null); };
     window.addEventListener("keydown", handleEsc);
-    return () => {
-      window.removeEventListener("keydown", handleEsc);
-      document.body.style.overflow = 'unset';
-    };
-  }, [selectedNews]);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, []);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="w-16 h-16 border-t-4 border-amber-500 border-solid rounded-full animate-spin"></div>
+        <div className="w-16 h-16 border-t-4 border-amber-500 rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -214,8 +242,8 @@ function CommentsSection({ newsId }: { newsId: string }) {
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const supabase = createClient();
+  const { sendOwl } = useOwlMail();
 
-  // מיפוי צבעי בתים
   const houseClasses: { [key: string]: string } = {
     Gryffindor: "border-red-700 bg-red-900/5",
     Slytherin: "border-green-800 bg-green-900/5",
@@ -239,9 +267,26 @@ function CommentsSection({ newsId }: { newsId: string }) {
   const handlePost = async () => {
     if (!newComment.trim() || !currentUserId) return;
     setIsPosting(true);
-    const { error } = await supabase.from("comments").insert([{ news_id: newsId, user_id: currentUserId, content: newComment, user_name: "קוסם" }]);
-    if (!error) { setNewComment(""); fetchData(); }
-    else { console.error(error); alert("שגיאה בשליחה"); }
+
+    const { error } = await supabase.from("comments").insert([{
+      news_id: newsId,
+      user_id: currentUserId,
+      content: newComment,
+      user_name: "קוסם"
+    }]);
+
+    if (!error) {
+      setNewComment("");
+      fetchData();
+      // תגמול גולד
+      const { error: rewardError } = await supabase.rpc('add_engagement_reward', { user_id_param: currentUserId });
+      if (!rewardError) {
+        sendOwl("נקודות וגליאונים!", "קיבלת גליאון ונקודה על התגובה שלך!", "success");
+      }
+    } else {
+      console.error(error);
+      alert("שגיאה בשליחה");
+    }
     setIsPosting(false);
   };
 
@@ -308,7 +353,6 @@ function CommentsSection({ newsId }: { newsId: string }) {
         })}
       </div>
 
-      {/* Report Modal */}
       {reportingComment && (
         <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
           <div className="bg-[#fdfaf5] w-full max-w-md rounded-[3rem] p-10 space-y-8 shadow-2xl animate-in zoom-in duration-200">
