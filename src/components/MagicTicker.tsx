@@ -2,44 +2,68 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Sparkles, Trophy, Newspaper, Users } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 export default function MagicTicker() {
-    const [stats, setStats] = useState<string[]>(["טוען עדכונים מהטירה..."]);
+    const [stats, setStats] = useState<string[]>(["מפעיל קסמי חיזוי..."]);
+    const [onlineCount, setOnlineCount] = useState<number>(0);
     const supabase = createClient();
 
     useEffect(() => {
+        // 1. הבאת הנתונים הסטטיים/מתעדכנים פחות (חדשות ובתים)
         const fetchTickerData = async () => {
-            // 1. נביא את מצב גביע הבתים
             const { data: p } = await supabase.from('profiles').select('house, points_contributed');
             const sums = p?.reduce((acc: any, curr: any) => {
                 if (curr.house && curr.house !== 'Unsorted') acc[curr.house] = (acc[curr.house] || 0) + (curr.points_contributed || 0);
                 return acc;
             }, {});
 
-            // 2. נביא את הכתבה האחרונה
             const { data: news } = await supabase.from('news').select('title').order('created_at', { ascending: false }).limit(1);
 
             const messages = [
-                `🏆 מצב גביע הבתים: גריפינדור (${sums?.Gryffindor || 0}) | סלית'רין (${sums?.Slytherin || 0}) | רייבנקלו (${sums?.Ravenclaw || 0}) | הפלפאף (${sums?.Hufflepuff || 0})`,
+                `🏆 גביע הבתים: גריפינדור (${sums?.Gryffindor || 0}) • סלית'רין (${sums?.Slytherin || 0}) • רייבנקלו (${sums?.Ravenclaw || 0}) • הפלפאף (${sums?.Hufflepuff || 0})`,
                 news?.[0] ? `🗞️ חדש בנביא היומי: ${news[0].title}` : "🗞️ מהדורה חדשה של הנביא היומי בדרך...",
-                "✨ השתמשו בלחש 'לומוס' כדי להאיר את הדרך!",
-                `👥 כרגע בטירה: קוסמים ומכשפות מכל רחבי הארץ בפעילות שיא`
+                "✨ השתמשו בלחש 'Lumos' כדי להאיר את הדרך!"
             ];
             setStats(messages);
         };
 
         fetchTickerData();
-        const interval = setInterval(fetchTickerData, 60000); // רענון כל דקה
-        return () => clearInterval(interval);
-    }, []);
+        const interval = setInterval(fetchTickerData, 60000);
+
+        // 2. חיבור ל-Realtime עבור כמות המחוברים בטירה
+        const channel = supabase.channel('lumos_global_presence');
+        channel.on('presence', { event: 'sync' }, () => {
+            const state = channel.presenceState();
+            // ספירת כל המשתמשים המחוברים כרגע
+            const totalOnline = Object.values(state).flat().length;
+            setOnlineCount(totalOnline);
+        }).subscribe();
+
+        return () => {
+            clearInterval(interval);
+            supabase.removeChannel(channel);
+        };
+    }, [supabase]);
+
+    // שילוב ההודעות הרגילות עם הודעת המחוברים בזמן אמת
+    const displayMessages = [
+        ...stats,
+        `👥 קוסמים מחוברים כרגע: ${onlineCount > 0 ? onlineCount : 'טוען...'}`
+    ];
 
     return (
-        <div className="w-full bg-amber-500/10 border-b border-amber-500/20 py-2 overflow-hidden whitespace-nowrap z-[100] backdrop-blur-sm">
-            <div className="flex animate-marquee gap-20 items-center">
-                {[...stats, ...stats].map((text, i) => (
-                    <span key={i} className="font-cinzel text-[11px] font-bold text-amber-500/80 flex items-center gap-3 tracking-[0.1em]">
-                        <Sparkles size={12} className="text-amber-400" /> {text.toUpperCase()}
+        <div className="w-full bg-[#020617]/80 border-b border-amber-500/30 py-2.5 overflow-hidden whitespace-nowrap z-[100] backdrop-blur-md" dir="rtl">
+            {/* הוספנו w-max כדי להבטיח שהאנימציה תחשב נכון את הרוחב */}
+            <div className="flex animate-marquee gap-16 items-center w-max">
+                {/* משלשים את המערך כדי שהלולאה תהיה אינסופית וחלקה גם במסכים גדולים */}
+                {[...displayMessages, ...displayMessages, ...displayMessages].map((text, i) => (
+                    <span
+                        key={i}
+                        className="font-cinzel text-xs md:text-sm font-bold text-amber-400 flex items-center gap-3 tracking-[0.08em] drop-shadow-[0_0_8px_rgba(245,158,11,0.3)] hover:text-amber-200 transition-colors cursor-default"
+                    >
+                        <Sparkles size={14} className="text-amber-500" />
+                        {text.toUpperCase()}
                     </span>
                 ))}
             </div>
@@ -47,7 +71,7 @@ export default function MagicTicker() {
             <style>{`
                 @keyframes marquee {
                     0% { transform: translateX(0); }
-                    100% { transform: translateX(-50%); }
+                    100% { transform: translateX(33.33%); } /* מתוקן ל-RTL ולמערך המשולש */
                 }
                 .animate-marquee {
                     display: inline-flex;

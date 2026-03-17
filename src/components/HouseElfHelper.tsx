@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Sparkles, HandHeart } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
@@ -10,10 +10,10 @@ export default function HouseElfHelper() {
     const [fullMessage, setFullMessage] = useState("");
     const [displayedText, setDisplayedText] = useState("");
     const [isAdmin, setIsAdmin] = useState(false);
+    const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // ציטוטים מהספרים + טיפים שימושיים (פנייה לכל המגדרים)
     const baseMessages = [
-        // ציטוטים קלאסיים
         "לדובי אין אדון. דובי הוא גמד חופשי!",
         "אדוני נתן לדובי גרב... דובי חופשי!",
         "דובי בא לכאן כדי להגן עליכם, להזהיר אתכם, אפילו אם הוא יהיה חייב לסגור את הדלת על האוזניימים שלו...",
@@ -22,8 +22,6 @@ export default function HouseElfHelper() {
         "דובי רגיל לאיומי מוות, אדוני... הוא מקבל אותם חמש פעמים ביום בבית.",
         "דובי היה צריך לגהץ לעצמו את האוזניים על זה ששכח להגיד לכם שלום!",
         "כאן נח דובי, גמד חופשי. ובטירה הזו - כולנו חופשיים!",
-
-        // טיפים לקהילה
         "💡 טיפ מדובי: בדקו את מצב גביע הבתים במרצד החדשות למעלה!",
         "💡 טיפ מדובי: בחדר הניהול אפשר להוסיף תמונות לכתבות בנביא היומי.",
         "💡 טיפ מדובי: השתמשו בלחש 'לומוס' כדי להאיר את הדרך בטירה!",
@@ -31,28 +29,40 @@ export default function HouseElfHelper() {
     ];
 
     const pickMessage = useCallback(() => {
-        // פנייה אישית למנהל - תוצג רק לחיים כשהוא מחובר
         const adminExtra = isAdmin ? [
             "אדון חיים, הכל תקין בטירה! דובי שומר על חדר המנהלים.",
             "אדון חיים, יש כתבות חדשות שמחכות לאישור שלך בנביא היומי.",
-            "דובי הכין לך את שולחן הניהול, אדון חיים המנהל!"
         ] : [];
 
         const all = [...baseMessages, ...adminExtra];
         const randomMsg = all[Math.floor(Math.random() * all.length)];
         setFullMessage(randomMsg);
-        setDisplayedText("");
     }, [isAdmin]);
 
-    // אפקט הקלדה יציב (Typewriter)
+    // אפקט הקלדה משופר וחסין באגים
     useEffect(() => {
-        if (isBubbleVisible && displayedText.length < fullMessage.length) {
-            const timeout = setTimeout(() => {
-                setDisplayedText(fullMessage.slice(0, displayedText.length + 1));
+        if (isBubbleVisible) {
+            let currentIndex = 0;
+            setDisplayedText(""); // איפוס תחילת הקלדה
+
+            typingIntervalRef.current = setInterval(() => {
+                if (currentIndex <= fullMessage.length) {
+                    setDisplayedText(fullMessage.slice(0, currentIndex));
+                    currentIndex++;
+                } else {
+                    if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+                }
             }, 40);
-            return () => clearTimeout(timeout);
+        } else {
+            // ניקוי כשהבועה נסגרת כדי למנוע התנגשויות
+            if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+            setDisplayedText("");
         }
-    }, [isBubbleVisible, displayedText, fullMessage]);
+
+        return () => {
+            if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
+        };
+    }, [isBubbleVisible, fullMessage]);
 
     useEffect(() => {
         const checkAdmin = async () => {
@@ -67,11 +77,21 @@ export default function HouseElfHelper() {
         pickMessage();
     }, [pickMessage]);
 
+    // פונקציה שמטפלת גם בלחיצה (מובייל) וגם ברחף (מחשב)
+    const handleInteraction = () => {
+        if (!isBubbleVisible) {
+            pickMessage();
+            setIsBubbleVisible(true);
+        } else {
+            setIsBubbleVisible(false); // מאפשר סגירה בלחיצה במובייל
+        }
+    };
+
     return (
         <div className="fixed bottom-12 right-6 z-[10002]" dir="rtl">
             {/* בועת דיבור */}
             {isBubbleVisible && (
-                <div className="absolute bottom-full right-16 mb-6 bg-[#020617]/95 text-[#f8fafc] p-6 rounded-[2.5rem] border-2 border-dashed border-amber-900/40 text-right shadow-2xl w-72 backdrop-blur-md transition-all">
+                <div className="absolute bottom-full right-16 mb-6 bg-[#020617]/95 text-[#f8fafc] p-6 rounded-[2.5rem] border-2 border-dashed border-amber-900/40 text-right shadow-2xl w-72 backdrop-blur-md animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 origin-bottom-right">
                     <div className="flex items-center gap-2 text-amber-500/80 mb-2">
                         <Sparkles size={14} className="animate-pulse" />
                         <span className="font-cinzel text-xs font-bold tracking-widest uppercase italic">Dobby Says</span>
@@ -79,7 +99,7 @@ export default function HouseElfHelper() {
 
                     <p className="font-crimson text-xl leading-snug italic text-white/90 min-h-[3.5rem]">
                         "{displayedText}"
-                        <span className="animate-pulse inline-block w-1 h-5 bg-amber-500 mr-1">|</span>
+                        <span className="animate-pulse inline-block w-1 h-5 bg-amber-500 mr-1 align-middle">|</span>
                     </p>
 
                     {/* החץ הקטן של הבועה */}
@@ -91,10 +111,13 @@ export default function HouseElfHelper() {
             <div
                 className="relative w-24 h-24 cursor-help group transition-all"
                 onMouseEnter={() => {
-                    pickMessage();
-                    setIsBubbleVisible(true);
+                    if (!isBubbleVisible) {
+                        pickMessage();
+                        setIsBubbleVisible(true);
+                    }
                 }}
                 onMouseLeave={() => setIsBubbleVisible(false)}
+                onClick={handleInteraction} // תמיכה למובייל
             >
                 {/* הילה קסומה */}
                 <div className="absolute inset-0 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all duration-700 animate-pulse"></div>
@@ -108,8 +131,8 @@ export default function HouseElfHelper() {
                 />
 
                 {/* סמל הלב */}
-                <div className="absolute -top-1 -right-1 bg-amber-600 text-black p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all scale-0 group-hover:scale-100 rotate-12">
-                    <HandHeart size={14} />
+                <div className="absolute -top-1 -right-1 bg-amber-600 text-black p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all scale-0 group-hover:scale-100 rotate-12">
+                    <HandHeart size={16} />
                 </div>
             </div>
         </div>

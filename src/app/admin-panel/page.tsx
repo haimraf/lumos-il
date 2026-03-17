@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
     ShieldCheck, Search, Trophy, ChevronRight, Flag, CheckCircle, Radio,
-    Trash2, Newspaper, FileText, Edit3, Globe, Megaphone, Image as ImageIcon, X, Eraser
+    Trash2, Newspaper, FileText, Edit3, Globe, Megaphone, Image as ImageIcon, X, Eraser, AlertCircle
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import Link from "next/link";
@@ -41,8 +41,10 @@ export default function AdminPanel() {
     const [broadcastMsg, setBroadcastMsg] = useState("");
 
     const fetchData = useCallback(async () => {
+        // משיכת דיווחים
         const { data: reportData } = await supabase.from('reports').select('*').order('created_at', { ascending: false });
         setReports(reportData || []);
+
         const { data: newsData } = await supabase.from('news').select('*').order('created_at', { ascending: false });
         setNews(newsData || []);
 
@@ -75,10 +77,8 @@ export default function AdminPanel() {
         return () => { supabase.removeChannel(channel); };
     }, [router, supabase, fetchData]);
 
-    // --- לוגיקת עריכה (התיקון הקריטי) ---
     const startEdit = (item: any) => {
         setEditingId(item.id);
-        // טעינה נקייה של הנתונים
         setNewArticle({
             title: item.title || "",
             content: item.content || "",
@@ -109,7 +109,6 @@ export default function AdminPanel() {
         setIsPublishing(false);
     };
 
-    // --- שאר הפונקציות ---
     const handleBroadcast = async () => {
         if (!broadcastMsg.trim()) return;
         await supabase.channel('lumos_global_presence').send({ type: 'broadcast', event: 'ministry_announcement', payload: { message: broadcastMsg, from: "משרד הקסמים" } });
@@ -131,11 +130,22 @@ export default function AdminPanel() {
     };
 
     const handleDeleteContent = async (commentId: string, reportId: string) => {
-        if (!confirm("למחוק לצמיתות?")) return;
+        if (!confirm("למחוק את התוכן הפוגעני?")) return;
         const { error } = await supabase.from('comments').delete().eq('id', commentId);
-        if (!error) await supabase.from('reports').delete().eq('id', reportId);
-        fetchData();
+        if (!error) {
+            await supabase.from('reports').delete().eq('id', reportId);
+            sendOwl("נמחק", "התוכן הוסר והדיווח נסגר.", "success");
+            fetchData();
+        }
     };
+
+    const handleDismissReport = async (reportId: string) => {
+        const { error } = await supabase.from('reports').delete().eq('id', reportId);
+        if (!error) {
+            sendOwl("בוטל", "הדיווח בוטל ללא מחיקת תוכן.", "success");
+            fetchData();
+        }
+    }
 
     if (loading) return null;
 
@@ -167,6 +177,7 @@ export default function AdminPanel() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
+                        {/* סקשן כתיבת כתבה */}
                         <section className="glass-panel p-8 rounded-[2.5rem] border-2 border-white/10 bg-white/[0.02] space-y-6">
                             <div className="flex justify-between items-center">
                                 <h3 className="font-cinzel text-xl font-bold text-amber-400 flex items-center gap-3">
@@ -197,13 +208,7 @@ export default function AdminPanel() {
                                             className="flex-1 bg-black/40 border border-white/10 rounded-xl p-4 outline-none focus:border-amber-500 text-amber-200 text-sm"
                                         />
                                         {newArticle.image_url && (
-                                            <button
-                                                onClick={() => setNewArticle(prev => ({ ...prev, image_url: "" }))}
-                                                className="bg-red-500/20 text-red-400 p-4 rounded-xl hover:bg-red-500 hover:text-white transition-all"
-                                                title="מחיקת תמונה"
-                                            >
-                                                <Eraser size={20} />
-                                            </button>
+                                            <button onClick={() => setNewArticle(prev => ({ ...prev, image_url: "" }))} className="bg-red-500/20 text-red-400 p-4 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Eraser size={20} /></button>
                                         )}
                                     </div>
                                 </div>
@@ -225,6 +230,34 @@ export default function AdminPanel() {
                             <button onClick={handleSaveNews} disabled={isPublishing} className="w-full bg-amber-600 py-6 rounded-3xl font-cinzel font-black text-2xl shadow-2xl hover:bg-amber-500 transition-all active:scale-95">
                                 {isPublishing ? 'מטיל לחש...' : (editingId ? 'שמירת שינויים ✨' : 'פרסום בנביא היומי ✨')}
                             </button>
+                        </section>
+
+                        {/* --- סקשן דיווחים (כאן הם היו חסרים!) --- */}
+                        <section className="glass-panel p-8 rounded-[2.5rem] border-red-500/20 bg-red-500/[0.02] space-y-6">
+                            <h3 className="font-cinzel text-xl font-bold text-red-500 flex items-center gap-3">
+                                <Flag size={28} /> דיווחים ממשרד הקסמים ({reports.length})
+                            </h3>
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                {reports.length === 0 ? (
+                                    <p className="text-center opacity-30 py-10 italic font-crimson text-2xl">אין דיווחים כרגע. השקט נשמר בקהילה.</p>
+                                ) : (
+                                    reports.map(report => (
+                                        <div key={report.id} className="bg-white/5 border border-red-500/10 p-6 rounded-2xl space-y-4">
+                                            <div className="flex justify-between items-start">
+                                                <div className="space-y-1">
+                                                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded uppercase font-bold">{report.reason}</span>
+                                                    <p className="text-white/80 italic font-crimson text-xl line-clamp-2">"{report.content_preview}"</p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleDeleteContent(report.target_id, report.id)} className="p-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-all shadow-lg" title="מחק תוכן"><Trash2 size={20} /></button>
+                                                    <button onClick={() => handleDismissReport(report.id)} className="p-3 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all" title="בטל דיווח"><CheckCircle size={20} /></button>
+                                                </div>
+                                            </div>
+                                            <p className="text-[10px] opacity-40 uppercase tracking-widest font-cinzel">נשלח ב-{new Date(report.created_at).toLocaleDateString("he-IL")}</p>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </section>
 
                         {/* ארכיון */}

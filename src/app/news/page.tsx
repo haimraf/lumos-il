@@ -63,7 +63,6 @@ export default function NewsPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-[#f8fafc] py-20 px-6 font-assistant" dir="rtl">
-
       <style>{`
         .prose-magic h1 { font-family: 'Cinzel', serif; font-size: 2.5rem; margin-bottom: 1rem; color: #f59e0b; }
         .prose-magic p { margin-bottom: 1.2rem; line-height: 1.8; }
@@ -138,6 +137,7 @@ export default function NewsPage() {
   );
 }
 
+// --- Poll Component ---
 function PollComponent({ newsId }: { newsId: string }) {
   const [poll, setPoll] = useState<any>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -203,6 +203,7 @@ function PollComponent({ newsId }: { newsId: string }) {
   );
 }
 
+// --- Comments Section ---
 function CommentsSection({ newsId }: { newsId: string }) {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -213,6 +214,14 @@ function CommentsSection({ newsId }: { newsId: string }) {
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const supabase = createClient();
+
+  // מיפוי צבעי בתים
+  const houseClasses: { [key: string]: string } = {
+    Gryffindor: "border-red-700 bg-red-900/5",
+    Slytherin: "border-green-800 bg-green-900/5",
+    Hufflepuff: "border-yellow-600 bg-yellow-600/10",
+    Ravenclaw: "border-blue-700 bg-blue-900/5",
+  };
 
   const fetchData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -232,6 +241,7 @@ function CommentsSection({ newsId }: { newsId: string }) {
     setIsPosting(true);
     const { error } = await supabase.from("comments").insert([{ news_id: newsId, user_id: currentUserId, content: newComment, user_name: "קוסם" }]);
     if (!error) { setNewComment(""); fetchData(); }
+    else { console.error(error); alert("שגיאה בשליחה"); }
     setIsPosting(false);
   };
 
@@ -258,28 +268,37 @@ function CommentsSection({ newsId }: { newsId: string }) {
       <h3 className="font-cinzel text-3xl font-black flex items-center gap-3"><MessageSquare className="text-amber-800" /> תגובות הקהילה</h3>
       <div className="flex flex-col md:flex-row gap-4">
         <input value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="כתיבת תגובה..." className="flex-1 bg-white/50 border-2 border-amber-900/20 p-5 font-crimson text-2xl outline-none rounded-xl" />
-        <button onClick={handlePost} disabled={isPosting} className="bg-[#020617] text-white px-12 py-5 font-cinzel font-black rounded-xl">שליחה</button>
+        <button onClick={handlePost} disabled={isPosting} className="bg-[#020617] text-white px-12 py-5 font-cinzel font-black rounded-xl hover:bg-black/80 transition-all">שליחה</button>
       </div>
       <div className="space-y-6">
         {comments.map((c) => {
           const isMuted = blockedUserIds.includes(c.user_id);
+          const houseColorClass = houseClasses[c.profiles?.house] || "border-amber-700 bg-white/40";
+
           if (isMuted) return (
             <div key={c.id} className="p-5 border-r-8 border-gray-400 bg-gray-100/50 rounded-lg flex justify-between items-center opacity-70">
               <p className="font-crimson text-xl italic text-gray-500">תגובה מוסתרת.</p>
               <button onClick={() => handleToggleMute(c.user_id, true)} className="text-sm font-bold bg-gray-200 px-4 py-2 rounded-full"><Eye size={16} /></button>
             </div>
           );
+
           return (
-            <div key={c.id} className="p-8 border-r-8 border-amber-700 bg-white/40 rounded-lg shadow-md animate-in fade-in">
+            <div key={c.id} className={`p-8 border-r-8 ${houseColorClass} rounded-lg shadow-md animate-in fade-in`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <p className="font-cinzel text-2xl font-black text-amber-900">{c.profiles?.full_name || "קוסם"}</p>
-                  <p className="text-xs opacity-50 font-bold uppercase">{c.profiles?.house || 'ללא בית'}</p>
+                  <div className="flex gap-3 items-center opacity-60">
+                    <p className="text-xs font-bold uppercase">{c.profiles?.house || 'ללא בית'}</p>
+                    <span className="text-[10px]">•</span>
+                    <p className="text-xs font-bold">
+                      {new Date(c.created_at).toLocaleDateString("he-IL")} | {new Date(c.created_at).toLocaleTimeString("he-IL", { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
                 </div>
                 {currentUserId !== c.user_id && (
                   <div className="flex items-center gap-3 opacity-30 hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleToggleMute(c.user_id, false)}><EyeOff size={18} /></button>
-                    <button onClick={() => setReportingComment(c)} className="text-red-800"><Flag size={18} /></button>
+                    <button title="השתקה" onClick={() => handleToggleMute(c.user_id, false)}><EyeOff size={18} /></button>
+                    <button title="דיווח" onClick={() => setReportingComment(c)} className="text-red-800"><Flag size={18} /></button>
                   </div>
                 )}
               </div>
@@ -288,16 +307,21 @@ function CommentsSection({ newsId }: { newsId: string }) {
           );
         })}
       </div>
+
+      {/* Report Modal */}
       {reportingComment && (
         <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
-          <div className="bg-[#fdfaf5] w-full max-w-md rounded-[3rem] p-10 space-y-8 shadow-2xl">
+          <div className="bg-[#fdfaf5] w-full max-w-md rounded-[3rem] p-10 space-y-8 shadow-2xl animate-in zoom-in duration-200">
             <h4 className="font-cinzel text-2xl font-black text-red-900 flex items-center gap-3"><AlertTriangle size={32} /> דיווח</h4>
             <div className="grid grid-cols-1 gap-4">
               {['תוכן פוגעני', 'ספוילרים', 'אחר'].map((r) => (
-                <button key={r} onClick={() => setReportReason(r)} className={`w-full text-right p-5 rounded-2xl border-2 font-bold text-xl ${reportReason === r ? 'bg-red-900 text-white' : 'bg-white border-gray-100'}`}>{r}</button>
+                <button key={r} onClick={() => setReportReason(r)} className={`w-full text-right p-5 rounded-2xl border-2 font-bold text-xl transition-all ${reportReason === r ? 'bg-red-900 text-white border-red-900' : 'bg-white border-gray-100 hover:border-red-200'}`}>{r}</button>
               ))}
             </div>
-            <div className="flex gap-4"><button onClick={handleSendReport} disabled={!reportReason || isReporting} className="flex-1 py-5 bg-red-900 text-white rounded-2xl font-black">דווח</button><button onClick={() => setReportingComment(null)} className="flex-1 py-5 bg-gray-200 rounded-2xl">ביטול</button></div>
+            <div className="flex gap-4">
+              <button onClick={handleSendReport} disabled={!reportReason || isReporting} className="flex-1 py-5 bg-red-900 text-white rounded-2xl font-black hover:bg-red-800 disabled:opacity-50">דווח</button>
+              <button onClick={() => setReportingComment(null)} className="flex-1 py-5 bg-gray-200 rounded-2xl font-bold">ביטול</button>
+            </div>
           </div>
         </div>
       )}

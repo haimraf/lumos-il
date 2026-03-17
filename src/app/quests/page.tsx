@@ -5,17 +5,22 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
   ChevronRight, Coins, Trophy, Sparkles, BookOpen, CheckCircle2,
-  XCircle, Hourglass, Flame, Search, Gift
+  XCircle, Hourglass, Flame, Search, Gift, Zap
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 
-// --- מאגר שאלות טריוויה ---
+// --- מאגר שאלות טריוויה מורחב ---
 const TRIVIA_POOL = [
   { q: "איזה לחש פותח דלתות נעולות?", a: "אלוהומורה", options: ["לומוס", "אלוהומורה", "אצ'יו", "רדוקטו"] },
   { q: "מהו הלחש שיוצר מגן מפני סוהרסנים?", a: "אקספקטו פטרונום", options: ["אבדה קדברה", "סטופפיי", "אקספקטו פטרונום", "פרוטגו"] },
   { q: "איך קוראים ללחש המפורק מנשק?", a: "אקספליארמוס", options: ["שתק", "אקספליארמוס", "אינסינדיו", "קונפונדו"] },
   { q: "איזה לחש מתקן חפצים שבורים?", a: "רפארו", options: ["רפארו", "דיפנדו", "טרנספורמציה", "אלוהומורה"] },
-  { q: "מהו הלחש שיוצר אור בקצה השרביט?", a: "לומוס", options: ["נוקס", "לומוס", "וינגארדיום לביוסה", "פלגראטה"] }
+  { q: "מהו הלחש שיוצר אור בקצה השרביט?", a: "לומוס", options: ["נוקס", "לומוס", "וינגארדיום לביוסה", "פלגראטה"] },
+  { q: "מה שמה של הינשופה של הארי פוטר?", a: "הדוויג", options: ["ארול", "פיגווידג'ן", "הדוויג", "קרוקשנקס"] },
+  { q: "איזה שיקוי מאפשר לשנות צורה לאדם אחר?", a: "פולימיצי", options: ["פליקס פליציס", "פולימיצי", "ורטסרום", "אמורטנציה"] },
+  { q: "מי היה האסיר מאזקבאן?", a: "סיריוס בלק", options: ["רמוס לופין", "פיטר פטיגרו", "סיריוס בלק", "בלטריקס לסטריינג'"] },
+  { q: "מהו שמו האמיתי של לורד וולדמורט?", a: "טום רידל", options: ["סוורוס סנייפ", "טום רידל", "גרינדלוולד", "סלזאר סלית'רין"] },
+  { q: "כמה הורקרוקסים יצר וולדמורט (כולל הארי)?", a: "7", options: ["5", "6", "7", "8"] }
 ];
 
 const HOUSE_COLORS: Record<string, string> = {
@@ -31,9 +36,10 @@ export default function QuestsPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
-  const [dailyStatus, setDailyStatus] = useState({ allowance: false, trivia: false, niffler: false });
+  const [dailyStatus, setDailyStatus] = useState({ allowance: false, trivia: false, niffler: false, snitch: false });
   const [currentTrivia, setCurrentTrivia] = useState<any>(null);
   const [nifflerLoading, setNifflerLoading] = useState(false);
+  const [snitchLoading, setSnitchLoading] = useState(false);
 
   const today = new Date().toLocaleDateString("en-CA");
 
@@ -47,7 +53,8 @@ export default function QuestsPage() {
       setDailyStatus({
         allowance: data.last_reward_date === today,
         trivia: data.last_trivia_date === today,
-        niffler: data.last_niffler_date === today
+        niffler: data.last_niffler_date === today,
+        snitch: data.last_snitch_date === today // המשימה החדשה
       });
     }
     setIsLoading(false);
@@ -55,7 +62,7 @@ export default function QuestsPage() {
 
   useEffect(() => {
     fetchProfile();
-    // בחירה בטוחה של שאלה
+    // בחירה בטוחה של שאלה מתוך המאגר (לפי היום בחודש כדי שכולם יקבלו אותה שאלה באותו יום)
     const day = new Date().getDate();
     setCurrentTrivia(TRIVIA_POOL[day % TRIVIA_POOL.length]);
   }, [fetchProfile]);
@@ -106,9 +113,25 @@ export default function QuestsPage() {
     setNifflerLoading(false);
   };
 
+  // משימה חדשה: תפיסת הסניץ'
+  const handleSnitchCatch = async () => {
+    if (dailyStatus.snitch || snitchLoading || !profile) return;
+    setSnitchLoading(true);
+
+    const { error } = await supabase.from('profiles').update({
+      points_contributed: (profile.points_contributed || 0) + 15,
+      last_snitch_date: today
+    }).eq('id', profile.id);
+
+    if (!error) {
+      sendOwl("הסניץ' נתפס!", "איזה מחפש מעולה! הבאת 15 נקודות לבית שלך.", "success");
+      fetchProfile();
+    }
+    setSnitchLoading(false);
+  };
+
   if (isLoading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div></div>;
 
-  // הגנה קריטית: מוודא שתמיד יש מחרוזת גם אם הבית לא קיים במפה
   const hColor = (profile?.house && HOUSE_COLORS[profile.house]) ? HOUSE_COLORS[profile.house] : 'text-amber-400';
   const trophyClass = hColor.split(' ')[0] || 'text-amber-400';
 
@@ -136,10 +159,12 @@ export default function QuestsPage() {
           <p className="font-crimson text-2xl text-white/40 italic uppercase tracking-widest">עבודה קשה היא הדרך היחידה לתהילה</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* שונה ל-4 עמודות במסכים גדולים בגלל שיש 4 משימות */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
           <QuestCard
             title="קצבה יומית"
-            desc="משרד הקסמים מאשר דמי כיס לתלמידים מצטיינים."
+            desc="משרד הקסמים מאשר דמי כיס."
             reward="5 גליאונים"
             icon={<Coins className="text-amber-500" size={32} />}
             completed={dailyStatus.allowance}
@@ -148,40 +173,53 @@ export default function QuestsPage() {
             color="amber"
           />
 
-          <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/5 transition-all duration-500 flex flex-col ${dailyStatus.trivia ? 'opacity-60' : 'hover:border-blue-500/30'}`}>
-            <div className="flex justify-between items-start mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><BookOpen className="text-blue-400" size={32} /></div>
-              <span className="text-xs font-black font-cinzel text-blue-400 uppercase tracking-tighter bg-blue-500/10 px-3 py-1 rounded-full underline decoration-blue-500/50 underline-offset-4">10 נקודות בית</span>
+          <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[2.5rem] p-8 border border-white/5 transition-all duration-500 flex flex-col ${dailyStatus.trivia ? 'opacity-60' : 'hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]'}`}>
+            <div className="flex justify-between items-start mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><BookOpen className="text-blue-400" size={28} /></div>
+              <span className="text-[10px] font-black font-cinzel text-blue-400 uppercase tracking-tighter bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">10 נקודות</span>
             </div>
 
-            <h3 className="font-cinzel text-2xl font-bold mb-4">מבחן לחשים</h3>
-            <p className="font-crimson text-xl text-white/70 mb-8 h-20">{currentTrivia?.q || "טוען שאלה..."}</p>
+            <h3 className="font-cinzel text-xl font-bold mb-3">מבחן לחשים</h3>
+            <p className="font-crimson text-lg text-white/70 mb-6 h-16 line-clamp-2">{currentTrivia?.q || "טוען שאלה..."}</p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 mt-auto">
               {currentTrivia?.options?.map((opt: string) => (
                 <button
                   key={opt}
                   disabled={dailyStatus.trivia}
                   onClick={() => handleTriviaAnswer(opt)}
-                  className={`py-3 rounded-xl border text-sm font-bold transition-all ${dailyStatus.trivia ? 'border-white/5 bg-white/5 cursor-not-allowed' : 'border-white/10 hover:border-blue-500 hover:bg-blue-500/10'}`}
+                  className={`py-2 rounded-xl border text-xs font-bold transition-all ${dailyStatus.trivia ? 'border-white/5 bg-white/5 cursor-not-allowed text-white/30' : 'border-white/10 hover:border-blue-500 hover:bg-blue-500/10 hover:text-blue-200'}`}
                 >
                   {opt}
                 </button>
               ))}
             </div>
-            {dailyStatus.trivia && <p className="mt-4 text-center font-cinzel text-xs text-white/30 italic">המבחן הבא יפתח מחר</p>}
+            {dailyStatus.trivia && <p className="mt-3 text-center font-cinzel text-[10px] text-white/30 italic">המבחן הבא יפתח מחר</p>}
           </div>
 
           <QuestCard
             title="ציד הניפלר"
-            desc="ניפלר חצוף גנב אוצרות בטירה! עזור למצוא את המסתור שלו."
-            reward="מזל (נקודות/גליאונים)"
+            desc="ניפלר חצוף גנב אוצרות! עזור למצוא אותו."
+            reward="מזל (נק'/גליאונים)"
             icon={<Search className="text-emerald-500" size={32} />}
             completed={dailyStatus.niffler}
             onAction={handleNifflerHunt}
             btnText={nifflerLoading ? "מחפש..." : "צא לציד"}
             color="emerald"
           />
+
+          {/* המשימה החדשה: קווידיץ' */}
+          <QuestCard
+            title="אימון קווידיץ'"
+            desc="הסניץ' מתעופף במגרש! נסה לתפוס אותו."
+            reward="15 נקודות"
+            icon={<Zap className="text-violet-400" size={32} />}
+            completed={dailyStatus.snitch}
+            onAction={handleSnitchCatch}
+            btnText={snitchLoading ? "מזנק..." : "תפוס סניץ'"}
+            color="violet"
+          />
+
         </div>
       </div>
     </main>
@@ -189,32 +227,35 @@ export default function QuestsPage() {
 }
 
 function QuestCard({ title, desc, reward, icon, completed, onAction, btnText, color }: any) {
-  // תיקון צבעים דינמיים - TailWind לא אוהב מחרוזות מורכבות
-  const borderHoverClass = color === 'amber' ? 'hover:border-amber-500/30' : 'hover:border-emerald-500/30';
-  const iconBgClass = color === 'amber' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20';
-  const badgeClass = color === 'amber' ? 'text-amber-400 bg-amber-500/10 decoration-amber-500/50' : 'text-emerald-400 bg-emerald-500/10 decoration-emerald-500/50';
-  const btnGradient = color === 'amber' ? 'from-amber-600 to-amber-800' : 'from-emerald-600 to-emerald-800';
+  // תמיכה בצבעים דינמיים כולל הסגול (violet) החדש
+  const colors: Record<string, any> = {
+    amber: { border: 'hover:border-amber-500/30 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]', iconBg: 'bg-amber-500/10 border-amber-500/20', badge: 'text-amber-400 bg-amber-500/10 border-amber-500/20', btn: 'from-amber-600 to-amber-800 hover:from-amber-500 hover:to-amber-700' },
+    emerald: { border: 'hover:border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]', iconBg: 'bg-emerald-500/10 border-emerald-500/20', badge: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', btn: 'from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700' },
+    violet: { border: 'hover:border-violet-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)]', iconBg: 'bg-violet-500/10 border-violet-500/20', badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20', btn: 'from-violet-600 to-violet-900 hover:from-violet-500 hover:to-violet-800' }
+  };
+
+  const theme = colors[color] || colors.amber;
 
   return (
-    <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/5 transition-all duration-500 flex flex-col ${completed ? 'opacity-60' : borderHoverClass}`}>
-      <div className="flex justify-between items-start mb-8 text-right">
-        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center border ${iconBgClass}`}>{icon}</div>
-        <span className={`text-xs font-black font-cinzel uppercase tracking-tighter px-3 py-1 rounded-full underline underline-offset-4 ${badgeClass}`}>תגמול: {reward}</span>
+    <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[2.5rem] p-8 border border-white/5 transition-all duration-500 flex flex-col ${completed ? 'opacity-60' : theme.border}`}>
+      <div className="flex justify-between items-start mb-6 text-right">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${theme.iconBg}`}>{icon}</div>
+        <span className={`text-[10px] font-black font-cinzel uppercase tracking-tighter px-3 py-1 rounded-full border ${theme.badge}`}>{reward}</span>
       </div>
 
-      <div className="flex-1">
-        <h3 className="font-cinzel text-2xl font-bold text-white mb-4">{title}</h3>
-        <p className="font-crimson text-xl text-white/50 leading-relaxed mb-10">{desc}</p>
+      <div className="flex-1 mb-8">
+        <h3 className="font-cinzel text-xl font-bold text-white mb-3">{title}</h3>
+        <p className="font-crimson text-lg text-white/60 leading-relaxed">{desc}</p>
       </div>
 
       {completed ? (
-        <div className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white/30 font-cinzel font-bold text-center flex items-center justify-center gap-2">
-          <CheckCircle2 size={18} /> הושלם
+        <div className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-white/30 font-cinzel font-bold text-center flex items-center justify-center gap-2 mt-auto">
+          <CheckCircle2 size={18} /> הושלם להיום
         </div>
       ) : (
         <button
           onClick={onAction}
-          className={`w-full py-5 rounded-2xl bg-gradient-to-r ${btnGradient} text-white font-cinzel font-black text-xl tracking-widest shadow-xl transition-all active:scale-95`}
+          className={`mt-auto w-full py-4 rounded-xl bg-gradient-to-r ${theme.btn} text-white font-cinzel font-black text-lg tracking-widest shadow-lg transition-all active:scale-95`}
         >
           {btnText}
         </button>

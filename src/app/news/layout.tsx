@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { Sparkles } from 'lucide-react'; // כדאי לוודא שמותקן, אם לא - אפשר להוריד
 
 export const metadata: Metadata = {
   title: 'הנביא היומי | Lumos IL - עיתון הקוסמים הרשמי',
@@ -19,7 +20,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  // תוספת קטנה לשיפור השיתוף ברשתות
   twitter: {
     card: 'summary_large_image',
     title: 'הנביא היומי | לומוס ישראל',
@@ -32,6 +32,16 @@ export default function NewsLayout({ children }: { children: React.ReactNode }) 
   return (
     <section className="antialiased selection:bg-amber-500 selection:text-[#020617]">
       <div className="min-h-screen bg-[#020617]">
+
+        {/* באנר עידוד לכתיבת תגובות וצבירת נקודות */}
+        <div className="w-full bg-amber-500/10 border-b border-amber-500/20 py-3 px-4 flex justify-center items-center gap-3">
+          <Sparkles className="text-amber-500 animate-pulse" size={18} />
+          <p className="font-assistant text-sm md:text-base text-amber-200 font-bold tracking-wide text-center">
+            הידעת? כל תגובה בנביא היומי מזכה את הבית שלך ב-1 נקודה ובגליאון זהב!
+          </p>
+          <Sparkles className="text-amber-500 animate-pulse" size={18} />
+        </div>
+
         {children}
       </div>
     </section>
