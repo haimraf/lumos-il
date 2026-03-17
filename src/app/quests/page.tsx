@@ -32,17 +32,10 @@ export default function QuestsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [dailyStatus, setDailyStatus] = useState({ allowance: false, trivia: false, niffler: false });
-  const [triviaResult, setTriviaResult] = useState<'correct' | 'wrong' | null>(null);
   const [currentTrivia, setCurrentTrivia] = useState<any>(null);
   const [nifflerLoading, setNifflerLoading] = useState(false);
 
-  const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
-
-  // בחירת שאלה יומית לפי התאריך
-  const getDailyTrivia = useCallback(() => {
-    const day = new Date().getDate();
-    return TRIVIA_POOL[day % TRIVIA_POOL.length];
-  }, []);
+  const today = new Date().toLocaleDateString("en-CA");
 
   const fetchProfile = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -62,12 +55,13 @@ export default function QuestsPage() {
 
   useEffect(() => {
     fetchProfile();
-    setCurrentTrivia(getDailyTrivia());
-  }, [fetchProfile, getDailyTrivia]);
+    // בחירה בטוחה של שאלה
+    const day = new Date().getDate();
+    setCurrentTrivia(TRIVIA_POOL[day % TRIVIA_POOL.length]);
+  }, [fetchProfile]);
 
-  // --- משימה 1: קצבה ---
   const handleDailyCollect = async () => {
-    if (dailyStatus.allowance) return;
+    if (dailyStatus.allowance || !profile) return;
     const { error } = await supabase.from('profiles').update({
       galleons: (profile.galleons || 0) + 5,
       last_reward_date: today
@@ -79,9 +73,8 @@ export default function QuestsPage() {
     }
   };
 
-  // --- משימה 2: טריוויה ---
   const handleTriviaAnswer = async (selected: string) => {
-    if (dailyStatus.trivia) return;
+    if (dailyStatus.trivia || !profile || !currentTrivia) return;
     const isCorrect = selected === currentTrivia.a;
 
     const updateData: any = { last_trivia_date: today };
@@ -89,15 +82,13 @@ export default function QuestsPage() {
 
     const { error } = await supabase.from('profiles').update(updateData).eq('id', profile.id);
     if (!error) {
-      setTriviaResult(isCorrect ? 'correct' : 'wrong');
       sendOwl(isCorrect ? "תשובה נכונה!" : "טעות בלחש", isCorrect ? "10 נקודות לבית שלך!" : `התשובה הנכונה: ${currentTrivia.a}`, isCorrect ? "success" : "error");
       fetchProfile();
     }
   };
 
-  // --- משימה 3: ציד הניפלר (חדש!) ---
   const handleNifflerHunt = async () => {
-    if (dailyStatus.niffler || nifflerLoading) return;
+    if (dailyStatus.niffler || nifflerLoading || !profile) return;
     setNifflerLoading(true);
 
     const winType = Math.random() > 0.5 ? 'galleons' : 'points';
@@ -117,26 +108,26 @@ export default function QuestsPage() {
 
   if (isLoading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div></div>;
 
-  const hColor = profile?.house ? HOUSE_COLORS[profile.house] : 'text-amber-400';
+  // הגנה קריטית: מוודא שתמיד יש מחרוזת גם אם הבית לא קיים במפה
+  const hColor = (profile?.house && HOUSE_COLORS[profile.house]) ? HOUSE_COLORS[profile.house] : 'text-amber-400';
+  const trophyClass = hColor.split(' ')[0] || 'text-amber-400';
 
   return (
     <main className="min-h-screen bg-[#020617] text-[#f8fafc] relative overflow-hidden pb-20" dir="rtl">
-      {/* BACKGROUND EFFECTS */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-indigo-900/5 blur-[120px] animate-pulse"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-amber-900/5 blur-[120px]"></div>
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 pt-10">
-        {/* HEADER */}
         <div className="flex justify-between items-center mb-12">
           <Link href="/dashboard" className="group flex items-center gap-2 text-white/40 hover:text-white transition-all font-cinzel text-sm font-bold">
             <ChevronRight size={20} className="group-hover:translate-x-1" /> חזרה לטירה
           </Link>
 
           <div className="flex items-center gap-6 bg-black/40 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-full shadow-2xl">
-            <div className="flex items-center gap-2"><Coins size={18} className="text-amber-500" /><span className="text-amber-400 font-bold font-cinzel">{profile?.galleons}</span></div>
-            <div className="flex items-center gap-2"><Trophy size={18} className={hColor.split(' ')[0]} /><span className={`font-bold font-cinzel ${hColor}`}>{profile?.points_contributed}</span></div>
+            <div className="flex items-center gap-2"><Coins size={18} className="text-amber-500" /><span className="text-amber-400 font-bold font-cinzel">{profile?.galleons || 0}</span></div>
+            <div className="flex items-center gap-2"><Trophy size={18} className={trophyClass} /><span className={`font-bold font-cinzel ${hColor}`}>{profile?.points_contributed || 0}</span></div>
           </div>
         </div>
 
@@ -145,10 +136,7 @@ export default function QuestsPage() {
           <p className="font-crimson text-2xl text-white/40 italic uppercase tracking-widest">עבודה קשה היא הדרך היחידה לתהילה</p>
         </div>
 
-        {/* QUESTS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-          {/* 1. DAILY ALLOWANCE */}
           <QuestCard
             title="קצבה יומית"
             desc="משרד הקסמים מאשר דמי כיס לתלמידים מצטיינים."
@@ -160,7 +148,6 @@ export default function QuestsPage() {
             color="amber"
           />
 
-          {/* 2. TRIVIA */}
           <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/5 transition-all duration-500 flex flex-col ${dailyStatus.trivia ? 'opacity-60' : 'hover:border-blue-500/30'}`}>
             <div className="flex justify-between items-start mb-8">
               <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><BookOpen className="text-blue-400" size={32} /></div>
@@ -168,10 +155,10 @@ export default function QuestsPage() {
             </div>
 
             <h3 className="font-cinzel text-2xl font-bold mb-4">מבחן לחשים</h3>
-            <p className="font-crimson text-xl text-white/70 mb-8 h-20">{currentTrivia?.q}</p>
+            <p className="font-crimson text-xl text-white/70 mb-8 h-20">{currentTrivia?.q || "טוען שאלה..."}</p>
 
             <div className="grid grid-cols-2 gap-3">
-              {currentTrivia?.options.map((opt: string) => (
+              {currentTrivia?.options?.map((opt: string) => (
                 <button
                   key={opt}
                   disabled={dailyStatus.trivia}
@@ -185,7 +172,6 @@ export default function QuestsPage() {
             {dailyStatus.trivia && <p className="mt-4 text-center font-cinzel text-xs text-white/30 italic">המבחן הבא יפתח מחר</p>}
           </div>
 
-          {/* 3. NIFFLER HUNT (NEW) */}
           <QuestCard
             title="ציד הניפלר"
             desc="ניפלר חצוף גנב אוצרות בטירה! עזור למצוא את המסתור שלו."
@@ -196,25 +182,24 @@ export default function QuestsPage() {
             btnText={nifflerLoading ? "מחפש..." : "צא לציד"}
             color="emerald"
           />
-
         </div>
       </div>
     </main>
   );
 }
 
-// --- HELPER COMPONENT ---
 function QuestCard({ title, desc, reward, icon, completed, onAction, btnText, color }: any) {
-  const colorClasses: any = {
-    amber: "border-amber-500/30 text-amber-500 bg-amber-500",
-    emerald: "border-emerald-500/30 text-emerald-500 bg-emerald-500",
-  };
+  // תיקון צבעים דינמיים - TailWind לא אוהב מחרוזות מורכבות
+  const borderHoverClass = color === 'amber' ? 'hover:border-amber-500/30' : 'hover:border-emerald-500/30';
+  const iconBgClass = color === 'amber' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20';
+  const badgeClass = color === 'amber' ? 'text-amber-400 bg-amber-500/10 decoration-amber-500/50' : 'text-emerald-400 bg-emerald-500/10 decoration-emerald-500/50';
+  const btnGradient = color === 'amber' ? 'from-amber-600 to-amber-800' : 'from-emerald-600 to-emerald-800';
 
   return (
-    <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/5 transition-all duration-500 flex flex-col ${completed ? 'opacity-60' : `hover:border-${color}-500/30`}`}>
+    <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/5 transition-all duration-500 flex flex-col ${completed ? 'opacity-60' : borderHoverClass}`}>
       <div className="flex justify-between items-start mb-8 text-right">
-        <div className={`w-16 h-16 rounded-2xl bg-${color}-500/10 flex items-center justify-center border border-${color}-500/20`}>{icon}</div>
-        <span className={`text-xs font-black font-cinzel text-${color}-400 uppercase tracking-tighter bg-${color}-500/10 px-3 py-1 rounded-full underline decoration-${color}-500/50 underline-offset-4`}>תגמול: {reward}</span>
+        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center border ${iconBgClass}`}>{icon}</div>
+        <span className={`text-xs font-black font-cinzel uppercase tracking-tighter px-3 py-1 rounded-full underline underline-offset-4 ${badgeClass}`}>תגמול: {reward}</span>
       </div>
 
       <div className="flex-1">
@@ -229,7 +214,7 @@ function QuestCard({ title, desc, reward, icon, completed, onAction, btnText, co
       ) : (
         <button
           onClick={onAction}
-          className={`w-full py-5 rounded-2xl bg-gradient-to-r from-${color}-600 to-${color}-800 text-white font-cinzel font-black text-xl tracking-widest shadow-xl transition-all active:scale-95`}
+          className={`w-full py-5 rounded-2xl bg-gradient-to-r ${btnGradient} text-white font-cinzel font-black text-xl tracking-widest shadow-xl transition-all active:scale-95`}
         >
           {btnText}
         </button>
