@@ -37,7 +37,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // נתוני ה-Schema להזרקה לבינה מלאכותית וגוגל
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -78,6 +77,13 @@ export default function RootLayout({
         {/* תג אימות Google Search Console */}
         <meta name="google-site-verification" content="f0JJtqq026fd7gIfYbuVC6IPDvvnl8e0R2FFpRkWFNQ" />
 
+        {/* PWA: הגדרות לאייפון ואנדרואיד */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Lumos" />
+        <link rel="apple-touch-icon" href="/icon-512.png" />
+        <meta name="theme-color" content="#020617" />
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -85,14 +91,11 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-[#020617] text-[#f8fafc] font-assistant">
         <OwlMailProvider>
-          {/* מערכת הלחשים הגלובלית */}
           <MagicSpells />
 
           <div className="flex flex-col min-h-screen relative">
-            {/* התפריט העליון */}
             <Header />
 
-            {/* המרצד - מופיע מתחת לתפריט ורץ לאורך כל האתר */}
             <div className="mt-20">
               <MagicTicker />
             </div>
@@ -103,7 +106,6 @@ export default function RootLayout({
 
             <Footer />
 
-            {/* גמד הבית העוזר - מופיע בפינה התחתונה */}
             <HouseElfHelper />
           </div>
 
