@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
   ScrollText, ArrowRight, X, MessageSquare,
-  BarChart3, Flag, AlertTriangle, EyeOff, Eye
+  BarChart3, Flag, AlertTriangle, EyeOff, Eye, Volume2, VolumeX
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 
@@ -33,10 +33,15 @@ function NewsContent() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
   const initialCheckDone = useRef(false);
 
   const supabase = createClient();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // 1. טעינת חדשות ראשונית (בלי ריצודים)
   useEffect(() => {
@@ -133,7 +138,7 @@ function NewsContent() {
       </div>
 
       {selectedNews && (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center overflow-y-auto bg-[#020617]/95 backdrop-blur-md pt-0 md:pt-10 px-0 md:px-4">
+        <div className="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto bg-[#020617] backdrop-blur-md pt-0 md:pt-10 px-0 md:px-4">
           <div className="relative w-full max-w-4xl bg-[#e2d1b0] text-[#020617] shadow-2xl border-x-0 md:border-4 border-amber-700/30 min-h-screen md:min-h-0 mb-0 md:mb-10 animate-in fade-in zoom-in duration-300" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')" }}>
             <button onClick={() => setSelectedNews(null)} className="fixed top-6 left-6 md:absolute md:top-6 md:left-6 p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors z-[10000]"><X size={32} /></button>
 
@@ -161,6 +166,14 @@ function NewsContent() {
           </div>
         </div>
       )}
+
+      <button
+        onClick={() => setIsMuted(!isMuted)}
+        className="fixed bottom-6 left-6 p-4 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 hover:bg-amber-500/20 backdrop-blur-md z-[100000] transition-all"
+        title={isMuted ? "הפעל קול" : "השתק"}
+      >
+        {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+      </button>
     </div>
   );
 }
@@ -242,7 +255,6 @@ function CommentsSection({ newsId }: { newsId: string }) {
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const supabase = createClient();
-  const { sendOwl } = useOwlMail();
 
   const houseClasses: { [key: string]: string } = {
     Gryffindor: "border-red-700 bg-red-900/5",
@@ -272,21 +284,15 @@ function CommentsSection({ newsId }: { newsId: string }) {
       news_id: newsId,
       user_id: currentUserId,
       content: newComment,
-      user_name: "קוסם"
-    }]);
+      user_name: null
+    }]).select().maybeSingle();
 
-    if (!error) {
-      setNewComment("");
-      fetchData();
-      // תגמול גולד
-      const { error: rewardError } = await supabase.rpc('add_engagement_reward', { user_id_param: currentUserId });
-      if (!rewardError) {
-        sendOwl("נקודות וגליאונים!", "קיבלת גליאון ונקודה על התגובה שלך!", "success");
-      }
-    } else {
-      console.error(error);
-      alert("שגיאה בשליחה");
+    if (error) {
+      console.log(error);
     }
+
+    setNewComment("");
+    fetchData();
     setIsPosting(false);
   };
 
@@ -331,7 +337,7 @@ function CommentsSection({ newsId }: { newsId: string }) {
             <div key={c.id} className={`p-8 border-r-8 ${houseColorClass} rounded-lg shadow-md animate-in fade-in`}>
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <p className="font-cinzel text-2xl font-black text-amber-900">{c.profiles?.full_name || "קוסם"}</p>
+                  <p className="font-cinzel text-2xl font-black text-amber-900">{c.profiles?.full_name || c.user_id?.substring(0, 8)}</p>
                   <div className="flex gap-3 items-center opacity-60">
                     <p className="text-xs font-bold uppercase">{c.profiles?.house || 'ללא בית'}</p>
                     <span className="text-[10px]">•</span>
@@ -354,7 +360,7 @@ function CommentsSection({ newsId }: { newsId: string }) {
       </div>
 
       {reportingComment && (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
+        <div className="fixed inset-0 z-[100001] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
           <div className="bg-[#fdfaf5] w-full max-w-md rounded-[3rem] p-10 space-y-8 shadow-2xl animate-in zoom-in duration-200">
             <h4 className="font-cinzel text-2xl font-black text-red-900 flex items-center gap-3"><AlertTriangle size={32} /> דיווח</h4>
             <div className="grid grid-cols-1 gap-4">

@@ -173,7 +173,7 @@ export default function QuestsPage() {
             color="amber"
           />
 
-          <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[2.5rem] p-8 border border-white/5 transition-all duration-500 flex flex-col ${dailyStatus.trivia ? 'opacity-60' : 'hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]'}`}>
+          <div className={`relative group glass-panel rounded-[2.5rem] p-8 transition-all duration-500 flex flex-col ${dailyStatus.trivia ? 'opacity-60 border-white/5' : 'hover:border-blue-500/30 hover:shadow-[0_15px_50px_rgba(59,130,246,0.2)] hover:-translate-y-2 border-t border-r border-white/10'}`}>
             <div className="flex justify-between items-start mb-6">
               <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><BookOpen className="text-blue-400" size={28} /></div>
               <span className="text-[10px] font-black font-cinzel text-blue-400 uppercase tracking-tighter bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">10 נקודות</span>
@@ -229,15 +229,15 @@ export default function QuestsPage() {
 function QuestCard({ title, desc, reward, icon, completed, onAction, btnText, color }: any) {
   // תמיכה בצבעים דינמיים כולל הסגול (violet) החדש
   const colors: Record<string, any> = {
-    amber: { border: 'hover:border-amber-500/30 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]', iconBg: 'bg-amber-500/10 border-amber-500/20', badge: 'text-amber-400 bg-amber-500/10 border-amber-500/20', btn: 'from-amber-600 to-amber-800 hover:from-amber-500 hover:to-amber-700' },
-    emerald: { border: 'hover:border-emerald-500/30 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]', iconBg: 'bg-emerald-500/10 border-emerald-500/20', badge: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', btn: 'from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700' },
-    violet: { border: 'hover:border-violet-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)]', iconBg: 'bg-violet-500/10 border-violet-500/20', badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20', btn: 'from-violet-600 to-violet-900 hover:from-violet-500 hover:to-violet-800' }
+    amber: { border: 'hover:border-amber-500/50 hover:shadow-[0_15px_50px_rgba(245,158,11,0.2)] hover:-translate-y-2 border-t border-r border-white/10', iconBg: 'bg-amber-500/10 border-amber-500/20', badge: 'text-amber-400 bg-amber-500/10 border-amber-500/20', btn: 'from-amber-600 to-amber-800 hover:from-amber-500 hover:to-amber-700' },
+    emerald: { border: 'hover:border-emerald-500/50 hover:shadow-[0_15px_50px_rgba(16,185,129,0.2)] hover:-translate-y-2 border-t border-r border-white/10', iconBg: 'bg-emerald-500/10 border-emerald-500/20', badge: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', btn: 'from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700' },
+    violet: { border: 'hover:border-violet-500/50 hover:shadow-[0_15px_50px_rgba(139,92,246,0.2)] hover:-translate-y-2 border-t border-r border-white/10', iconBg: 'bg-violet-500/10 border-violet-500/20', badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20', btn: 'from-violet-600 to-violet-900 hover:from-violet-500 hover:to-violet-800' }
   };
 
   const theme = colors[color] || colors.amber;
 
   return (
-    <div className={`relative group bg-zinc-900/40 backdrop-blur-2xl rounded-[2.5rem] p-8 border border-white/5 transition-all duration-500 flex flex-col ${completed ? 'opacity-60' : theme.border}`}>
+    <div className={`relative group glass-panel rounded-[2.5rem] p-8 transition-all duration-500 flex flex-col ${completed ? 'opacity-60 border-white/5' : theme.border}`}>
       <div className="flex justify-between items-start mb-6 text-right">
         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${theme.iconBg}`}>{icon}</div>
         <span className={`text-[10px] font-black font-cinzel uppercase tracking-tighter px-3 py-1 rounded-full border ${theme.badge}`}>{reward}</span>

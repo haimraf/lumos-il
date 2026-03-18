@@ -1,102 +1,106 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Sparkles } from "lucide-react";
+import {
+    Coins,
+    Trophy,
+    Flame,
+    Skull,
+    Bird,
+    Leaf,
+    Newspaper
+} from "lucide-react";
+import Link from "next/link";
 
-export default function MagicTicker() {
-    const [stats, setStats] = useState<string[]>(["מפעיל קסמי חיזוי..."]);
-    const [onlineCount, setOnlineCount] = useState<number>(0);
+export default function WizardHeader() {
     const supabase = createClient();
+    const [data, setData] = useState({
+        houses: { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 },
+        latestNews: { id: "", title: "מחפש סקופים..." },
+        galleons: 0
+    });
 
-    useEffect(() => {
-        // 1. הבאת הנתונים הסטטיים/מתעדכנים פחות
-        const fetchTickerData = async () => {
-            const { data: p } = await supabase.from('profiles').select('house, points_contributed');
-            const sums = p?.reduce((acc: any, curr: any) => {
-                if (curr.house && curr.house !== 'Unsorted') acc[curr.house] = (acc[curr.house] || 0) + (curr.points_contributed || 0);
-                return acc;
-            }, {});
+    const refreshData = useCallback(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data: profiles } = await supabase.from('profiles').select('house, points_contributed');
+        const points = profiles?.reduce((acc: any, curr: any) => {
+            if (curr.house && acc[curr.house] !== undefined) acc[curr.house] += curr.points_contributed || 0;
+            return acc;
+        }, { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 });
 
-            const { data: news } = await supabase.from('news').select('title').order('created_at', { ascending: false }).limit(1);
+        const { data: news } = await supabase.from('news').select('id, title').order('created_at', { ascending: false }).limit(1).single();
 
-            const messages = [
-                `🏆 גביע הבתים: גריפינדור (${sums?.Gryffindor || 0}) • סלית'רין (${sums?.Slytherin || 0}) • רייבנקלו (${sums?.Ravenclaw || 0}) • הפלפאף (${sums?.Hufflepuff || 0})`,
-                news?.[0] ? `🗞️ חדש בנביא היומי: ${news[0].title}` : "🗞️ מהדורה חדשה של הנביא היומי בדרך...",
-                "✨ השתמשו בלחש 'Lumos' כדי להאיר את הדרך!"
-            ];
-            setStats(messages);
-        };
-
-        fetchTickerData();
-        const interval = setInterval(fetchTickerData, 60000);
-
-        // 2. חיבור ל-Realtime - התיקון הקריטי!
-        let channel: any;
-
-        const setupPresence = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return; // רק קוסמים מחוברים נספרים
-
-            channel = supabase.channel('lumos_global_presence');
-
-            channel.on('presence', { event: 'sync' }, () => {
-                const state = channel.presenceState();
-                const rawUsers = Object.values(state).flat();
-
-                // סופרים משתמשים ייחודיים בלבד (גם אם מישהו פתח בטלפון ובמחשב)
-                const uniqueUsers = new Set(rawUsers.map((u: any) => u.user_id)).size;
-
-                setOnlineCount(uniqueUsers);
-            }).subscribe(async (status: string) => {
-                if (status === 'SUBSCRIBED') {
-                    // כאן אנחנו משדרים לכל הטירה "אני מחובר!" כדי שהספירה תהיה נכונה
-                    await channel.track({ user_id: session.user.id });
-                }
-            });
-        };
-
-        setupPresence();
-
-        return () => {
-            clearInterval(interval);
-            if (channel) supabase.removeChannel(channel);
-        };
+        let g = 0;
+        if (session) {
+            const { data: p } = await supabase.from('profiles').select('galleons').eq('id', session.user.id).single();
+            g = p?.galleons || 0;
+        }
+        setData({ houses: points, latestNews: { id: news?.id || "", title: news?.title || "הנביא היומי בדרך..." }, galleons: g });
     }, [supabase]);
 
-    // שילוב ההודעות הרגילות עם הודעת המחוברים בזמן אמת
-    const displayMessages = [
-        ...stats,
-        `👥 קוסמים מחוברים כרגע: ${onlineCount > 0 ? onlineCount : 'טוען...'}`
-    ];
+    useEffect(() => {
+        refreshData();
+        const interval = setInterval(refreshData, 30000);
+        return () => clearInterval(interval);
+    }, [refreshData]);
 
     return (
-        <div className="w-full bg-[#020617]/80 border-b border-amber-500/30 py-2.5 overflow-hidden whitespace-nowrap z-[100] backdrop-blur-md" dir="rtl">
-            <div className="flex animate-marquee gap-16 items-center w-max">
-                {[...displayMessages, ...displayMessages, ...displayMessages].map((text, i) => (
-                    <span
-                        key={i}
-                        className="font-cinzel text-xs md:text-sm font-bold text-amber-400 flex items-center gap-3 tracking-[0.08em] drop-shadow-[0_0_8px_rgba(245,158,11,0.3)] hover:text-amber-200 transition-colors cursor-default"
-                    >
-                        <Sparkles size={14} className="text-amber-500" />
-                        {text.toUpperCase()}
-                    </span>
-                ))}
-            </div>
+        /* z-10 מבטיח שהסרגל יהיה הכי נמוך שאפשר בשכבת ה-sticky */
+        <div className="w-full bg-[#020408]/95 border-b-2 border-amber-600/30 py-3 px-4 md:px-8 z-10 sticky top-0 backdrop-blur-xl shadow-lg" dir="rtl">
+            <div className="w-full flex items-center justify-between">
 
-            <style>{`
-                @keyframes marquee {
-                    0% { transform: translateX(0); }
-                    100% { transform: translateX(33.33%); }
-                }
-                .animate-marquee {
-                    display: inline-flex;
-                    animation: marquee 40s linear infinite;
-                }
-                .animate-marquee:hover {
-                    animation-play-state: paused;
-                }
-            `}</style>
+                {/* צד ימין (Start): חדשות */}
+                <div className="flex-1 flex justify-start">
+                    <Link
+                        href={data.latestNews.id ? `/news?article=${data.latestNews.id}` : "#"}
+                        className="group flex items-center gap-3 bg-white/5 hover:bg-amber-500/10 p-2 rounded-xl transition-all border border-white/5 hover:border-amber-500/30 overflow-hidden max-w-[250px] md:max-w-md"
+                    >
+                        <div className="bg-amber-500/20 p-2 rounded-lg shrink-0">
+                            <Newspaper size={18} className="text-amber-400 animate-pulse" />
+                        </div>
+                        <div className="flex flex-col overflow-hidden">
+                            <span className="text-[9px] font-cinzel text-amber-500/60 uppercase font-black">הנביא היומי</span>
+                            <span className="text-xs font-bold text-white group-hover:text-amber-400 transition-colors truncate">
+                                {data.latestNews.title}
+                            </span>
+                        </div>
+                    </Link>
+                </div>
+
+                {/* מרכז (Center): גביע הבתים */}
+                <div className="flex-1 hidden lg:flex justify-center items-center gap-8">
+                    <HouseStat label="GRY" points={data.houses.Gryffindor} color="text-red-500" icon={Flame} glow="0 0 15px rgba(239, 68, 68, 0.6)" />
+                    <HouseStat label="SLY" points={data.houses.Slytherin} color="text-emerald-400" icon={Skull} glow="0 0 15px rgba(52, 211, 153, 0.6)" />
+                    <HouseStat label="RAV" points={data.houses.Ravenclaw} color="text-blue-400" icon={Bird} glow="0 0 15px rgba(96, 165, 250, 0.6)" />
+                    <HouseStat label="HUF" points={data.houses.Hufflepuff} color="text-amber-400" icon={Leaf} glow="0 0 15px rgba(251, 191, 36, 0.6)" />
+                </div>
+
+                {/* צד שמאל (End): סטטוס אישי */}
+                <div className="flex-1 flex justify-end items-center gap-4">
+                    <div className="flex items-center gap-2 bg-gradient-to-l from-amber-500/30 to-transparent px-4 py-2 rounded-2xl border border-amber-500/40">
+                        <Coins size={20} className="text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
+                        <span className="text-amber-400 font-cinzel font-black text-lg">{data.galleons}</span>
+                    </div>
+                    <Link href="/house-cup" className="group p-1">
+                        <Trophy size={28} className="text-amber-500 group-hover:scale-110 transition-transform drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+                    </Link>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function HouseStat({ label, points, color, icon: Icon, glow }: any) {
+    return (
+        <div className="flex flex-col items-center gap-0.5 group">
+            <div className="flex items-center gap-1.5">
+                <Icon size={14} className={`${color}`} style={{ filter: `drop-shadow(${glow})` }} />
+                <span className={`font-cinzel text-[10px] font-black ${color} tracking-tighter`}>{label}</span>
+            </div>
+            <span className="font-cinzel text-lg font-black text-white leading-none" style={{ textShadow: glow }}>
+                {points.toLocaleString()}
+            </span>
         </div>
     );
 }

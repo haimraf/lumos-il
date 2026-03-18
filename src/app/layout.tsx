@@ -7,6 +7,8 @@ import MagicSpells from "@/components/MagicSpells";
 import CookieBanner from "@/components/CookieBanner";
 import MagicTicker from "@/components/MagicTicker";
 import HouseElfHelper from "@/components/HouseElfHelper";
+import BackgroundMusic from "@/components/BackgroundMusic";
+import { UIProvider } from "@/context/UIContext";
 
 const assistant = Assistant({
   subsets: ["hebrew", "latin"],
@@ -30,6 +32,11 @@ const crimson = Crimson_Pro({
 export const metadata = {
   title: "LUMOS IL | הבית הדיגיטלי של קהילת הקוסמים",
   description: "קהילת ההארי פוטר הגדולה והאיכותית בישראל. בואו לעבור מיון לבתים ולגלות את עולם הקסמים.",
+  openGraph: {
+    title: "LUMOS IL - קהילת הקוסמים של ישראל",
+    description: "גביע הבתים, חדשות הנביא היומי ופעילויות קסומות.",
+    images: ['/images/og-image.png'], // תמונה שתופיע בשיתופים
+  },
 };
 
 export default function RootLayout({
@@ -72,7 +79,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="he" dir="rtl" className={`${assistant.variable} ${cinzel.variable} ${crimson.variable}`}>
+    <html lang="he" dir="rtl" className={`${assistant.variable} ${cinzel.variable} ${crimson.variable} scroll-smooth`}>
       <head>
         {/* תג אימות Google Search Console */}
         <meta name="google-site-verification" content="f0JJtqq026fd7gIfYbuVC6IPDvvnl8e0R2FFpRkWFNQ" />
@@ -89,28 +96,35 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="antialiased bg-[#020617] text-[#f8fafc] font-assistant">
-        <OwlMailProvider>
-          <MagicSpells />
+      <body className="antialiased bg-[#020617] text-[#f8fafc] font-assistant selection:bg-amber-500/30">
+        <UIProvider>
+          <OwlMailProvider>
+            <BackgroundMusic />
+            <MagicSpells />
 
-          <div className="flex flex-col min-h-screen relative">
-            <Header />
+            <div className="flex flex-col min-h-screen relative overflow-x-hidden">
+              {/* אפקט עומק לרקע - שיפור ויזואלי */}
+              <div className="fixed inset-0 bg-[url('/images/noise.png')] opacity-[0.03] pointer-events-none" />
+              <div className="fixed inset-0 bg-gradient-to-b from-amber-500/5 via-transparent to-transparent pointer-events-none" />
 
-            <div className="mt-20">
-              <MagicTicker />
+              <Header />
+
+              <div className="mt-20">
+                <MagicTicker />
+              </div>
+
+              <main className="flex-1 pt-12 relative z-10">
+                {children}
+              </main>
+
+              <Footer />
+
+              <HouseElfHelper />
             </div>
 
-            <main className="flex-1 pt-12">
-              {children}
-            </main>
-
-            <Footer />
-
-            <HouseElfHelper />
-          </div>
-
-          <CookieBanner />
-        </OwlMailProvider>
+            <CookieBanner />
+          </OwlMailProvider>
+        </UIProvider>
       </body>
     </html>
   );

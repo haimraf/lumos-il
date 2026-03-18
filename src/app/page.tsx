@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import HouseCupLeaderboard from "@/components/HouseCupLeaderboard";
-import { Sparkles, Mail, Trophy, Users, Star, ArrowRight, X, Lock, ScrollText, Wand2 } from "lucide-react";
+import { Sparkles, Mail, Trophy, Users, Star, ArrowRight, X, Lock, ScrollText, Wand2, Volume2, VolumeX } from "lucide-react";
+import { useUIState } from "@/context/UIContext";
 
 /**
  * LUMOS IL - LANDING V14.3 (The Inclusive Magic Update)
@@ -26,6 +27,7 @@ export default function Home() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   const supabase = createClient();
+  const { isMuted, toggleMute } = useUIState();
 
   // Generate stars once on mount
   useEffect(() => {
@@ -214,6 +216,15 @@ export default function Home() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] h-[60%] bg-[radial-gradient(ellipse_at_50%_0%,_rgba(120,80,20,0.18)_0%,_transparent_60%)]" />
           <div className="absolute bottom-0 left-1/4 w-[60%] h-[40%] bg-[radial-gradient(ellipse_at_50%_100%,_rgba(60,20,100,0.12)_0%,_transparent_60%)]" />
         </div>
+
+        {/* ===== FLOATING AUDIO TOGGLE ===== */}
+        <button
+          onClick={toggleMute}
+          className="fixed bottom-6 lg:bottom-10 left-6 lg:left-10 z-[200] p-4 rounded-full bg-[#020617]/80 backdrop-blur-xl border border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:scale-110 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] outline-none group"
+          title={isMuted ? "הפעל מוזיקת רקע" : "השתק מוזיקת רקע"}
+        >
+          {isMuted ? <VolumeX size={26} className="group-hover:opacity-80 transition-opacity" /> : <Volume2 size={26} className="group-hover:opacity-80 transition-opacity" />}
+        </button>
 
         {/* ===== HERO SECTION ===== */}
         <section className="relative z-10 flex flex-col items-center justify-center min-h-[92vh] px-6 py-12">

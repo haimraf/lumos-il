@@ -2,245 +2,170 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import {
-    Footprints,
-    Compass,
-    Shield,
-    Home,
-    BookOpen,
-    Coffee,
-    ArrowRight,
-    Wand2,
-    Ghost,
-    Sparkles,
-    Lock
-} from "lucide-react";
-import Link from "next/link";
+import { Footprints, Shield, Compass, Eye, Map as MapIcon, Laptop, Smartphone, Sparkles } from "lucide-react";
 
-/**
- * LUMOS IL - THE MARAUDER'S MAP V5.3 (The Colorful Footprints Edition)
- * כולל: טביעות רגל לפי צבעי הבתים וערוץ נוכחות גלובלי מסונכרן.
- */
-
-// הגדרת צבעים לפי בתים למפה
-const HOUSE_COLORS: Record<string, { text: string, foot: string }> = {
-    'Gryffindor': { text: 'text-red-400', foot: 'text-red-500/80' },
-    'Slytherin': { text: 'text-emerald-400', foot: 'text-emerald-500/80' },
-    'Ravenclaw': { text: 'text-blue-400', foot: 'text-blue-500/80' },
-    'Hufflepuff': { text: 'text-amber-400', foot: 'text-amber-500/80' },
-    'Unknown': { text: 'text-slate-300', foot: 'text-slate-400/80' }
+const HOUSE_THEMES: Record<string, { color: string, foot: string }> = {
+    'Gryffindor': { color: 'text-red-900', foot: 'text-red-900/40' },
+    'Slytherin': { color: 'text-emerald-900', foot: 'text-emerald-900/40' },
+    'Ravenclaw': { color: 'text-blue-900', foot: 'text-blue-900/40' },
+    'Hufflepuff': { color: 'text-amber-800', foot: 'text-amber-800/40' },
+    'Unknown': { color: 'text-[#8b4513]', foot: 'text-[#8b4513]/40' }
 };
 
-interface MapUser {
-    name: string;
-    house: string;
-}
-
-export default function FullMaraudersMap() {
+export default function MaraudersMasterMap() {
     const supabase = createClient();
-    const [onlineUsers, setOnlineUsers] = useState<MapUser[]>([]);
-    const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+    const [wizards, setWizards] = useState<any[]>([]);
+    const [stats, setStats] = useState({ hall: 0, library: 0, wandering: 0 });
+    const [isMounted, setIsMounted] = useState(false);
 
-    // לוגיקת ה"רוחות" לסנכרון עם הדאשבורד
-    const CASTLE_GHOSTS = 5;
+    useEffect(() => setIsMounted(true), []);
 
     useEffect(() => {
-        // שינינו לערוץ גלובלי כדי שיתחבר גם לדאשבורד וגם לשאר האתר
-        const channel = supabase.channel('lumos_global_presence', {
-            config: { presence: { key: 'wizard' } }
-        });
+        const channel = supabase.channel('lumos_global_presence', { config: { presence: { key: 'wizard' } } });
 
-        channel
-            .on('presence', { event: 'sync' }, () => {
-                const state = channel.presenceState();
-                const allPresences = Object.values(state).flat() as any[];
+        channel.on('presence', { event: 'sync' }, () => {
+            const state = channel.presenceState();
+            const all = Object.values(state).flat() as any[];
+            setWizards(all);
 
-                // סינון שמות ייחודיים תוך שמירה על נתוני הבית
-                const uniqueUsersMap = new Map<string, MapUser>();
-                allPresences.forEach(p => {
-                    if (p.user_name) {
-                        uniqueUsersMap.set(p.user_name, {
-                            name: p.user_name,
-                            house: p.house || 'Unknown'
-                        });
-                    }
-                });
-
-                setOnlineUsers(Array.from(uniqueUsersMap.values()));
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    let displayName = "קוסם מסתורי";
-                    let userHouse = "Unknown";
-
-                    if (session) {
-                        const { data: profile } = await supabase
-                            .from('profiles')
-                            .select('full_name, house')
-                            .eq('id', session.user.id)
-                            .single();
-
-                        displayName = profile?.full_name || "קוסם לא מזוהה";
-                        userHouse = profile?.house || "Unknown";
-                    }
-
-                    await channel.track({
-                        user_name: displayName,
-                        house: userHouse,
-                        online_at: new Date().toISOString()
-                    });
+            const hall = all.filter(p => p.current_path === '/' || p.current_path === '/map').length;
+            const lib = all.filter(p => p.current_path?.includes('/news')).length;
+            setStats({ hall, library: lib, wandering: all.length - (hall + lib) });
+        }).subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                const { data: { session } } = await supabase.auth.getSession();
+                let name = "קוסם מסתורי", house = "Unknown";
+                if (session) {
+                    const { data } = await supabase.from('profiles').select('full_name, house').eq('id', session.user.id).single();
+                    if (data) { name = data.full_name; house = data.house; }
                 }
-            });
+                await channel.track({
+                    user_name: name,
+                    house: house,
+                    current_path: window.location.pathname,
+                    user_agent: navigator.userAgent,
+                    online_at: new Date().toISOString()
+                });
+            }
+        });
 
         return () => { supabase.removeChannel(channel); };
     }, [supabase]);
 
-    const handleMouseMove = (e: React.MouseEvent) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setMousePos({
-            x: ((e.clientX - rect.left) / rect.width) * 100,
-            y: ((e.clientY - rect.top) / rect.height) * 100
-        });
+    const getWandType = (ua: string) => {
+        if (!ua) return "Ancient Wand";
+        if (ua.includes("Chrome")) return "Chrome Wand";
+        if (ua.includes("Firefox")) return "Phoenix Feather (FF)";
+        if (ua.includes("Safari") && !ua.includes("Chrome")) return "Unicorn Hair (Safari)";
+        return "Custom Wand";
     };
 
-    const totalInCastle = onlineUsers.length + CASTLE_GHOSTS;
-
     return (
-        <main
-            className="min-h-screen bg-[#02040a] flex flex-col items-center justify-center p-4 md:p-10 relative overflow-hidden"
-            onMouseMove={handleMouseMove}
-            dir="rtl"
-        >
+        <div className="min-h-screen bg-[#050505] p-4 md:p-8 font-assistant overflow-hidden" dir="rtl">
             <style>{`
-        @keyframes ink-walk {
-          0% { opacity: 0; transform: scale(0.6) translateY(8px); }
-          50% { opacity: 1; transform: scale(1) translateY(0); }
-          100% { opacity: 0.2; transform: scale(0.9) translateY(-4px); }
-        }
-        .ink-step-1 { animation: ink-walk 2.5s infinite 0s; }
-        .ink-step-2 { animation: ink-walk 2.5s infinite 0.6s; }
-      `}</style>
+                @keyframes pitter-patter {
+                    0% { opacity: 0; transform: translateX(0) scale(0.8); }
+                    20% { opacity: 1; transform: translateX(5px) scale(1); }
+                    80% { opacity: 1; transform: translateX(10px) scale(1); }
+                    100% { opacity: 0; transform: translateX(15px) scale(0.8); }
+                }
+                @keyframes float-dust {
+                    0% { transform: translateY(0) translateX(0); opacity: 0; }
+                    50% { opacity: 0.2; }
+                    100% { transform: translateY(-100px) translateX(20px); opacity: 0; }
+                }
+                .walking-feet { animation: pitter-patter 2.5s infinite; }
+                .magic-dust { animation: float-dust 10s infinite linear; }
+                .map-vignette { box-shadow: inset 0 0 150px rgba(0,0,0,0.7), inset 0 0 50px rgba(139,69,19,0.2); }
+            `}</style>
 
-            {/* לומוס - אלומת אור ענברית חזקה */}
-            <div className="absolute inset-0 pointer-events-none z-10"
-                style={{ background: `radial-gradient(circle 500px at ${mousePos.x}% ${mousePos.y}%, rgba(245, 158, 11, 0.15) 0%, transparent 100%)` }} />
-
-            <div className="relative z-20 w-full max-w-7xl space-y-10">
-
-                {/* Header הקלף */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b-2 border-amber-500/20 pb-8">
-                    <div className="text-right space-y-2">
-                        <h1 className="font-cinzel text-4xl md:text-6xl font-black text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]">
-                            THE MARAUDER'S MAP
-                        </h1>
-                        <p className="font-cinzel text-amber-500/50 text-xs tracking-[0.4em] uppercase">Mischief Managed / Lumos IL</p>
-                    </div>
-
-                    {/* תגית ספירה מסונכרנת */}
-                    <div className="bg-amber-500 text-black px-8 py-4 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.4)] border-2 border-amber-600 flex items-center gap-4">
-                        <div className="flex flex-col items-center leading-none">
-                            <span className="font-cinzel text-[10px] uppercase font-black">Castle Presence</span>
-                            <span className="font-cinzel text-3xl font-black">{totalInCastle}</span>
-                        </div>
-                        <Compass className="animate-[spin_10s_linear_infinite]" size={32} />
-                    </div>
+            {/* חלקיקי אבק צפים - רק בצד הלקוח כדי להימנע מ-Hydration mismatch */}
+            {isMounted && (
+                <div className="fixed inset-0 pointer-events-none">
+                    {[...Array(15)].map((_, i) => (
+                        <div key={i} className="magic-dust absolute bg-amber-200/20 rounded-full w-1 h-1"
+                            style={{
+                                top: `${Math.floor(Math.random() * 100)}%`,
+                                left: `${Math.floor(Math.random() * 100)}%`,
+                                animationDelay: `${(Math.random() * 5).toFixed(2)}s`
+                            }} />
+                    ))}
                 </div>
+            )}
 
-                {/* המפה - שרטוט אדריכלי כהה */}
-                <div className="relative w-full border-[12px] border-double border-amber-900/40 bg-[#05070a] rounded-3xl shadow-[0_0_100px_rgba(0,0,0,1)] overflow-hidden min-h-[650px] flex flex-col lg:flex-row">
+            <div className="max-w-6xl mx-auto bg-[#f4e4bc] rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,1)] border-[10px] border-double border-[#8b4513]/20 relative overflow-hidden text-[#3e2723]">
+                {/* אפקט הצללה (Vignette) */}
+                <div className="absolute inset-0 map-vignette pointer-events-none z-20" />
+                <div className="absolute inset-0 opacity-25 bg-[url('https://www.transparenttextures.com/patterns/old-map.png')] pointer-events-none mix-blend-multiply" />
 
-                    {/* האולם הגדול */}
-                    <div className="flex-[2] p-10 border-l-2 border-amber-900/20 relative">
-                        <div className="flex items-center gap-4 mb-12">
-                            <Home className="text-amber-500" size={32} />
-                            <h2 className="font-cinzel text-3xl font-black text-white tracking-widest uppercase">The Great Hall</h2>
+                <div className="relative z-10 p-6 md:p-10">
+                    <div className="flex flex-col md:flex-row items-center justify-between mb-10 gap-6 border-b border-[#8b4513]/20 pb-8">
+                        <div>
+                            <h1 className="font-cinzel text-3xl font-black tracking-[0.1em] text-[#5d4037]">MARAUDER'S COMMAND</h1>
+                            <p className="font-crimson italic text-[#8b4513]/70">מבט על של מנהל הטירה - Studio Haim</p>
                         </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-12">
-                            {/* קוסמים אמיתיים */}
-                            {onlineUsers.map((user, i) => {
-                                const colors = HOUSE_COLORS[user.house] || HOUSE_COLORS['Unknown'];
-
-                                return (
-                                    <div key={i} className="flex items-center gap-6 group">
-                                        <div className="relative w-12 h-16 shrink-0">
-                                            <Footprints className={`absolute ${colors.foot} ink-step-1`} size={24} />
-                                            <Footprints className={`absolute ${colors.foot} left-4 top-6 ink-step-2`} size={24} />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className={`font-crimson text-3xl ${colors.text} font-black italic tracking-wide`}>
-                                                {user.name}
-                                            </span>
-                                            <span className="text-[10px] text-amber-500/70 font-bold uppercase tracking-widest">
-                                                {user.house !== 'Unknown' ? `House ${user.house}` : 'Active Wizard'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            {/* רוחות רפאים (סגירת המספר) */}
-                            {[...Array(CASTLE_GHOSTS)].map((_, i) => (
-                                <div key={`ghost-${i}`} className="flex items-center gap-6 opacity-40">
-                                    <Ghost className="text-blue-300" size={24} />
-                                    <div className="flex flex-col">
-                                        <span className="font-crimson text-2xl text-blue-100 font-bold italic tracking-wide">רוח רפאים מהטירה</span>
-                                        <span className="text-[10px] text-blue-300 uppercase tracking-widest">Castle Spirit</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* חדרים נעולים ודיווחים */}
-                    <div className="flex-1 p-10 bg-black/40 space-y-8">
-                        <MapRoom icon={BookOpen} title="THE LIBRARY" status="RESTRICTED" />
-                        <MapRoom icon={Coffee} title="COMMON ROOM" status="LOCKED" />
-
-                        {/* תיבת לחישות */}
-                        <div className="p-6 rounded-2xl border-2 border-indigo-500/30 bg-indigo-950/20 flex flex-col gap-2 shadow-lg">
-                            <div className="flex items-center gap-3 text-indigo-300">
-                                <Sparkles size={20} />
-                                <span className="font-cinzel text-xs font-black uppercase">Live Whisper</span>
+                        <div className="flex items-center gap-6 bg-white/20 px-6 py-3 rounded-2xl border border-[#8b4513]/10 backdrop-blur-sm">
+                            <Compass className="text-[#8b4513] animate-[spin_20s_linear_infinite]" size={30} />
+                            <div className="text-center">
+                                <span className="font-cinzel text-4xl font-black">{wizards.length + 5}</span>
+                                <p className="text-[10px] font-bold uppercase tracking-tighter">נשמות בטירה</p>
                             </div>
-                            <p className="font-crimson text-lg text-white italic">"פיבס נצפה בקומה השנייה..."</p>
                         </div>
                     </div>
-                </div>
 
-                {/* Footer */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-10">
-                    <Link href="/dashboard" className="bg-amber-600 text-black px-12 py-5 rounded-full font-cinzel font-black text-lg hover:bg-amber-400 transition-all flex items-center gap-4 shadow-2xl active:scale-95">
-                        <ArrowRight className="rotate-180" size={24} />
-                        RETURN TO CASTLE
-                    </Link>
-                    <h2 className="font-crimson text-5xl md:text-[5rem] text-amber-500/10 italic font-black uppercase tracking-[0.4em] select-none">
-                        MISCHIEF MANAGED
-                    </h2>
-                    <div className="flex items-center gap-3 text-amber-400 font-bold italic">
-                        <Wand2 size={20} />
-                        <span>The map reveals all</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                        <StatCard title="האולם הגדול" count={stats.hall} sub="דף הבית והמפה" icon={MapIcon} active />
+                        <StatCard title="הספרייה" count={stats.library} sub="חדשות וכתבות" icon={Eye} />
+                        <StatCard title="מסדרונות" count={stats.wandering} sub="דפים אחרים" icon={Footprints} />
+                    </div>
+
+                    <div className="bg-white/30 rounded-3xl border border-[#8b4513]/10 overflow-hidden backdrop-blur-sm">
+                        <table className="w-full text-right">
+                            <thead className="bg-[#8b4513]/10 font-cinzel text-[10px] uppercase text-[#5d4037]">
+                                <tr>
+                                    <th className="p-4">קוסם/ת</th>
+                                    <th className="p-4">בית</th>
+                                    <th className="p-4 hidden sm:table-cell">מיקום (Path)</th>
+                                    <th className="p-4">סוג שרביט</th>
+                                </tr>
+                            </thead>
+                            <tbody className="font-crimson divide-y divide-[#8b4513]/10">
+                                {wizards.map((w, i) => {
+                                    const theme = HOUSE_THEMES[w.house] || HOUSE_THEMES['Unknown'];
+                                    return (
+                                        <tr key={i} className="hover:bg-white/30 transition-colors group">
+                                            <td className={`p-4 flex items-center gap-3 font-bold ${theme.color}`}>
+                                                <div className="relative">
+                                                    <Footprints size={14} className={`walking-feet ${theme.foot}`} />
+                                                    <Sparkles size={10} className="absolute -top-1 -right-1 text-amber-500/40 animate-pulse" />
+                                                </div>
+                                                <span className="text-xl italic">{w.user_name}</span>
+                                            </td>
+                                            <td className={`p-4 font-bold ${theme.color}`}>{w.house}</td>
+                                            <td className="p-4 text-xs font-mono opacity-60 hidden sm:table-cell" dir="ltr">{w.current_path || "/"}</td>
+                                            <td className="p-4 text-[11px] font-sans flex items-center gap-2">
+                                                {w.user_agent?.includes("Mobi") ? <Smartphone size={12} /> : <Laptop size={12} />}
+                                                {getWandType(w.user_agent)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
     );
 }
 
-function MapRoom({ icon: Icon, title, status }: { icon: any, title: string, status: string }) {
+function StatCard({ title, count, sub, icon: Icon, active }: any) {
     return (
-        <div className="p-6 rounded-3xl border-2 border-white/10 bg-black/60 flex flex-col gap-4 shadow-xl">
-            <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/5 rounded-xl border border-white/10">
-                    <Icon size={24} className="text-white/60" />
-                </div>
-                <h3 className="font-cinzel text-lg font-black text-white tracking-widest uppercase">{title}</h3>
-            </div>
-            <div className="text-red-500 font-black tracking-widest text-[10px] italic border border-red-500/30 px-3 py-1.5 rounded-lg bg-red-950/20 w-fit flex items-center gap-2">
-                <Lock size={14} />
-                <span>{status}</span>
-            </div>
+        <div className={`p-6 rounded-3xl border transition-all duration-700 ${active ? 'bg-[#8b4513]/15 border-[#8b4513]/40 shadow-lg' : 'bg-white/10 border-[#8b4513]/10'} text-center shadow-inner`}>
+            <Icon className={`mx-auto mb-2 ${active ? 'text-[#8b4513]' : 'text-[#8b4513]/40'}`} size={20} />
+            <h4 className="font-cinzel text-[10px] font-black uppercase mb-1">{title}</h4>
+            <p className="text-[9px] opacity-60 mb-3">{sub}</p>
+            <span className="font-cinzel text-4xl font-black text-[#5d4037]">{count}</span>
         </div>
     );
 }

@@ -48,14 +48,19 @@ export default function AdminPanel() {
         const { data: newsData } = await supabase.from('news').select('*').order('created_at', { ascending: false });
         setNews(newsData || []);
 
-        const { data: pointsData } = await supabase.from('profiles').select('house, points_contributed');
-        const sums = pointsData?.reduce((acc: any, curr: any) => {
-            if (curr.house && curr.house !== 'Unsorted') {
-                acc[curr.house] = (acc[curr.house] || 0) + (curr.points_contributed || 0);
+        const { data: profilesData } = await supabase.from('profiles').select('house, points_contributed');
+        const points: Record<string, number> = {
+            Gryffindor: 0,
+            Slytherin: 0,
+            Ravenclaw: 0,
+            Hufflepuff: 0,
+        };
+        profilesData?.forEach((row: any) => {
+            if (row.house && points[row.house] !== undefined) {
+                points[row.house] += row.points_contributed || 0;
             }
-            return acc;
-        }, {});
-        setHousePoints(sums || {});
+        });
+        setHousePoints(points);
     }, [supabase]);
 
     useEffect(() => {
@@ -147,16 +152,47 @@ export default function AdminPanel() {
         }
     }
 
+    const handleDeleteNews = async (id: string) => {
+        if (!confirm("למחוק את הכתבה?")) return;
+        const { error } = await supabase.from('news').delete().eq('id', id);
+        if (!error) {
+            sendOwl("נמחק", "הכתבה נמחקה בהצלחה.", "success");
+            fetchData();
+        } else {
+            sendOwl("שגיאה", "שגיאה במחיקת הכתבה", "error");
+        }
+    };
+
     if (loading) return null;
 
     return (
         <div className="min-h-screen bg-[#020617] text-white py-12 px-6 font-assistant" dir="rtl">
             <style>{`
-                .sun-editor { border: 1px solid rgba(245, 158, 11, 0.3) !important; background-color: #0f172a !important; border-radius: 1rem !important; }
-                .sun-editor .se-toolbar { background-color: #1e293b !important; }
+                .sun-editor { border: 1px solid rgba(245, 158, 11, 0.3) !important; background-color: #0f172a !important; border-radius: 1.5rem !important; overflow: hidden; }
+                .sun-editor .se-toolbar { background-color: #1e293b !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important; }
                 .sun-editor .se-wrapper .se-wrapper-inner { min-height: 400px; background-color: #020617 !important; color: white !important; }
                 .sun-editor-editable { color: white !important; font-family: 'Crimson Text', serif !important; font-size: 1.3rem !important; }
                 .sun-editor .se-svg { fill: #f59e0b !important; }
+
+                /* פאנל זכוכית משודרג */
+                .glass-panel {
+                    background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    transition: all 0.3s ease;
+                }
+
+                /* אנימציית דיווחים דחופים */
+                .report-card-urgent {
+                    border: 1px solid rgba(239, 68, 68, 0.2);
+                    animation: pulse-red 2s infinite;
+                }
+
+                @keyframes pulse-red {
+                    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.1); }
+                    50% { box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.05); }
+                    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                }
             `}</style>
 
             <div className="max-w-7xl mx-auto space-y-10">
@@ -218,12 +254,13 @@ export default function AdminPanel() {
                                 <SunEditor
                                     setContents={newArticle.content || ""}
                                     onChange={(content) => setNewArticle(prev => ({ ...prev, content }))}
-                                    setOptions={{
+                                    setOptions={({
                                         buttonList: [['undo', 'redo'], ['formatBlock', 'font', 'fontSize'], ['bold', 'underline', 'italic', 'strike'], ['fontColor', 'hiliteColor'], ['align', 'list', 'horizontalRule'], ['link', 'image', 'video'], ['fullScreen', 'codeView']],
                                         rtl: true,
                                         width: '100%',
-                                        height: '400px'
-                                    }}
+                                        height: 400,
+                                        autoHeight: false
+                                    }) as any}
                                 />
                             </div>
 
@@ -269,7 +306,7 @@ export default function AdminPanel() {
                                         <h4 className="font-bold text-amber-200">{item.title}</h4>
                                         <div className="flex gap-2">
                                             <button onClick={() => startEdit(item)} className="p-2 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all"><Edit3 size={16} /></button>
-                                            <button onClick={async () => { if (confirm("למחוק?")) { await supabase.from('news').delete().eq('id', item.id); fetchData(); } }} className="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
+                                            <button onClick={() => handleDeleteNews(item.id)} className="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
                                         </div>
                                     </div>
                                 ))}

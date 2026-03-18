@@ -264,11 +264,11 @@ export default function SortingPage() {
           </div>
 
           <div className="space-y-16 text-center max-w-3xl w-full">
-            <div className="bg-black/30 backdrop-blur-2xl border border-white/10 p-12 rounded-[4rem] shadow-2xl">
+            <div className="glass-panel p-12 rounded-[4rem] shadow-2xl">
               <p className="font-crimson text-3xl md:text-4xl text-white italic leading-relaxed">"{assignedHouse.bio}"</p>
             </div>
 
-            <div className="relative group overflow-hidden rounded-[3rem] border border-white/10 bg-black/40 backdrop-blur-2xl p-12 transition-all hover:scale-[1.02]">
+            <div className="relative glass-panel group overflow-hidden rounded-[3rem] p-12 transition-all hover:-translate-y-2">
               <div className="absolute top-0 right-0 p-4 opacity-10"><Shield size={100} /></div>
 
               <p className="font-cinzel text-amber-500/80 text-xs uppercase tracking-[0.5em] mb-6">לחישת המצנפת...</p>
@@ -321,7 +321,7 @@ export default function SortingPage() {
               <button
                 key={i}
                 onClick={() => handleAnswer(opt.house)}
-                className="group relative text-right p-10 rounded-[3rem] border border-white/5 bg-white/[0.02] hover:bg-white/[0.08] hover:border-amber-500/30 transition-all duration-500 active:scale-95 overflow-hidden"
+                className="group glass-panel relative text-right p-10 rounded-[3rem] hover:border-amber-500/30 transition-all duration-500 active:scale-95 overflow-hidden"
               >
                 <span className="relative z-10 font-crimson text-2xl md:text-3xl text-white/60 group-hover:text-white transition-colors block leading-tight">
                   {opt.text}

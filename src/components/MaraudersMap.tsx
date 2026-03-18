@@ -2,130 +2,63 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Map as MapIcon, Footprints, Ghost, Sparkles, Bell } from "lucide-react";
+import { Footprints, Map as MapIcon, Coins, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
-/**
- * LUMOS IL - MARAUDER'S MAP V2.7 (Global Presence Sync)
- * עכשיו מחובר לערוץ הגלובלי ומסנכרן נוכחות מכל רחבי הטירה.
- */
-
-export default function MaraudersMap() {
+export default function MaraudersRadar() {
     const supabase = createClient();
-    const [stats, setStats] = useState({ wizards: 1, total: 6 });
-    const CASTLE_GHOSTS = 5;
+    const [stats, setStats] = useState({ online: 0, galleons: 0, house: 'Unknown' });
 
     useEffect(() => {
-        // התחברות לערוץ הגלובלי של כל האתר
-        const channel = supabase.channel('lumos_global_presence', {
-            config: { presence: { key: 'wizard' } }
-        });
+        const loadData = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data: profile } = await supabase.from('profiles').select('galleons, house').eq('id', session.user.id).single();
+                if (profile) setStats(prev => ({ ...prev, galleons: profile.galleons || 0, house: profile.house || 'Unknown' }));
+            }
+        };
+        loadData();
 
-        channel
-            .on('presence', { event: 'sync' }, () => {
-                const state = channel.presenceState();
-                const allPresences = Object.values(state).flat() as any[];
-
-                // ספירת שמות ייחודיים בלבד - מונע כפילויות אם פתחת כמה טאבים
-                const uniqueWizards = new Set(allPresences.map(p => p.user_name)).size;
-                const count = uniqueWizards > 0 ? uniqueWizards : 1;
-
-                setStats({
-                    wizards: count,
-                    total: count + CASTLE_GHOSTS
-                });
-            })
-            .subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    let name = "קוסם מסתורי";
-                    let house = "Unknown";
-
-                    if (session) {
-                        const { data: profile } = await supabase
-                            .from('profiles')
-                            .select('full_name, house')
-                            .eq('id', session.user.id)
-                            .single();
-
-                        if (profile?.full_name) name = profile.full_name;
-                        if (profile?.house) house = profile.house;
-                    }
-
-                    // משדרים את אותם הנתונים כמו המפה הגדולה
-                    await channel.track({
-                        user_name: name,
-                        house: house,
-                        online_at: new Date().toISOString()
-                    });
-                }
-            });
+        const channel = supabase.channel('lumos_global_presence', { config: { presence: { key: 'wizard' } } });
+        channel.on('presence', { event: 'sync' }, () => {
+            const count = Object.values(channel.presenceState()).flat().length;
+            setStats(prev => ({ ...prev, online: count > 0 ? count : 1 }));
+        }).subscribe();
 
         return () => { supabase.removeChannel(channel); };
     }, [supabase]);
 
     return (
-        <section className="relative w-full overflow-hidden rounded-[2rem] border-2 border-amber-500 bg-[#020617] p-6 shadow-2xl group" dir="rtl">
-
-            <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pointer-events-none"></div>
+        <div className="w-full bg-[#f3e5ab] rounded-3xl border-2 border-[#8b4513]/20 p-6 shadow-lg relative overflow-hidden font-assistant" dir="rtl">
+            <div className="absolute top-0 left-0 p-4 opacity-10 rotate-12"><Footprints size={80} className="text-[#8b4513]" /></div>
 
             <div className="relative z-10">
-                {/* Header - בולט וקריא */}
-                <div className="flex items-center justify-between mb-8 gap-4">
-                    <div className="flex items-center gap-3">
-                        <MapIcon size={22} className="text-amber-500" />
-                        <h3 className="font-cinzel text-[11px] font-black tracking-[0.2em] text-amber-400 uppercase">
-                            מפת הקונדסאים
-                        </h3>
-                    </div>
-
-                    <div className="whitespace-nowrap px-4 py-1.5 bg-amber-500 text-black rounded-full font-bold shadow-[0_0_15px_rgba(245,158,11,0.5)] flex items-center gap-2 border border-amber-600">
-                        <span className="font-cinzel text-[10px] uppercase leading-none">סה"כ בטירה:</span>
-                        <span className="font-cinzel text-[12px] leading-none">{stats.total}</span>
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-cinzel text-sm font-black text-[#5d4037] uppercase tracking-widest">Castle Radar</h3>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-[#8b4513]/10 rounded-full border border-[#8b4513]/20">
+                        <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse" />
+                        <span className="font-cinzel text-[10px] font-black text-[#8b4513]">{stats.online} WIZARDS</span>
                     </div>
                 </div>
 
-                <div className="space-y-5">
-                    {/* האולם הגדול */}
-                    <Link href="/map" className="flex items-center justify-between p-5 rounded-2xl bg-white/5 border-2 border-amber-500/40 hover:border-amber-400 hover:bg-white/10 transition-all group/room shadow-inner">
-                        <div className="flex items-center gap-4">
-                            <Footprints size={24} className="text-amber-400 group-hover/room:animate-bounce transition-transform" />
-                            <div className="flex flex-col">
-                                <h4 className="font-cinzel text-sm font-black text-white uppercase tracking-widest leading-none">The Great Hall</h4>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <span className="text-[10px] text-amber-300 font-bold bg-amber-500/10 px-1.5 rounded uppercase leading-none">
-                                        {stats.wizards} קוסמים
-                                    </span>
-                                    <span className="text-[10px] text-blue-300 font-bold italic opacity-80 leading-none">
-                                        + {CASTLE_GHOSTS} רוחות
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <span className="font-cinzel font-black text-3xl text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">
-                            {stats.total}
-                        </span>
-                    </Link>
-
-                    {/* דיווח חי - נגישות גבוהה */}
-                    <div className="p-4 rounded-xl bg-indigo-900/30 border border-indigo-400/50 flex items-start gap-3 shadow-md">
-                        <Bell size={18} className="text-indigo-300 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                            <p className="text-[9px] text-indigo-300 font-black uppercase tracking-widest">דיווח חי מהמסדרונות:</p>
-                            <p className="font-crimson text-[14px] text-white font-bold italic leading-tight">
-                                "ניק כמעט בלי ראש מארגן נשף רוחות..."
-                            </p>
-                        </div>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-white/40 p-4 rounded-2xl border border-[#8b4513]/10 text-center">
+                        <Coins size={18} className="text-amber-600 mx-auto mb-2" />
+                        <p className="text-[10px] text-[#8b4513]/60 font-bold uppercase">Galleons</p>
+                        <span className="font-cinzel text-xl font-black text-[#5d4037]">{stats.galleons}</span>
+                    </div>
+                    <div className="bg-white/40 p-4 rounded-2xl border border-[#8b4513]/10 text-center">
+                        <MapIcon size={18} className="text-blue-700 mx-auto mb-2" />
+                        <p className="text-[10px] text-[#8b4513]/60 font-bold uppercase">House</p>
+                        <span className="font-cinzel text-xs font-black text-[#5d4037] truncate">{stats.house}</span>
                     </div>
                 </div>
 
-                {/* שבועה */}
-                <div className="mt-8 pt-5 border-t border-white/10 text-center">
-                    <p className="font-crimson text-[12px] text-amber-500/40 font-bold italic uppercase tracking-[0.4em]">
-                        "I SOLEMNLY SWEAR THAT I AM UP TO NO GOOD"
-                    </p>
-                </div>
+                <Link href="/map" className="group flex items-center justify-center gap-2 w-full py-4 bg-[#8b4513] text-[#f3e5ab] rounded-2xl font-cinzel text-xs font-black uppercase hover:bg-[#5d4037] transition-all shadow-md">
+                    Reveal Full Marauder's Map
+                    <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                </Link>
             </div>
-        </section>
+        </div>
     );
 }
