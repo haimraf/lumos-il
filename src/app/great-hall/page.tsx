@@ -422,7 +422,7 @@ export default function GreatHall() {
                                                             : `rounded-tr-none ${h.border} ${h.bg} text-right`
                                                     }`}
                                                 >
-                                                    <p className="text-white text-sm sm:text-base md:text-xl font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
+                                                    <p className="text-white text-sm sm:text-base md:text-lg font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
                                                         {msg.content}
                                                     </p>
 
@@ -481,7 +481,7 @@ export default function GreatHall() {
                             </div>
                         )}
 
-                        <form onSubmit={sendMessage} className="p-6 bg-black/80 border-t border-white/10 flex gap-4 items-center z-10">
+                       <form onSubmit={sendMessage} className="p-3 md:p-6 bg-black/80 border-t border-white/10 flex gap-2 md:gap-4 items-center z-10">
                             <div className="flex-1 relative flex items-center">
                                 <button
                                     type="button"
