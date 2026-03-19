@@ -495,7 +495,7 @@ export default function GreatHall() {
                                 <input
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    className="w-full bg-white/[0.08] border border-white/20 rounded-2xl pr-14 pl-12 py-5 text-white font-crimson text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
+className="w-full bg-white/[0.08] border border-white/20 rounded-2xl pr-12 pl-10 py-3 md:py-5 text-white font-crimson text-base md:text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
                                     placeholder="ללחוש הודעה לאולם..."
                                     disabled={!myId || isSending}
                                 />
@@ -506,7 +506,7 @@ export default function GreatHall() {
                             <button
                                 type="submit"
                                 disabled={!newMessage.trim() || isSending}
-                                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 text-amber-950 p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0 flex items-center justify-center w-16 h-16"
+className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 text-amber-950 p-3 md:p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0 flex items-center justify-center w-12 h-12 md:w-16 md:h-16"
                             >
                                 {isSending ? <Loader2 size={24} className="animate-spin" /> : <Zap size={24} />}
                             </button>
