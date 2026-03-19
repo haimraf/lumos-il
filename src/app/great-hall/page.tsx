@@ -394,10 +394,10 @@ export default function GreatHall() {
 
                                 return (
                                     <div key={msg.id} className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}>
-                                        <div className={`flex gap-3 max-w-[95%] md:max-w-[75%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                                        <div className={`flex gap-3 w-full max-w-[95%] md:max-w-[75%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
                                             <span className="text-3xl drop-shadow-md shrink-0 pt-2">{h.icon}</span>
 
-                                            <div className={`flex flex-col gap-2 ${isMe ? "items-end" : "items-start"}`}>
+                                            <div className={`flex flex-col gap-2 flex-1 min-w-0 ${isMe ? "items-end" : "items-start"}`}>
                                                 <div className={`flex flex-wrap items-center gap-1.5 md:gap-2 ${isMe ? "justify-start flex-row-reverse" : "justify-start"}`}>
                                                     <div className={`flex flex-col sm:flex-row items-baseline gap-2 ${isMe ? "self-start sm:flex-row-reverse" : "self-start"}`}>
                                                         <span className="text-base font-cinzel font-black text-white tracking-widest min-h-[24px]">
@@ -415,14 +415,14 @@ export default function GreatHall() {
                                                     </div>
                                                 </div>
 
-                                                <div
-                                                    className={`relative p-4 md:p-6 rounded-[1.5rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
+<div
+    className={`relative w-full p-3 md:p-6 rounded-[1.25rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
                                                         isMe
                                                             ? "rounded-tl-none border-white/20 bg-white/[0.08] text-right"
                                                             : `rounded-tr-none ${h.border} ${h.bg} text-right`
                                                     }`}
                                                 >
-                                                    <p className="text-white text-base md:text-xl font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
+                                                    <p className="text-white text-sm sm:text-base md:text-xl font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
                                                         {msg.content}
                                                     </p>
 
