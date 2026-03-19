@@ -420,7 +420,7 @@ export default function GreatHall() {
   className={`relative w-full p-3 md:p-6 rounded-[1.25rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
     isMe
       ? "rounded-tl-none border-white/20 bg-white/[0.08] text-right after:content-[''] after:absolute after:right-[-6px] after:top-4 after:border-8 after:border-transparent after:border-l-white/30 shadow-[0_0_20px_rgba(255,255,255,0.06)]"
-      : `rounded-tr-none ${h.border} ${h.bg} text-left after:content-[''] after:absolute after:left-[-6px] after:top-4 after:border-8 after:border-transparent after:border-r-white/20`
+      : `rounded-tr-none ${h.border} ${h.bg} text-left after:content-[''] after:absolute after:left-[-8px] after:top-5 after:border-8 after:border-transparent after:border-r-white/20`
   }`}
 >
                                                     <p className="text-white text-sm sm:text-base md:text-lg font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
