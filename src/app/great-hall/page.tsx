@@ -394,8 +394,8 @@ export default function GreatHall() {
 
                                 return (
                                     <div key={msg.id} className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}>
-                                        <div className={`flex gap-3 w-full max-w-[85%] md:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                                            <span className="text-3xl drop-shadow-md shrink-0 pt-2">{h.icon}</span>
+                                      <div className={`flex items-start w-full max-w-[85%] md:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                                            <span className="text-3xl drop-shadow-md shrink-0 mt-1">{h.icon}</span>
 
                                             <div className={`flex flex-col gap-2 flex-1 min-w-0 ${isMe ? "items-end" : "items-start"}`}>
                                                 <div className={`flex flex-wrap items-center gap-1.5 md:gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
@@ -417,10 +417,12 @@ export default function GreatHall() {
 
 
 <div
-  className={`relative w-full p-3 md:p-6 rounded-[1.25rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
+  className={`relative w-fit max-w-[75%] p-3 md:p-6 ${
+    isMe ? "mr-1" : "ml-1"
+  } rounded-[1.25rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
     isMe
       ? "rounded-tl-none border-white/20 bg-white/[0.08] text-right after:content-[''] after:absolute after:right-[-6px] after:top-4 after:border-8 after:border-transparent after:border-l-white/30 shadow-[0_0_20px_rgba(255,255,255,0.06)]"
-      : `rounded-tr-none ${h.border} ${h.bg} text-left after:content-[''] after:absolute after:left-[-8px] after:top-5 after:border-8 after:border-transparent after:border-r-white/20`
+      : `${h.border} ${h.bg} rounded-tr-none text-left after:content-[''] after:absolute after:left-[-8px] after:top-5 after:border-8 after:border-transparent after:border-r-white/20`
   }`}
 >
                                                     <p className="text-white text-sm sm:text-base md:text-lg font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
