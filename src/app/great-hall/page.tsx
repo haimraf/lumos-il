@@ -417,13 +417,15 @@ export default function GreatHall() {
 
 
 <div
-  className={`relative w-fit max-w-[75%] p-3 md:p-6 ${
-    isMe ? "mr-1" : "ml-1"
-  } rounded-[1.25rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
-    isMe
-      ? "rounded-tl-none border-white/20 bg-white/[0.08] text-right after:content-[''] after:absolute after:right-[-6px] after:top-4 after:border-8 after:border-transparent after:border-l-white/30 shadow-[0_0_20px_rgba(255,255,255,0.06)]"
-      : `${h.border} ${h.bg} rounded-tr-none text-left after:content-[''] after:absolute after:left-[-8px] after:top-5 after:border-8 after:border-transparent after:border-r-white/20`
-  }`}
+    className={`relative w-fit max-w-[85%] md:max-w-[75%] p-3 md:p-5 ${
+        isMe ? "ml-2" : "mr-2"
+    } rounded-[1.25rem] md:rounded-[2rem] border shadow-md group overflow-hidden ${
+        isMe
+            // הודעות שלי: עיגול קצוות שמרמז כיוון (למעלה-שמאל מרובע יותר), צבע רקע עדין
+            ? "rounded-tl-[4px] border-white/20 bg-white/5 text-right"
+            // הודעות של אחרים: עיגול קצוות שמרמז כיוון (למעלה-ימין מרובע יותר), צבעי הבית
+            : `${h.border} ${h.bg} rounded-tr-[4px] text-right`
+    }`}
 >
                                                     <p className="text-white text-sm sm:text-base md:text-lg font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
                                                         {msg.content}
