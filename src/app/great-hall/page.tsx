@@ -426,8 +426,8 @@ export default function GreatHall() {
                                                         {msg.content}
                                                     </p>
 
-                                                    <div className={`mt-5 flex items-center justify-between gap-4 text-white/40 text-[10px] border-t border-white/10 pt-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                                                        <span className={`italic font-mono uppercase tracking-widest flex items-center gap-2 font-bold ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                                                    <div className="mt-5 flex items-center justify-between gap-4 text-white/40 text-[10px] border-t border-white/10 pt-4">
+                                                        <span className="italic font-mono uppercase tracking-widest flex items-center gap-2 font-bold">
                                                             <Wand2 size={12} className="text-amber-500/40" />
                                                             {msg.profiles?.wand_type || "שרביט טרם נבחר"}
                                                         </span>
