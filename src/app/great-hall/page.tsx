@@ -265,8 +265,8 @@ export default function GreatHall() {
                 }
             `}</style>
 
-            <div className="relative w-full max-w-full md:max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col h-[100dvh]" dir="rtl">
-                <nav className="flex justify-between items-center mb-6 px-2">
+            <div className="relative w-full max-w-full md:max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden" dir="rtl">
+                <nav className="flex justify-between items-center mb-6 px-2 shrink-0">
                     <div className="flex items-center gap-4">
                         <Link href="/dashboard" className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white">
                             <ChevronRight size={24} />
@@ -284,7 +284,7 @@ export default function GreatHall() {
                     </div>
                 </nav>
 
-                <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden">
+                <div className="flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden min-h-0">
                     <aside className="hidden lg:flex flex-col gap-6 w-80 shrink-0 overflow-y-auto custom-scrollbar">
                         <section className="bg-white/[0.04] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
                             <h3 className="font-cinzel text-[11px] tracking-[0.4em] text-white/80 uppercase mb-8 border-b border-white/10 pb-4 flex items-center gap-2 font-bold">
@@ -352,8 +352,8 @@ export default function GreatHall() {
                         </section>
                     </aside>
 
-                    <section className="flex-1 flex flex-col bg-black/60 border border-white/10 rounded-[1.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden relative">
-                        <div className="flex-1 overflow-y-auto p-3 md:p-10 space-y-6 md:space-y-8 custom-scrollbar" role="log" aria-live="polite">
+                    <section className="flex-1 min-h-0 flex flex-col bg-black/60 border border-white/10 rounded-[1.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden relative">
+                        <div className="flex-1 overflow-y-auto p-3 md:p-10 space-y-3 md:space-y-4 custom-scrollbar" role="log" aria-live="polite">
                             {messages.length === 0 && (
                                 <div className="h-full flex items-center justify-center opacity-30 font-cinzel text-2xl text-white">
                                     האולם שקט... היה הראשון להטיל לחש!
@@ -394,12 +394,12 @@ export default function GreatHall() {
 
                                 return (
                                     <div key={msg.id} className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}>
-                                        <div className={`flex gap-3 w-full max-w-[95%] md:max-w-[75%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                                        <div className={`flex gap-3 w-full max-w-[85%] md:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
                                             <span className="text-3xl drop-shadow-md shrink-0 pt-2">{h.icon}</span>
 
                                             <div className={`flex flex-col gap-2 flex-1 min-w-0 ${isMe ? "items-end" : "items-start"}`}>
                                                 <div className={`flex flex-wrap items-center gap-1.5 md:gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
-                                                    <div className={`flex flex-col sm:flex-row items-baseline gap-2 ${isMe ? "self-start sm:flex-row-reverse" : "self-start"}`}>
+                                                    <div className={`flex items-center gap-2 flex-wrap ${isMe ? "flex-row-reverse" : ""}`}>
                                                         <span className="text-base font-cinzel font-black text-white tracking-widest min-h-[24px]">
                                                             {displayName}
                                                         </span>
@@ -415,13 +415,14 @@ export default function GreatHall() {
                                                     </div>
                                                 </div>
 
+
 <div
-    className={`relative w-full p-3 md:p-6 rounded-[1.25rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
-                                                        isMe
-                                                            ? "rounded-tl-none border-white/20 bg-white/[0.08] text-right"
-                                                            : `rounded-tr-none ${h.border} ${h.bg} text-right`
-                                                    }`}
-                                                >
+  className={`relative w-full p-3 md:p-6 rounded-[1.25rem] md:rounded-[2.5rem] border shadow-xl group overflow-hidden ${
+    isMe
+      ? "rounded-tl-none border-white/20 bg-white/[0.08] text-right after:content-[''] after:absolute after:right-[-6px] after:top-4 after:border-8 after:border-transparent after:border-l-white/30 shadow-[0_0_20px_rgba(255,255,255,0.06)]"
+      : `rounded-tr-none ${h.border} ${h.bg} text-left after:content-[''] after:absolute after:left-[-6px] after:top-4 after:border-8 after:border-transparent after:border-r-white/10`
+  }`}
+>
                                                     <p className="text-white text-sm sm:text-base md:text-lg font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
                                                         {msg.content}
                                                     </p>
@@ -471,7 +472,7 @@ export default function GreatHall() {
                         </div>
 
                         {showEmojiPicker && (
-                            <div ref={emojiPickerRef} className="absolute bottom-28 right-6 z-50 animate-in slide-in-from-bottom-5">
+                            <div ref={emojiPickerRef} className="absolute bottom-20 right-2 md:bottom-28 md:right-6 z-50 animate-in slide-in-from-bottom-5">
                                 <EmojiPicker
                                     theme={Theme.DARK}
                                     onEmojiClick={onEmojiClick}
@@ -481,7 +482,7 @@ export default function GreatHall() {
                             </div>
                         )}
 
-                       <form onSubmit={sendMessage} className="p-3 md:p-6 bg-black/80 border-t border-white/10 flex gap-2 md:gap-4 items-center z-10">
+                       <form onSubmit={sendMessage} className="p-3 md:p-6 bg-black/80 border-t border-white/10 flex gap-2 md:gap-4 items-center z-10 shrink-0">
                             <div className="flex-1 relative flex items-center">
                                 <button
                                     type="button"
