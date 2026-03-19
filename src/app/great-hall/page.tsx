@@ -365,7 +365,7 @@ export default function GreatHall() {
                                     <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`flex gap-3 max-w-[95%] md:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                                             <span className="text-3xl drop-shadow-md shrink-0 pt-2">{h.icon}</span>
-                                            <div className="flex flex-col gap-2">
+                                           <div className={flex flex-wrap items-center gap-1.5 md:gap-2 ${isMe ? 'justify-start flex-row-reverse' : 'justify-start'}}>
                                                 <div className={`flex flex-col sm:flex-row items-baseline gap-2 ${isMe ? 'self-start sm:flex-row-reverse' : 'self-start'}`}>
                                                     <span className="text-base font-cinzel font-black text-white tracking-widest min-h-[24px]">
                                                         {displayName}
