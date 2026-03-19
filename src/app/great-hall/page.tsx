@@ -421,9 +421,9 @@ export default function GreatHall() {
         isMe ? "ml-2" : "mr-2"
     } rounded-[1.25rem] md:rounded-[2rem] border shadow-md group overflow-hidden ${
         isMe
-            // הודעות שלי: עיגול קצוות שמרמז כיוון (למעלה-שמאל מרובע יותר), צבע רקע עדין
+            // הודעות שלי - עיגול קצוות פשוט ונקי בלי משולשים נשברים
             ? "rounded-tl-[4px] border-white/20 bg-white/5 text-right"
-            // הודעות של אחרים: עיגול קצוות שמרמז כיוון (למעלה-ימין מרובע יותר), צבעי הבית
+            // הודעות של אחרים - עיגול קצוות ימני עליון
             : `${h.border} ${h.bg} rounded-tr-[4px] text-right`
     }`}
 >
