@@ -139,7 +139,7 @@ function NewsContent() {
   ) : null;
 
   return (
-    <div className="min-h-screen bg-[#020617] text-[#f8fafc] pt-[180px] md:pt-[240px] pb-20 px-6 font-assistant" dir="rtl">
+    <div className="min-h-screen bg-[#020617] text-[#f8fafc] pt-10 md:pt-14 pb-20 px-6 font-assistant" dir="rtl">
       <style>{`
         .prose-magic h1 { font-family: 'Cinzel', serif; font-size: 2.5rem; margin-bottom: 1rem; color: #f59e0b; }
         .prose-magic p { margin-bottom: 1.2rem; line-height: 1.8; }
@@ -149,9 +149,10 @@ function NewsContent() {
         .prose-magic img { border-radius: 1rem; border: 2px solid rgba(245, 158, 11, 0.2); margin: 2rem 0; }
       `}</style>
 
-      <div className="max-w-3xl mx-auto space-y-16">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-full border border-amber-500/20 mb-4">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="text-center space-y-2">
+
+          <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-full border border-amber-500/20 mb-1">
             <ScrollText size={40} className="text-amber-500" />
           </div>
           <h1 className="font-cinzel text-5xl md:text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-500">
