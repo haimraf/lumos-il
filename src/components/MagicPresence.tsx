@@ -64,40 +64,37 @@ export default function MagicPresence() {
     }, [pathname, profile, session]);
 
     useEffect(() => {
-        if (!channelRef.current) {
-            channelRef.current = supabase.channel("lumos_global_presence", {
-                config: {
-                    presence: {
-                        key: session?.user?.id || getGuestKey(),
-                    },
+        if (channelRef.current) return;
+
+        const channel = supabase.channel("lumos_global_presence", {
+            config: {
+                presence: {
+                    key: session?.user?.id || getGuestKey(),
                 },
-            });
+            },
+        });
 
-            channelRef.current.subscribe(async (status: string) => {
-                if (status === "SUBSCRIBED") {
-                    await channelRef.current.track(buildPayload());
-                }
-            });
-        }
+        channelRef.current = channel;
 
-        // 🫀 HEARTBEAT — שומר אותך חי
-        const interval = setInterval(async () => {
+        channel.subscribe((status) => {
+            console.log("STATUS:", status);
+
+            if (status === "SUBSCRIBED") {
+                console.log("TRACK 🔥");
+
+                channel.track(buildPayload());
+            }
+        });
+
+        // 🫀 heartbeat
+        const interval = setInterval(() => {
             if (channelRef.current) {
-                await channelRef.current.track(buildPayload());
+                channelRef.current.track(buildPayload());
             }
         }, HEARTBEAT_INTERVAL);
 
         return () => clearInterval(interval);
-    }, [buildPayload, session, supabase]);
 
-    // 🧭 עדכון מעבר עמוד
-    useEffect(() => {
-        if (channelRef.current) {
-            setTimeout(() => {
-                channelRef.current.track(buildPayload());
-            }, 50);
-        }
-    }, [pathname, buildPayload]);
-
+    }, [session, profile, pathname]);
     return null;
 }
