@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
   ScrollText, ArrowRight, X, MessageSquare,
-  BarChart3, Flag, AlertTriangle, EyeOff, Eye, Volume2, VolumeX
+  BarChart3, Flag, AlertTriangle, EyeOff, Eye, Volume2, VolumeX, Sparkles
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 
@@ -157,6 +157,14 @@ function NewsContent() {
           <h1 className="font-cinzel text-5xl md:text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-500">
             הנביא היומי
           </h1>
+          {/* הנה הבאנר החדש - הוספנו mt-8 כדי להוריד אותו קצת למטה מהכותרת */}
+          <div className="w-full max-w-2xl mx-auto mt-8 mb-4 bg-amber-500/10 border border-amber-500/20 py-3 px-4 flex justify-center items-center gap-3 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.05)] animate-in fade-in duration-1000">
+            <Sparkles className="text-amber-500 animate-pulse" size={18} />
+            <p className="font-assistant text-sm md:text-base text-amber-200 font-bold tracking-wide text-center">
+              הידעת? כל תגובה בנביא היומי מזכה את הבית שלך ב-1 נקודה ובגליאון זהב!
+            </p>
+            <Sparkles className="text-amber-500 animate-pulse" size={18} />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-12">
