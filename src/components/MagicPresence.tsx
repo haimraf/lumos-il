@@ -6,58 +6,79 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 /**
- * LUMOS IL - MAGIC PRESENCE V3.1 (Global Websocket Tracker)
- * משדר את המיקום של הקוסם למפת הקונדסאים בזמן אמת בלי להעמיס על מסד הנתונים.
- *
- * שימוש בסיסי (ללא תוכן ספציפי):
- *   <MagicPresence />
- *
- * שימוש עם כותרת עמוד (מומלץ בעמודי תוכן):
- *   <MagicPresence pageTitle={`קורא/ת: "${article.title}"`} />
- *   <MagicPresence pageTitle={`בנושא: "${thread.title}"`} />
- *   <MagicPresence pageTitle={`מבקר/ת אצל ${username}`} />
+ * LUMOS IL - MAGIC PRESENCE V3.2 (Auto Title Reader)
+ * משדר את המיקום של הקוסם למפת הקונדסאים בזמן אמת.
+ * קורא את document.title אוטומטית — אין צורך לערוך שום עמוד אחר.
  */
 
-interface MagicPresenceProps {
-    /**
-     * תווית מיקום עשירה שתופיע במפת הקונדסאים.
-     * אם לא מועבר, המפה תשתמש בלוגיקת ה-URL הבסיסית שלה כגיבוי.
-     * דוגמאות:
-     *   'קורא/ת: "כותרת הכתבה"'
-     *   'בנושא: "שם הנושא"'
-     *   'מבקר/ת אצל YossiK'
-     *   'מנסח/ת קסם...'  ← כשהמשתמש בעמוד כתיבת תגובה
-     */
-    pageTitle?: string;
-}
+// מיפוי URL בסיסי — גיבוי לכל עמוד שאין לו metadata.title ספציפי
+const getLocationFromPath = (path: string): string => {
+    if (!path || path === "/" || path === "/home") return "באולם הגדול";
+    if (path.includes("/map")) return "מביט/ה במפת הקונדסאים";
+    if (path.includes("/great-hall")) return "באולם הגדול";
+    if (path.includes("/shop") || path.includes("/diagon")) return "בסמטת דיאגון";
+    if (path.startsWith("/forums/")) return "בנושא בפורומים";
+    if (path.includes("/forums")) return "בהיכל הפורומים";
+    if (path.includes("/dashboard")) return "בלשכת הקוסם/ת";
+    if (path.includes("/news")) return "קורא/ת בנביא היומי";
+    if (path.includes("/quests")) return "ביציאה למשימה";
+    if (path.includes("/library")) return "בספרייה האסורה";
+    if (path.includes("/house-cup")) return "בודק/ת את גביע הבתים";
+    if (path.includes("/sorting")) return "חובש/ת את מצנפת המיון";
+    if (path.includes("/profile")) return "בחדר המועדון";
+    if (path.includes("/admin")) return "בחדר האסור";
+    return "במסדרונות הטירה";
+};
 
-export default function MagicPresence({ pageTitle }: MagicPresenceProps) {
+// מנקה את document.title מסיפיקס של האתר (למשל " | LUMOS IL")
+// ומחזיר undefined אם הכותרת גנרית מדי
+const extractMeaningfulTitle = (rawTitle: string): string | undefined => {
+    const cleaned = rawTitle
+        .replace(/\s*[|•–\-]\s*LUMOS IL.*/i, '')
+        .replace(/\s*[|•–\-]\s*לומוס.*/i, '')
+        .trim();
+
+    // אם נשאר רק שם האתר עצמו — אין טעם להציג אותו
+    if (!cleaned || cleaned.toLowerCase().includes('lumos il') || cleaned.length < 3) {
+        return undefined;
+    }
+
+    return cleaned;
+};
+
+export default function MagicPresence() {
     const supabase = createClient();
     const pathname = usePathname();
     const { profile, session, isLoading } = useAuth();
     const channelRef = useRef<any>(null);
 
     useEffect(() => {
-        // אם המערכת עדיין טוענת את המשתמש, נחכה.
         if (isLoading) return;
 
-        // הפונקציה שמשדרת את המיקום לערוץ
         const trackPresence = async () => {
-            if (channelRef.current?.state === 'joined') {
-                await channelRef.current.track({
-                    user_name: profile?.full_name || "קוסם מסתורי",
-                    house: profile?.house || "Unknown",
-                    current_path: pathname,
-                    // location_label מועדף על פני current_path — המפה תציג אותו ישירות.
-                    // אם pageTitle לא הועבר, שדה זה יהיה undefined והמפה תחזור ללוגיקת URL.
-                    location_label: pageTitle,
-                    user_agent: navigator.userAgent,
-                    online_at: new Date().toISOString()
-                });
-            }
+            if (channelRef.current?.state !== 'joined') return;
+
+            // setTimeout(0) מבטיח שנקרא את document.title אחרי שNext.js סיים לעדכן אותו
+            await new Promise(res => setTimeout(res, 0));
+
+            const rawTitle = typeof document !== 'undefined' ? document.title : '';
+            const meaningfulTitle = extractMeaningfulTitle(rawTitle);
+
+            // אם document.title מכיל שם עמוד שימושי — נשתמש בו.
+            // אחרת — נחזור ללוגיקת URL בסיסית.
+            const location_label = meaningfulTitle || getLocationFromPath(pathname);
+
+            await channelRef.current.track({
+                user_name: profile?.full_name || "קוסם מסתורי",
+                house: profile?.house || "Unknown",
+                current_path: pathname,
+                location_label,
+                user_agent: navigator.userAgent,
+                online_at: new Date().toISOString()
+            });
         };
 
-        // 1. יצירת הערוץ (קורה רק פעם אחת כשהמשתמש נכנס לאתר)
+        // 1. יצירת הערוץ — קורה רק פעם אחת
         if (!channelRef.current) {
             channelRef.current = supabase.channel('lumos_global_presence', {
                 config: { presence: { key: session?.user?.id || 'anonymous_wizard' } }
@@ -65,17 +86,17 @@ export default function MagicPresence({ pageTitle }: MagicPresenceProps) {
 
             channelRef.current.subscribe(async (status: string) => {
                 if (status === 'SUBSCRIBED') {
-                    trackPresence(); // שידור ראשוני כשהתחברנו
+                    trackPresence();
                 }
             });
         } else {
-            // 2. אם הערוץ כבר קיים ורק עברנו עמוד (pathname השתנה), נשדר את המיקום החדש
+            // 2. pathname השתנה — משדרים מיקום חדש
             trackPresence();
         }
 
-    }, [pathname, pageTitle, profile, isLoading, session, supabase]);
+    }, [pathname, profile, isLoading, session, supabase]);
 
-    // 3. ניקוי וסגירת הערוץ רק כשהמשתמש סוגר את האתר לגמרי
+    // 3. ניקוי — רק כשסוגרים את האתר לגמרי
     useEffect(() => {
         return () => {
             if (channelRef.current) {
@@ -84,6 +105,5 @@ export default function MagicPresence({ pageTitle }: MagicPresenceProps) {
         };
     }, [supabase]);
 
-    // קומפוננטת רוח נטולת UI - פועלת רק מאחורי הקלעים
     return null;
 }
