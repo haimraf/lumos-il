@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 /**
- * LUMOS IL - MAGIC PRESENCE V3.5
- * תוספת: retry אוטומטי אם הערוץ עוד לא במצב joined בזמן השידור.
+ * LUMOS IL - MAGIC PRESENCE V3.6
+ * פישוט: הסרת בדיקת state שגרמה לתקיעות — סומכים על SUBSCRIBED callback.
  */
 
 const getGuestKey = (): string => {
@@ -24,6 +24,7 @@ const GUEST_NAMES = [
     "מכשפה אנונימית", "קוסם מסתורי", "נוסע/ת בזמן",
     "רוח תועה", "מבקר/ת סקרן", "מרגל/ת של הטירה"
 ];
+
 const getGuestName = (): string => {
     if (typeof window === 'undefined') return "קוסם מסתורי";
     let name = sessionStorage.getItem('lumos_guest_name');
@@ -63,31 +64,19 @@ const extractMeaningfulTitle = (rawTitle: string): string | undefined => {
     return cleaned;
 };
 
-// מנסה לשדר, ואם הערוץ עוד לא joined — מחכה ומנסה שוב עד 5 פעמים
-const trackWithRetry = async (channel: any, payload: object, attempt = 0): Promise<void> => {
-    if (attempt > 5) return;
-    if (channel?.state !== 'joined') {
-        await new Promise(res => setTimeout(res, 300 * (attempt + 1)));
-        return trackWithRetry(channel, payload, attempt + 1);
-    }
-    await channel.track(payload);
-};
-
 export default function MagicPresence() {
     const supabase = createClient();
     const pathname = usePathname();
     const { profile, session, isLoading } = useAuth();
     const channelRef = useRef<any>(null);
 
-    const trackPresence = useCallback(async () => {
-        await new Promise(res => setTimeout(res, 0));
-
+    const buildPayload = useCallback(() => {
         const rawTitle = typeof document !== 'undefined' ? document.title : '';
         const meaningfulTitle = extractMeaningfulTitle(rawTitle);
         const location_label = meaningfulTitle || getLocationFromPath(pathname);
         const isGuest = !session?.user?.id;
 
-        await trackWithRetry(channelRef.current, {
+        return {
             user_name: isGuest ? getGuestName() : (profile?.full_name || "קוסם מסתורי"),
             house: isGuest ? 'Guest' : (profile?.house || "Unknown"),
             current_path: pathname,
@@ -95,27 +84,36 @@ export default function MagicPresence() {
             is_guest: isGuest,
             user_agent: navigator.userAgent,
             online_at: new Date().toISOString()
-        });
+        };
     }, [pathname, profile, session]);
 
     useEffect(() => {
+        // אורחים (session=null) לא ממתינים ל-auth loading
         if (isLoading && session !== null) return;
 
         if (!channelRef.current) {
+            // יצירת ערוץ חדש
             channelRef.current = supabase.channel('lumos_global_presence', {
                 config: { presence: { key: session?.user?.id || getGuestKey() } }
             });
 
             channelRef.current.subscribe(async (status: string) => {
                 if (status === 'SUBSCRIBED') {
-                    await trackPresence();
+                    // מחכים טיק אחד לוודא ש-document.title עודכן
+                    await new Promise(res => setTimeout(res, 100));
+                    await channelRef.current.track(buildPayload());
                 }
             });
         } else {
-            trackPresence();
+            // ניווט בין עמודים — הערוץ קיים, פשוט מעדכנים
+            setTimeout(async () => {
+                if (channelRef.current?.state === 'joined') {
+                    await channelRef.current.track(buildPayload());
+                }
+            }, 100);
         }
 
-    }, [pathname, profile, isLoading, session, supabase, trackPresence]);
+    }, [pathname, profile, isLoading, session, supabase, buildPayload]);
 
     useEffect(() => {
         return () => {
