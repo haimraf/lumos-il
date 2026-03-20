@@ -47,7 +47,6 @@ export default function MaraudersMasterMap() {
 
         channel.on('presence', { event: 'sync' }, () => {
             const state = channel.presenceState();
-            const all = Object.values(state).flat() as any[];
 
             // מסננים כפילויות לפי שם משתמש כדי שהטבלה תהיה נקייה
             const uniqueWizards = Object.values(state).map((entries: any) => entries[0]);
