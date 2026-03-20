@@ -50,7 +50,7 @@ export default function MaraudersMasterMap() {
             const all = Object.values(state).flat() as any[];
 
             // מסננים כפילויות לפי שם משתמש כדי שהטבלה תהיה נקייה
-            const uniqueWizards = Array.from(new Map(all.map(w => [w.user_name, w])).values());
+            const uniqueWizards = Object.values(state).map((entries: any) => entries[0]);
             setWizards(uniqueWizards);
 
             const hall = uniqueWizards.filter(p => p.current_path === '/' || p.current_path === '/map').length;
