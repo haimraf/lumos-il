@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Footprints, Shield, Compass, Eye, Map as MapIcon, Laptop, Smartphone, Sparkles } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 
 const HOUSE_THEMES: Record<string, { color: string, foot: string }> = {
     'Gryffindor': { color: 'text-red-900', foot: 'text-red-900/40' },
@@ -11,6 +10,19 @@ const HOUSE_THEMES: Record<string, { color: string, foot: string }> = {
     'Ravenclaw': { color: 'text-blue-900', foot: 'text-blue-900/40' },
     'Hufflepuff': { color: 'text-amber-800', foot: 'text-amber-800/40' },
     'Unknown': { color: 'text-[#8b4513]', foot: 'text-[#8b4513]/40' }
+};
+
+// המילון הקסום: מתרגם כתובות URL למיקומים בטירה
+const getLocationName = (path: string) => {
+    if (!path) return "משוטט/ת בטירה";
+    if (path === "/") return "באולם הגדול";
+    if (path.includes("/map")) return "מביט/ה במפת הקונדסאים";
+    if (path.includes("/news?article")) return "קורא/ת כתבה בנביא היומי";
+    if (path.includes("/news")) return "במערכת הנביא היומי";
+    if (path.includes("/sorting")) return "חובש/ת את מצנפת המיון";
+    if (path.includes("/profile")) return "בחדר המועדון";
+    if (path.includes("/store") || path.includes("/diagon")) return "בסמטת דיאגון";
+    return "במסדרונות הטירה";
 };
 
 export default function MaraudersMasterMap() {
@@ -21,34 +33,25 @@ export default function MaraudersMasterMap() {
 
     useEffect(() => setIsMounted(true), []);
 
-    const { profile, session, isLoading: authLoading } = useAuth();
-
     useEffect(() => {
-        if (authLoading) return;
-        const channel = supabase.channel('lumos_global_presence', { config: { presence: { key: 'wizard' } } });
+        // המפה רק "מאזינה" לערוץ, היא כבר לא משדרת את עצמה כי MagicPresence עושה את זה
+        const channel = supabase.channel('lumos_global_presence');
 
         channel.on('presence', { event: 'sync' }, () => {
             const state = channel.presenceState();
             const all = Object.values(state).flat() as any[];
-            setWizards(all);
 
-            const hall = all.filter(p => p.current_path === '/' || p.current_path === '/map').length;
-            const lib = all.filter(p => p.current_path?.includes('/news')).length;
-            setStats({ hall, library: lib, wandering: all.length - (hall + lib) });
-        }).subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-                await channel.track({
-                    user_name: profile?.full_name || "קוסם מסתורי",
-                    house: profile?.house || "Unknown",
-                    current_path: window.location.pathname,
-                    user_agent: navigator.userAgent,
-                    online_at: new Date().toISOString()
-                });
-            }
-        });
+            // מסננים כפילויות לפי שם משתמש כדי שהטבלה תהיה נקייה
+            const uniqueWizards = Array.from(new Map(all.map(w => [w.user_name, w])).values());
+            setWizards(uniqueWizards);
+
+            const hall = uniqueWizards.filter(p => p.current_path === '/' || p.current_path === '/map').length;
+            const lib = uniqueWizards.filter(p => p.current_path?.includes('/news')).length;
+            setStats({ hall, library: lib, wandering: uniqueWizards.length - (hall + lib) });
+        }).subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [supabase, profile, authLoading]);
+    }, [supabase]);
 
     const getWandType = (ua: string) => {
         if (!ua) return "שרביט עתיק";
@@ -77,7 +80,6 @@ export default function MaraudersMasterMap() {
                 .map-vignette { box-shadow: inset 0 0 150px rgba(0,0,0,0.7), inset 0 0 50px rgba(139,69,19,0.2); }
             `}</style>
 
-            {/* חלקיקי אבק צפים - רק בצד הלקוח כדי להימנע מ-Hydration mismatch */}
             {isMounted && (
                 <div className="fixed inset-0 pointer-events-none">
                     {[...Array(15)].map((_, i) => (
@@ -92,7 +94,6 @@ export default function MaraudersMasterMap() {
             )}
 
             <div className="max-w-6xl mx-auto bg-[#f4e4bc] rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,1)] border-[10px] border-double border-[#8b4513]/20 relative overflow-hidden text-[#3e2723]">
-                {/* אפקט הצללה (Vignette) */}
                 <div className="absolute inset-0 map-vignette pointer-events-none z-20" />
                 <div className="absolute inset-0 opacity-25 bg-[url('https://www.transparenttextures.com/patterns/old-map.png')] pointer-events-none mix-blend-multiply" />
 
@@ -105,7 +106,7 @@ export default function MaraudersMasterMap() {
                         <div className="flex items-center gap-6 bg-white/20 px-6 py-3 rounded-2xl border border-[#8b4513]/10 backdrop-blur-sm">
                             <Compass className="text-[#8b4513] animate-[spin_20s_linear_infinite]" size={30} />
                             <div className="text-center">
-                                <span className="font-cinzel text-4xl font-black">{wizards.length + 5}</span>
+                                <span className="font-cinzel text-4xl font-black">{wizards.length}</span>
                                 <p className="text-[10px] font-bold uppercase tracking-tighter">נשמות בטירה</p>
                             </div>
                         </div>
@@ -117,7 +118,6 @@ export default function MaraudersMasterMap() {
                         <StatCard title="מסדרונות" count={stats.wandering} sub="דפים אחרים" icon={Footprints} />
                     </div>
 
-                    {/* כאן תוקן הבאג של אלינור: הוספנו overflow-x-auto לדיב העוטף ו-min-w לטבלה */}
                     <div className="bg-white/30 rounded-3xl border border-[#8b4513]/10 overflow-x-auto backdrop-blur-sm">
                         <table className="w-full text-right min-w-[500px]">
                             <thead className="bg-[#8b4513]/10 font-cinzel text-[10px] uppercase text-[#5d4037]">
@@ -141,7 +141,9 @@ export default function MaraudersMasterMap() {
                                                 <span className="text-xl italic">{w.user_name}</span>
                                             </td>
                                             <td className={`p-4 font-bold ${theme.color}`}>{w.house}</td>
-                                            <td className="p-4 text-xs font-mono opacity-60 hidden sm:table-cell" dir="ltr">{w.current_path || "/"}</td>
+                                            <td className="p-4 text-sm font-bold opacity-80 hidden sm:table-cell">
+                                                {getLocationName(w.current_path)}
+                                            </td>
                                             <td className="p-4 text-[11px] font-sans flex items-center gap-2">
                                                 {w.user_agent?.includes("Mobi") ? <Smartphone size={12} /> : <Laptop size={12} />}
                                                 {getWandType(w.user_agent)}

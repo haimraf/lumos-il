@@ -2,59 +2,64 @@
 
 import { useEffect, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 /**
- * LUMOS IL - MAGIC PRESENCE V2.0 (The Optimized Tracker)
- * מעקב נוכחות חכם עם "זמן חסד" כדי לא להעמיס על מסד הנתונים כשמעבירים טאבים.
+ * LUMOS IL - MAGIC PRESENCE V3.0 (Global Websocket Tracker)
+ * משדר את המיקום של הקוסם למפת הקונדסאים בזמן אמת בלי להעמיס על מסד הנתונים.
  */
 
 export default function MagicPresence() {
     const supabase = createClient();
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const pathname = usePathname();
+    const { profile, session, isLoading } = useAuth();
+    const channelRef = useRef<any>(null);
 
     useEffect(() => {
-        const setOnlineStatus = async (status: boolean) => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                // מעדכן את הסטטוס במסד הנתונים בלי שאף אחד ירגיש
-                await supabase.from('profiles').update({ is_online: status }).eq('id', session.user.id);
+        // אם המערכת עדיין טוענת את המשתמש, נחכה.
+        if (isLoading) return;
+
+        // הפונקציה שמשדרת את המיקום לערוץ
+        const trackPresence = async () => {
+            if (channelRef.current?.state === 'joined') {
+                await channelRef.current.track({
+                    user_name: profile?.full_name || "קוסם מסתורי",
+                    house: profile?.house || "Unknown",
+                    current_path: pathname,
+                    user_agent: navigator.userAgent,
+                    online_at: new Date().toISOString()
+                });
             }
         };
 
-        // 1. המשתמש נכנס לאתר - נדליק לו את הנקודה
-        setOnlineStatus(true);
+        // 1. יצירת הערוץ (קורה רק פעם אחת כשהמשתמש נכנס לאתר)
+        if (!channelRef.current) {
+            channelRef.current = supabase.channel('lumos_global_presence', {
+                config: { presence: { key: session?.user?.id || 'anonymous_wizard' } }
+            });
 
-        // 2. האזנה למעבר בין טאבים או מזעור של הדפדפן
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                // נותנים 5 שניות של "חסד" לפני שמכבים את הנקודה כדי לא להספים את השרת
-                timeoutRef.current = setTimeout(() => {
-                    setOnlineStatus(false);
-                }, 5000);
-            } else {
-                // אם הוא חזר לפני שעברו 5 שניות, מבטלים את הניתוק
-                if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                setOnlineStatus(true);
-            }
-        };
+            channelRef.current.subscribe(async (status: string) => {
+                if (status === 'SUBSCRIBED') {
+                    trackPresence(); // שידור ראשוני כשהתחברנו
+                }
+            });
+        } else {
+            // 2. אם הערוץ כבר קיים ורק עברנו עמוד (pathname השתנה), נשדר את המיקום החדש
+            trackPresence();
+        }
 
-        // 3. גיבוי למקרה של סגירה פתאומית של הדפדפן או רענון דף
-        const handleBeforeUnload = () => {
-            setOnlineStatus(false);
-        };
+    }, [pathname, profile, isLoading, session, supabase]);
 
-        window.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        // 4. ניקוי כשהקומפוננטה יורדת (המשתמש התנתק)
+    // 3. ניקוי וסגירת הערוץ רק כשהמשתמש סוגר את האתר לגמרי
+    useEffect(() => {
         return () => {
-            window.removeEventListener('visibilitychange', handleVisibilityChange);
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            setOnlineStatus(false);
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
+            }
         };
     }, [supabase]);
 
-    // הקומפוננטה הזו לא מציגה כלום על המסך, היא רק פועלת ברקע
+    // קומפוננטת רוח נטולת UI - פועלת רק מאחורי הקלעים
     return null;
 }
