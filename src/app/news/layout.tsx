@@ -37,7 +37,6 @@ export default function NewsLayout({ children }: { children: React.ReactNode }) 
 
         {/* 1. באנר עליון קבוע (Fixed Header) */}
         <div className="w-full fixed top-0 left-0 right-0 z-50 bg-[#0a0f20]/95 backdrop-blur-md border-b border-[#1e293b]/50 py-3 px-4 flex justify-between items-center gap-3">
-          {/* ... תוכן הבאנר העליון נשאר זהה ... */}
           <button className="text-slate-500 hover:text-slate-300">
             <X size={20} />
           </button>
@@ -64,14 +63,27 @@ export default function NewsLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
 
-        {/* 2. תוכן העמוד - כאן הגדלנו את pt-28 ל-pt-36 כדי להוריד את התוכן למטה */}
-        <div className="w-full flex justify-center pt-36 pb-16">
+        {/* 2. תוכן העמוד */}
+        <div className="w-full flex justify-center pt-32 pb-16">
           <main
-            className="w-full px-6 md:px-0"
+            className="w-full px-6 md:px-0 flex flex-col items-center"
             style={{ maxWidth: '896px', marginLeft: 'auto', marginRight: 'auto' }}
           >
-            {/* באנר עידוד לתגובות - הוספנו גם mt-2 ליתר ביטחון */}
-            <div className="w-full max-w-2xl mx-auto mt-2 mb-10 bg-amber-500/10 border border-amber-500/20 py-3 px-4 flex justify-center items-center gap-3 rounded-xl">
+
+            {/* כותרת ראשית: הנביא היומי */}
+            <div className="text-center mb-6 animate-in fade-in slide-in-from-top duration-1000">
+              <h1 className="font-cinzel text-5xl md:text-7xl font-black text-white tracking-[0.2em] uppercase drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                הנביא היומי
+              </h1>
+              <div className="flex items-center justify-center gap-4 mt-2">
+                <div className="h-[1px] w-12 bg-amber-500/40"></div>
+                <span className="font-cinzel text-xs text-amber-500 tracking-widest uppercase">The Daily Prophet • Edition 8.2</span>
+                <div className="h-[1px] w-12 bg-amber-500/40"></div>
+              </div>
+            </div>
+
+            {/* באנר עידוד לתגובות - עכשיו הוא מתחת לכותרת */}
+            <div className="w-full max-w-2xl mx-auto mb-12 bg-amber-500/10 border border-amber-500/20 py-3 px-4 flex justify-center items-center gap-3 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.05)]">
               <Sparkles className="text-amber-500 animate-pulse" size={18} />
               <p className="font-assistant text-sm md:text-base text-amber-200 font-bold tracking-wide text-center">
                 הידעת? כל תגובה בנביא היומי מזכה את הבית שלך ב-1 נקודה ובגליאון זהב!
@@ -80,7 +92,9 @@ export default function NewsLayout({ children }: { children: React.ReactNode }) 
             </div>
 
             {/* תוכן הכתבות (הילדים) */}
-            {children}
+            <div className="w-full">
+              {children}
+            </div>
           </main>
         </div>
 
