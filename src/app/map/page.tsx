@@ -12,7 +12,10 @@ const HOUSE_THEMES: Record<string, { color: string, foot: string }> = {
     'Unknown': { color: 'text-[#8b4513]', foot: 'text-[#8b4513]/40' }
 };
 
-// המילון הקסום: מתרגם כתובות URL למיקומים בטירה
+/**
+ * גיבוי: מתרגם URL גולמי כשאין location_label מהעמוד.
+ * כשעמוד מעביר pageTitle ל-MagicPresence — הפונקציה הזו לא תיקרא בכלל.
+ */
 const getLocationName = (path: string) => {
     if (!path || path === "/" || path === "/home") return "באולם הגדול";
     if (path.includes("/map")) return "מביט/ה במפת הקונדסאים";
@@ -64,6 +67,16 @@ export default function MaraudersMasterMap() {
         if (ua.includes("Firefox")) return "נוצת עוף חול (FF)";
         if (ua.includes("Safari") && !ua.includes("Chrome")) return "שיער חד-קרן (Safari)";
         return "שרביט מותאם אישית";
+    };
+
+    /**
+     * מחליט מה להציג כמיקום:
+     * 1. אם העמוד שלח location_label מפורש — משתמשים בו (הכי מדויק)
+     * 2. גיבוי: מנסים לפרש את ה-URL
+     */
+    const getDisplayLocation = (wizard: any) => {
+        if (wizard.location_label) return wizard.location_label;
+        return getLocationName(wizard.current_path);
     };
 
     return (
@@ -147,7 +160,8 @@ export default function MaraudersMasterMap() {
                                             </td>
                                             <td className={`p-4 font-bold ${theme.color}`}>{w.house}</td>
                                             <td className="p-4 text-sm font-bold opacity-80 hidden sm:table-cell">
-                                                {getLocationName(w.current_path)}
+                                                {/* מציג location_label אם קיים, אחרת חוזר לפרשנות URL */}
+                                                {getDisplayLocation(w)}
                                             </td>
                                             <td className="p-4 text-[11px] font-sans flex items-center gap-2">
                                                 {w.user_agent?.includes("Mobi") ? <Smartphone size={12} /> : <Laptop size={12} />}

@@ -6,11 +6,32 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 /**
- * LUMOS IL - MAGIC PRESENCE V3.0 (Global Websocket Tracker)
+ * LUMOS IL - MAGIC PRESENCE V3.1 (Global Websocket Tracker)
  * משדר את המיקום של הקוסם למפת הקונדסאים בזמן אמת בלי להעמיס על מסד הנתונים.
+ *
+ * שימוש בסיסי (ללא תוכן ספציפי):
+ *   <MagicPresence />
+ *
+ * שימוש עם כותרת עמוד (מומלץ בעמודי תוכן):
+ *   <MagicPresence pageTitle={`קורא/ת: "${article.title}"`} />
+ *   <MagicPresence pageTitle={`בנושא: "${thread.title}"`} />
+ *   <MagicPresence pageTitle={`מבקר/ת אצל ${username}`} />
  */
 
-export default function MagicPresence() {
+interface MagicPresenceProps {
+    /**
+     * תווית מיקום עשירה שתופיע במפת הקונדסאים.
+     * אם לא מועבר, המפה תשתמש בלוגיקת ה-URL הבסיסית שלה כגיבוי.
+     * דוגמאות:
+     *   'קורא/ת: "כותרת הכתבה"'
+     *   'בנושא: "שם הנושא"'
+     *   'מבקר/ת אצל YossiK'
+     *   'מנסח/ת קסם...'  ← כשהמשתמש בעמוד כתיבת תגובה
+     */
+    pageTitle?: string;
+}
+
+export default function MagicPresence({ pageTitle }: MagicPresenceProps) {
     const supabase = createClient();
     const pathname = usePathname();
     const { profile, session, isLoading } = useAuth();
@@ -27,6 +48,9 @@ export default function MagicPresence() {
                     user_name: profile?.full_name || "קוסם מסתורי",
                     house: profile?.house || "Unknown",
                     current_path: pathname,
+                    // location_label מועדף על פני current_path — המפה תציג אותו ישירות.
+                    // אם pageTitle לא הועבר, שדה זה יהיה undefined והמפה תחזור ללוגיקת URL.
+                    location_label: pageTitle,
                     user_agent: navigator.userAgent,
                     online_at: new Date().toISOString()
                 });
@@ -49,7 +73,7 @@ export default function MagicPresence() {
             trackPresence();
         }
 
-    }, [pathname, profile, isLoading, session, supabase]);
+    }, [pathname, pageTitle, profile, isLoading, session, supabase]);
 
     // 3. ניקוי וסגירת הערוץ רק כשהמשתמש סוגר את האתר לגמרי
     useEffect(() => {
