@@ -6,9 +6,37 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 /**
- * LUMOS IL - MAGIC PRESENCE V3.3 (Auto Reconnect)
- * תוספת: שידור מחדש אוטומטי אחרי ניתוק — Supabase לפעמים מתנתק.
+ * LUMOS IL - MAGIC PRESENCE V3.4 (Guest Support + Auto Reconnect)
+ * - אורחים מופיעים במפה עם מפתח ייחודי לכל טאב
+ * - שידור מחדש אוטומטי אחרי ניתוק
+ * - קריאת document.title אוטומטית — אין צורך לגעת בשום עמוד
  */
+
+// מפתח ייחודי לכל טאב של אורח — נשמר ב-sessionStorage (נמחק בסגירת הטאב)
+const getGuestKey = (): string => {
+    if (typeof window === 'undefined') return 'ssr-guest';
+    let key = sessionStorage.getItem('lumos_guest_key');
+    if (!key) {
+        key = 'guest_' + Math.random().toString(36).slice(2, 9);
+        sessionStorage.setItem('lumos_guest_key', key);
+    }
+    return key;
+};
+
+// שמות אורחים אקראיים — כדי שהמפה תהיה יותר חיה
+const GUEST_NAMES = [
+    "מכשפה אנונימית", "קוסם מסתורי", "נוסע/ת בזמן",
+    "רוח תועה", "מבקר/ת סקרן", "מרגל/ת של הטירה"
+];
+const getGuestName = (): string => {
+    if (typeof window === 'undefined') return "קוסם מסתורי";
+    let name = sessionStorage.getItem('lumos_guest_name');
+    if (!name) {
+        name = GUEST_NAMES[Math.floor(Math.random() * GUEST_NAMES.length)];
+        sessionStorage.setItem('lumos_guest_name', name);
+    }
+    return name;
+};
 
 const getLocationFromPath = (path: string): string => {
     if (!path || path === "/" || path === "/home") return "באולם הגדול";
@@ -45,7 +73,6 @@ export default function MagicPresence() {
     const { profile, session, isLoading } = useAuth();
     const channelRef = useRef<any>(null);
 
-    // useCallback כדי שאפשר לקרוא לה גם מה-subscribe callback
     const trackPresence = useCallback(async () => {
         if (channelRef.current?.state !== 'joined') return;
 
@@ -55,26 +82,33 @@ export default function MagicPresence() {
         const meaningfulTitle = extractMeaningfulTitle(rawTitle);
         const location_label = meaningfulTitle || getLocationFromPath(pathname);
 
+        const isGuest = !session?.user?.id;
+
         await channelRef.current.track({
-            user_name: profile?.full_name || "קוסם מסתורי",
-            house: profile?.house || "Unknown",
+            user_name: isGuest ? getGuestName() : (profile?.full_name || "קוסם מסתורי"),
+            house: isGuest ? 'Guest' : (profile?.house || "Unknown"),
             current_path: pathname,
             location_label,
+            is_guest: isGuest,
             user_agent: navigator.userAgent,
             online_at: new Date().toISOString()
         });
-    }, [pathname, profile]);
+    }, [pathname, profile, session]);
 
     useEffect(() => {
-        if (isLoading) return;
+        // אורחים לא ממתינים ל-isLoading — הם לא תלויים ב-auth
+        if (isLoading && session !== null) return;
 
         if (!channelRef.current) {
             channelRef.current = supabase.channel('lumos_global_presence', {
-                config: { presence: { key: session?.user?.id || 'anonymous_wizard' } }
+                config: {
+                    presence: {
+                        key: session?.user?.id || getGuestKey()
+                    }
+                }
             });
 
             channelRef.current.subscribe(async (status: string) => {
-                // שידור בכל פעם שמתחברים — כולל חיבור מחדש אחרי ניתוק
                 if (status === 'SUBSCRIBED') {
                     await trackPresence();
                 }
