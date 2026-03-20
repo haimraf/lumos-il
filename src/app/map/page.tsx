@@ -14,14 +14,19 @@ const HOUSE_THEMES: Record<string, { color: string, foot: string }> = {
 
 // המילון הקסום: מתרגם כתובות URL למיקומים בטירה
 const getLocationName = (path: string) => {
-    if (!path) return "משוטט/ת בטירה";
-    if (path === "/") return "באולם הגדול";
+    if (!path || path === "/" || path === "/home") return "באולם הגדול";
     if (path.includes("/map")) return "מביט/ה במפת הקונדסאים";
+    if (path.includes("/great-hall")) return "באולם הגדול";
+    if (path.includes("/shop") || path.includes("/diagon")) return "בסמטת דיאגון";
+    if (path.includes("/forums")) return "בפורומים של הטירה";
+    if (path.includes("/dashboard")) return "בלשכת הקוסם/ת";
     if (path.includes("/news?article")) return "קורא/ת כתבה בנביא היומי";
     if (path.includes("/news")) return "במערכת הנביא היומי";
+    if (path.includes("/quests")) return "ביציאה למשימה";
+    if (path.includes("/library")) return "בספרייה האסורה";
+    if (path.includes("/house-cup")) return "בודק/ת את גביע הבתים";
     if (path.includes("/sorting")) return "חובש/ת את מצנפת המיון";
     if (path.includes("/profile")) return "בחדר המועדון";
-    if (path.includes("/store") || path.includes("/diagon")) return "בסמטת דיאגון";
     return "במסדרונות הטירה";
 };
 
