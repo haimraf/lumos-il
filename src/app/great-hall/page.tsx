@@ -393,39 +393,28 @@ export default function GreatHall() {
                                 }
 
                                 return (
-                                    <div key={msg.id} className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}>
-                                        <div className={`flex items-start w-full max-w-[85%] md:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                                            <span className="text-3xl drop-shadow-md shrink-0 mt-1">{h.icon}</span>
-
-                                            <div className={`flex flex-col gap-2 flex-1 min-w-0 ${isMe ? "items-end" : "items-start"}`}>
-                                                <div className={`flex flex-wrap items-center gap-1.5 md:gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
-                                                    <div className={`flex items-center gap-2 flex-wrap ${isMe ? "flex-row-reverse" : ""}`}>
-                                                        <span className="text-base font-cinzel font-black text-white tracking-widest min-h-[24px]">
-                                                            {displayName}
+                                    <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`flex gap-3 max-w-[95%] md:max-w-[75%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                            <span className="text-3xl drop-shadow-md shrink-0 pt-2">{h.icon}</span>
+                                            <div className="flex flex-col gap-2">
+                                                <div className={`flex flex-col sm:flex-row items-baseline gap-2 ${isMe ? 'self-start sm:flex-row-reverse' : 'self-start'}`}>
+                                                    <span className="text-base font-cinzel font-black text-white tracking-widest min-h-[24px]">
+                                                        {displayName}
+                                                    </span>
+                                                    <div className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                        <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${r.class}`}>
+                                                            {r.label}
                                                         </span>
-
-                                                        <div className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                                                            <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${r.class}`}>
-                                                                {r.label}
-                                                            </span>
-                                                            <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${h.bg} ${h.border} ${h.color}`}>
-                                                                {h.label}
-                                                            </span>
-                                                        </div>
+                                                        <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest shadow-sm ${h.bg} ${h.border} ${h.color}`}>
+                                                            {h.label}
+                                                        </span>
                                                     </div>
                                                 </div>
-
-
-                                                <div
-                                                    className={`relative w-fit max-w-[85%] md:max-w-[75%] p-3 md:p-5 ${isMe ? "ml-2" : "mr-2"
-                                                        } rounded-[1.25rem] md:rounded-[2rem] border shadow-md group overflow-hidden ${isMe
-                                                            // הודעות שלי - עיגול קצוות פשוט ונקי בלי משולשים נשברים
-                                                            ? "rounded-tl-[4px] border-white/20 bg-white/5 text-right"
-                                                            // הודעות של אחרים - עיגול קצוות ימני עליון
-                                                            : `${h.border} ${h.bg} rounded-tr-[4px] text-right`
-                                                        }`}
-                                                >
-                                                    <p className="text-white text-sm sm:text-base md:text-lg font-crimson leading-relaxed break-words select-text whitespace-pre-wrap">
+                                                <div className={`relative p-6 rounded-[2.5rem] border shadow-xl group ${isMe
+                                                    ? 'rounded-tl-none border-white/20 bg-white/[0.08] text-right'
+                                                    : `rounded-tr-none ${h.border} ${h.bg} text-right`
+                                                    }`}>
+                                                    <p className="text-white text-lg md:text-xl font-crimson leading-relaxed break-words select-text">
                                                         {msg.content}
                                                     </p>
 
@@ -484,7 +473,7 @@ export default function GreatHall() {
                             </div>
                         )}
 
-                        <form onSubmit={sendMessage} className="p-3 md:p-6 bg-black/80 border-t border-white/10 flex gap-2 md:gap-4 items-center z-10 shrink-0">
+                        <form onSubmit={sendMessage} className="p-6 bg-black/80 border-t border-white/10 flex gap-4 items-center z-10">
                             <div className="flex-1 relative flex items-center">
                                 <button
                                     type="button"
@@ -498,7 +487,7 @@ export default function GreatHall() {
                                 <input
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    className="w-full bg-white/[0.08] border border-white/20 rounded-2xl pr-12 pl-10 py-3 md:py-5 text-white font-crimson text-base md:text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
+                                    className="w-full bg-white/[0.08] border border-white/20 rounded-2xl pr-14 pl-12 py-5 text-white font-crimson text-xl focus:outline-none focus:border-amber-500/50 transition-all text-right shadow-inner placeholder:text-white/20"
                                     placeholder="ללחוש הודעה לאולם..."
                                     disabled={!myId || isSending}
                                 />
@@ -509,7 +498,7 @@ export default function GreatHall() {
                             <button
                                 type="submit"
                                 disabled={!newMessage.trim() || isSending}
-                                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 text-amber-950 p-3 md:p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0 flex items-center justify-center w-12 h-12 md:w-16 md:h-16"
+                                className="bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:hover:bg-amber-600 text-amber-950 p-5 rounded-2xl transition-all shadow-xl active:scale-95 shrink-0 flex items-center justify-center w-16 h-16"
                             >
                                 {isSending ? <Loader2 size={24} className="animate-spin" /> : <Zap size={24} />}
                             </button>
@@ -530,10 +519,7 @@ export default function GreatHall() {
                                 <button
                                     key={r}
                                     onClick={() => setReportReason(r)}
-                                    className={`w-full text-right p-4 rounded-xl border transition-all font-bold ${reportReason === r
-                                            ? "bg-red-900/50 border-red-500 text-white"
-                                            : "bg-white/5 border-white/10 hover:bg-white/10 text-white/80"
-                                        }`}
+                                    className={`w-full text-right p-4 rounded-xl border transition-all font-bold ${reportReason === r ? 'bg-red-900/50 border-red-500 text-white' : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80'}`}
                                 >
                                     {r}
                                 </button>
