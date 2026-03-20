@@ -7,11 +7,15 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 type Props = {
-    params: { id: string }
+    // התיקון: params הוא עכשיו Promise
+    params: Promise<{ id: string }>
 };
 
 // הלחש שיוצר את התצוגה המקדימה לוואטסאפ, טלגרם וטיקטוק
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    // התיקון: חילוץ ה-id מתוך ה-Promise
+    const { id } = await params;
+
     const { data: story } = await supabase
         .from('stories')
         .select(`
@@ -20,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             cover_url, 
             profiles:author_id(full_name)
         `)
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
     if (!story) {
@@ -44,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         openGraph: {
             title: `${story.title} | לומוס IL`,
             description: cleanDescription,
-            url: `https://lumos-il.co.il/library/${params.id}`,
+            url: `https://lumos-il.co.il/library/${id}`,
             siteName: 'LUMOS IL',
             images: [
                 {
@@ -66,12 +70,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
 }
 
-export default async function StoryLayout({ children, params }: { children: React.ReactNode, params: { id: string } }) {
+// התיקון: params הוא עכשיו Promise
+export default async function StoryLayout({ children, params }: { children: React.ReactNode, params: Promise<{ id: string }> }) {
+    // התיקון: חילוץ ה-id מתוך ה-Promise
+    const { id } = await params;
+
     // שליפת הנתונים פעם נוספת עבור ה-JSON-LD (Next.js חכם מספיק לעשות Cache מאחורי הקלעים)
     const { data: story } = await supabase
         .from('stories')
         .select('title, description, cover_url, profiles:author_id(full_name)')
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
     const cleanDescription = story?.description?.replace(/<[^>]*>?/gm, '').substring(0, 160);
