@@ -54,7 +54,7 @@ export default function RulesPage() {
         {/* Header - הכרזה רשמית */}
         <div className="text-center space-y-8 animate-in fade-in slide-in-from-top-10 duration-1000">
           <div className="inline-flex items-center gap-4 bg-amber-500/10 border-2 border-amber-500/40 px-6 py-2 rounded-full text-amber-500 font-cinzel text-xs tracking-[0.4em] uppercase shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-            <ScrollText size={18} /> MINISTRY OF MAGIC PROCLAMATION
+            <ScrollText size={18} /> הכרזה רשמית של משרד הקסמים
           </div>
 
           <h1 className="font-cinzel text-6xl md:text-8xl font-black tracking-tighter text-white drop-shadow-[0_0_30px_rgba(245,158,11,0.6)]">
@@ -113,7 +113,7 @@ export default function RulesPage() {
           </p>
           <div className="space-y-2">
             <p className="font-cinzel text-xl font-black tracking-[0.5em] text-amber-500 uppercase">
-              BY ORDER OF THE MINISTRY OF MAGIC
+              בפקודת משרד הקסמים
             </p>
             <div className="h-1 w-48 bg-amber-500 mx-auto"></div>
           </div>

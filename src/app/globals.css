@@ -7,36 +7,43 @@
   --font-crimson: var(--font-crimson);
   --font-courier: var(--font-courier);
 
-  /* אנימציות "לומוס" (נכבות אוטומטית למי שרגיש לתנועה) */
+  /* אנימציות "לומוס" משודרגות */
   --animate-shimmer: shimmer 2.5s infinite linear;
-  --animate-pulse-slow: pulse-glow 6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-float: float 6s ease-in-out infinite;
-  --animate-float-slow: float 8s ease-in-out infinite;
-  --animate-ink-bleed: ink-bleed 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  --animate-magic-pulse: magic-pulse 2s infinite;
+  --animate-sparkle: sparkle 1.5s ease-in-out infinite;
 
-  @keyframes shimmer {
+  @keyframes magic-pulse {
     0% {
-      transform: translateX(-100%);
+      transform: scale(1);
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+
+    70% {
+      transform: scale(1.15);
+      opacity: 0.8;
+      box-shadow: 0 0 15px 5px rgba(34, 197, 94, 0);
     }
 
     100% {
-      transform: translateX(100%);
+      transform: scale(1);
+      opacity: 1;
     }
   }
 
-  @keyframes pulse-glow {
+  @keyframes sparkle {
 
     0%,
     100% {
-      opacity: 0.3;
-      transform: scale(1);
-      box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+      opacity: 0.5;
+      transform: scale(1) rotate(0deg);
     }
 
     50% {
-      opacity: 0.6;
-      transform: scale(1.05);
-      box-shadow: 0 0 25px rgba(245, 158, 11, 0.5);
+      opacity: 1;
+      transform: scale(1.2) rotate(15deg);
+      filter: brightness(1.5);
     }
   }
 
@@ -52,150 +59,169 @@
     }
   }
 
-  @keyframes ink-bleed {
+  @keyframes shimmer {
     0% {
-      opacity: 0;
-      filter: blur(10px) brightness(1.5);
-      transform: scale(0.98);
+      transform: translateX(-100%);
     }
 
     100% {
-      opacity: 1;
-      filter: blur(0) brightness(1);
-      transform: scale(1);
+      transform: translateX(100%);
     }
   }
 }
 
-/* הגדרות בסיס למראה הכהה העמוק - קונטרסט גבוה (נגישות) */
+/* הגדרות בסיס */
 :root {
   --background: #020617;
-  /* Slate-950 - שחור עמוק */
   --foreground: #f8fafc;
-  /* Slate-50 - לבן בוהק לקריאות מקסימלית */
   --selection-bg: rgba(245, 158, 11, 0.4);
-  /* הילת בחירה זהובה */
   --selection-text: #fffbeb;
-  /* טקסט לבן-צהבהב בבחירה */
 }
 
-/* -------------------------------------- */
-/* CSS RESET & CORE HTML                  */
-/* -------------------------------------- */
+/* FIX: RTL גלובלי + מניעת overflow */
 html {
-  scroll-behavior: smooth;
-  /* הוספת גלילה חלקה למעברי דפים וקישורים פנימיים */
-  -webkit-text-size-adjust: 100%;
-  /* מונע זום מוזר במובייל בעת סיבוב מסך */
+  direction: rtl;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-assistant), sans-serif;
-
-  /* החלקת פונטים (קריטי לפונטים עם סריפים ולקריאות) */
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-
-  /* טריק נגישות/רזולוציה: מונע שורות שמסתיימות במילה בודדת */
-  text-wrap: pretty;
-
   overflow-x: hidden;
-  -webkit-tap-highlight-color: transparent;
-  /* ביטול ריבוע כחול בלחיצה במובייל */
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  position: relative;
 }
 
-/* אפקט טקסטורה של חלל/אבן גלובלי - עדין מאוד כדי לא להפריע לקריאות */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image: url('https://www.transparenttextures.com/patterns/dark-matter.png');
-  opacity: 0.04;
-  z-index: -10;
-  pointer-events: none;
+/* FIX: מניעת overflow בכל האלמנטים */
+#__next {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
-/* יישור טקסט וגובה שורה בסיסי לעברית ולכותרות */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-cinzel), serif;
-  line-height: 1.1;
-  /* תמיכה חכמה ברזולוציות: מוודא שהכותרות פרופורציונליות ואין "שבירת שורות" מכוערת */
-  text-wrap: balance;
+/* FIX: main container */
+main {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
-/* צבע סימון טקסט עם העכבר - אווירת קסם */
-::selection {
-  background-color: var(--selection-bg);
-  color: var(--selection-text);
-  text-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
-}
-
-/* -------------------------------------- */
-/* SCROLLBAR גלובלי לאווירת קסם אפלה      */
-/* -------------------------------------- */
-::-webkit-scrollbar {
+/* סמל המחובר הנושם (MagicPresence) */
+.magic-online-dot {
   width: 10px;
   height: 10px;
+  border-radius: 9999px;
+  background-color: #22c55e;
+  border: 2px solid #020617;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+  animation: magic-pulse 2s infinite;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(2, 6, 23, 0.8);
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
+/* פתרון גלילה במובייל (למפות ותפריטים) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.2) transparent;
 }
 
-::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(245, 158, 11, 0.3);
-  /* זהב עמוק ודהוי */
-  border-radius: 10px;
-  border: 2px solid rgba(2, 6, 23, 0.8);
-  /* יוצר תחושה של ריווח */
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 158, 11, 0.7);
-  /* מתעורר לחיים וזוהר במעבר עכבר */
-}
-
-/* פס גלילה מיוחד לקלפים ומגילות (ניתן להשתמש כקלאס) */
-.custom-parchment-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-parchment-scrollbar::-webkit-scrollbar-track {
-  background: rgba(139, 69, 19, 0.03);
-}
-
-.custom-parchment-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(139, 69, 19, 0.3);
   border-radius: 10px;
 }
 
-/* -------------------------------------- */
-/* ACCESSIBILITY & FOCUS STATES         */
-/* -------------------------------------- */
-/* במקום המסגרת הכחולה הרגילה בניווט מקלדת, מסגרת זהב קריאה וברורה */
-*:focus-visible {
-  outline: 3px solid rgba(245, 158, 11, 0.8);
-  outline-offset: 4px;
-  border-radius: 4px;
-  transition: outline-offset 0.2s ease;
+.overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.2) transparent;
 }
 
-/* קריטי למשימה 13: תמיכה בנסטגמוס וסחרחורות!
-  הקוד הזה מופעל *רק* אצל משתמשים שהגדירו במחשב/בטלפון שלהם "צמצום תנועה".
-*/
+/* אפקט זכוכית קסומה (Glass Panel) */
+.glass-panel {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  transition: all 0.4s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* FIX: RTL Support for inputs */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  direction: rtl;
+  text-align: right;
+}
+
+/* FIX: RTL Support for lists */
+ul,
+ol {
+  padding-right: 1.5rem;
+  padding-left: 0;
+}
+
+/* FIX: Float adjustments for RTL */
+.float-left {
+  float: right !important;
+}
+
+.float-right {
+  float: left !important;
+}
+
+/* FIX: Prevent horizontal overflow on all containers */
+* {
+  box-sizing: border-box;
+}
+
+*:not(svg):not(path) {
+  max-width: 100%;
+}
+
+/* FIX: Mobile-specific overflow prevention */
+@media (max-width: 1024px) {
+
+  body,
+  html,
+  #__next,
+  main {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  /* מניעת scroll אופקי ממסכי תוכן רחבים */
+  .container,
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl,
+  .max-w-4xl {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+}
+
+/* נגישות: צמצום תנועה */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto !important;
-    /* מבטל גלילה חלקה שעושה סחרחורת */
   }
 
   *,
@@ -206,36 +232,4 @@ h6 {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* -------------------------------------- */
-/* UTILITY CLASSES - תוספות לעיצוב      */
-/* -------------------------------------- */
-.glass-panel {
-  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.05);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.glass-panel:hover {
-  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
-  border-color: rgba(255,255,255,0.15);
-  transform: translateY(-3px);
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.6);
-}
-
-.gold-glow {
-  text-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
-}
-
-/* קלאס חדש לטקסט קסום (זהב-ענבר) שמשתלב מושלם בכותרות */
-.text-magic {
-  background: linear-gradient(to bottom, #fef3c7, #f59e0b);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.3));
 }

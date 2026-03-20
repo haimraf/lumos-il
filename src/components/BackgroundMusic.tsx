@@ -1,57 +1,70 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useUIState } from "@/context/UIContext";
 
+/**
+ * LUMOS IL - MAGICAL SOUNDSCAPE V2.6
+ * תיקון: ממתין ל-isInitialized לפני הפעלה, כדי לכבד את הגדרת ה-mute מה-localStorage.
+ */
 export default function BackgroundMusic() {
-  const { isMuted } = useUIState();
+  const { isMuted, isInitialized } = useUIState();
   const audioRef = useRef<HTMLAudioElement>(null);
-  const fadeInterval = useRef<any>(null);
+  const fadeInterval = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  const fadeVolume = useCallback((targetVolume: number) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // ניקוי טיימרים ישנים
-    if (fadeInterval.current) {
-      clearInterval(fadeInterval.current);
+    if (fadeInterval.current) clearInterval(fadeInterval.current);
+
+    const fadeStep = 0.02;
+    const fadeSpeed = 100;
+
+    fadeInterval.current = setInterval(() => {
+      if (Math.abs(audio.volume - targetVolume) < fadeStep) {
+        audio.volume = targetVolume;
+        if (targetVolume === 0) audio.pause();
+        if (fadeInterval.current) clearInterval(fadeInterval.current);
+      } else {
+        audio.volume += audio.volume < targetVolume ? fadeStep : -fadeStep;
+      }
+    }, fadeSpeed);
+  }, []);
+
+  useEffect(() => {
+    // ✅ לא עושים כלום עד שה-localStorage נטען
+    if (!isInitialized) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isMuted) {
+      fadeVolume(0);
+      return;
     }
 
-    if (!isMuted) {
-      // מתחילים מווליום אפס כדי לעשות Fade-in עדין
-      audio.volume = 0;
-
-      audio.play().then(() => {
-        const targetVolume = 0.25; // היעד: 25% ווליום
-        const fadeStep = 0.02;     // קפיצות הווליום
-        const fadeSpeed = 150;     // מהירות הקפיצה (במילישניות)
-
-        // פונקציית הפייד-אין
-        fadeInterval.current = setInterval(() => {
-          if (audio.volume < targetVolume) {
-            // מוודאים שלא נעבור את היעד עקב עיגול מספרים
-            audio.volume = Math.min(audio.volume + fadeStep, targetVolume);
-          } else {
-            clearInterval(fadeInterval.current);
+    // מנגן רק אם לא מושתק
+    audio.play()
+      .then(() => fadeVolume(0.25))
+      .catch(() => {
+        // הדפדפן חסם — ממתינים ללחיצה ראשונה
+        const playOnInteraction = () => {
+          if (!isMuted) {
+            audio.play().then(() => fadeVolume(0.25));
           }
-        }, fadeSpeed);
-
-      }).catch(() => {
-        console.log("Browser blocked autoplay. Waiting for user interaction to cast the spell.");
+          document.removeEventListener("click", playOnInteraction);
+        };
+        document.addEventListener("click", playOnInteraction);
       });
-    } else {
-      // אם הושתק - עוצרים מיד (אפשר גם לעשות Fade-out בעתיד אם תרצה)
-      audio.pause();
-    }
 
-    // ניקוי בעת יציאה מהקומפוננטה
     return () => {
       if (fadeInterval.current) clearInterval(fadeInterval.current);
     };
-  }, [isMuted]);
+  }, [isMuted, isInitialized, fadeVolume]);
 
   return (
-    <audio ref={audioRef} loop>
+    <audio ref={audioRef} loop preload="auto">
       <source src="/hogwarts_theme.mp3" type="audio/mpeg" />
     </audio>
   );

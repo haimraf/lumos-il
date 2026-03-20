@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { Crown } from "lucide-react"; // ✨ תוספת: כתר לבית המוביל
 
 const HOUSES = [
   {
@@ -52,7 +53,7 @@ export default function HouseCupLeaderboard() {
   });
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // פונקציית שליפת הנתונים - הוצאנו אותה החוצה כדי שנוכל לקרוא לה גם בזמן אמת
+  // ✨ תיקון: הסרת התלות ב-isLoaded כדי למנוע ניתוק וחיבור מחדש של ה-Realtime
   const fetchPoints = useCallback(async () => {
     const { data, error } = await supabase
       .from('profiles')
@@ -74,15 +75,14 @@ export default function HouseCupLeaderboard() {
     });
 
     setHousePoints(points);
-    if (!isLoaded) setIsLoaded(true);
-  }, [supabase, isLoaded]);
+    setIsLoaded(true); // זה בטוח כאן כי זה לא נמצא ב-dependencies יותר
+  }, [supabase]);
 
   useEffect(() => {
     // טעינה ראשונית
     fetchPoints();
 
     // הגדרת סנכרון בזמן אמת (Realtime)
-    // בכל פעם שפרופיל מתעדכן (מישהו מקבל נקודות), המערכת תרענן את הגביע
     const channel = supabase
       .channel('house_points_updates')
       .on(
@@ -100,65 +100,81 @@ export default function HouseCupLeaderboard() {
     };
   }, [supabase, fetchPoints]);
 
-  const maxPoints = Math.max(...Object.values(housePoints), 100);
+  // חישוב הרף העליון כדי שהמבחנות לא יתפוצצו
+  const maxPointsDisplay = Math.max(...Object.values(housePoints), 100);
+
+  // ✨ זיהוי הבית המוביל (בשביל הכתר)
+  const actualMaxPoints = Math.max(...Object.values(housePoints));
+  const leadingHousePoints = actualMaxPoints > 0 ? actualMaxPoints : -1;
 
   return (
-    <section className="w-full flex flex-col items-center gap-10 py-6" dir="rtl">
-      <div className="text-center space-y-2">
-        <h2 className="font-cinzel text-2xl md:text-3xl font-bold tracking-[0.3em] text-white uppercase">
+    <section className="w-full flex flex-col items-center gap-10 py-8" dir="rtl">
+      <div className="text-center space-y-3 relative">
+        <h2 className="font-cinzel text-3xl md:text-4xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
           גביע הבתים
         </h2>
-        <div className="h-[1px] w-24 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent mx-auto"></div>
-        <p className="font-crimson text-sm text-white/40 tracking-widest italic">
-          הכבוד של הבית שלך בידיים שלך
+        <div className="h-[2px] w-32 bg-gradient-to-r from-transparent via-amber-500/70 to-transparent mx-auto"></div>
+        <p className="font-crimson text-sm md:text-base text-white/50 tracking-widest italic">
+          הכבוד של הבית שלך נמצא בידיים שלך
         </p>
       </div>
 
       <div className="flex items-end justify-center gap-4 md:gap-12 lg:gap-16 w-full px-4">
         {HOUSES.map((house) => {
           const points = housePoints[house.id] || 0;
-          const fillHeight = isLoaded ? Math.max((points / maxPoints) * 100, 5) : 0;
+          // מוודאים שיש מינימום 5% גובה כדי שיראו קצת "נוזל" גם אם יש 0 נקודות
+          const fillHeight = isLoaded ? Math.max((points / maxPointsDisplay) * 100, 5) : 0;
+          const isLeading = points === leadingHousePoints && points > 0;
 
           return (
-            <div key={house.id} className="flex flex-col items-center gap-4 group">
-              <div className="flex flex-col items-center">
-                <span className={`font-cinzel text-xl md:text-2xl font-black transition-all duration-700 ${house.textColor}`}
-                  style={{ textShadow: `0 0 15px ${house.glow}` }}>
+            <div key={house.id} className="flex flex-col items-center gap-4 group transition-transform duration-500 hover:-translate-y-2">
+
+              {/* כתר לבית המוביל + ניקוד */}
+              <div className="flex flex-col items-center relative min-h-[60px] justify-end pb-2">
+                {isLeading && (
+                  <Crown size={24} className="text-amber-400 absolute -top-8 animate-bounce drop-shadow-[0_0_10px_rgba(251,191,36,0.8)]" />
+                )}
+                <span className={`font-cinzel text-xl md:text-3xl font-black transition-all duration-1000 ${isLeading ? 'scale-110' : ''} ${house.textColor}`}
+                  style={{ textShadow: `0 0 ${isLeading ? '25px' : '15px'} ${house.glow}` }}>
                   {points.toLocaleString()}
                 </span>
               </div>
 
-              <div className="relative w-12 h-56 md:w-16 md:h-72 lg:w-20 lg:h-80 rounded-t-full rounded-b-3xl bg-white/5 border border-white/10 shadow-2xl flex items-end overflow-hidden">
-                {/* אפקט זכוכית */}
-                <div className="absolute inset-0 opacity-20 pointer-events-none z-20">
-                  <div className="absolute top-0 left-1/4 w-[2px] h-full bg-white/30 blur-[1px]"></div>
+              {/* שעון חול / מבחנה */}
+              <div className={`relative w-12 h-56 md:w-16 md:h-72 lg:w-20 lg:h-80 rounded-t-full rounded-b-3xl bg-white/5 border ${isLeading ? 'border-white/30' : 'border-white/10'} shadow-2xl flex items-end overflow-hidden transition-colors duration-500`}>
+
+                {/* אפקט זכוכית (ברק) */}
+                <div className="absolute inset-0 opacity-30 pointer-events-none z-20">
+                  <div className="absolute top-0 left-[20%] w-[15%] h-full bg-gradient-to-r from-transparent via-white/40 to-transparent blur-[1px]"></div>
                 </div>
 
-                {/* הנוזל/החול של הנקודות */}
+                {/* הנוזל של הנקודות */}
                 <div
-                  className="w-full relative transition-all duration-[2500ms] cubic-bezier(0.4, 0, 0.2, 1)"
+                  className="w-full relative transition-all duration-[2500ms] ease-in-out"
                   style={{
                     height: `${fillHeight}%`,
                     background: `linear-gradient(to top, ${house.colorFrom}, ${house.colorTo})`,
-                    boxShadow: `0 0 30px ${house.glow}, inset 0 2px 10px rgba(255,255,255,0.3)`
+                    boxShadow: `0 0 ${isLeading ? '40px' : '30px'} ${house.glow}, inset 0 2px 10px rgba(255,255,255,0.4)`
                   }}
                 >
-                  {/* בועות קסם */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    <div className="absolute bottom-[20%] left-[20%] w-1 h-1 bg-white/40 rounded-full animate-pulse"></div>
-                    <div className="absolute bottom-[50%] right-[30%] w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce"></div>
+                  {/* בועות קסם שעולות למעלה */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-50">
+                    <div className="absolute bottom-[10%] left-[25%] w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse" style={{ animationDuration: '2s' }}></div>
+                    <div className="absolute bottom-[40%] right-[30%] w-1 h-1 bg-white/40 rounded-full animate-bounce" style={{ animationDuration: '3s' }}></div>
+                    <div className="absolute bottom-[70%] left-[50%] w-2 h-2 bg-white/30 rounded-full animate-pulse" style={{ animationDuration: '2.5s' }}></div>
                   </div>
 
-                  {/* המפלס העליון */}
-                  <div className="absolute top-0 left-0 w-full h-1 bg-white/40 blur-[2px]"></div>
+                  {/* שפת הנוזל המוארת */}
+                  <div className="absolute top-0 left-0 w-full h-1.5 bg-white/50 blur-[2px]"></div>
                 </div>
               </div>
 
-              <div className="flex flex-col items-center gap-1">
-                <span className="font-cinzel text-[10px] md:text-xs tracking-[0.1em] font-bold text-white/60 uppercase">
+              {/* שם הבית ופס דקורטיבי */}
+              <div className="flex flex-col items-center gap-1.5">
+                <span className={`font-cinzel text-[10px] md:text-xs tracking-[0.1em] font-bold uppercase transition-colors ${isLeading ? 'text-white' : 'text-white/60'}`}>
                   {house.name}
                 </span>
-                <div className={`w-8 h-[2px] ${house.lineColor} opacity-30`}></div>
+                <div className={`w-10 h-[2px] ${house.lineColor} ${isLeading ? 'opacity-80 shadow-[0_0_10px_' + house.glow + ']' : 'opacity-30'}`}></div>
               </div>
             </div>
           );

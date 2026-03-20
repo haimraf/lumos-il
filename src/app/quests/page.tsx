@@ -8,6 +8,7 @@ import {
   XCircle, Hourglass, Flame, Search, Gift, Zap
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { useAuth } from "@/context/AuthContext";
 
 // --- מאגר שאלות טריוויה מורחב ---
 const TRIVIA_POOL = [
@@ -33,9 +34,8 @@ const HOUSE_COLORS: Record<string, string> = {
 export default function QuestsPage() {
   const supabase = createClient();
   const { sendOwl } = useOwlMail();
+  const { profile, refreshProfile, isLoading: authLoading } = useAuth();
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
   const [dailyStatus, setDailyStatus] = useState({ allowance: false, trivia: false, niffler: false, snitch: false });
   const [currentTrivia, setCurrentTrivia] = useState<any>(null);
   const [nifflerLoading, setNifflerLoading] = useState(false);
@@ -43,29 +43,22 @@ export default function QuestsPage() {
 
   const today = new Date().toLocaleDateString("en-CA");
 
-  const fetchProfile = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = '/'; return; }
-
-    const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (data) {
-      setProfile(data);
+  useEffect(() => {
+    if (profile) {
       setDailyStatus({
-        allowance: data.last_reward_date === today,
-        trivia: data.last_trivia_date === today,
-        niffler: data.last_niffler_date === today,
-        snitch: data.last_snitch_date === today // המשימה החדשה
+        allowance: profile.last_reward_date === today,
+        trivia: profile.last_trivia_date === today,
+        niffler: profile.last_niffler_date === today,
+        snitch: profile.last_snitch_date === today
       });
     }
-    setIsLoading(false);
-  }, [supabase, today]);
+  }, [profile, today]);
 
   useEffect(() => {
-    fetchProfile();
     // בחירה בטוחה של שאלה מתוך המאגר (לפי היום בחודש כדי שכולם יקבלו אותה שאלה באותו יום)
     const day = new Date().getDate();
     setCurrentTrivia(TRIVIA_POOL[day % TRIVIA_POOL.length]);
-  }, [fetchProfile]);
+  }, []);
 
   const handleDailyCollect = async () => {
     if (dailyStatus.allowance || !profile) return;
@@ -76,7 +69,7 @@ export default function QuestsPage() {
 
     if (!error) {
       sendOwl("קצבה נאספה!", "5 גליאונים נוספו לכיסך.", "magic");
-      fetchProfile();
+      refreshProfile();
     }
   };
 
@@ -90,7 +83,7 @@ export default function QuestsPage() {
     const { error } = await supabase.from('profiles').update(updateData).eq('id', profile.id);
     if (!error) {
       sendOwl(isCorrect ? "תשובה נכונה!" : "טעות בלחש", isCorrect ? "10 נקודות לבית שלך!" : `התשובה הנכונה: ${currentTrivia.a}`, isCorrect ? "success" : "error");
-      fetchProfile();
+      refreshProfile();
     }
   };
 
@@ -108,7 +101,7 @@ export default function QuestsPage() {
     const { error } = await supabase.from('profiles').update(updateData).eq('id', profile.id);
     if (!error) {
       sendOwl("הניפלר נתפס!", `מצאת ${amount} ${winType === 'galleons' ? 'גליאונים' : 'נקודות'}!`, "magic");
-      fetchProfile();
+      refreshProfile();
     }
     setNifflerLoading(false);
   };
@@ -124,13 +117,13 @@ export default function QuestsPage() {
     }).eq('id', profile.id);
 
     if (!error) {
-      sendOwl("הסניץ' נתפס!", "איזה מחפש מעולה! הבאת 15 נקודות לבית שלך.", "success");
-      fetchProfile();
+      sendOwl("הסניץ' ננתפס!", "איזה מחפש מעולה! הבאת 15 נקודות לבית שלך.", "success");
+      refreshProfile();
     }
     setSnitchLoading(false);
   };
 
-  if (isLoading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div></div>;
+  if (authLoading) return <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center gap-4 bg-[#020617]"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div><p className="font-cinzel text-amber-500 tracking-widest animate-pulse">רוקח שיקוי...</p></div>;
 
   const hColor = (profile?.house && HOUSE_COLORS[profile.house]) ? HOUSE_COLORS[profile.house] : 'text-amber-400';
   const trophyClass = hColor.split(' ')[0] || 'text-amber-400';

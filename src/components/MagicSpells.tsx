@@ -3,25 +3,50 @@
 import { useEffect, useState, useRef } from "react";
 import { useOwlMail } from "@/components/OwlMail";
 import { createClient } from "@/utils/supabase/client";
-import { Sparkles, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+/**
+ * LUMOS IL - GLOBAL MAGIC ENGINE V2.8 (The Open Gates Update)
+ * הוספת "קסמי בסיס" (לומוס/נוקס) שעובדים לכולם כולל אורחים, 
+ * בזמן ששאר הקסמים דורשים חיבור ולימוד.
+ */
 
 export default function MagicSpells() {
     const { sendOwl } = useOwlMail();
+    const { profile } = useAuth();
     const supabase = createClient();
-    const router = useRouter();
 
     const [isLumosOn, setIsLumosOn] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    const [showHint, setShowHint] = useState(false);
-    const [flash, setFlash] = useState(false); // אפקט הבזק לאלוהומורה
-
-    // מצב חדש עבור לחש השליטה (Imperio) במקום Accio
-    const [isImperioActive, setIsImperioActive] = useState(false);
+    const [flash, setFlash] = useState(false);
+    const [isMischiefManaged, setIsMischiefManaged] = useState(false);
 
     const inputBuffer = useRef("");
 
-    // מעקב אחרי העכבר כשהאור דולק
+    // שומרים את כל המידע הדינמי ברפרנסים כדי לא לשבור את ה-useEffect
+    const allSpellsRef = useRef<any[]>([]);
+    const profileRef = useRef<any>(null);
+    const sendOwlRef = useRef(sendOwl);
+
+    // עדכון הרפרנסים תמיד לגרסה האחרונה
+    useEffect(() => {
+        profileRef.current = profile;
+    }, [profile]);
+
+    useEffect(() => {
+        sendOwlRef.current = sendOwl;
+    }, [sendOwl]);
+
+    // משיכת הלחשים המלאים מהדאטהבייס ושמירתם
+    useEffect(() => {
+        const fetchAllSpells = async () => {
+            const { data } = await supabase.from('spells').select('id, terminal_command');
+            if (data) allSpellsRef.current = data;
+        };
+        fetchAllSpells();
+    }, [supabase]);
+
+    // מעקב אחרי העכבר כשהפנס דולק
     useEffect(() => {
         if (!isLumosOn) return;
         const handleMouseMove = (e: MouseEvent) => {
@@ -31,98 +56,109 @@ export default function MagicSpells() {
         return () => window.removeEventListener("mousemove", handleMouseMove);
     }, [isLumosOn]);
 
-    // רמז קולנועי ללומוס
+    // מנוע המקלדת המרכזי
     useEffect(() => {
-        const hintTimer = setTimeout(() => {
-            if (!localStorage.getItem("lumosHintSeen")) {
-                setShowHint(true);
-                localStorage.setItem("lumosHintSeen", "true");
-                setTimeout(() => setShowHint(false), 7000);
-            }
-        }, 15000);
-        return () => clearTimeout(hintTimer);
-    }, []);
+        const hasLearnedCommand = (command: string) => {
+            const currentProfile = profileRef.current;
+            const currentSpells = allSpellsRef.current;
+            const cmdLower = command.toLowerCase();
 
-    // מנוע זיהוי הלחשים
-    useEffect(() => {
+            // ✨ חוק 1: קסמי בסיס - חינם ועובדים לכולם, גם לאורחים מנותקים!
+            if (cmdLower === 'lumos' || cmdLower === 'nox') {
+                return true;
+            }
+
+            // ✨ חוק 2: אם המשתמש מנותק וניסה קסם מתקדם - חסום אותו
+            if (!currentProfile) {
+                return false;
+            }
+
+            // ✨ חוק 3: מנהלים יכולים להטיל כל קסם
+            if (currentProfile.role === 'מנהל' || currentProfile.role?.toLowerCase() === 'admin') {
+                return true;
+            }
+
+            // ✨ חוק 4: בדיקה רגילה מול הדאטהבייס האם השחקן למד את הקסם
+            const spell = currentSpells.find(s => s.terminal_command === cmdLower);
+            if (!spell) return false;
+
+            return currentProfile.learned_spells?.includes(spell.id) || false;
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
-            // התעלמות אם המשתמש מקליד בתוך שדה טקסט רגיל באתר
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
             const key = e.key.toLowerCase();
-            if (key.length !== 1 && key !== "backspace") return;
-
-            inputBuffer.current = (inputBuffer.current + key).slice(-15);
+            inputBuffer.current = (inputBuffer.current + key).slice(-30);
             const currentBuffer = inputBuffer.current;
 
-            if (currentBuffer.endsWith("lumos")) {
-                setIsLumosOn(true);
-                setShowHint(false);
-                sendOwl("לומוס מקסימה!", "האור נדלק. הקלד nox כדי לכבות.", "magic");
+            // לומוס (אור)
+            if (currentBuffer.endsWith("lumos") || currentBuffer.endsWith("ךהמםד")) {
+                if (hasLearnedCommand("lumos")) {
+                    setIsLumosOn(true);
+                    sendOwlRef.current("לומוס מקסימה!", "האור נדלק.", "magic");
+                } else {
+                    sendOwlRef.current("ניסיון כושל", "אינך מכיר את הלחש הזה עדיין...", "error");
+                }
                 inputBuffer.current = "";
             }
-            else if (currentBuffer.endsWith("nox")) {
-                setIsLumosOn(false);
-                sendOwl("נוקס.", "האור כבה.", "info");
+            // נוקס (כיבוי)
+            else if (currentBuffer.endsWith("nox") || currentBuffer.endsWith("מםס")) {
+                if (hasLearnedCommand("nox")) {
+                    setIsLumosOn(false);
+                    sendOwlRef.current("נוקס.", "האור כבה.", "info");
+                } else {
+                    sendOwlRef.current("ניסיון כושל", "אינך מכיר את לחש הכיבוי...", "error");
+                }
                 inputBuffer.current = "";
             }
-            else if (currentBuffer.endsWith("alohomora")) {
-                setFlash(true);
-                setTimeout(() => setFlash(false), 500);
-
-                // יריית פקודת קסם שההאדר יאזין לה ויפתח את התפריט
-                window.dispatchEvent(new CustomEvent("magic-alohomora"));
-                sendOwl("אלוהומורה!", "המנעול נפתח...", "magic");
-
+            // אלוהומורה (פתיחת מנעולים / תפריט)
+            else if (currentBuffer.endsWith("alohomora") || currentBuffer.endsWith("שךחהםצםמש")) {
+                if (hasLearnedCommand("alohomora")) {
+                    setFlash(true);
+                    setTimeout(() => setFlash(false), 500);
+                    window.dispatchEvent(new CustomEvent("magic-alohomora"));
+                    sendOwlRef.current("אלוהומורה!", "המנעול נפרץ...", "magic");
+                } else {
+                    // טיזר מעולה לשחקנים מנותקים שניסו להקליד אלוהומורה!
+                    sendOwlRef.current("המנעול חסום", "עליך להירשם וללמוד את לחש הפתיחה קודם לכן.", "error");
+                }
                 inputBuffer.current = "";
             }
-            else if (currentBuffer.endsWith("imperio")) {
-                if (isImperioActive) return; // מונע הפעלה כפולה
-
-                setIsImperioActive(true);
-                sendOwl("אימפריו!", "אתה שולט כעת במרחב...", "magic");
-
-                // מפעיל רעידת אדמה קטנה על כל האתר
-                document.body.classList.add("animate-imperio-chaos");
-
-                // מפסיק את הכאוס אחרי 3 שניות
-                setTimeout(() => {
-                    document.body.classList.remove("animate-imperio-chaos");
-                    setIsImperioActive(false);
-                }, 3000);
-
+            // תם ונשלם הקונדס (יציאה)
+            else if (currentBuffer.endsWith("תם ונשלם הקונדס")) {
+                setIsMischiefManaged(true);
+                setTimeout(async () => {
+                    const sb = createClient();
+                    await sb.auth.signOut();
+                    window.location.href = "/";
+                }, 2500);
                 inputBuffer.current = "";
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [sendOwl, isImperioActive]);
+    }, []);
 
     return (
         <>
-            {/* הבזק לבן לאלוהומורה */}
+            {isMischiefManaged && (
+                <div className="fixed inset-0 z-[30000] pointer-events-auto flex flex-col items-center justify-center">
+                    <div className="absolute top-0 left-0 w-full h-1/2 bg-[#1a1a1a] border-b-4 border-amber-900/50 animate-parchment-top flex items-end justify-center pb-10 shadow-2xl">
+                        <div className="text-amber-500 font-cinzel text-2xl md:text-4xl animate-pulse tracking-[0.5em]">תם ונשלם הקונדס...</div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[#1a1a1a] border-t-4 border-amber-900/50 animate-parchment-bottom flex items-start justify-center pt-10 shadow-2xl">
+                        <div className="text-amber-500/50 text-sm font-crimson italic">הטירה ננעלת. נתראה בקרוב.</div>
+                    </div>
+                </div>
+            )}
+
             {flash && <div className="fixed inset-0 z-[10001] bg-white animate-out fade-out duration-500 pointer-events-none" />}
 
-            {/* הרמז הקולנועי */}
-            <div className={`fixed inset-0 z-[10000] pointer-events-none flex items-center justify-center transition-all duration-1000 ${showHint ? "opacity-100 bg-black/40 backdrop-blur-sm" : "opacity-0"}`}>
-                {showHint && (
-                    <div className="text-center space-y-6 animate-in fade-in zoom-in duration-1000">
-                        <Sparkles className="text-amber-400 mx-auto animate-pulse" size={40} />
-                        <h2 className="font-cinzel text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 to-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.6)]">
-                            הקירות מקשיבים...
-                        </h2>
-                        <p className="font-crimson text-2xl md:text-3xl text-white/90 italic">
-                            נסה להקליד <kbd className="font-sans font-bold text-amber-300 mx-2 tracking-widest">LUMOS</kbd>
-                        </p>
-                    </div>
-                )}
-            </div>
-
-            {/* אפקט הלומוס */}
             {isLumosOn && (
                 <div
-                    className="fixed inset-0 z-[9998] pointer-events-none transition-opacity duration-700 animate-pulse-subtle"
+                    className="fixed inset-0 z-[9998] pointer-events-none transition-opacity duration-700"
                     style={{
                         background: `radial-gradient(circle 280px at ${mousePos.x}px ${mousePos.y}px, transparent 0%, rgba(0,0,0,0.96) 100%)`
                     }}
@@ -130,26 +166,10 @@ export default function MagicSpells() {
             )}
 
             <style jsx global>{`
-                @keyframes pulse-subtle {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.97; }
-                }
-                .animate-pulse-subtle {
-                    animation: pulse-subtle 3s infinite ease-in-out;
-                }
-                
-                /* אפקט הכאוס של לחש האימפריו */
-                @keyframes imperio-chaos {
-                    0% { filter: hue-rotate(0deg) contrast(1); transform: scale(1) translate(0, 0); }
-                    25% { filter: hue-rotate(90deg) contrast(1.2); transform: scale(1.02) translate(-2px, 2px); }
-                    50% { filter: hue-rotate(180deg) contrast(1.5); transform: scale(0.98) translate(2px, -2px); }
-                    75% { filter: hue-rotate(270deg) contrast(1.2); transform: scale(1.01) translate(-1px, 1px); }
-                    100% { filter: hue-rotate(360deg) contrast(1); transform: scale(1) translate(0, 0); }
-                }
-                .animate-imperio-chaos {
-                    animation: imperio-chaos 0.5s infinite;
-                    pointer-events: none; /* מונע לחיצות בטעות בזמן הכאוס */
-                }
+                @keyframes parchment-top { 0% { transform: translateY(-100%); } 100% { transform: translateY(0); } }
+                @keyframes parchment-bottom { 0% { transform: translateY(100%); } 100% { transform: translateY(0); } }
+                .animate-parchment-top { animation: parchment-top 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+                .animate-parchment-bottom { animation: parchment-bottom 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
             `}</style>
         </>
     );

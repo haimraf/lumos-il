@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { Wand2, Sparkles, ChevronRight, Coins, History, ShieldCheck, Flame, Star, Quote } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { useAuth } from "@/context/AuthContext";
 
 // --- Wand Database (Lore המבוסס על ספרי הארי פוטר בשפה א-מגדרית) ---
 const WOODS_LORE: Record<string, string> = {
@@ -53,21 +54,10 @@ export default function OllivandersPage() {
   const router = useRouter();
   const supabase = createClient();
   const { sendOwl } = useOwlMail();
+  const { profile, isLoading: authLoading, refreshProfile } = useAuth();
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [revealedWand, setRevealedWand] = useState<any>(null);
-
-  const fetchProfile = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { router.push('/'); return; }
-    const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (data) setProfile(data);
-    setIsLoading(false);
-  }, [supabase, router]);
-
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const handlePurchase = async () => {
     if (!profile || isPurchasing) return;
@@ -87,14 +77,16 @@ export default function OllivandersPage() {
     if (!error) {
       setTimeout(() => {
         setRevealedWand(newWand);
-        setProfile({ ...profile, wand_type: `${newWand.maker}: ${newWand.fullText}`, galleons: profile.galleons - 15 });
         setIsPurchasing(false);
         sendOwl(newWand.isGregorovitch ? "זכייה ביצירת מופת!" : "השרביט בחר בך!", `שרביט תוצרת ${newWand.maker} כעת ברשותך.`, "magic");
+        refreshProfile();
       }, 4000);
+    } else {
+      setIsPurchasing(false);
     }
   };
 
-  if (isLoading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center font-cinzel text-amber-500">Lumos...</div>;
+  if (authLoading || (isPurchasing && !revealedWand)) return <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center gap-4 bg-[#020617]"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div><p className="font-cinzel text-amber-500 tracking-widest animate-pulse">רוקח שיקוי...</p></div>;
 
   const wandData = profile?.wand_type || null;
   const currentWand = revealedWand || (wandData ? {

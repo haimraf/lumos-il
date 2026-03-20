@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
     ShieldCheck, Search, Trophy, ChevronRight, Flag, CheckCircle, Radio,
-    Trash2, Newspaper, FileText, Edit3, Globe, Megaphone, Image as ImageIcon, X, Eraser, AlertCircle
+    Trash2, Newspaper, FileText, Edit3, Globe, Megaphone, Image as ImageIcon,
+    X, Eraser, AlertCircle, Clock, Zap, RotateCcw, Crown
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import Link from "next/link";
@@ -14,10 +15,18 @@ import dynamic from "next/dynamic";
 const SunEditor = dynamic(() => import("suneditor-react"), { ssr: false });
 import "suneditor/dist/css/suneditor.min.css";
 
+import { useAuth } from "@/context/AuthContext";
+import ModerationTab from "@/components/admin/ModerationTab";
+/**
+ * LUMOS IL - ADMIN PANEL V2.5 (The Ministry Expansion)
+ * עדכונים: איפוס עונה, תיקון מענקים, והחשכה מלאה של SunEditor.
+ */
+
 export default function AdminPanel() {
     const router = useRouter();
     const supabase = createClient();
     const { sendOwl } = useOwlMail();
+    const { profile, isLoading: authLoading } = useAuth();
 
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -25,7 +34,7 @@ export default function AdminPanel() {
     const [selectedUser, setSelectedUser] = useState<any>(null);
     const [reports, setReports] = useState<any[]>([]);
     const [news, setNews] = useState<any[]>([]);
-    const [onlineWizards, setOnlineWizards] = useState<any[]>([]);
+    const [onlineMembers, setOnlineMembers] = useState<any[]>([]);
     const [housePoints, setHousePoints] = useState<any>({});
 
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,10 +47,11 @@ export default function AdminPanel() {
     const [pointsToAdd, setPointsToAdd] = useState(0);
     const [galleonsToAdd, setGalleonsToAdd] = useState(0);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
     const [broadcastMsg, setBroadcastMsg] = useState("");
 
+    // --- שליפת נתונים ---
     const fetchData = useCallback(async () => {
-        // משיכת דיווחים
         const { data: reportData } = await supabase.from('reports').select('*').order('created_at', { ascending: false });
         setReports(reportData || []);
 
@@ -49,12 +59,7 @@ export default function AdminPanel() {
         setNews(newsData || []);
 
         const { data: profilesData } = await supabase.from('profiles').select('house, points_contributed');
-        const points: Record<string, number> = {
-            Gryffindor: 0,
-            Slytherin: 0,
-            Ravenclaw: 0,
-            Hufflepuff: 0,
-        };
+        const points: Record<string, number> = { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 };
         profilesData?.forEach((row: any) => {
             if (row.house && points[row.house] !== undefined) {
                 points[row.house] += row.points_contributed || 0;
@@ -64,30 +69,82 @@ export default function AdminPanel() {
     }, [supabase]);
 
     useEffect(() => {
-        const checkAdmin = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) { router.push('/'); return; }
-            const { data: profile } = await supabase.from('profiles').select('role, full_name').eq('id', session.user.id).single();
-            if (profile?.role !== 'מנהל') { router.push('/dashboard'); return; }
+        if (!authLoading) {
+            if (!profile || profile.role !== 'מנהל') {
+                router.push('/dashboard');
+                return;
+            }
             setNewArticle(prev => ({ ...prev, author: profile.full_name || "חיים" }));
-            await fetchData();
+            fetchData();
             setLoading(false);
-        };
-        checkAdmin();
+        }
 
         const channel = supabase.channel('lumos_global_presence', { config: { presence: { key: 'wizard' } } });
         channel.on('presence', { event: 'sync' }, () => {
-            setOnlineWizards(Object.values(channel.presenceState()).flat() as any[]);
+            setOnlineMembers(Object.values(channel.presenceState()).flat() as any[]);
         }).subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [router, supabase, fetchData]);
+    }, [router, supabase, fetchData, profile, authLoading]);
 
+    // --- לוגיקת איפוס עונה ---
+    const handleResetSeason = async () => {
+        const confirmReset = confirm("⚠️ אזהרה: פעולה זו תאפס את כל נקודות הבתים ותכריז על מנצחת. להמשיך?");
+        if (!confirmReset) return;
+
+        setIsResetting(true);
+        const { error } = await supabase.rpc('reset_house_cup');
+
+        if (error) {
+            sendOwl("שגיאה במשרד הקסמים", error.message, "error");
+        } else {
+            window.dispatchEvent(new CustomEvent('play-magic-ding'));
+            sendOwl("העונה הסתיימה!", "הנקודות אופסו והגביע הוענק.", "magic");
+            fetchData();
+        }
+        setIsResetting(false);
+    };
+
+    // --- לוגיקת חיפוש ומענקים ---
+    const searchUsers = async () => {
+        if (!searchQuery.trim()) return;
+        const { data } = await supabase.from('profiles').select('*').ilike('full_name', `%${searchQuery}%`).limit(5);
+        setUsers(data || []);
+    };
+
+    const handleUpdateReward = async () => {
+        if (!selectedUser) return;
+        setIsUpdating(true);
+
+        // תיקון: הבטחת ערכים מספריים תקינים
+        const pAdd = parseInt(pointsToAdd.toString()) || 0;
+        const gAdd = parseInt(galleonsToAdd.toString()) || 0;
+
+        const { error } = await supabase.rpc('admin_add_reward', {
+            target_user_id: selectedUser.id,
+            points_to_add: pAdd,
+            galleons_to_add: gAdd
+        });
+
+        if (error) {
+            sendOwl("תקלה בלחש", error.message, "error");
+        } else {
+            window.dispatchEvent(new CustomEvent('play-magic-ding'));
+            sendOwl("המענק הועבר", `הדמות ${selectedUser.full_name} קיבלה את המשאבים.`, "success");
+            setPointsToAdd(0);
+            setGalleonsToAdd(0);
+            setSelectedUser(null);
+            fetchData();
+        }
+        setIsUpdating(false);
+    };
+
+    // --- ניהול כתבות (הנביא היומי) ---
     const startEdit = (item: any) => {
         setEditingId(item.id);
         setNewArticle({
             title: item.title || "",
             content: item.content || "",
-            author: item.author || "חיים",
+            author: item.author || "הנהלת הטירה",
             meta_title: item.meta_title || "",
             meta_description: item.meta_description || "",
             image_url: item.image_url || ""
@@ -106,36 +163,23 @@ export default function AdminPanel() {
             : await supabase.from('news').insert([newArticle]);
 
         if (!error) {
+            window.dispatchEvent(new CustomEvent('play-magic-ding'));
             sendOwl(editingId ? "הכתבה עודכנה!" : "פורסם!", "השינויים נשמרו בהצלחה.", "success");
-            setNewArticle(prev => ({ title: "", content: "", author: prev.author, meta_title: "", meta_description: "", image_url: "" }));
+            setNewArticle(prev => ({ ...prev, title: "", content: "", image_url: "" }));
             setEditingId(null);
             fetchData();
         }
         setIsPublishing(false);
     };
 
-    const handleBroadcast = async () => {
-        if (!broadcastMsg.trim()) return;
-        await supabase.channel('lumos_global_presence').send({ type: 'broadcast', event: 'ministry_announcement', payload: { message: broadcastMsg, from: "משרד הקסמים" } });
-        sendOwl("שוגר!", "ההכרזה באוויר.", "magic");
-        setBroadcastMsg("");
+    const handleDeleteNews = async (id: string) => {
+        if (!confirm("למחוק את הכתבה?")) return;
+        const { error } = await supabase.from('news').delete().eq('id', id);
+        if (!error) { sendOwl("נמחק", "הכתבה נמחקה.", "success"); fetchData(); }
     };
 
-    const searchUsers = async () => {
-        const { data } = await supabase.from('profiles').select('*').ilike('full_name', `%${searchQuery}%`).limit(5);
-        setUsers(data || []);
-    };
-
-    const handleUpdateReward = async () => {
-        if (!selectedUser) return;
-        setIsUpdating(true);
-        const { error } = await supabase.rpc('admin_add_reward', { target_user_id: selectedUser.id, points_to_add: pointsToAdd, galleons_to_add: galleonsToAdd });
-        if (!error) { sendOwl("הצלחה", "המענק הועבר.", "success"); setPointsToAdd(0); setGalleonsToAdd(0); setSelectedUser(null); fetchData(); }
-        setIsUpdating(false);
-    };
-
+    // --- ניהול דיווחים ---
     const handleDeleteContent = async (commentId: string, reportId: string) => {
-        if (!confirm("למחוק את התוכן הפוגעני?")) return;
         const { error } = await supabase.from('comments').delete().eq('id', commentId);
         if (!error) {
             await supabase.from('reports').delete().eq('id', reportId);
@@ -146,21 +190,18 @@ export default function AdminPanel() {
 
     const handleDismissReport = async (reportId: string) => {
         const { error } = await supabase.from('reports').delete().eq('id', reportId);
-        if (!error) {
-            sendOwl("בוטל", "הדיווח בוטל ללא מחיקת תוכן.", "success");
-            fetchData();
-        }
-    }
+        if (!error) { sendOwl("בוטל", "הדיווח נסגר ללא נקיטת צעדים.", "success"); fetchData(); }
+    };
 
-    const handleDeleteNews = async (id: string) => {
-        if (!confirm("למחוק את הכתבה?")) return;
-        const { error } = await supabase.from('news').delete().eq('id', id);
-        if (!error) {
-            sendOwl("נמחק", "הכתבה נמחקה בהצלחה.", "success");
-            fetchData();
-        } else {
-            sendOwl("שגיאה", "שגיאה במחיקת הכתבה", "error");
-        }
+    const handleBroadcast = async () => {
+        if (!broadcastMsg.trim()) return;
+        await supabase.channel('lumos_global_presence').send({
+            type: 'broadcast', event: 'ministry_announcement',
+            payload: { message: broadcastMsg, from: "הנהלת הטירה" }
+        });
+        window.dispatchEvent(new CustomEvent('play-magic-ding'));
+        sendOwl("שוגר!", "ההכרזה שולחה לכל המשתמשים המחוברים.", "magic");
+        setBroadcastMsg("");
     };
 
     if (loading) return null;
@@ -168,143 +209,164 @@ export default function AdminPanel() {
     return (
         <div className="min-h-screen bg-[#020617] text-white py-12 px-6 font-assistant" dir="rtl">
             <style>{`
-                .sun-editor { border: 1px solid rgba(245, 158, 11, 0.3) !important; background-color: #0f172a !important; border-radius: 1.5rem !important; overflow: hidden; }
-                .sun-editor .se-toolbar { background-color: #1e293b !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important; }
-                .sun-editor .se-wrapper .se-wrapper-inner { min-height: 400px; background-color: #020617 !important; color: white !important; }
-                .sun-editor-editable { color: white !important; font-family: 'Crimson Text', serif !important; font-size: 1.3rem !important; }
+                /* ✨ דריסה אגרסיבית של SunEditor - החשכה מוחלטת */
+                .sun-editor { 
+                    border: 1px solid rgba(245, 158, 11, 0.2) !important; 
+                    background-color: #020617 !important; 
+                    border-radius: 1.5rem !important; 
+                }
+                .sun-editor .se-container { background-color: #020617 !important; }
+                .sun-editor .se-toolbar { background-color: #0f172a !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important; outline: none !important; }
+                .sun-editor .se-resizing-bar { background-color: #0f172a !important; border-top: 1px solid rgba(255,255,255,0.05) !important; }
+                .sun-editor .se-wrapper .se-wrapper-inner { background-color: #020617 !important; }
+                .sun-editor-editable { 
+                    background-color: #020617 !important; 
+                    color: white !important; 
+                    font-family: 'Assistant', sans-serif !important; 
+                    padding: 20px !important;
+                }
+                /* החשכת דרופדאונים ותפריטים בעורך */
+                .sun-editor .se-list-layer { background-color: #1e293b !important; border: 1px solid #334155 !important; }
+                .sun-editor .se-btn-list:hover { background-color: #334155 !important; }
+                .sun-editor .se-btn-module-border { border-right: 1px solid rgba(255,255,255,0.05) !important; }
                 .sun-editor .se-svg { fill: #f59e0b !important; }
-
-                /* פאנל זכוכית משודרג */
+                
                 .glass-panel {
                     background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
                     backdrop-filter: blur(20px);
                     border: 1px solid rgba(255,255,255,0.05);
-                    transition: all 0.3s ease;
                 }
-
-                /* אנימציית דיווחים דחופים */
-                .report-card-urgent {
-                    border: 1px solid rgba(239, 68, 68, 0.2);
-                    animation: pulse-red 2s infinite;
-                }
-
-                @keyframes pulse-red {
-                    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.1); }
-                    50% { box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.05); }
-                    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                .season-reset-card {
+                    background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.15), transparent);
+                    border: 1px solid rgba(245, 158, 11, 0.3);
                 }
             `}</style>
 
-            <div className="max-w-7xl mx-auto space-y-10">
-                {/* House Cup */}
+            <div className="max-w-7xl mx-auto space-y-8">
+
+                {/* --- SEASON RESET TOP PANEL --- */}
+                <div className="season-reset-card p-8 rounded-[3rem] flex flex-col md:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div className="flex items-center gap-5 text-right">
+                        <div className="p-4 bg-amber-500/20 rounded-2xl text-amber-500">
+                            <Zap size={40} className="animate-pulse" />
+                        </div>
+                        <div>
+                            <h2 className="font-cinzel text-2xl font-black text-amber-500">אירוע סיום עונה</h2>
+                            <p className="text-white/50 text-sm">איפוס נקודות הבתים, הענקת הגביע והכנת הטירה לעונה חדשה.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleResetSeason}
+                        disabled={isResetting}
+                        className="group relative overflow-hidden bg-amber-600 hover:bg-amber-500 text-black px-10 py-5 rounded-2xl font-cinzel font-black text-lg transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        <span className="relative z-10 flex items-center gap-2">
+                            {isResetting ? 'מטיל לחש איפוס...' : 'הפעל סיום עונה'} <RotateCcw size={20} />
+                        </span>
+                    </button>
+                </div>
+
+                {/* House Cup Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {['Gryffindor', 'Slytherin', 'Ravenclaw', 'Hufflepuff'].map(h => (
-                        <div key={h} className="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center">
-                            <span className="text-[10px] uppercase opacity-40 font-cinzel">{h}</span>
-                            <span className="text-2xl font-black text-amber-500">{housePoints[h] || 0}</span>
+                        <div key={h} className="bg-white/5 border border-white/10 p-6 rounded-3xl flex flex-col items-center group hover:border-amber-500/30 transition-all">
+                            <span className="text-[10px] uppercase opacity-40 font-cinzel tracking-widest mb-1">{h}</span>
+                            <span className="text-3xl font-black text-amber-500 font-cinzel">{housePoints[h] || 0}</span>
                         </div>
                     ))}
                 </div>
 
                 <header className="flex justify-between items-center border-b border-white/10 pb-8">
-                    <h1 className="font-cinzel text-4xl font-black text-amber-500">חדר המנהלים</h1>
-                    <Link href="/dashboard" className="text-white/40 hover:text-white flex items-center gap-2">חזרה לטירה <ChevronRight size={16} /></Link>
+                    <div className="flex items-center gap-4">
+                        <ShieldCheck size={40} className="text-amber-500" />
+                        <h1 className="font-cinzel text-4xl font-black text-amber-500 tracking-tighter">לשכת המנהל</h1>
+                    </div>
+                    <Link href="/dashboard" className="bg-white/5 hover:bg-white/10 px-6 py-3 rounded-full text-white/60 hover:text-white transition-all flex items-center gap-2 text-sm font-bold">
+                        חזרה לטירה <ChevronRight size={16} />
+                    </Link>
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        {/* סקשן כתיבת כתבה */}
-                        <section className="glass-panel p-8 rounded-[2.5rem] border-2 border-white/10 bg-white/[0.02] space-y-6">
+
+                        {/* Editor Section */}
+                        <section className="glass-panel p-8 rounded-[3rem] space-y-6">
                             <div className="flex justify-between items-center">
                                 <h3 className="font-cinzel text-xl font-bold text-amber-400 flex items-center gap-3">
-                                    <Newspaper size={28} /> {editingId ? 'עריכת כתבה' : 'כתיבת כתבה חדשה'}
+                                    <Newspaper size={28} /> {editingId ? 'עריכת כתבת נביא' : 'כתבה חדשה בנביא היומי'}
                                 </h3>
                                 {editingId && (
-                                    <button onClick={() => { setEditingId(null); setNewArticle(prev => ({ ...prev, title: "", content: "", image_url: "" })); }} className="text-xs text-red-500 font-bold hover:underline bg-red-500/10 px-3 py-1 rounded-full">ביטול עריכה</button>
+                                    <button onClick={() => { setEditingId(null); setNewArticle(prev => ({ ...prev, title: "", content: "", image_url: "" })); }} className="text-[10px] text-red-400 border border-red-500/20 uppercase font-black px-4 py-2 rounded-full hover:bg-red-500/10 transition-all">ביטול עריכה</button>
                                 )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-xs text-amber-500/80 mr-1 font-bold uppercase tracking-widest">כותרת הכתבה</label>
-                                    <input
-                                        value={newArticle.title || ""}
-                                        onChange={(e) => setNewArticle(prev => ({ ...prev, title: e.target.value }))}
-                                        placeholder="הכותרת שתופיע בנביא היומי..."
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl p-4 outline-none focus:border-amber-500 text-xl font-bold text-white shadow-inner"
-                                    />
+                                <div className="space-y-2 text-right">
+                                    <label className="text-[10px] text-amber-500/80 mr-1 font-black uppercase tracking-widest">כותרת הכתבה</label>
+                                    <input value={newArticle.title} onChange={(e) => setNewArticle(prev => ({ ...prev, title: e.target.value }))} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 outline-none focus:border-amber-500 text-white font-bold" dir="rtl" />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs text-amber-500/80 mr-1 font-bold uppercase tracking-widest">תמונת נושא (URL)</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            value={newArticle.image_url || ""}
-                                            onChange={(e) => setNewArticle(prev => ({ ...prev, image_url: e.target.value }))}
-                                            placeholder="https://..."
-                                            className="flex-1 bg-black/40 border border-white/10 rounded-xl p-4 outline-none focus:border-amber-500 text-amber-200 text-sm"
-                                        />
-                                        {newArticle.image_url && (
-                                            <button onClick={() => setNewArticle(prev => ({ ...prev, image_url: "" }))} className="bg-red-500/20 text-red-400 p-4 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Eraser size={20} /></button>
-                                        )}
-                                    </div>
+                                <div className="space-y-2 text-right">
+                                    <label className="text-[10px] text-amber-500/80 mr-1 font-black uppercase tracking-widest">תמונת נושא (URL)</label>
+                                    <input value={newArticle.image_url} onChange={(e) => setNewArticle(prev => ({ ...prev, image_url: e.target.value }))} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 outline-none focus:border-amber-500 text-amber-200/60 text-sm" dir="ltr" />
                                 </div>
                             </div>
 
-                            <div dir="ltr" className="rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                            <div dir="ltr" className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                                 <SunEditor
-                                    setContents={newArticle.content || ""}
+                                    setContents={newArticle.content}
                                     onChange={(content) => setNewArticle(prev => ({ ...prev, content }))}
-                                    setOptions={({
-                                        buttonList: [['undo', 'redo'], ['formatBlock', 'font', 'fontSize'], ['bold', 'underline', 'italic', 'strike'], ['fontColor', 'hiliteColor'], ['align', 'list', 'horizontalRule'], ['link', 'image', 'video'], ['fullScreen', 'codeView']],
-                                        rtl: true,
-                                        width: '100%',
-                                        height: 400,
-                                        autoHeight: false
-                                    }) as any}
+                                    setOptions={{
+                                        buttonList: [['undo', 'redo'], ['formatBlock', 'fontSize'], ['bold', 'underline', 'italic'], ['fontColor', 'hiliteColor'], ['align', 'list', 'link', 'image'], ['fullScreen', 'codeView']],
+                                        rtl: true, width: '100%', height: 400
+                                    } as any}
                                 />
                             </div>
 
-                            <button onClick={handleSaveNews} disabled={isPublishing} className="w-full bg-amber-600 py-6 rounded-3xl font-cinzel font-black text-2xl shadow-2xl hover:bg-amber-500 transition-all active:scale-95">
-                                {isPublishing ? 'מטיל לחש...' : (editingId ? 'שמירת שינויים ✨' : 'פרסום בנביא היומי ✨')}
+                            <button onClick={handleSaveNews} disabled={isPublishing} className="w-full bg-amber-600 py-6 rounded-[2rem] font-cinzel font-black text-xl shadow-xl hover:bg-amber-500 transition-all active:scale-95 disabled:opacity-50">
+                                {isPublishing ? 'רוקח את הכתבה... ✨' : (editingId ? 'שמירת שינויים בנביא ✨' : 'פרסום בנביא היומי ✨')}
                             </button>
                         </section>
 
-                        {/* --- סקשן דיווחים (כאן הם היו חסרים!) --- */}
-                        <section className="glass-panel p-8 rounded-[2.5rem] border-red-500/20 bg-red-500/[0.02] space-y-6">
-                            <h3 className="font-cinzel text-xl font-bold text-red-500 flex items-center gap-3">
-                                <Flag size={28} /> דיווחים ממשרד הקסמים ({reports.length})
-                            </h3>
+                        {/* --- Moderation Section (New!) --- */}
+                        <ModerationTab sendOwl={sendOwl} />
+
+                        {/* Reports Section */}
+                        <section className="glass-panel p-8 rounded-[3rem] border-red-500/20 bg-red-500/[0.02] space-y-6">
+                            <h3 className="font-cinzel text-xl font-bold text-red-500 flex items-center gap-3"><Flag size={28} /> דיווחי קהילה פעילים ({reports.length})</h3>
                             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                 {reports.length === 0 ? (
-                                    <p className="text-center opacity-30 py-10 italic font-crimson text-2xl">אין דיווחים כרגע. השקט נשמר בקהילה.</p>
+                                    <div className="text-center opacity-30 py-12 flex flex-col items-center gap-3">
+                                        <CheckCircle size={40} />
+                                        <p className="italic font-crimson text-xl">השקט נשמר בין כותלי הטירה.</p>
+                                    </div>
                                 ) : (
                                     reports.map(report => (
-                                        <div key={report.id} className="bg-white/5 border border-red-500/10 p-6 rounded-2xl space-y-4">
-                                            <div className="flex justify-between items-start">
-                                                <div className="space-y-1">
-                                                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded uppercase font-bold">{report.reason}</span>
-                                                    <p className="text-white/80 italic font-crimson text-xl line-clamp-2">"{report.content_preview}"</p>
+                                        <div key={report.id} className="bg-white/5 border border-red-500/10 p-6 rounded-3xl flex justify-between items-center transition-all hover:bg-white/[0.07]">
+                                            <div className="space-y-1 text-right">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="text-[9px] bg-red-500/20 text-red-400 px-3 py-1 rounded-full uppercase font-black">{report.reason}</span>
+                                                    <span className="text-[9px] text-white/30 uppercase tracking-tighter">ID: {report.target_id.slice(0, 8)}</span>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => handleDeleteContent(report.target_id, report.id)} className="p-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-all shadow-lg" title="מחק תוכן"><Trash2 size={20} /></button>
-                                                    <button onClick={() => handleDismissReport(report.id)} className="p-3 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all" title="בטל דיווח"><CheckCircle size={20} /></button>
-                                                </div>
+                                                <p className="text-white/80 italic font-crimson text-lg leading-relaxed">"{report.content_preview}"</p>
                                             </div>
-                                            <p className="text-[10px] opacity-40 uppercase tracking-widest font-cinzel">נשלח ב-{new Date(report.created_at).toLocaleDateString("he-IL")}</p>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleDeleteContent(report.target_id, report.id)} className="p-4 bg-red-600/20 text-red-500 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg" title="מחק תוכן"><Trash2 size={22} /></button>
+                                                <button onClick={() => handleDismissReport(report.id)} className="p-4 bg-white/10 text-white rounded-2xl hover:bg-white/20 transition-all" title="סגור דיווח"><CheckCircle size={22} /></button>
+                                            </div>
                                         </div>
                                     ))
                                 )}
                             </div>
                         </section>
 
-                        {/* ארכיון */}
-                        <section className="glass-panel p-8 rounded-[2.5rem] border-white/5 space-y-6">
-                            <h3 className="font-cinzel text-lg font-bold text-white/30 flex items-center gap-3"><FileText size={20} /> ארכיון הנביא</h3>
+                        {/* News Archive */}
+                        <section className="glass-panel p-8 rounded-[3rem] border-white/5 space-y-6">
+                            <h3 className="font-cinzel text-lg font-bold text-white/30 flex items-center gap-3"><FileText size={20} /> ארכיון הנביא היומי</h3>
                             <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                 {news.map(item => (
-                                    <div key={item.id} className="bg-white/5 p-4 rounded-xl flex justify-between items-center group hover:bg-white/10 transition-all">
-                                        <h4 className="font-bold text-amber-200">{item.title}</h4>
-                                        <div className="flex gap-2">
+                                    <div key={item.id} className="bg-white/5 p-4 rounded-2xl flex justify-between items-center group hover:bg-white/10 transition-all border border-transparent hover:border-white/10">
+                                        <h4 className="font-bold text-amber-200/80 text-right">{item.title}</h4>
+                                        <div className="flex gap-2 opacity-50 group-hover:opacity-100 transition-all">
                                             <button onClick={() => startEdit(item)} className="p-2 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500 hover:text-white transition-all"><Edit3 size={16} /></button>
                                             <button onClick={() => handleDeleteNews(item.id)} className="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
                                         </div>
@@ -314,32 +376,80 @@ export default function AdminPanel() {
                         </section>
                     </div>
 
-                    {/* סידבר כלים */}
+                    {/* --- Sidebar Tools --- */}
                     <div className="space-y-8">
-                        <section className="glass-panel p-6 rounded-[2.5rem] border-blue-500/20 space-y-4">
-                            <h3 className="font-cinzel text-blue-400 flex items-center gap-2"><Radio size={20} className="animate-pulse" /> מחוברים ({onlineWizards.length})</h3>
-                            <div className="space-y-2 max-h-40 overflow-y-auto">{onlineWizards.map((w, i) => (<div key={i} className="flex justify-between text-xs p-2 bg-white/5 rounded-lg"><span>{w.user_name}</span><span className="opacity-40 uppercase">{w.house}</span></div>))}</div>
+
+                        {/* Real-time Presence */}
+                        <section className="glass-panel p-6 rounded-[3rem] border-blue-500/20 space-y-4">
+                            <h3 className="font-cinzel text-blue-400 flex items-center gap-2 text-sm uppercase tracking-widest"><Radio size={18} className="animate-pulse" /> נוכחים בטירה ({onlineMembers.length})</h3>
+                            <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                {onlineMembers.map((w, i) => (
+                                    <div key={i} className="flex justify-between items-center text-[11px] p-3 bg-white/5 rounded-xl border border-white/5">
+                                        <span className="font-bold flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                                            {w.user_name}
+                                        </span>
+                                        <span className="opacity-40 uppercase font-cinzel text-[9px]">{w.house}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </section>
 
-                        <section className="glass-panel p-6 rounded-[2.5rem] border-amber-500/20 space-y-4">
-                            <h3 className="font-cinzel text-amber-500 flex items-center gap-2"><Trophy size={20} /> מענקים</h3>
-                            <div className="flex gap-2"><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchUsers()} placeholder="חיפוש קוסם..." className="flex-1 bg-black/40 border border-white/10 rounded-lg p-2 text-sm outline-none" /><button onClick={searchUsers} className="bg-amber-600 p-2 rounded-lg text-black"><Search size={16} /></button></div>
-                            <div className="space-y-1 max-h-32 overflow-y-auto">{users.map(u => (<button key={u.id} onClick={() => setSelectedUser(u)} className={`w-full text-right p-2 text-xs rounded-lg ${selectedUser?.id === u.id ? 'bg-amber-500/20 border-amber-500' : ''}`}>{u.full_name}</button>))}</div>
+                        {/* Character Rewards - FIXED */}
+                        <section className="glass-panel p-6 rounded-[3rem] border-amber-500/20 space-y-4">
+                            <h3 className="font-cinzel text-amber-500 flex items-center gap-2 text-sm uppercase tracking-widest"><Crown size={18} /> מענקי דמויות</h3>
+                            <div className="flex gap-2">
+                                <input
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && searchUsers()}
+                                    placeholder="חיפוש שם דמות..."
+                                    className="flex-1 bg-black/40 border border-white/10 rounded-xl p-3 text-xs outline-none focus:border-amber-500/50 transition-all"
+                                    dir="rtl"
+                                />
+                                <button onClick={searchUsers} className="bg-amber-600/20 text-amber-500 p-3 rounded-xl hover:bg-amber-600 hover:text-black transition-all border border-amber-500/10"><Search size={16} /></button>
+                            </div>
+                            <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                {users.map(u => (
+                                    <button key={u.id} onClick={() => setSelectedUser(u)} className={`w-full text-right p-3 text-[11px] rounded-xl transition-all border ${selectedUser?.id === u.id ? 'bg-amber-500/20 border-amber-500/40 text-amber-200' : 'hover:bg-white/5 border-transparent'}`}>
+                                        {u.full_name} <span className="opacity-30 text-[9px] mr-2">({u.house})</span>
+                                    </button>
+                                ))}
+                            </div>
                             {selectedUser && (
-                                <div className="pt-2 space-y-4 bg-white/5 p-4 rounded-xl border border-amber-500/20">
+                                <div className="pt-2 space-y-4 animate-in slide-in-from-top-2 border-t border-white/5 mt-2">
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1"><label className="text-[9px] text-amber-400 block text-center uppercase">נקודות</label><input type="number" value={pointsToAdd} onChange={(e) => setPointsToAdd(parseInt(e.target.value) || 0)} className="w-full bg-black border border-amber-500/30 rounded-lg p-2 text-center font-bold" /></div>
-                                        <div className="space-y-1"><label className="text-[9px] text-amber-400 block text-center uppercase">גליאונים</label><input type="number" value={galleonsToAdd} onChange={(e) => setGalleonsToAdd(parseInt(e.target.value) || 0)} className="w-full bg-black border border-amber-500/30 rounded-lg p-2 text-center font-bold" /></div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-amber-500/40 block text-center uppercase font-black">נקודות בית</label>
+                                            <input type="number" value={pointsToAdd} onChange={(e) => setPointsToAdd(parseInt(e.target.value) || 0)} className="w-full bg-black/60 border border-amber-500/20 rounded-xl p-3 text-center font-cinzel font-black text-amber-500 outline-none focus:border-amber-500" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] text-amber-500/40 block text-center uppercase font-black">גליאונים</label>
+                                            <input type="number" value={galleonsToAdd} onChange={(e) => setGalleonsToAdd(parseInt(e.target.value) || 0)} className="w-full bg-black/60 border border-amber-500/20 rounded-xl p-3 text-center font-cinzel font-black text-amber-500 outline-none focus:border-amber-500" />
+                                        </div>
                                     </div>
-                                    <button onClick={handleUpdateReward} disabled={isUpdating} className="w-full bg-amber-600 py-3 rounded-xl text-black font-black text-xs uppercase">אישור מענק</button>
+                                    <button
+                                        onClick={handleUpdateReward}
+                                        disabled={isUpdating}
+                                        className="w-full bg-amber-600 py-4 rounded-2xl text-black font-black text-xs uppercase shadow-lg hover:bg-amber-500 transition-all active:scale-95 disabled:opacity-50"
+                                    >
+                                        {isUpdating ? 'מעביר מענק...' : 'אישור ושליחת מענק ✨'}
+                                    </button>
                                 </div>
                             )}
                         </section>
 
-                        <section className="glass-panel p-6 rounded-[2.5rem] border-purple-500/20 bg-purple-500/[0.02] space-y-4">
-                            <h3 className="font-cinzel text-purple-400 flex items-center gap-2"><Megaphone size={20} /> הכרזה גלובלית</h3>
-                            <textarea value={broadcastMsg} onChange={(e) => setBroadcastMsg(e.target.value)} placeholder="הודעה לכולם..." className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs outline-none focus:border-purple-500 h-20 resize-none" />
-                            <button onClick={handleBroadcast} className="w-full bg-purple-600 py-2 rounded-lg font-bold text-white text-xs">שיגור ינשופים</button>
+                        {/* Global Announcements */}
+                        <section className="glass-panel p-6 rounded-[3rem] border-purple-500/20 space-y-4">
+                            <h3 className="font-cinzel text-purple-400 flex items-center gap-2 text-sm uppercase tracking-widest"><Megaphone size={18} /> הכרזה גלובלית</h3>
+                            <textarea
+                                value={broadcastMsg}
+                                onChange={(e) => setBroadcastMsg(e.target.value)}
+                                placeholder="כתוב הודעה שתופיע לכל המשתמשים..."
+                                className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs outline-none focus:border-purple-500 h-24 resize-none transition-all"
+                                dir="rtl"
+                            />
+                            <button onClick={handleBroadcast} className="w-full bg-purple-600/20 text-purple-400 border border-purple-500/30 py-4 rounded-2xl font-black text-xs uppercase hover:bg-purple-600 hover:text-white transition-all shadow-md">שיגור ינשופי הכרזה</button>
                         </section>
                     </div>
                 </div>

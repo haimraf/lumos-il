@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Footprints, Shield, Compass, Eye, Map as MapIcon, Laptop, Smartphone, Sparkles } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const HOUSE_THEMES: Record<string, { color: string, foot: string }> = {
     'Gryffindor': { color: 'text-red-900', foot: 'text-red-900/40' },
@@ -20,7 +21,10 @@ export default function MaraudersMasterMap() {
 
     useEffect(() => setIsMounted(true), []);
 
+    const { profile, session, isLoading: authLoading } = useAuth();
+
     useEffect(() => {
+        if (authLoading) return;
         const channel = supabase.channel('lumos_global_presence', { config: { presence: { key: 'wizard' } } });
 
         channel.on('presence', { event: 'sync' }, () => {
@@ -33,15 +37,9 @@ export default function MaraudersMasterMap() {
             setStats({ hall, library: lib, wandering: all.length - (hall + lib) });
         }).subscribe(async (status) => {
             if (status === 'SUBSCRIBED') {
-                const { data: { session } } = await supabase.auth.getSession();
-                let name = "קוסם מסתורי", house = "Unknown";
-                if (session) {
-                    const { data } = await supabase.from('profiles').select('full_name, house').eq('id', session.user.id).single();
-                    if (data) { name = data.full_name; house = data.house; }
-                }
                 await channel.track({
-                    user_name: name,
-                    house: house,
+                    user_name: profile?.full_name || "קוסם מסתורי",
+                    house: profile?.house || "Unknown",
                     current_path: window.location.pathname,
                     user_agent: navigator.userAgent,
                     online_at: new Date().toISOString()
@@ -50,14 +48,14 @@ export default function MaraudersMasterMap() {
         });
 
         return () => { supabase.removeChannel(channel); };
-    }, [supabase]);
+    }, [supabase, profile, authLoading]);
 
     const getWandType = (ua: string) => {
-        if (!ua) return "Ancient Wand";
-        if (ua.includes("Chrome")) return "Chrome Wand";
-        if (ua.includes("Firefox")) return "Phoenix Feather (FF)";
-        if (ua.includes("Safari") && !ua.includes("Chrome")) return "Unicorn Hair (Safari)";
-        return "Custom Wand";
+        if (!ua) return "שרביט עתיק";
+        if (ua.includes("Chrome")) return "שרביט כרום";
+        if (ua.includes("Firefox")) return "נוצת עוף חול (FF)";
+        if (ua.includes("Safari") && !ua.includes("Chrome")) return "שיער חד-קרן (Safari)";
+        return "שרביט מותאם אישית";
     };
 
     return (
@@ -101,7 +99,7 @@ export default function MaraudersMasterMap() {
                 <div className="relative z-10 p-6 md:p-10">
                     <div className="flex flex-col md:flex-row items-center justify-between mb-10 gap-6 border-b border-[#8b4513]/20 pb-8">
                         <div>
-                            <h1 className="font-cinzel text-3xl font-black tracking-[0.1em] text-[#5d4037]">MARAUDER'S COMMAND</h1>
+                            <h1 className="font-cinzel text-3xl font-black tracking-[0.1em] text-[#5d4037]">פיקוד הקונדסאים</h1>
                             <p className="font-crimson italic text-[#8b4513]/70">מבט על של מנהל הטירה - Studio Haim</p>
                         </div>
                         <div className="flex items-center gap-6 bg-white/20 px-6 py-3 rounded-2xl border border-[#8b4513]/10 backdrop-blur-sm">
@@ -119,13 +117,14 @@ export default function MaraudersMasterMap() {
                         <StatCard title="מסדרונות" count={stats.wandering} sub="דפים אחרים" icon={Footprints} />
                     </div>
 
-                    <div className="bg-white/30 rounded-3xl border border-[#8b4513]/10 overflow-hidden backdrop-blur-sm">
-                        <table className="w-full text-right">
+                    {/* כאן תוקן הבאג של אלינור: הוספנו overflow-x-auto לדיב העוטף ו-min-w לטבלה */}
+                    <div className="bg-white/30 rounded-3xl border border-[#8b4513]/10 overflow-x-auto backdrop-blur-sm">
+                        <table className="w-full text-right min-w-[500px]">
                             <thead className="bg-[#8b4513]/10 font-cinzel text-[10px] uppercase text-[#5d4037]">
                                 <tr>
                                     <th className="p-4">קוסם/ת</th>
                                     <th className="p-4">בית</th>
-                                    <th className="p-4 hidden sm:table-cell">מיקום (Path)</th>
+                                    <th className="p-4 hidden sm:table-cell">מיקום</th>
                                     <th className="p-4">סוג שרביט</th>
                                 </tr>
                             </thead>

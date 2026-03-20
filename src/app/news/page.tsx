@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Suspense, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
@@ -9,7 +10,6 @@ import {
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 
-// --- Interfaces ---
 interface NewsItem {
   id: string;
   title: string;
@@ -34,16 +34,15 @@ function NewsContent() {
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const initialCheckDone = useRef(false);
 
   const supabase = createClient();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  // 1. טעינת חדשות ראשונית (בלי ריצודים)
   useEffect(() => {
     const fetchNews = async () => {
       const { data } = await supabase.from("news").select("*").order("created_at", { ascending: false });
@@ -51,7 +50,6 @@ function NewsContent() {
       setNews(newsData);
       setIsLoading(false);
 
-      // בדיקת URL רק בטעינה הראשונה
       if (!initialCheckDone.current) {
         const articleId = searchParams.get("article");
         if (articleId) {
@@ -64,18 +62,17 @@ function NewsContent() {
     fetchNews();
   }, [supabase]);
 
-  // 2. עדכון ה-URL והכותרת בזמן אמת
   useEffect(() => {
     if (selectedNews) {
-      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
       document.title = selectedNews.meta_title || selectedNews.title;
-      const newUrl = `${window.location.pathname}?article=${selectedNews.id}`;
-      window.history.replaceState({ path: newUrl }, '', newUrl);
+      window.history.replaceState({}, '', `${window.location.pathname}?article=${selectedNews.id}`);
     } else {
-      document.body.style.overflow = 'unset';
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
       document.title = "הנביא היומי | LUMOS IL";
       if (initialCheckDone.current && window.location.search.includes("article=")) {
-        window.history.replaceState({ path: window.location.pathname }, '', window.location.pathname);
+        window.history.replaceState({}, '', window.location.pathname);
       }
     }
   }, [selectedNews]);
@@ -94,8 +91,55 @@ function NewsContent() {
     );
   }
 
+  const articlePortal = mounted && selectedNews ? createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto bg-[#020617]/95 backdrop-blur-md pt-0 md:pt-10 px-0 md:px-4">
+      <div
+        className="relative w-full bg-[#e2d1b0] text-[#020617] shadow-2xl border-x-0 md:border-4 border-amber-700/30 min-h-screen md:min-h-0 mb-0 md:mb-10 animate-in fade-in zoom-in duration-300"
+        style={{
+          backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')",
+          maxWidth: '750px',
+          margin: '0 auto'
+        }}
+      >
+        <button
+          onClick={() => setSelectedNews(null)}
+          className="fixed top-6 left-6 p-3 bg-[#020617]/80 hover:bg-[#020617] border border-white/20 rounded-full transition-colors z-[100001] text-white shadow-lg backdrop-blur-md"
+        >
+          <X size={32} />
+        </button>
+
+        <div className="p-8 md:p-16 space-y-8 text-right pt-24 md:pt-16">
+          {selectedNews.image_url && (
+            <div className="w-full h-64 md:h-[400px] rounded-2xl overflow-hidden mb-10 shadow-2xl border-4 border-amber-900/10">
+              <img src={selectedNews.image_url} alt={selectedNews.title} className="w-full h-full object-cover" />
+            </div>
+          )}
+
+          <header className="space-y-4 border-b-2 border-[#020617]/20 pb-8 text-center">
+            <p className="font-cinzel text-sm font-bold opacity-60 uppercase tracking-widest">
+              {new Date(selectedNews.created_at).toLocaleDateString("he-IL")} | מאת: {selectedNews.author || "כתב מערכת"}
+            </p>
+            <h2 className="font-cinzel text-3xl md:text-5xl font-black leading-tight">{selectedNews.title}</h2>
+          </header>
+
+          <div
+            className="prose-magic font-crimson text-2xl md:text-3xl leading-relaxed whitespace-pre-wrap text-justify"
+            dangerouslySetInnerHTML={{ __html: selectedNews.content }}
+          />
+
+          <PollComponent key={selectedNews.id} newsId={selectedNews.id} />
+
+          <div className="mt-16 pt-8 border-t-4 border-[#020617]/10">
+            <CommentsSection newsId={selectedNews.id} />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div className="min-h-screen bg-[#020617] text-[#f8fafc] py-20 px-6 font-assistant" dir="rtl">
+    <div className="min-h-screen bg-[#020617] text-[#f8fafc] pt-[180px] md:pt-[240px] pb-20 px-6 font-assistant" dir="rtl">
       <style>{`
         .prose-magic h1 { font-family: 'Cinzel', serif; font-size: 2.5rem; margin-bottom: 1rem; color: #f59e0b; }
         .prose-magic p { margin-bottom: 1.2rem; line-height: 1.8; }
@@ -105,7 +149,7 @@ function NewsContent() {
         .prose-magic img { border-radius: 1rem; border: 2px solid rgba(245, 158, 11, 0.2); margin: 2rem 0; }
       `}</style>
 
-      <div className="max-w-4xl mx-auto space-y-16">
+      <div className="max-w-3xl mx-auto space-y-16">
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center p-4 bg-amber-500/10 rounded-full border border-amber-500/20 mb-4">
             <ScrollText size={40} className="text-amber-500" />
@@ -137,35 +181,7 @@ function NewsContent() {
         </div>
       </div>
 
-      {selectedNews && (
-        <div className="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto bg-[#020617] backdrop-blur-md pt-0 md:pt-10 px-0 md:px-4">
-          <div className="relative w-full max-w-4xl bg-[#e2d1b0] text-[#020617] shadow-2xl border-x-0 md:border-4 border-amber-700/30 min-h-screen md:min-h-0 mb-0 md:mb-10 animate-in fade-in zoom-in duration-300" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')" }}>
-            <button onClick={() => setSelectedNews(null)} className="fixed top-6 left-6 md:absolute md:top-6 md:left-6 p-2 bg-black/10 hover:bg-black/20 rounded-full transition-colors z-[10000]"><X size={32} /></button>
-
-            <div className="p-8 md:p-16 space-y-8 text-right pt-20 md:pt-16">
-              {selectedNews.image_url && (
-                <div className="w-full h-64 md:h-[450px] rounded-2xl overflow-hidden mb-10 shadow-2xl border-4 border-amber-900/10">
-                  <img src={selectedNews.image_url} alt={selectedNews.title} className="w-full h-full object-cover" />
-                </div>
-              )}
-              <header className="space-y-4 border-b-2 border-[#020617]/20 pb-8 text-center">
-                <p className="font-cinzel text-sm font-bold opacity-60 uppercase tracking-widest">
-                  {new Date(selectedNews.created_at).toLocaleDateString("he-IL")} | מאת: {selectedNews.author || "כתב מערכת"}
-                </p>
-                <h2 className="font-cinzel text-4xl md:text-7xl font-black leading-tight">{selectedNews.title}</h2>
-              </header>
-              <div
-                className="prose-magic font-crimson text-2xl md:text-3xl leading-relaxed whitespace-pre-wrap text-justify"
-                dangerouslySetInnerHTML={{ __html: selectedNews.content }}
-              />
-              <PollComponent newsId={selectedNews.id} />
-              <div className="mt-16 pt-8 border-t-4 border-[#020617]/10">
-                <CommentsSection newsId={selectedNews.id} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {articlePortal}
 
       <button
         onClick={() => setIsMuted(!isMuted)}
@@ -178,21 +194,21 @@ function NewsContent() {
   );
 }
 
-// --- Poll Component ---
 function PollComponent({ newsId }: { newsId: string }) {
   const [poll, setPoll] = useState<any>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const supabase = createClient();
+  const { sendOwl } = useOwlMail();
 
   const fetchPollData = useCallback(async () => {
     const { data: pollData } = await supabase.from('polls').select('*, poll_options(*)').eq('news_id', newsId).maybeSingle();
     if (pollData) {
       setPoll(pollData);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: vote } = await supabase.from('poll_votes').select('*').eq('poll_id', pollData.id).eq('user_id', session.user.id).maybeSingle();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: vote } = await supabase.from('poll_votes').select('*').eq('poll_id', pollData.id).eq('user_id', user.id).maybeSingle();
         if (vote) setHasVoted(true);
       }
     }
@@ -204,13 +220,12 @@ function PollComponent({ newsId }: { newsId: string }) {
     if (!selectedOption || isSubmitting) return;
     setIsSubmitting(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { alert("יש להתחבר להצבעה!"); setIsSubmitting(false); return; }
+    if (!user) { sendOwl("מערכת הסקרים", "יש להתחבר כדי להצביע!", "error"); setIsSubmitting(false); return; }
     const { error } = await supabase.from('poll_votes').insert([{ poll_id: poll.id, user_id: user.id, option_id: selectedOption }]);
-    if (!error) {
-      await supabase.rpc('increment_vote', { option_id: selectedOption });
-      await fetchPollData();
-      setHasVoted(true);
-    }
+    if (error) { sendOwl("תקלת קסם", "חלה שגיאה בשמירת ההצבעה.", "error"); setIsSubmitting(false); return; }
+    await supabase.rpc('increment_vote', { p_option_id: selectedOption });
+    await fetchPollData();
+    setHasVoted(true);
     setIsSubmitting(false);
   };
 
@@ -244,7 +259,6 @@ function PollComponent({ newsId }: { newsId: string }) {
   );
 }
 
-// --- Comments Section ---
 function CommentsSection({ newsId }: { newsId: string }) {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -255,6 +269,7 @@ function CommentsSection({ newsId }: { newsId: string }) {
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const supabase = createClient();
+  const { sendOwl } = useOwlMail();
 
   const houseClasses: { [key: string]: string } = {
     Gryffindor: "border-red-700 bg-red-900/5",
@@ -277,18 +292,30 @@ function CommentsSection({ newsId }: { newsId: string }) {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handlePost = async () => {
-    if (!newComment.trim() || !currentUserId) return;
-    setIsPosting(true);
+    if (!newComment.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { sendOwl("שגיאה", "לא מחובר לטירה", "error"); return; }
 
+    setIsPosting(true);
     const { error } = await supabase.from("comments").insert([{
       news_id: newsId,
-      user_id: currentUserId,
+      user_id: user.id,
       content: newComment,
       user_name: null
     }]).select().maybeSingle();
 
     if (error) {
-      console.log(error);
+      // ✅ חילוץ תאריך שחרור מהודעת השגיאה
+      const releaseMatch = error.message.match(/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/);
+      const releaseStr = releaseMatch
+        ? new Date(releaseMatch[0]).toLocaleString('he-IL', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+        : null;
+      const msg = releaseStr
+        ? `הוטל עליך לחש השתקה. הצינון יסתיים ב-${releaseStr}.`
+        : "הוטל עליך לחש השתקה. פנה למשרד הקסמים לפרטים.";
+      sendOwl("לחש השתקה ❄️", msg, "error");
+      setIsPosting(false);
+      return;
     }
 
     setNewComment("");
@@ -299,8 +326,19 @@ function CommentsSection({ newsId }: { newsId: string }) {
   const handleSendReport = async () => {
     if (!reportReason || !reportingComment) return;
     setIsReporting(true);
-    const { error } = await supabase.from('reports').insert([{ reporter_id: currentUserId, target_id: reportingComment.id, target_type: 'comment', reason: reportReason, content_preview: reportingComment.content, status: 'pending' }]);
-    if (!error) { alert("דווח למשרד הקסמים."); setReportingComment(null); setReportReason(""); }
+    const { error } = await supabase.from('reports').insert([{
+      reporter_id: currentUserId,
+      target_id: reportingComment.id,
+      target_type: 'comment',
+      reason: reportReason,
+      content_preview: reportingComment.content,
+      status: 'pending'
+    }]);
+    if (!error) {
+      sendOwl("דיווח נשלח", "הדיווח הועבר לטיפול משרד הקסמים.", "success");
+      setReportingComment(null);
+      setReportReason("");
+    }
     setIsReporting(false);
   };
 
@@ -319,20 +357,18 @@ function CommentsSection({ newsId }: { newsId: string }) {
       <h3 className="font-cinzel text-3xl font-black flex items-center gap-3"><MessageSquare className="text-amber-800" /> תגובות הקהילה</h3>
       <div className="flex flex-col md:flex-row gap-4">
         <input value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="כתיבת תגובה..." className="flex-1 bg-white/50 border-2 border-amber-900/20 p-5 font-crimson text-2xl outline-none rounded-xl" />
-        <button onClick={handlePost} disabled={isPosting} className="bg-[#020617] text-white px-12 py-5 font-cinzel font-black rounded-xl hover:bg-black/80 transition-all">שליחה</button>
+        <button onClick={handlePost} disabled={isPosting} className="bg-[#020617] text-white px-12 py-5 font-cinzel font-black rounded-xl hover:bg-black/80 transition-all">שליחת ינשוף</button>
       </div>
       <div className="space-y-6">
         {comments.map((c) => {
           const isMuted = blockedUserIds.includes(c.user_id);
           const houseColorClass = houseClasses[c.profiles?.house] || "border-amber-700 bg-white/40";
-
           if (isMuted) return (
             <div key={c.id} className="p-5 border-r-8 border-gray-400 bg-gray-100/50 rounded-lg flex justify-between items-center opacity-70">
               <p className="font-crimson text-xl italic text-gray-500">תגובה מוסתרת.</p>
               <button onClick={() => handleToggleMute(c.user_id, true)} className="text-sm font-bold bg-gray-200 px-4 py-2 rounded-full"><Eye size={16} /></button>
             </div>
           );
-
           return (
             <div key={c.id} className={`p-8 border-r-8 ${houseColorClass} rounded-lg shadow-md animate-in fade-in`}>
               <div className="flex justify-between items-start mb-4">
@@ -341,9 +377,7 @@ function CommentsSection({ newsId }: { newsId: string }) {
                   <div className="flex gap-3 items-center opacity-60">
                     <p className="text-xs font-bold uppercase">{c.profiles?.house || 'ללא בית'}</p>
                     <span className="text-[10px]">•</span>
-                    <p className="text-xs font-bold">
-                      {new Date(c.created_at).toLocaleDateString("he-IL")} | {new Date(c.created_at).toLocaleTimeString("he-IL", { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    <p className="text-xs font-bold">{new Date(c.created_at).toLocaleDateString("he-IL")} | {new Date(c.created_at).toLocaleTimeString("he-IL", { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                 </div>
                 {currentUserId !== c.user_id && (

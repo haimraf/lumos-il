@@ -14,6 +14,8 @@ import {
     Plus,
     X,
     Home,
+    Sparkles,
+    Tag
 } from "lucide-react";
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
@@ -34,77 +36,95 @@ interface Thread {
     id: string;
     title: string;
     author_id: string;
+    prefix: string | null;
     is_pinned: boolean;
     is_locked: boolean;
     created_at: string;
+    reply_count?: number;
     profiles: {
         full_name: string | null;
         house: string | null;
+        is_online: boolean | null;
+        gender: string | null;
     };
 }
 
-const HOUSE_CONFIG: Record<string, { accent: string; text: string; badge: string; dot: string }> = {
-    Gryffindor: { accent: "rgba(220,38,38,0.12)", text: "#f87171", badge: "bg-red-900/30 text-red-300 border-red-700/40", dot: "#dc2626" },
-    Slytherin: { accent: "rgba(5,150,105,0.12)", text: "#34d399", badge: "bg-emerald-900/30 text-emerald-300 border-emerald-700/40", dot: "#059669" },
-    Ravenclaw: { accent: "rgba(37,99,235,0.12)", text: "#60a5fa", badge: "bg-blue-900/30 text-blue-300 border-blue-700/40", dot: "#2563eb" },
-    Hufflepuff: { accent: "rgba(217,119,6,0.12)", text: "#fbbf24", badge: "bg-amber-900/30 text-amber-300 border-amber-700/40", dot: "#d97706" },
+// ✨ הגדרת צבעים לתחיליות
+const PREFIX_CONFIG: Record<string, { bg: string; text: string; border: string }> = {
+    "דיון": { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20" },
+    "שאלה": { bg: "bg-rose-500/10", text: "text-rose-400", border: "border-rose-500/20" },
+    "תיאוריה": { bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/20" },
+    "פרסום": { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20" },
+};
+
+const HOUSE_CONFIG: Record<string, { accent: string; text: string; badge: string; dot: string; color: string }> = {
+    Gryffindor: { accent: "rgba(220,38,38,0.12)", text: "#f87171", badge: "bg-red-900/30 text-red-300 border-red-700/40", dot: "#dc2626", color: "text-red-400" },
+    Slytherin: { accent: "rgba(5,150,105,0.12)", text: "#34d399", badge: "bg-emerald-900/30 text-emerald-300 border-emerald-700/40", dot: "#059669", color: "text-emerald-400" },
+    Ravenclaw: { accent: "rgba(37,99,235,0.12)", text: "#60a5fa", badge: "bg-blue-900/30 text-blue-300 border-blue-700/40", dot: "#2563eb", color: "text-blue-400" },
+    Hufflepuff: { accent: "rgba(217,119,6,0.12)", text: "#fbbf24", badge: "bg-amber-900/30 text-amber-300 border-amber-700/40", dot: "#d97706", color: "text-amber-400" },
 };
 
 const HOUSE_EMOJI: Record<string, string> = {
     Gryffindor: "🦁", Slytherin: "🐍", Ravenclaw: "🦅", Hufflepuff: "🦡",
 };
 
-function ThreadRow({ thread, slug, index }: { thread: Thread; slug: string; index: number }) {
+function ThreadRow({ thread, slug }: { thread: Thread; slug: string }) {
+    const config = thread.profiles?.house ? HOUSE_CONFIG[thread.profiles.house] : null;
+    const prefixStyle = thread.prefix ? PREFIX_CONFIG[thread.prefix] : null;
+    const isFemale = thread.profiles?.gender === 'female';
+    const defaultTitle = isFemale ? "מכשפה" : "קוסם";
+
     return (
         <Link
             href={`/forums/${slug}/${thread.id}`}
-            className="group flex items-center gap-4 px-5 py-4 border-b border-white/[0.05] last:border-0 hover:bg-white/[0.03] transition-colors"
+            className="group flex items-center gap-4 px-6 py-5 border-b border-white/[0.05] last:border-0 hover:bg-white/[0.03] transition-all duration-300"
         >
-            {/* Icon */}
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors
-                ${thread.is_pinned
-                    ? "bg-amber-500/15 text-amber-400"
-                    : thread.is_locked
-                        ? "bg-white/5 text-white/20"
-                        : "bg-white/[0.04] text-white/25 group-hover:text-white/40"}`}
-            >
-                {thread.is_pinned ? <Pin size={15} /> : thread.is_locked ? <Lock size={15} /> : <MessageSquare size={15} />}
+            <div className="relative shrink-0">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110
+                    ${thread.is_pinned
+                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+                        : thread.is_locked
+                            ? "bg-white/5 text-white/20"
+                            : "bg-white/[0.04] text-white/25 border border-white/[0.08]"}`}
+                >
+                    {thread.is_pinned ? <Pin size={18} /> : thread.is_locked ? <Lock size={18} /> : <span>{thread.profiles?.house ? HOUSE_EMOJI[thread.profiles.house] : <MessageSquare size={18} />}</span>}
+                </div>
+                {thread.profiles?.is_online && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0a0f1a] shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                )}
             </div>
 
-            {/* Title + meta */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                    {thread.is_pinned && (
-                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                            נעוץ
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                    {/* ✨ תצוגת תחילית צבעונית */}
+                    {thread.prefix && prefixStyle && (
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded border uppercase tracking-widest ${prefixStyle.bg} ${prefixStyle.text} ${prefixStyle.border}`}>
+                            {thread.prefix}
                         </span>
                     )}
-                    {thread.is_locked && (
-                        <span className="text-[9px] font-black uppercase tracking-widest text-white/30 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                            נעול
-                        </span>
-                    )}
-                    <h4 className={`font-bold text-base truncate leading-tight transition-colors
+                    <h4 className={`font-bold text-lg truncate leading-tight transition-colors
                         ${thread.is_pinned ? "text-amber-300 group-hover:text-amber-200" : "text-white/80 group-hover:text-white"}`}>
                         {thread.title}
                     </h4>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                    {thread.profiles?.house && (
-                        <span className="text-sm">{HOUSE_EMOJI[thread.profiles.house] || ""}</span>
-                    )}
-                    <span className="text-[11px] text-white/30">
-                        {thread.profiles?.full_name || "קוסם"}
+                <div className="flex items-center gap-2 text-xs">
+                    <span className={`font-cinzel font-bold tracking-wider ${config ? config.color : 'text-white/40'} truncate max-w-[120px]`}>
+                        {thread.profiles?.full_name || defaultTitle}
                     </span>
-                    <span className="text-white/15 text-[10px]">·</span>
-                    <span className="text-[11px] text-white/20 flex items-center gap-1">
-                        <Clock size={9} />
+                    <span className="text-white/10">|</span>
+                    <span className="text-white/25 flex items-center gap-1.5">
+                        <Clock size={11} />
                         {new Date(thread.created_at).toLocaleDateString("he-IL")}
                     </span>
                 </div>
             </div>
 
-            <ChevronLeft size={14} className="text-white/15 group-hover:text-white/40 transition-colors shrink-0" />
+            <div className="hidden md:flex flex-col items-center justify-center min-w-[60px] px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                <span className="font-mono font-black text-sm text-white/70 leading-none">{thread.reply_count || 0}</span>
+                <span className="text-[9px] uppercase tracking-widest text-white/20 mt-1 font-bold">תגובות</span>
+            </div>
+
+            <ChevronLeft size={18} className="text-white/10 group-hover:text-amber-500 transition-all group-hover:-translate-x-1 shrink-0" />
         </Link>
     );
 }
@@ -118,6 +138,8 @@ export default function ForumThreadsPage() {
     const [threads, setThreads] = useState<Thread[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isNewThreadOpen, setIsNewThreadOpen] = useState(false);
+
+    const [newThreadPrefix, setNewThreadPrefix] = useState("דיון");
     const [newThreadTitle, setNewThreadTitle] = useState("");
     const [newThreadContent, setNewThreadContent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -132,7 +154,6 @@ export default function ForumThreadsPage() {
             const { data: profile } = await supabase.from('profiles').select('house, role').eq('id', session?.user.id).maybeSingle();
 
             if (forumData.house_restriction && forumData.house_restriction !== profile?.house && profile?.role !== 'מנהל') {
-                alert("לחש הגנה מונע ממך להיכנס למועדון הזה!");
                 router.push('/forums');
                 return;
             }
@@ -141,12 +162,17 @@ export default function ForumThreadsPage() {
 
             const { data: threadsData } = await supabase
                 .from('threads')
-                .select('*, profiles(full_name, house)')
+                .select('*, profiles(full_name, house, is_online, gender), forum_posts(count)')
                 .eq('forum_id', forumData.id)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
-            setThreads(threadsData as any || []);
+            const formattedThreads = threadsData?.map((t: any) => ({
+                ...t,
+                reply_count: t.forum_posts?.[0]?.count || 0
+            }));
+
+            setThreads(formattedThreads as any || []);
         } catch (err) { console.error(err); } finally { setIsLoading(false); }
     }, [slug, supabase, router]);
 
@@ -164,7 +190,12 @@ export default function ForumThreadsPage() {
 
             const { data: thread, error: tError } = await supabase
                 .from('threads')
-                .insert([{ forum_id: forum.id, author_id: user.id, title: newThreadTitle.trim() }])
+                .insert([{
+                    forum_id: forum.id,
+                    author_id: user.id,
+                    title: newThreadTitle.trim(),
+                    prefix: newThreadPrefix
+                }])
                 .select().single();
 
             if (tError) throw tError;
@@ -174,12 +205,10 @@ export default function ForumThreadsPage() {
             setNewThreadTitle(""); setNewThreadContent("");
             setIsNewThreadOpen(false);
             fetchThreads();
-        } catch (err: any) { alert("שגיאה: " + err.message); } finally { setIsSubmitting(false); }
+        } catch (err: any) { console.error(err); } finally { setIsSubmitting(false); }
     };
 
     const houseConfig = forum?.house_restriction ? HOUSE_CONFIG[forum.house_restriction] : null;
-    const pinnedThreads = threads.filter(t => t.is_pinned);
-    const normalThreads = threads.filter(t => !t.is_pinned);
 
     if (isLoading) return (
         <div className="min-h-screen bg-[#060910] flex items-center justify-center">
@@ -197,177 +226,162 @@ export default function ForumThreadsPage() {
                     background-size: 40px 40px;
                 }
                 @keyframes fadeUp {
-                    from { opacity: 0; transform: translateY(8px); }
+                    from { opacity: 0; transform: translateY(10px); }
                     to   { opacity: 1; transform: translateY(0); }
                 }
-                .fade-up { animation: fadeUp 0.25s ease both; }
+                .fade-up { animation: fadeUp 0.3s ease both; }
+                
+                /* ✨ תיקון יישור לימין לעורך הטקסט */
+                .thread-editor .ql-editor {
+                    text-align: right;
+                    direction: rtl;
+                    color: rgba(255,255,255,0.85);
+                }
+                .thread-editor .ql-editor.ql-blank::before {
+                    left: auto !important;
+                    right: 15px !important;
+                    text-align: right !important;
+                    direction: rtl !important;
+                    color: rgba(255,255,255,0.2);
+                    font-style: normal;
+                }
                 .thread-editor .ql-container {
                     background: rgba(255,255,255,0.015);
                     border-color: rgba(255,255,255,0.08) !important;
-                    color: white; min-height: 180px;
+                    color: white; min-height: 200px;
                     border-bottom-left-radius: 0.75rem; border-bottom-right-radius: 0.75rem;
-                    font-family: 'Assistant', sans-serif; font-size: 1rem;
                 }
                 .thread-editor .ql-toolbar {
                     background: rgba(255,255,255,0.03);
                     border-color: rgba(255,255,255,0.08) !important;
                     border-top-left-radius: 0.75rem; border-top-right-radius: 0.75rem;
-                    direction: rtl;
                 }
-                .thread-editor .ql-editor { text-align: right; direction: rtl; color: rgba(255,255,255,0.85); }
-                .thread-editor .ql-editor.ql-blank::before { color: rgba(255,255,255,0.2); right: 15px; left: auto; font-style: normal; }
                 .thread-editor .ql-snow .ql-stroke { stroke: rgba(255,255,255,0.35) !important; }
                 .thread-editor .ql-snow .ql-fill { fill: rgba(255,255,255,0.35) !important; }
-                .thread-editor .ql-snow.ql-toolbar button:hover .ql-stroke { stroke: #f59e0b !important; }
-                .thread-editor .ql-picker-label { color: rgba(255,255,255,0.35); }
             `}</style>
 
             <div className="forum-bg min-h-screen">
-                <div className="max-w-4xl mx-auto px-4 py-10 space-y-4">
+                <div className="max-w-5xl mx-auto px-4 py-10 space-y-6">
 
-                    {/* Breadcrumb */}
-                    <nav className="flex items-center gap-2 text-xs font-bold text-white/30 font-cinzel tracking-wider mb-6">
+                    <nav className="flex items-center gap-2 text-xs font-bold text-white/30 font-cinzel tracking-wider bg-black/20 p-3 rounded-lg border border-white/[0.03] fade-up">
                         <Link href="/" className="hover:text-white/60 transition-colors flex items-center gap-1">
-                            <Home size={11} /> ראשי
+                            <Home size={12} /> ראשי
                         </Link>
                         <ChevronLeft size={11} />
                         <Link href="/forums" className="hover:text-white/60 transition-colors">פורומים</Link>
                         <ChevronLeft size={11} />
-                        <span style={{ color: houseConfig?.text || "#f59e0b" }} className="truncate max-w-[180px]">
+                        <span style={{ color: houseConfig?.text || "#f59e0b" }} className="truncate max-w-[200px]">
                             {forum?.name}
                         </span>
                     </nav>
 
-                    {/* Forum header */}
-                    <div
-                        className="fade-up border border-white/[0.07] rounded-xl px-6 py-5 flex items-center justify-between gap-4"
-                        style={{ background: houseConfig ? houseConfig.accent : "rgba(255,255,255,0.02)" }}
-                    >
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
+                    <div className="fade-up flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/[0.02] border border-white/[0.07] rounded-2xl p-6 md:p-8"
+                        style={{ background: houseConfig ? `linear-gradient(135deg, ${houseConfig.accent} 0%, transparent 100%)` : undefined }}>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
                                 {forum?.house_restriction && (
-                                    <span className="text-lg">{HOUSE_EMOJI[forum.house_restriction]}</span>
+                                    <span className="text-3xl drop-shadow-md">{HOUSE_EMOJI[forum.house_restriction]}</span>
                                 )}
-                                <h1 className="font-cinzel font-black text-xl md:text-2xl"
+                                <h1 className="font-cinzel font-black text-2xl md:text-3xl drop-shadow-md"
                                     style={{ color: houseConfig?.text || "white" }}>
                                     {forum?.name}
                                 </h1>
                             </div>
-                            {forum?.description && (
-                                <p className="text-xs text-white/35 italic">{forum.description}</p>
-                            )}
+                            <p className="text-sm text-white/40 italic font-crimson max-w-2xl">{forum?.description}</p>
                         </div>
                         <button
                             onClick={() => setIsNewThreadOpen(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-cinzel font-black text-sm
+                            className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-cinzel font-black text-base
                                        bg-amber-600 hover:bg-amber-500 text-amber-950
-                                       transition-all active:scale-95 shadow-lg shadow-amber-900/20 shrink-0"
+                                       transition-all active:scale-95 shadow-xl shadow-amber-900/20 shrink-0"
                         >
-                            <Plus size={15} /> נושא חדש
+                            <Plus size={18} /> נושא חדש
                         </button>
                     </div>
 
-                    {/* Threads list */}
-                    <div className="fade-up border border-white/[0.07] rounded-xl overflow-hidden" style={{ animationDelay: "60ms" }}>
-
-                        {/* Column headers */}
-                        <div className="hidden md:flex items-center px-5 py-2.5 bg-white/[0.02] border-b border-white/[0.06]
-                                        text-[9px] font-black uppercase tracking-widest text-white/20">
-                            <span className="flex-1">נושא</span>
-                            <span className="w-24 text-right pl-6">תאריך</span>
+                    <div className="fade-up border border-white/[0.07] rounded-2xl bg-[#0a0f1a] shadow-2xl overflow-hidden" style={{ animationDelay: "100ms" }}>
+                        <div className="hidden md:flex items-center px-6 py-3 bg-black/40 border-b border-white/[0.05] text-[10px] font-black uppercase tracking-[0.2em] text-white/20">
+                            <span className="flex-1 flex items-center gap-2"><MessageSquare size={12} /> נושאי שיחה</span>
+                            <span className="w-32 text-center">מידע נוסף</span>
                         </div>
 
-                        {/* Pinned threads */}
-                        {pinnedThreads.length > 0 && (
-                            <>
-                                <div className="px-5 py-2 bg-amber-500/[0.04] border-b border-amber-500/10">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-500/50">נעוצים</span>
-                                </div>
-                                {pinnedThreads.map((t, i) => (
-                                    <ThreadRow key={t.id} thread={t} slug={slug as string} index={i} />
+                        {threads.length > 0 ? (
+                            <div className="divide-y divide-white/[0.04]">
+                                {threads.map((t) => (
+                                    <ThreadRow key={t.id} thread={t} slug={slug as string} />
                                 ))}
-                            </>
-                        )}
-
-                        {/* Normal threads */}
-                        {normalThreads.length > 0 && (
-                            <>
-                                {pinnedThreads.length > 0 && (
-                                    <div className="px-5 py-2 bg-white/[0.015] border-b border-white/[0.05]">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-white/20">כל הנושאים</span>
-                                    </div>
-                                )}
-                                {normalThreads.map((t, i) => (
-                                    <ThreadRow key={t.id} thread={t} slug={slug as string} index={i + pinnedThreads.length} />
-                                ))}
-                            </>
-                        )}
-
-                        {/* Empty state */}
-                        {threads.length === 0 && (
-                            <div className="py-16 text-center">
-                                <MessageSquare size={28} className="mx-auto mb-3 text-white/15" />
-                                <p className="text-sm font-bold text-white/25">אין נושאים עדיין</p>
-                                <p className="text-xs mt-1 text-white/15">היה הראשון לפתוח דיון</p>
+                            </div>
+                        ) : (
+                            <div className="py-24 text-center">
+                                <Sparkles size={40} className="mx-auto mb-4 text-amber-500/20 animate-pulse" />
+                                <p className="font-cinzel font-black text-xl text-white/30 tracking-widest uppercase">הדפים עדיין ריקים</p>
                             </div>
                         )}
                     </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center gap-3 px-1 text-[11px] text-white/20">
-                        <span>{threads.length} נושאים</span>
-                        {pinnedThreads.length > 0 && <>
-                            <span className="text-white/10">·</span>
-                            <span>{pinnedThreads.length} נעוצים</span>
-                        </>}
-                    </div>
-
                 </div>
             </div>
 
             {/* Modal: New Thread */}
             {isNewThreadOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-                    <div className="bg-[#0a0f1a] border border-white/[0.08] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden relative fade-up" dir="rtl">
-
-                        {/* Modal header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-white/[0.02]">
-                            <div className="flex items-center gap-2">
-                                <Plus size={14} className="text-amber-500" />
-                                <span className="font-cinzel font-black text-sm text-white/80">נושא חדש</span>
-                                <span className="text-white/20 text-xs">· {forum?.name}</span>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300">
+                    <div className="bg-[#0a0f1a]/80 border border-white/10 w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden relative fade-up flex flex-col" dir="rtl">
+                        <div className="px-8 py-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500"><Plus size={18} /></div>
+                                <div>
+                                    <h3 className="font-cinzel font-black text-lg text-white tracking-widest">פתיחת דיון חדש</h3>
+                                    <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">{forum?.name}</p>
+                                </div>
                             </div>
-                            <button onClick={() => setIsNewThreadOpen(false)} className="text-white/25 hover:text-white/60 transition-colors p-1">
-                                <X size={18} />
+                            <button onClick={() => setIsNewThreadOpen(false)} className="text-white/20 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full">
+                                <X size={24} />
                             </button>
                         </div>
 
-                        {/* Modal body */}
-                        <form onSubmit={handleCreateThread} className="p-6 space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-white/25">כותרת</label>
+                        <form onSubmit={handleCreateThread} className="p-8 space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-black uppercase tracking-widest text-amber-500/60 mr-2 flex items-center gap-2"><Tag size={12} /> תחילית הנושא</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.keys(PREFIX_CONFIG).map(opt => (
+                                        <button
+                                            key={opt}
+                                            type="button"
+                                            onClick={() => setNewThreadPrefix(opt)}
+                                            className={`px-4 py-2 rounded-lg text-xs font-black transition-all border ${newThreadPrefix === opt
+                                                    ? `${PREFIX_CONFIG[opt].bg} ${PREFIX_CONFIG[opt].border} ${PREFIX_CONFIG[opt].text} scale-105 shadow-lg`
+                                                    : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                                                }`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-black uppercase tracking-widest text-amber-500/60 mr-2">כותרת הנושא</label>
                                 <input
                                     autoFocus required
-                                    placeholder="על מה נדבר?"
+                                    placeholder="על מה נדבר היום?"
                                     value={newThreadTitle}
                                     onChange={(e) => setNewThreadTitle(e.target.value)}
-                                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-lg px-4 py-3
-                                               text-base font-bold text-white placeholder:text-white/20
-                                               focus:outline-none focus:border-amber-500/30 transition-colors"
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4
+                                               text-lg font-bold text-white placeholder:text-white/20
+                                               focus:outline-none focus:border-amber-500/30 focus:bg-white/[0.08] transition-all"
                                 />
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-white/25">תוכן</label>
-                                <div className="thread-editor">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-black uppercase tracking-widest text-amber-500/60 mr-2">תוכן הפוסט</label>
+                                <div className="thread-editor shadow-inner">
                                     <ReactQuill
                                         theme="snow"
                                         value={newThreadContent}
                                         onChange={setNewThreadContent}
-                                        placeholder="כתוב את הפוסט הראשון..."
+                                        placeholder="שתף את הקסם שלך עם הקהילה..."
                                         modules={{
                                             toolbar: [
-                                                ['bold', 'italic', 'underline'],
+                                                ['bold', 'italic', 'underline', 'blockquote'],
                                                 [{ list: 'ordered' }, { list: 'bullet' }],
                                                 ['link', 'image'],
                                                 ['clean'],
@@ -377,24 +391,24 @@ export default function ForumThreadsPage() {
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-1">
+                            <div className="flex justify-end gap-4 pt-4">
                                 <button
                                     type="button"
                                     onClick={() => setIsNewThreadOpen(false)}
-                                    className="px-5 py-2.5 rounded-lg text-sm font-bold text-white/35 hover:text-white/60 transition-colors"
+                                    className="px-8 py-3.5 rounded-xl text-sm font-black font-cinzel tracking-widest text-white/30 hover:text-white hover:bg-white/5 transition-all"
                                 >
                                     ביטול
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="flex items-center gap-2 px-7 py-2.5 rounded-lg font-cinzel font-black text-sm
+                                    className="flex items-center gap-3 px-10 py-3.5 rounded-xl font-cinzel font-black text-base
                                                bg-amber-600 hover:bg-amber-500 text-amber-950
-                                               disabled:opacity-40 transition-all active:scale-95"
+                                               disabled:opacity-40 transition-all active:scale-95 shadow-xl shadow-amber-900/30"
                                 >
                                     {isSubmitting
-                                        ? <><div className="w-4 h-4 border-t-2 border-amber-950 rounded-full animate-spin" /> שולח...</>
-                                        : <><Plus size={15} /> פתח נושא</>
+                                        ? <><div className="w-5 h-5 border-t-2 border-amber-950 rounded-full animate-spin" /> שולח...</>
+                                        : <><Sparkles size={18} /> שליחת ינשוף</>
                                     }
                                 </button>
                             </div>
