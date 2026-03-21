@@ -10,6 +10,7 @@ import {
   Volume2, VolumeX, Sparkles, Clock, User, ChevronRight
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import Link from "next/link";
 
 interface NewsItem {
   id: string;
