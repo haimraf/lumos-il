@@ -93,6 +93,9 @@ export default function AdminPanel() {
     const [userFilter, setUserFilter] = useState<"all" | "מנהל" | "מנחה" | "משתמש">("all");
     const [editingRole, setEditingRole] = useState<{ id: string; role: string } | null>(null);
     const [isSavingRole, setIsSavingRole] = useState(false);
+    const [userGroups, setUserGroups] = useState<any[]>([]);
+    const [editingGroup, setEditingGroup] = useState<{ id: string; group_id: number | null } | null>(null);
+    const [isSavingGroup, setIsSavingGroup] = useState(false);
 
     // Forums management
     const [forums, setForums] = useState<any[]>([]);
@@ -119,13 +122,14 @@ export default function AdminPanel() {
     /* ── Fetch ── */
     const fetchData = useCallback(async () => {
         const [{ data: reportData }, { data: newsData }, { data: profilesData },
-               { data: forumsData }, { data: shopData }, { data: examData }] = await Promise.all([
+               { data: forumsData }, { data: shopData }, { data: examData }, { data: groupsData }] = await Promise.all([
             supabase.from('reports').select('*').order('created_at', { ascending: false }),
             supabase.from('news').select('*').order('created_at', { ascending: false }),
-            supabase.from('profiles').select('*, post_count:forum_posts(count)').order('created_at', { ascending: true }),
+            supabase.from('profiles').select('*, post_count:forum_posts(count), user_groups(id, name, color)').order('created_at', { ascending: true }),
             supabase.from('forums').select('*, thread_count:threads(count)').order('created_at', { ascending: true }),
             supabase.from('shop_items').select('*').order('created_at', { ascending: false }),
             supabase.from('exam_questions').select('*').order('created_at', { ascending: false }),
+            supabase.from('user_groups').select('*').order('display_order'),
         ]);
 
         setReports(reportData || []);
@@ -133,6 +137,7 @@ export default function AdminPanel() {
         setForums(forumsData || []);
         setShopItems(shopData || []);
         setExamQuestions(examData || []);
+        setUserGroups(groupsData || []);
 
         const points: Record<string, number> = { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 };
         profilesData?.forEach((row: any) => {
@@ -280,6 +285,21 @@ export default function AdminPanel() {
             setEditingRole(null);
         }
         setIsSavingRole(false);
+    };
+
+    const handleSaveGroup = async () => {
+        if (!editingGroup) return;
+        const { id, group_id } = editingGroup;
+        setIsSavingGroup(true);
+        const { error } = await supabase.from('profiles').update({ group_id: group_id || null }).eq('id', id);
+        if (error) { sendOwl("שגיאה", error.message, "error"); }
+        else {
+            const grp = userGroups.find(g => g.id === group_id);
+            sendOwl("עודכן", `קבוצת המשתמש שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
+            setAllProfiles(prev => prev.map(p => p.id === id ? { ...p, group_id, user_groups: grp || null } : p));
+            setEditingGroup(null);
+        }
+        setIsSavingGroup(false);
     };
 
     const handleToggleBan = async (userId: string, currentStatus: string) => {
@@ -755,10 +775,11 @@ export default function AdminPanel() {
                                                                     <select
                                                                         value={editingYear?.year}
                                                                         onChange={e => setEditingYear({ id: p.id, year: parseInt(e.target.value) })}
-                                                                        className="bg-purple-900/30 border border-purple-500/30 rounded-lg px-2 py-1 text-purple-300 font-cinzel text-xs outline-none"
+                                                                        className="font-cinzel text-xs outline-none rounded-lg px-2 py-1"
+                                                                        style={{ backgroundColor: '#0f172a', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.35)', colorScheme: 'dark' }}
                                                                     >
                                                                         {[1,2,3,4,5,6,7].map(y => (
-                                                                            <option key={y} value={y}>שנה {y}</option>
+                                                                            <option key={y} value={y} style={{ backgroundColor: '#0f172a' }}>שנה {y}</option>
                                                                         ))}
                                                                     </select>
                                                                 ) : (
@@ -907,11 +928,12 @@ export default function AdminPanel() {
                                                                     <select
                                                                         value={editingRole?.role}
                                                                         onChange={e => setEditingRole({ id: p.id, role: e.target.value })}
-                                                                        className="bg-teal-900/30 border border-teal-500/30 rounded-lg px-2 py-1 text-teal-300 font-cinzel text-xs outline-none"
+                                                                        className="font-cinzel text-xs outline-none rounded-lg px-2 py-1"
+                                                                        style={{ backgroundColor: '#0f172a', color: '#5eead4', border: '1px solid rgba(20,184,166,0.35)', colorScheme: 'dark' }}
                                                                     >
-                                                                        <option value="משתמש">משתמש</option>
-                                                                        <option value="מנחה">מנחה</option>
-                                                                        <option value="מנהל">מנהל</option>
+                                                                        <option value="משתמש" style={{ backgroundColor: '#0f172a' }}>משתמש</option>
+                                                                        <option value="מנחה" style={{ backgroundColor: '#0f172a' }}>מנחה</option>
+                                                                        <option value="מנהל" style={{ backgroundColor: '#0f172a' }}>מנהל</option>
                                                                     </select>
                                                                     <button onClick={handleSaveRole} disabled={isSavingRole}
                                                                         className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40">
@@ -941,6 +963,49 @@ export default function AdminPanel() {
                                                                             : 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white'
                                                                         }`}>
                                                                         <Shield size={11} />
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Group editor */}
+                                                        <div className="shrink-0">
+                                                            {editingGroup?.id === p.id ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <select
+                                                                        value={editingGroup?.group_id ?? ""}
+                                                                        onChange={e => setEditingGroup({ id: p.id, group_id: e.target.value ? parseInt(e.target.value) : null })}
+                                                                        style={{ backgroundColor: '#0f172a', color: '#e2e8f0', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', border: '1px solid rgba(99,102,241,0.4)', outline: 'none', colorScheme: 'dark' }}
+                                                                    >
+                                                                        <option value="">ללא קבוצה</option>
+                                                                        {userGroups.map(g => (
+                                                                            <option key={g.id} value={g.id} style={{ backgroundColor: '#0f172a', color: '#e2e8f0' }}>{g.name}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <button onClick={handleSaveGroup} disabled={isSavingGroup}
+                                                                        className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500 hover:text-white transition-all disabled:opacity-40">
+                                                                        <Save size={11} />
+                                                                    </button>
+                                                                    <button onClick={() => setEditingGroup(null)}
+                                                                        className="p-1.5 bg-white/5 text-white/30 rounded-lg hover:bg-white/10 transition-all">
+                                                                        <X size={11} />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {p.user_groups && (
+                                                                        <span
+                                                                            className="px-2 py-0.5 rounded-full text-[9px] font-cinzel font-black uppercase tracking-wide"
+                                                                            style={{ background: `${p.user_groups.color}18`, color: p.user_groups.color, border: `1px solid ${p.user_groups.color}35` }}
+                                                                        >
+                                                                            {p.user_groups.name}
+                                                                        </span>
+                                                                    )}
+                                                                    <button
+                                                                        onClick={() => setEditingGroup({ id: p.id, group_id: p.group_id || null })}
+                                                                        title="שנה קבוצה"
+                                                                        className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500 hover:text-white transition-all">
+                                                                        <Crown size={11} />
                                                                     </button>
                                                                 </div>
                                                             )}
@@ -1092,8 +1157,9 @@ export default function AdminPanel() {
                                                 <div className="space-y-1">
                                                     <label className="text-[9px] font-cinzel text-white/30 uppercase tracking-wider">סוג</label>
                                                     <select value={formData.type || "wand"} onChange={e => setFormData({ ...formData, type: e.target.value })}
-                                                        className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-emerald-500/30 rounded-xl p-2.5 text-sm outline-none">
-                                                        {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                                        className="w-full rounded-xl p-2.5 text-sm outline-none"
+                                                        style={{ backgroundColor: '#0f172a', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.08)', colorScheme: 'dark' }}>
+                                                        {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k} style={{ backgroundColor: '#0f172a' }}>{v}</option>)}
                                                     </select>
                                                 </div>
                                                 <div className="col-span-2 space-y-1">
@@ -1231,8 +1297,9 @@ export default function AdminPanel() {
                                                     <select
                                                         value={editQ ? editQ.correct_answer : newQ.correct_answer}
                                                         onChange={e => editQ ? setEditingQuestion({ ...editQ, correct_answer: e.target.value }) : setNewQuestion({ ...newQ, correct_answer: e.target.value })}
-                                                        className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-violet-500/30 rounded-xl p-2.5 text-sm outline-none">
-                                                        {["a", "b", "c", "d"].map(o => <option key={o} value={o}>אפשרות {o.toUpperCase()}</option>)}
+                                                        className="w-full rounded-xl p-2.5 text-sm outline-none"
+                                                        style={{ backgroundColor: '#0f172a', color: '#e2e8f0', border: '1px solid rgba(139,92,246,0.2)', colorScheme: 'dark' }}>
+                                                        {["a", "b", "c", "d"].map(o => <option key={o} value={o} style={{ backgroundColor: '#0f172a' }}>אפשרות {o.toUpperCase()}</option>)}
                                                     </select>
                                                 </div>
                                             </div>
