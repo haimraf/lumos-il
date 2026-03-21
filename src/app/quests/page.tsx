@@ -62,12 +62,8 @@ export default function QuestsPage() {
 
   const handleDailyCollect = async () => {
     if (dailyStatus.allowance || !profile) return;
-    const { error } = await supabase.from('profiles').update({
-      galleons: (profile.galleons || 0) + 5,
-      last_reward_date: today
-    }).eq('id', profile.id);
-
-    if (!error) {
+    const { data, error } = await supabase.rpc('claim_daily_allowance', { p_user_id: profile.id });
+    if (!error && data?.success) {
       sendOwl("קצבה נאספה!", "5 גליאונים נוספו לכיסך.", "magic");
       refreshProfile();
     }
@@ -76,12 +72,8 @@ export default function QuestsPage() {
   const handleTriviaAnswer = async (selected: string) => {
     if (dailyStatus.trivia || !profile || !currentTrivia) return;
     const isCorrect = selected === currentTrivia.a;
-
-    const updateData: any = { last_trivia_date: today };
-    if (isCorrect) updateData.points_contributed = (profile.points_contributed || 0) + 10;
-
-    const { error } = await supabase.from('profiles').update(updateData).eq('id', profile.id);
-    if (!error) {
+    const { data, error } = await supabase.rpc('claim_trivia_reward', { p_user_id: profile.id, p_is_correct: isCorrect });
+    if (!error && data?.success) {
       sendOwl(isCorrect ? "תשובה נכונה!" : "טעות בלחש", isCorrect ? "10 נקודות לבית שלך!" : `התשובה הנכונה: ${currentTrivia.a}`, isCorrect ? "success" : "error");
       refreshProfile();
     }
@@ -90,17 +82,9 @@ export default function QuestsPage() {
   const handleNifflerHunt = async () => {
     if (dailyStatus.niffler || nifflerLoading || !profile) return;
     setNifflerLoading(true);
-
-    const winType = Math.random() > 0.5 ? 'galleons' : 'points';
-    const amount = winType === 'galleons' ? 15 : 20;
-
-    const updateData: any = { last_niffler_date: today };
-    if (winType === 'galleons') updateData.galleons = (profile.galleons || 0) + amount;
-    else updateData.points_contributed = (profile.points_contributed || 0) + amount;
-
-    const { error } = await supabase.from('profiles').update(updateData).eq('id', profile.id);
-    if (!error) {
-      sendOwl("הניפלר נתפס!", `מצאת ${amount} ${winType === 'galleons' ? 'גליאונים' : 'נקודות'}!`, "magic");
+    const { data, error } = await supabase.rpc('claim_niffler_reward', { p_user_id: profile.id });
+    if (!error && data?.success) {
+      sendOwl("הניפלר נתפס!", `מצאת ${data.amount} נקודות!`, "magic");
       refreshProfile();
     }
     setNifflerLoading(false);
@@ -110,13 +94,8 @@ export default function QuestsPage() {
   const handleSnitchCatch = async () => {
     if (dailyStatus.snitch || snitchLoading || !profile) return;
     setSnitchLoading(true);
-
-    const { error } = await supabase.from('profiles').update({
-      points_contributed: (profile.points_contributed || 0) + 15,
-      last_snitch_date: today
-    }).eq('id', profile.id);
-
-    if (!error) {
+    const { data, error } = await supabase.rpc('claim_snitch_reward', { p_user_id: profile.id });
+    if (!error && data?.success) {
       sendOwl("הסניץ' ננתפס!", "איזה מחפש מעולה! הבאת 15 נקודות לבית שלך.", "success");
       refreshProfile();
     }

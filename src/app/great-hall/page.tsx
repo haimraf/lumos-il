@@ -8,6 +8,7 @@ import {
     Wand2, ChevronRight, Sparkles, Zap, Info, Shield,
     Users, Flag, AlertTriangle, EyeOff, Eye, Loader2, Smile, Ghost
 } from "lucide-react";
+import { getRoleColor, getRoleDisplay, getRoleColorFromDB } from "@/lib/roleColor";
 
 /**
  * LUMOS IL - THE GREAT HALL V5
@@ -29,6 +30,7 @@ type Message = {
         email: string | null;
         signature: string | null;
         avatar_url: string | null;
+        user_groups: { name: string; color: string } | null;
     };
 };
 
@@ -40,14 +42,6 @@ const HOUSE_CONFIG: Record<string, { label: string; color: string; bg: string; b
     Unknown: { label: "טרם סווג", color: "text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/20", icon: "✨", gradientFrom: "from-slate-900/20" },
 };
 
-const RANK_CONFIG: Record<string, { label: string; class: string }> = {
-    "מנהל": { label: "מנהל", class: "bg-amber-500 text-amber-950 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.35)]" },
-    "פרופסור": { label: "פרופסור", class: "bg-purple-600 text-white border-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.2)]" },
-    "מדריך": { label: "מדריך", class: "bg-blue-600 text-white border-blue-400 shadow-[0_0_8px_rgba(37,99,235,0.2)]" },
-    "תלמיד/ה": { label: "תלמיד/ה", class: "bg-white/10 text-white/70 border-white/20" },
-};
-
-const UNIQUE_RANKS = ["מנהל", "פרופסור", "מדריך", "תלמיד/ה"];
 
 export default function GreatHall() {
     const supabase = createClient();
@@ -64,6 +58,13 @@ export default function GreatHall() {
     const [reportingMessage, setReportingMessage] = useState<Message | null>(null);
     const [reportReason, setReportReason] = useState("");
     const [isReporting, setIsReporting] = useState(false);
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    const [userGroups, setUserGroups] = useState<{ name: string; color: string }[]>([]);
+    useEffect(() => {
+        getRoleColorFromDB(supabase).then(setRoleColors);
+        supabase.from('user_groups').select('name, color').order('display_order')
+            .then(({ data }) => { if (data) setUserGroups(data); });
+    }, [supabase]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -98,7 +99,7 @@ export default function GreatHall() {
             setMyName(extractedName);
 
             const { data: profileCheck } = await supabase
-                .from("profiles").select("full_name, role, house").eq("id", userId).single();
+                .from("profiles").select("full_name, role, house, group_id, user_groups(name, color)").eq("id", userId).single();
 
             if (!profileCheck?.full_name || profileCheck.full_name === "Wizard") {
                 await supabase.from("profiles").update({ full_name: extractedName }).eq("id", userId);
@@ -109,7 +110,7 @@ export default function GreatHall() {
 
             const { data } = await supabase
                 .from("messages")
-                .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url)")
+                .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url, user_groups(name, color))")
                 .order("created_at", { ascending: true })
                 .limit(50);
 
@@ -129,17 +130,22 @@ export default function GreatHall() {
                 .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
                     const { data: m } = await supabase
                         .from("messages")
-                        .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url)")
+                        .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url, user_groups(name, color))")
                         .eq("id", payload.new.id).single();
                     if (m && isMounted) setMessages(prev => [...prev, m as any]);
                 })
                 .subscribe(async (status) => {
                     if (status === "SUBSCRIBED" && isMounted) {
+                        const rawGrp = profileCheck?.user_groups as any;
+                        const pcGrp = (Array.isArray(rawGrp) ? rawGrp[0] : rawGrp) as { name: string; color: string } | null;
                         await channel.track({
                             user_id: userId,
                             name: profileCheck?.full_name || extractedName,
                             role: profileCheck?.role || "תלמיד/ה",
                             house: profileCheck?.house || "Unknown",
+                            group_id: (profileCheck as any)?.group_id || null,
+                            group_name: pcGrp?.name || null,
+                            group_color: pcGrp?.color || null,
                         });
                     }
                 });
@@ -318,14 +324,22 @@ export default function GreatHall() {
                             <ul className="space-y-4" role="list">
                                 {onlineUsers.map((u, i) => {
                                     const h = HOUSE_CONFIG[u.house] || HOUSE_CONFIG["Unknown"];
-                                    const r = RANK_CONFIG[u.role] || RANK_CONFIG["תלמיד/ה"];
+                                    const dg = u.group_id
+                                        ? { name: u.group_name, color: u.group_color }
+                                        : getRoleDisplay(u.role, roleColors);
                                     return (
                                         <li key={i} className="flex items-center gap-3">
                                             <span className="text-xl shrink-0" aria-hidden="true">{h.icon}</span>
                                             <div className="flex flex-col gap-1 min-w-0">
                                                 <span className="text-sm font-bold text-white truncate">{u.name}</span>
                                                 <div className="flex gap-1 flex-wrap">
-                                                    <span className={`text-[8px] px-2 py-0.5 rounded-full border font-black uppercase tracking-widest ${r.class}`}>{r.label}</span>
+                                                    <span style={{
+                                                        fontSize: "8px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                                        textTransform: "uppercase", letterSpacing: "0.12em",
+                                                        padding: "1px 8px", borderRadius: "999px",
+                                                        color: dg.color, background: `${dg.color}18`,
+                                                        border: `1px solid ${dg.color}40`,
+                                                    }}>{dg.name}</span>
                                                     <span className={`text-[8px] px-2 py-0.5 rounded-full border font-black uppercase tracking-widest ${h.bg} ${h.border} ${h.color}`}>{h.label}</span>
                                                 </div>
                                             </div>
@@ -342,10 +356,13 @@ export default function GreatHall() {
                                     <Info size={11} aria-hidden="true" /> דרגות
                                 </h2>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {UNIQUE_RANKS.map(key => (
-                                        <span key={key} className={`px-2.5 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest ${RANK_CONFIG[key].class}`}>
-                                            {RANK_CONFIG[key].label}
-                                        </span>
+                                    {userGroups.map(g => (
+                                        <span key={g.name} style={{
+                                            fontSize: "8px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                            textTransform: "uppercase", letterSpacing: "0.12em",
+                                            padding: "2px 10px", borderRadius: "999px",
+                                            color: g.color, background: `${g.color}18`, border: `1px solid ${g.color}40`,
+                                        }}>{g.name}</span>
                                     ))}
                                 </div>
                             </div>
@@ -391,7 +408,10 @@ export default function GreatHall() {
                                 const isMe = myId === msg.user_id;
                                 const isMuted = blockedUserIds.includes(msg.user_id);
                                 const h = HOUSE_CONFIG[msg.profiles?.house || "Unknown"] || HOUSE_CONFIG["Unknown"];
-                                const r = RANK_CONFIG[msg.profiles?.role || "תלמיד/ה"] || RANK_CONFIG["תלמיד/ה"];
+                                const msgGrp = msg.profiles?.user_groups as { name: string; color: string } | null;
+                                const dg = msgGrp
+                                    ? { name: msgGrp.name, color: msgGrp.color }
+                                    : getRoleDisplay(msg.profiles?.role, roleColors);
 
                                 let displayName = "קוסם/ת";
                                 if (msg.profiles?.full_name && msg.profiles.full_name !== "Wizard") {
@@ -439,12 +459,19 @@ export default function GreatHall() {
                                                 <div className={`flex flex-wrap items-center gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                     <Link
                                                         href={`/wizard/${msg.user_id}`}
-                                                        className={`font-cinzel text-sm font-black tracking-wide hover:underline ${h.color}`}
+                                                        className="font-cinzel text-sm font-black tracking-wide hover:underline"
+                                                        style={{ color: getRoleColor(msg.profiles?.role, msg.profiles?.house, roleColors) }}
                                                     >
                                                         {displayName}
                                                     </Link>
-                                                    <span className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest ${r.class}`}>
-                                                        {r.label}
+                                                    <span style={{
+                                                        fontSize: "8px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                                        textTransform: "uppercase", letterSpacing: "0.12em",
+                                                        padding: "1px 8px", borderRadius: "999px",
+                                                        color: dg.color, background: `${dg.color}18`,
+                                                        border: `1px solid ${dg.color}40`,
+                                                    }}>
+                                                        {dg.name}
                                                     </span>
                                                 </div>
 

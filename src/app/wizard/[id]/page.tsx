@@ -11,6 +11,7 @@ import {
     Users, Camera, ImagePlus, Loader2, Move, Check
 } from "lucide-react";
 import { getYearFromProfile, getYearTitle, getYearLabel } from "@/lib/yearSystem";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const ANIMALS_MAP: Record<string, { emoji: string; nameHe: string; nameEn: string }> = {
     stag:      { emoji: "🦌", nameHe: "צבי",       nameEn: "Stag" },
@@ -144,6 +145,8 @@ export default function WizardProfilePage() {
     const [isFriend, setIsFriend] = useState(false);
     const [friendshipLoading, setFriendshipLoading] = useState(false);
     const [friends, setFriends] = useState<any[]>([]);
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     // Get current user once
     useEffect(() => {
@@ -163,7 +166,7 @@ export default function WizardProfilePage() {
         const load = async () => {
             const { data: p } = await supabase
                 .from("profiles")
-                .select("*")
+                .select("*, user_groups(name, color)")
                 .eq("id", id)
                 .single();
 
@@ -364,7 +367,9 @@ export default function WizardProfilePage() {
     if (!profile) return null;
 
     const house = HOUSE_CONFIG[profile.house] || null;
-    const rank = RANK_CONFIG[profile.role] || RANK_CONFIG["תלמיד/ה"];
+    const grp = profile.user_groups as { name: string; color: string } | null;
+    const badgeLabel = grp?.name || profile.role || "חבר";
+    const badgeColor = grp?.color || getRoleColor(profile.role, profile.house, roleColors);
     const inv = getInventory(profile.inventory);
     const traits = profile.magic_traits || null;
     const allItems = [...inv.items, ...inv.companions, ...inv.cards];
@@ -667,11 +672,18 @@ export default function WizardProfilePage() {
                 <div className="slide-up delay-1 mb-6">
                     <div className="flex flex-wrap items-center gap-3 mb-2">
                         <h1 className="font-cinzel text-2xl md:text-3xl font-black"
-                            style={{ color: house?.accent || "#f8fafc" }}>
+                            style={{ color: grp?.color || getRoleColor(profile.role, profile.house, roleColors) }}>
                             {profile.full_name || "קוסם אנונימי"}
                         </h1>
-                        <span className={`flex items-center gap-1.5 text-[10px] px-3 py-1 rounded-full border font-black uppercase tracking-widest ${rank.class}`}>
-                            {rank.icon} {rank.label}
+                        <span style={{
+                            fontSize: "10px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                            textTransform: "uppercase", letterSpacing: "0.12em",
+                            padding: "3px 12px", borderRadius: "999px",
+                            color: badgeColor,
+                            background: `${badgeColor}20`,
+                            border: `1px solid ${badgeColor}50`,
+                        }}>
+                            {badgeLabel}
                         </span>
                         {house && (
                             <span className={`text-[10px] px-3 py-1 rounded-full border font-black uppercase tracking-widest ${house.badgeBg}`}>

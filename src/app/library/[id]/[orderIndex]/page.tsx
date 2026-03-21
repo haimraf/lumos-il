@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { useOwlMail } from "@/components/OwlMail";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 export default function ChapterPage() {
     const { id, orderIndex } = useParams();
@@ -40,6 +41,8 @@ export default function ChapterPage() {
     const [comment, setComment] = useState("");
     const [commentsList, setCommentsList] = useState<any[]>([]);
     const [isPosting, setIsPosting] = useState(false);
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     const currentOrderIndex = parseInt(orderIndex as string);
 
@@ -54,7 +57,7 @@ export default function ChapterPage() {
     const fetchComments = async (chapterId: string) => {
         const { data, error } = await supabase
             .from('chapter_comments')
-            .select(`*, profiles:user_id (full_name, avatar_url)`)
+            .select(`*, profiles:user_id (full_name, avatar_url, role, house)`)
             .eq('chapter_id', chapterId)
             .order('created_at', { ascending: false });
 
@@ -318,7 +321,7 @@ export default function ChapterPage() {
                                     </div>
                                     <div className="flex-grow">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <span className="font-cinzel text-amber-400 font-black tracking-wide text-base">{c.profiles?.full_name || "קוסם אנונימי"}</span>
+                                            <span className="font-cinzel font-black tracking-wide text-base" style={{ color: getRoleColor(c.profiles?.role, c.profiles?.house, roleColors) }}>{c.profiles?.full_name || "קוסם אנונימי"}</span>
                                             <span className="w-1 h-1 bg-amber-500/30 rounded-full" />
                                             <span className="text-[10px] text-white/40 uppercase font-black">{new Date(c.created_at).toLocaleDateString('he-IL')}</span>
                                         </div>

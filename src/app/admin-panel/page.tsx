@@ -12,6 +12,7 @@ import {
     Store, BookOpenCheck, MessageSquare, Lock, Pin, Plus, Hash
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { getRoleColor } from "@/lib/roleColor";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
@@ -946,11 +947,19 @@ export default function AdminPanel() {
                                                                         >
                                                                             {grp.name}
                                                                         </span>
-                                                                    ) : (
-                                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-cinzel uppercase tracking-wide bg-white/5 border border-white/10 text-white/30">
-                                                                            {p.role === "מנהל" ? "מנהל" : p.role === "מנחה" ? "מנחה" : "ללא דרגה"}
-                                                                        </span>
-                                                                    )}
+                                                                    ) : (() => {
+                                                                        const rc = getRoleColor(p.role, p.house);
+                                                                        return (
+                                                                            <span style={{
+                                                                                fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                                                                textTransform: "uppercase", letterSpacing: "0.1em",
+                                                                                padding: "1px 8px", borderRadius: "999px",
+                                                                                color: rc, background: `${rc}18`, border: `1px solid ${rc}40`,
+                                                                            }}>
+                                                                                {p.role || "ללא דרגה"}
+                                                                            </span>
+                                                                        );
+                                                                    })()}
                                                                     <button
                                                                         onClick={() => setEditingGroup({ id: p.id, group_id: p.group_id || null })}
                                                                         title="שנה דרגה"

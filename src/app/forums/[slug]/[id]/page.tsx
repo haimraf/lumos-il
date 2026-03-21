@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo, memo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import Link from "next/link";
 import dynamic from 'next/dynamic';
 import {
@@ -168,6 +169,8 @@ export default function ThreadViewPage() {
     const [isReporting, setIsReporting] = useState(false);
     const [cooldownRemaining, setCooldownRemaining] = useState(0);
     const cooldownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     // ✅ useRef לשמירת מי צוטט/תויג — לא תלוי ב-HTML parsing
     const pendingQuotes = useRef<string[]>([]);
@@ -224,7 +227,7 @@ export default function ThreadViewPage() {
             // Select only columns that definitely exist in profiles — omit 'username' which may not exist
             const { data: postsData, error: postsError } = await supabase
                 .from('forum_posts')
-                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id)`)
+                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, user_groups(name, color))`)
                 .eq('thread_id', id)
                 .order('created_at', { ascending: true });
 
@@ -233,7 +236,7 @@ export default function ThreadViewPage() {
                 // Try minimal fallback select
                 const { data: fallbackPosts } = await supabase
                     .from('forum_posts')
-                    .select('*, profiles(house, full_name, avatar_url, role)')
+                    .select('*, profiles(house, full_name, avatar_url, role, user_groups(name, color))')
                     .eq('thread_id', id)
                     .order('created_at', { ascending: true });
                 setPosts((fallbackPosts as any) || []);
@@ -723,18 +726,32 @@ export default function ThreadViewPage() {
                                     {/* name */}
                                     <Link
                                         href={`/wizard/${post.user_id}`}
-                                        className={`font-cinzel font-black text-sm text-center leading-tight hover:underline ${config?.textColor || 'text-white/70'}`}
+                                        className="font-cinzel font-black text-sm text-center leading-tight hover:underline"
+                                        style={{ color: getRoleColor(post.profiles?.role, post.profiles?.house, roleColors) }}
                                     >
                                         {post.profiles?.full_name || "קוסם אנונימי"}
                                     </Link>
 
-                                    {/* role + gender */}
-                                    <div className="flex items-center gap-1 text-[9px] text-white/30 font-bold uppercase tracking-wide">
-                                        {post.profiles?.role || 'חבר'}
-                                        {post.profiles?.gender === 'male'
-                                            ? <Mars size={9} className="text-blue-400" />
-                                            : <Venus size={9} className="text-pink-400" />}
-                                    </div>
+                                    {/* group/role badge + gender */}
+                                    {(() => {
+                                        const pGrp = (post.profiles as any)?.user_groups as { name: string; color: string } | null;
+                                        const badgeLabel = pGrp?.name || post.profiles?.role || "חבר";
+                                        const badgeColor = pGrp?.color || getRoleColor(post.profiles?.role, post.profiles?.house, roleColors);
+                                        return (
+                                            <div className="flex items-center gap-1">
+                                                <span style={{
+                                                    fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                                    textTransform: "uppercase", letterSpacing: "0.1em",
+                                                    color: badgeColor, background: `${badgeColor}18`,
+                                                    border: `1px solid ${badgeColor}40`,
+                                                    padding: "1px 8px", borderRadius: "999px",
+                                                }}>{badgeLabel}</span>
+                                                {post.profiles?.gender === 'male'
+                                                    ? <Mars size={9} className="text-blue-400" />
+                                                    : <Venus size={9} className="text-pink-400" />}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* house badge */}
                                     {config && (
@@ -849,8 +866,8 @@ export default function ThreadViewPage() {
                                 <Avatar house={userProfile.house} avatarUrl={userProfile.avatar_url} className="w-6 h-6 text-xs mr-auto" />
                             )}
                         </div>
-                        <div className="p-6">
-                            <div className="reply-editor mb-4">
+                        <div className="p-6 flex flex-col">
+                            <div className="reply-editor mb-4" style={{ maxHeight: 300, overflowY: "auto" }}>
                                 <ReactQuill
                                     ref={quillRef}
                                     theme="snow"
@@ -864,7 +881,7 @@ export default function ThreadViewPage() {
                                     <CooldownBar remaining={cooldownRemaining} total={COOLDOWN_MS} />
                                 </div>
                             )}
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between sticky bottom-0 bg-black/60 backdrop-blur-sm py-3 -mx-6 px-6 mt-1 border-t border-white/[0.04]">
                                 <span className="text-[10px] text-white/20">
                                     {replyContent.replace(/<[^>]+>/g, '').length} תווים
                                 </span>

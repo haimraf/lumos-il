@@ -15,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import MagicTraitsCard from "../../components/MagicTraitsCard";
 import PatronusQuiz from "@/components/PatronusQuiz";
 import { getYearFromProfile, getYearTitle, getYearLabel, getProgressPercentFromProfile, getNextYearRequirements } from "@/lib/yearSystem";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const PATRONUS_ANIMALS: Record<string, { emoji: string; nameHe: string }> = {
     stag:      { emoji: "🦌", nameHe: "צבי" },
@@ -172,6 +173,14 @@ function DashboardContent() {
   const [isUpdating, setIsUpdating] = useState(false);
   const hasAnnounced = useRef(false);
   const prevYearRef = useRef<number | null>(null);
+  const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+  const [myGroup, setMyGroup] = useState<{ name: string; color: string } | null>(null);
+  useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
+  useEffect(() => {
+    if (!profile?.group_id) { setMyGroup(null); return; }
+    supabase.from('user_groups').select('name, color').eq('id', profile.group_id).single()
+      .then(({ data }) => setMyGroup(data || null));
+  }, [profile?.group_id, supabase]);
 
   const formatNotificationContent = (content: string, type: string) => {
     if (type === 'quote') return content.replace('ציטוט שלך בדיון', 'בתגובה מצוטטת לדיון');
@@ -356,7 +365,10 @@ function DashboardContent() {
                   </div>
                 </div>
                 <div>
-                  <h3 className={`font-cinzel text-xl md:text-2xl font-black tracking-tight ${theme.accentText} mb-1`}>{profile?.full_name}</h3>
+                  <h3 className="font-cinzel text-xl md:text-2xl font-black tracking-tight mb-1"
+                    style={{ color: myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors) }}>
+                    {profile?.full_name}
+                  </h3>
                   <span className="text-xs text-white/30 font-cinzel tracking-widest block">{getYearTitle(getYearFromProfile(profile))} · שנה {getYearLabel(getYearFromProfile(profile))} · {profile?.gender === 'female' ? 'מכשפה' : 'קוסם'}</span>
                 </div>
               </div>
@@ -386,6 +398,21 @@ function DashboardContent() {
               </nav>
 
               <div className="relative z-10 pt-6 mt-6 border-t border-white/10 space-y-4">
+                {(myGroup || profile?.role) && (() => {
+                  const badgeColor = myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors);
+                  const badgeLabel = myGroup?.name || profile?.role;
+                  return (
+                    <div className="flex items-center justify-between">
+                      <span style={{
+                        fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                        textTransform: "uppercase", letterSpacing: "0.12em",
+                        padding: "2px 10px", borderRadius: "999px",
+                        color: badgeColor, background: `${badgeColor}18`, border: `1px solid ${badgeColor}40`,
+                      }}>{badgeLabel}</span>
+                      <span className="text-[10px] text-white/30 font-cinzel">{getYearTitle(getYearFromProfile(profile))}</span>
+                    </div>
+                  );
+                })()}
                 <StatItem icon={Coins} label="גליאונים" value={profile?.galleons || 0} theme={theme} highlight="text-amber-500" />
                 <StatItem icon={Trophy} label="נקודות בית" value={profile?.points_contributed || 0} theme={theme} />
                 {profile?.wand_type && (
@@ -513,6 +540,34 @@ function DashboardContent() {
                   <ActionCard href="/forums" icon={Users} title="האולם הגדול" desc="שיחות וקהילה" theme={theme} />
                   <ActionCard href="/library" icon={ScrollText} title="הספרייה" desc="לור וסיפורים" theme={theme} />
                 </div>
+
+                {/* 👑 הדרגה שלי */}
+                {(myGroup || profile?.role) && (() => {
+                  const badgeColor = myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors);
+                  const badgeName = myGroup?.name || profile?.role || "";
+                  const currentYear = getYearFromProfile(profile);
+                  return (
+                    <div className="glass-panel p-6 rounded-2xl border border-white/[0.06] flex items-center gap-5">
+                      <div className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                        style={{ background: `${badgeColor}15`, border: `1px solid ${badgeColor}30` }}>
+                        👑
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] text-white/30 font-cinzel uppercase tracking-widest mb-1">הדרגה שלי</div>
+                        <span style={{
+                          fontSize: "11px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                          textTransform: "uppercase", letterSpacing: "0.12em",
+                          padding: "2px 12px", borderRadius: "999px",
+                          color: badgeColor, background: `${badgeColor}18`, border: `1px solid ${badgeColor}40`,
+                        }}>{badgeName}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="font-cinzel font-black text-sm" style={{ color: badgeColor }}>שנה {getYearLabel(currentYear)}</div>
+                        <div className="text-[10px] text-white/30 font-cinzel">{getYearTitle(currentYear)}</div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* ✨ תכונות קסומות מולדות */}
                 <MagicTraitsCard profile={profile} theme={theme} />

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import {
   ScrollText, ArrowRight, X, MessageSquare,
   BarChart3, Flag, AlertTriangle, EyeOff, Eye,
@@ -56,8 +57,10 @@ function NewsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [roleColors, setRoleColors] = useState<Record<string, string>>({});
   const initialCheckDone = useRef(false);
   const searchParams = useSearchParams();
+  useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { window.scrollTo(0, 0); }, []);
@@ -111,7 +114,7 @@ function NewsContent() {
 
   /* ── Article Reader Portal ── */
   const articlePortal = mounted && selectedNews
-    ? createPortal(<ArticleReader article={selectedNews} onClose={() => setSelectedNews(null)} />, document.body)
+    ? createPortal(<ArticleReader article={selectedNews} roleColors={roleColors} onClose={() => setSelectedNews(null)} />, document.body)
     : null;
 
   return (
@@ -320,7 +323,7 @@ function NewsContent() {
 /* ═══════════════════════════════════════════════════
    ARTICLE READER
 ═══════════════════════════════════════════════════ */
-function ArticleReader({ article, onClose }: { article: NewsItem; onClose: () => void }) {
+function ArticleReader({ article, roleColors, onClose }: { article: NewsItem; roleColors: Record<string, string>; onClose: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
 
@@ -421,7 +424,7 @@ function ArticleReader({ article, onClose }: { article: NewsItem; onClose: () =>
 
             {/* comments */}
             <div className="mt-10 pt-8 border-t-2 border-[#1e0e04]/10">
-              <CommentsSection newsId={article.id} />
+              <CommentsSection newsId={article.id} roleColors={roleColors} />
             </div>
           </div>
         </div>
@@ -548,7 +551,7 @@ const HOUSE_ACCENT: Record<string, { border: string; bg: string; text: string }>
 const MIN_COMMENT_LENGTH = 20;
 const COOLDOWN_MS = 30_000;
 
-function CommentsSection({ newsId }: { newsId: string }) {
+function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: Record<string, string> }) {
   const [supabase] = useState(() => createClient());
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -587,7 +590,7 @@ function CommentsSection({ newsId }: { newsId: string }) {
     }
     const { data } = await supabase
       .from("comments")
-      .select("*, profiles(id, full_name, house, role, avatar_url)")
+      .select("*, profiles(id, full_name, house, role, avatar_url, user_groups(name, color))")
       .eq("news_id", newsId)
       .order("created_at", { ascending: true });
     if (data) setComments(data);
@@ -804,30 +807,32 @@ function CommentsSection({ newsId }: { newsId: string }) {
                     </div>
                   </Link>
                   {/* Name as profile link */}
-                  <Link
-                    href={`/wizard/${c.user_id}`}
-                    className="font-cinzel font-black text-sm hover:underline transition-colors"
-                    style={{ color: houseStyle?.text || "#5d2a00" }}
-                  >
-                    {c.profiles?.full_name || "קוסם אנונימי"}
-                  </Link>
-                  {house && (
-                    <span
-                      className="text-[9px] font-bold px-2 py-0.5 rounded-full border"
-                      style={{
-                        color: houseStyle?.text,
-                        borderColor: `${houseStyle?.border}40`,
-                        background: houseStyle?.bg,
-                      }}
-                    >
-                      {house}
-                    </span>
-                  )}
-                  {c.profiles?.role && c.profiles.role !== "חבר" && (
-                    <span className="text-[9px] font-bold text-[#5d2a00]/50 uppercase tracking-wide">
-                      {c.profiles.role}
-                    </span>
-                  )}
+                  {(() => {
+                    const cGrp = (c.profiles as any)?.user_groups as { name: string; color: string } | null;
+                    const nameColor = getRoleColor(c.profiles?.role, c.profiles?.house, roleColors);
+                    const badgeLabel = cGrp?.name || c.profiles?.role || null;
+                    const badgeColor = cGrp?.color || nameColor;
+                    return (
+                      <>
+                        <Link
+                          href={`/wizard/${c.user_id}`}
+                          className="font-cinzel font-black text-sm hover:underline transition-colors"
+                          style={{ color: nameColor }}
+                        >
+                          {c.profiles?.full_name || "קוסם אנונימי"}
+                        </Link>
+                        {badgeLabel && (
+                          <span style={{
+                            fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                            textTransform: "uppercase", letterSpacing: "0.1em",
+                            color: badgeColor, background: `${badgeColor}18`,
+                            border: `1px solid ${badgeColor}40`,
+                            padding: "1px 8px", borderRadius: "999px",
+                          }}>{badgeLabel}</span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">

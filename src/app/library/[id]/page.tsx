@@ -12,6 +12,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOwlMail } from "@/components/OwlMail";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 export default function StoryViewPage() {
     const { id } = useParams();
@@ -24,6 +25,8 @@ export default function StoryViewPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     useEffect(() => {
         setMounted(true);
@@ -193,7 +196,7 @@ export default function StoryViewPage() {
 
                         <div className="flex items-center gap-5 justify-end bg-white/[0.02] p-5 rounded-[2rem] border border-white/5 self-end">
                             <div className="text-right">
-                                <p className="text-white font-bold font-cinzel text-lg leading-none mb-1">{story?.profiles?.full_name}</p>
+                                <p className="font-bold font-cinzel text-lg leading-none mb-1" style={{ color: getRoleColor(story?.profiles?.role, story?.profiles?.house, roleColors) }}>{story?.profiles?.full_name}</p>
                                 <p className="text-[10px] text-amber-500/60 uppercase font-black tracking-widest">{story?.house_theme}</p>
                             </div>
                             <div className="w-14 h-14 rounded-2xl border-2 border-amber-500/20 overflow-hidden bg-[#0d0d0f] shadow-2xl rotate-3">

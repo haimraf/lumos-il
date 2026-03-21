@@ -9,6 +9,7 @@ import {
     ChevronLeft, Pin, Lock, MessageSquare, Clock, Plus, X, Home, Sparkles, Tag
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
     ssr: false,
@@ -38,6 +39,7 @@ interface Thread {
     profiles: {
         full_name: string | null;
         house: string | null;
+        role: string | null;
         is_online: boolean | null;
         avatar_url: string | null;
     };
@@ -75,18 +77,21 @@ function timeAgo(dateString: string) {
 function ThreadRow({
     thread,
     canModerate,
+    roleColors = {},
     onPin,
     onLock,
     onDelete,
 }: {
     thread: Thread;
     canModerate?: boolean;
+    roleColors?: Record<string, string>;
     onPin?: (t: Thread) => void;
     onLock?: (t: Thread) => void;
     onDelete?: (t: Thread) => void;
 }) {
     const router = useRouter();
     const houseConf = thread.profiles?.house ? HOUSE_CONFIG[thread.profiles.house] : null;
+    const nameColor = getRoleColor(thread.profiles?.role, thread.profiles?.house, roleColors);
     const prefixConf = thread.prefix ? PREFIX_CONFIG[thread.prefix] : null;
     const icon = thread.profiles?.house ? HOUSE_ICONS[thread.profiles.house] : null;
 
@@ -150,7 +155,7 @@ function ThreadRow({
                         {icon && <span>{icon}</span>}
                         <span
                             onClick={e => { e.preventDefault(); e.stopPropagation(); router.push(`/wizard/${thread.author_id}`); }}
-                            style={{ color: houseConf?.color || "rgba(255,255,255,0.35)", fontWeight: 700, cursor: "pointer" }}
+                            style={{ color: nameColor, fontWeight: 700, cursor: "pointer" }}
                             className="hover:underline"
                         >
                             {thread.profiles?.full_name || "קוסם אנונימי"}
@@ -173,7 +178,7 @@ function ThreadRow({
                 <span
                     onClick={() => router.push(`/wizard/${thread.author_id}`)}
                     className="lastpost-author hover:underline cursor-pointer"
-                    style={{ color: houseConf?.color || "rgba(255,255,255,0.4)" }}
+                    style={{ color: nameColor }}
                 >
                     {thread.profiles?.full_name || "קוסם אנונימי"}
                 </span>
@@ -245,6 +250,8 @@ export default function ForumThreadsPage() {
     const [newThreadPinned, setNewThreadPinned] = useState(false);
     const [newThreadLocked, setNewThreadLocked] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     const fetchThreads = useCallback(async () => {
         if (!slug) return;
@@ -266,7 +273,7 @@ export default function ForumThreadsPage() {
 
             let { data: threadsData, error: threadsError } = await supabase
                 .from('threads')
-                .select('*, profiles(full_name, house, is_online, avatar_url), forum_posts(count)')
+                .select('*, profiles(full_name, house, role, is_online, avatar_url), forum_posts(count)')
                 .eq('forum_id', forumData.id)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
@@ -275,7 +282,7 @@ export default function ForumThreadsPage() {
             if (threadsError) {
                 const fallback = await supabase
                     .from('threads')
-                    .select('*, profiles(full_name, house, is_online, avatar_url), forum_posts(count)')
+                    .select('*, profiles(full_name, house, role, is_online, avatar_url), forum_posts(count)')
                     .eq('forum_id', forumData.id)
                     .order('created_at', { ascending: false });
                 threadsData = fallback.data;
@@ -592,6 +599,7 @@ export default function ForumThreadsPage() {
                                     key={t.id}
                                     thread={t}
                                     canModerate={canModerate}
+                                    roleColors={roleColors}
                                     onPin={handlePinThread}
                                     onLock={handleLockThread}
                                     onDelete={handleDeleteThread}

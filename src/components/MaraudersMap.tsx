@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Footprints, ChevronLeft, Compass } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { getRoleColorFromDB } from "@/lib/roleColor";
 
 const HOUSE_COLORS: Record<string, string> = {
     Gryffindor: "#dc2626",
@@ -18,21 +19,43 @@ export default function MaraudersRadar() {
     const [supabase] = useState(() => createClient());
     const { profile } = useAuth();
     const [onlineCount, setOnlineCount] = useState(0);
-    const [recentUsers, setRecentUsers] = useState<{ user_name: string; house: string }[]>([]);
+    const [recentUsers, setRecentUsers] = useState<{ user_name: string; house: string; group_name: string | null; group_color: string | null }[]>([]);
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     useEffect(() => {
         const fetchOnlineData = async () => {
             const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString(); // 2 minutes
             const { data, error } = await supabase
                 .from("online_users")
-                .select("user_name, house")
+                .select("user_name, house, user_id")
                 .gte("last_seen", cutoff)
                 .order("last_seen", { ascending: false })
                 .limit(5);
 
             if (!error && data) {
                 setOnlineCount(data.length);
-                setRecentUsers(data);
+                // Enrich with group info via JOIN
+                const userIds = data.map((u: any) => u.user_id).filter(Boolean);
+                let groupMap: Record<string, { group_name: string | null; group_color: string | null }> = {};
+                if (userIds.length) {
+                    const { data: profiles } = await supabase
+                        .from("profiles")
+                        .select("id, user_groups(name, color)")
+                        .in("id", userIds);
+                    if (profiles) {
+                        profiles.forEach((p: any) => {
+                            const g = p.user_groups as { name: string; color: string } | null;
+                            groupMap[p.id] = { group_name: g?.name || null, group_color: g?.color || null };
+                        });
+                    }
+                }
+                setRecentUsers(data.map((u: any) => ({
+                    user_name: u.user_name,
+                    house: u.house,
+                    group_name: groupMap[u.user_id]?.group_name || null,
+                    group_color: groupMap[u.user_id]?.group_color || null,
+                })));
             }
         };
 
@@ -271,14 +294,19 @@ export default function MaraudersRadar() {
                             <div className="radar-stat-label" style={{ marginBottom: "6px" }}>נצפו לאחרונה</div>
                             {recentUsers.map((u, i) => {
                                 const color = HOUSE_COLORS[u.house] ?? HOUSE_COLORS.Guest;
+                                const badgeColor = u.group_color || color;
+                                const badgeLabel = u.group_name || u.house || "Guest";
                                 return (
                                     <div key={i} className="radar-user-row">
                                         <div
                                             className="radar-dot"
-                                            style={{ background: color, "--rc": color } as React.CSSProperties}
+                                            style={{ background: badgeColor, "--rc": badgeColor } as React.CSSProperties}
                                         />
                                         <span style={{ flex: 1 }}>{u.user_name || "אורח מסתורי"}</span>
-                                        <span style={{ fontSize: "0.72rem", color: "#7a5a18", fontStyle: "italic" }}>{u.house || "Guest"}</span>
+                                        <span style={{
+                                            fontSize: "0.65rem", fontStyle: "italic",
+                                            color: badgeColor, fontFamily: "'Cinzel', serif",
+                                        }}>{badgeLabel}</span>
                                     </div>
                                 );
                             })}

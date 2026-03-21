@@ -7,6 +7,7 @@ import {
     MessagesSquare, Lock, ChevronLeft, MessageSquare, Home, Hash, Clock, Sparkles, Users, Trophy, Flame, Skull, Bird, Leaf
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 interface Forum {
     id: string;
@@ -23,6 +24,7 @@ interface Forum {
         created_at: string;
         author_name: string;
         author_house: string | null;
+        author_role: string | null;
         author_id: string | null;
     } | null;
 }
@@ -71,7 +73,9 @@ export default function ForumsPage() {
     const [onlineCount, setOnlineCount] = useState<number>(0);
     const [groups, setGroups] = useState<UserGroup[]>([]);
     const [housePoints, setHousePoints] = useState<Record<string, number>>({ Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 });
+    const [roleColors, setRoleColors] = useState<Record<string, string>>({});
     const { sendOwl } = useOwlMail();
+    useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     // Client-side polling for online users + groups + house points
     const fetchSidebarData = useCallback(async () => {
@@ -112,7 +116,7 @@ export default function ForumsPage() {
 
             const { data: forumsData } = await supabase
                 .from('forums')
-                .select(`*, threads(id, title, created_at, forum_posts(id), profiles(full_name, username, house))`)
+                .select(`*, threads(id, title, created_at, forum_posts(id), profiles(full_name, username, house, role))`)
                 .order('created_at', { ascending: true });
 
             if (forumsData) {
@@ -131,6 +135,7 @@ export default function ForumsPage() {
                             created_at: latest.created_at,
                             author_name: latest.profiles?.full_name || latest.profiles?.username || "קוסם אנונימי",
                             author_house: latest.profiles?.house || "Unknown",
+                            author_role: latest.profiles?.role || null,
                             author_id: latest.profiles?.id || null
                         } : null
                     };
@@ -294,6 +299,7 @@ export default function ForumsPage() {
                             userYear={userYear}
                             userRole={userRole}
                             userHouse={userHouse}
+                            roleColors={roleColors}
                         />
 
                         {/* house forums */}
@@ -304,6 +310,7 @@ export default function ForumsPage() {
                             userYear={userYear}
                             userRole={userRole}
                             userHouse={userHouse}
+                            roleColors={roleColors}
                         />
                     </div>
 
@@ -408,9 +415,10 @@ export default function ForumsPage() {
     );
 }
 
-function ForumSection({ title, accentColor, forums, userYear, userRole, userHouse }: {
+function ForumSection({ title, accentColor, forums, userYear, userRole, userHouse, roleColors }: {
     title: string; accentColor: string;
     forums: Forum[]; userYear: number; userRole: string | null; userHouse: string | null;
+    roleColors: Record<string, string>;
 }) {
     if (!forums.length) return null;
     return (
@@ -439,18 +447,19 @@ function ForumSection({ title, accentColor, forums, userYear, userRole, userHous
                     userYear={userYear}
                     userRole={userRole}
                     userHouse={userHouse}
+                    roleColors={roleColors}
                 />
             ))}
         </div>
     );
 }
 
-function ForumRow({ forum, userYear, userRole, userHouse }: any) {
+function ForumRow({ forum, userYear, userRole, userHouse, roleColors }: any) {
     const isLocked = !!(forum.house_restriction && forum.house_restriction !== userHouse && userRole !== 'מנהל') ||
         !!(forum.min_year && userYear < forum.min_year && userRole !== 'מנהל');
 
     const theme = forum.house_restriction ? HOUSE_THEMES[forum.house_restriction] : null;
-    const lastPosterTheme = forum.last_thread?.author_house ? HOUSE_THEMES[forum.last_thread.author_house] : HOUSE_THEMES["Unknown"];
+    const lastPosterColor = getRoleColor(forum.last_thread?.author_role, forum.last_thread?.author_house, roleColors);
 
     const iconStyle = theme
         ? { background: theme.bg, borderColor: theme.border }
@@ -506,13 +515,13 @@ function ForumRow({ forum, userYear, userRole, userHouse }: any) {
                                 <Link
                                     href={`/wizard/${forum.last_thread.author_id}`}
                                     onClick={e => e.stopPropagation()}
-                                    style={{ color: lastPosterTheme.color, fontWeight: 700, fontSize: "10px" }}
+                                    style={{ color: lastPosterColor, fontWeight: 700, fontSize: "10px" }}
                                     className="hover:underline"
                                 >
                                     {forum.last_thread.author_name}
                                 </Link>
                             ) : (
-                                <span style={{ color: lastPosterTheme.color, fontWeight: 700, fontSize: "10px" }}>
+                                <span style={{ color: lastPosterColor, fontWeight: 700, fontSize: "10px" }}>
                                     {forum.last_thread.author_name}
                                 </span>
                             )}
