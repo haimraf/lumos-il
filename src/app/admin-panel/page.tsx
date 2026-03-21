@@ -9,7 +9,7 @@ import {
     X, AlertCircle, Clock, Zap, RotateCcw, Crown, Users, Coins,
     TrendingUp, Activity, Eye, Bell, GraduationCap, Pencil, Save,
     UserCog, Shield, ChevronDown as ChevronDownIcon,
-    Store, BookOpenCheck, MessageSquare, Lock, Pin, Plus, Hash
+    Store, BookOpenCheck, MessageSquare, Lock, Pin, Plus, Hash, Swords, Ban
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor } from "@/lib/roleColor";
@@ -30,7 +30,7 @@ const HOUSE_CONFIG: Record<string, { color: string; accent: string; icon: string
     Hufflepuff: { color: "text-amber-400", accent: "rgba(251,191,36,0.15)", icon: "🦡" },
 };
 
-type AdminTab = "house-cup" | "prophet" | "moderation" | "year-system" | "users" | "forums" | "shop" | "exams";
+type AdminTab = "house-cup" | "prophet" | "moderation" | "year-system" | "users" | "forums" | "shop" | "exams" | "arena";
 
 const TAB_CONFIG: { id: AdminTab; label: string; icon: any; color: string }[] = [
     { id: "house-cup",    label: "גביע הבית",   icon: Trophy,        color: "text-amber-400"  },
@@ -41,6 +41,7 @@ const TAB_CONFIG: { id: AdminTab; label: string; icon: any; color: string }[] = 
     { id: "forums",       label: "פורומים",     icon: MessageSquare, color: "text-orange-400" },
     { id: "shop",         label: "חנות",        icon: Store,         color: "text-emerald-400"},
     { id: "exams",        label: "בחינות",      icon: BookOpenCheck, color: "text-violet-400" },
+    { id: "arena",        label: "זירת קרבות",  icon: Swords,        color: "text-orange-400" },
 ];
 
 export default function AdminPanel() {
@@ -120,6 +121,16 @@ export default function AdminPanel() {
     const [isAddingQuestion, setIsAddingQuestion] = useState(false);
     const [isSavingQuestion, setIsSavingQuestion] = useState(false);
 
+    // Arena management
+    const [arenaStats, setArenaStats] = useState<any>(null);
+    const [arenaRecentDuels, setArenaRecentDuels] = useState<any[]>([]);
+    const [arenaSuspects, setArenaSuspects] = useState<any[]>([]);
+    const [arenaLoaded, setArenaLoaded] = useState(false);
+    const [badgeGrantUserId, setBadgeGrantUserId] = useState("");
+    const [badgeGrantSearch, setBadgeGrantSearch] = useState("");
+    const [badgeGrantResults, setBadgeGrantResults] = useState<any[]>([]);
+    const [badgeGrantLoading, setBadgeGrantLoading] = useState<string | null>(null);
+
     /* ── Fetch ── */
     const fetchData = useCallback(async () => {
         const [{ data: reportData }, { data: newsData }, { data: profilesData },
@@ -156,6 +167,11 @@ export default function AdminPanel() {
             .order('created_at', { ascending: false });
         setThreads(data || []);
     }, [supabase]);
+
+    useEffect(() => {
+        if (activeTab === "arena" && !arenaLoaded) fetchArenaData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab]);
 
     useEffect(() => {
         if (!authLoading) {
@@ -390,6 +406,117 @@ export default function AdminPanel() {
         const { error } = await supabase.from('exam_questions').delete().eq('id', id);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else { sendOwl("נמחק", "", "success"); setExamQuestions(prev => prev.filter(q => q.id !== id)); }
+    };
+
+    /* ── Arena ── */
+    const fetchArenaData = async () => {
+        const [{ data: statsData }, { data: recData }, { data: suspData }] = await Promise.all([
+            supabase.from("duels").select("id, status, winner_id"),
+            supabase.from("duels")
+                .select(`id, status, winner_id, created_at, finished_at,
+                    challenger:profiles!duels_challenger_id_fkey(id, full_name, house),
+                    opponent:profiles!duels_opponent_id_fkey(id, full_name, house),
+                    winner:profiles!duels_winner_id_fkey(id, full_name)`)
+                .eq("status", "finished")
+                .order("finished_at", { ascending: false })
+                .limit(20),
+            // Suspicious: winners with >5 wins in one day in last 7 days
+            supabase.from("duels")
+                .select(`winner_id, finished_at, winner:profiles!duels_winner_id_fkey(id, full_name, house)`)
+                .eq("status", "finished")
+                .not("winner_id", "is", null)
+                .gte("finished_at", new Date(Date.now() - 7 * 86400000).toISOString()),
+        ]);
+
+        if (statsData) {
+            setArenaStats({
+                total: statsData.length,
+                finished: statsData.filter((d: any) => d.status === "finished").length,
+                active: statsData.filter((d: any) => d.status === "active").length,
+                pending: statsData.filter((d: any) => d.status === "pending").length,
+                ties: statsData.filter((d: any) => d.status === "finished" && !d.winner_id).length,
+            });
+        }
+        setArenaRecentDuels(recData || []);
+
+        // Aggregate suspects client-side
+        if (suspData) {
+            const dayMap: Record<string, Record<string, { player: any; count: number }>> = {};
+            for (const d of suspData as any[]) {
+                const day = d.finished_at?.slice(0, 10);
+                if (!day || !d.winner_id) continue;
+                if (!dayMap[day]) dayMap[day] = {};
+                if (!dayMap[day][d.winner_id]) dayMap[day][d.winner_id] = { player: d.winner, count: 0 };
+                dayMap[day][d.winner_id].count++;
+            }
+            const suspects: any[] = [];
+            for (const [day, players] of Object.entries(dayMap)) {
+                for (const [uid, info] of Object.entries(players)) {
+                    if (info.count > 5) suspects.push({ ...info.player, daily_wins: info.count, day });
+                }
+            }
+            setArenaSuspects(suspects.sort((a, b) => b.daily_wins - a.daily_wins));
+        }
+        setArenaLoaded(true);
+    };
+
+    const handleCancelDuel = async (duelId: string) => {
+        if (!confirm("לבטל קרב זה?")) return;
+        const { error } = await supabase.from("duels").update({ status: "cancelled" }).eq("id", duelId);
+        if (error) { sendOwl("שגיאה", error.message, "error"); }
+        else { sendOwl("בוטל", "הקרב בוטל.", "success"); fetchArenaData(); }
+    };
+
+    const handleResetDuelBadge = async (userId: string, userName: string) => {
+        if (!confirm(`להסיר תואר מ-${userName}?`)) return;
+        setBadgeGrantLoading(userId);
+        const { error } = await supabase.from("profiles").update({ duel_badge: null }).eq("id", userId);
+        if (error) { sendOwl("שגיאה", `${error.message} — האם קיים עמודה duel_badge בטבלת profiles?`, "error"); }
+        else {
+            sendOwl("הוסר", `התואר הוסר מ-${userName}.`, "success");
+            // update local state immediately so button disappears
+            setBadgeGrantResults(prev => prev.map(u => u.id === userId ? { ...u, duel_badge: null } : u));
+            setArenaSuspects(prev => prev.map(u => u.id === userId ? { ...u, duel_badge: null } : u));
+        }
+        setBadgeGrantLoading(null);
+    };
+
+    const handleGrantDuelBadge = async (userId: string, userName: string) => {
+        setBadgeGrantLoading(userId);
+        const badge = "אלוף הזירה ⚔️";
+        const { error } = await supabase.from("profiles").update({ duel_badge: badge }).eq("id", userId);
+        if (error) { sendOwl("שגיאה", `${error.message} — האם קיימת עמודה duel_badge בטבלת profiles?`, "error"); }
+        else {
+            await supabase.from("notifications").insert({ user_id: userId, type: "achievement", content: '🏆 המנהל הענק לך את תואר "אלוף הזירה"!', is_read: false });
+            sendOwl("הוענק", `התואר הוענק ל-${userName}.`, "success");
+            setBadgeGrantResults(prev => prev.map(u => u.id === userId ? { ...u, duel_badge: badge } : u));
+        }
+        setBadgeGrantLoading(null);
+    };
+
+    const searchBadgeGrantUsers = async (q: string) => {
+        setBadgeGrantSearch(q);
+        if (!q.trim()) { setBadgeGrantResults([]); return; }
+        // Don't select duel_badge here — column may not exist yet; we'll add it after grant
+        const { data, error } = await supabase
+            .from("profiles")
+            .select("id, full_name, house, avatar_url")
+            .ilike("full_name", `%${q}%`)
+            .limit(8);
+        if (error) { sendOwl("שגיאה בחיפוש", error.message, "error"); return; }
+        // Try to also get duel_badge, ignore if column missing
+        const ids = (data || []).map((u: any) => u.id);
+        if (ids.length) {
+            const { data: withBadge } = await supabase
+                .from("profiles")
+                .select("id, duel_badge")
+                .in("id", ids);
+            const badgeMap: Record<string, string | null> = {};
+            (withBadge || []).forEach((u: any) => { badgeMap[u.id] = u.duel_badge; });
+            setBadgeGrantResults((data || []).map((u: any) => ({ ...u, duel_badge: badgeMap[u.id] ?? null })));
+        } else {
+            setBadgeGrantResults(data || []);
+        }
     };
 
     if (loading) return null;
@@ -1333,7 +1460,163 @@ export default function AdminPanel() {
                                 </>
                             );
                         })()}
-                    </div>
+
+                        {/* ── TAB 9: זירת קרבות ── */}
+                        {activeTab === "arena" && (
+                            <div className="space-y-6">
+                                {/* Stats */}
+                                <section className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                    {[
+                                        { label: "סה\"כ קרבות", value: arenaStats?.total ?? "—", color: "text-white/60" },
+                                        { label: "הסתיימו", value: arenaStats?.finished ?? "—", color: "text-green-400" },
+                                        { label: "פעילים", value: arenaStats?.active ?? "—", color: "text-orange-400" },
+                                        { label: "ממתינים", value: arenaStats?.pending ?? "—", color: "text-yellow-400" },
+                                        { label: "תיקו", value: arenaStats?.ties ?? "—", color: "text-blue-400" },
+                                    ].map(s => (
+                                        <div key={s.label} className="admin-card rounded-2xl p-4 text-center space-y-1">
+                                            <div className={`font-cinzel font-black text-2xl ${s.color}`}>{s.value}</div>
+                                            <div className="font-cinzel text-[9px] text-white/25 uppercase tracking-widest">{s.label}</div>
+                                        </div>
+                                    ))}
+                                </section>
+
+                                {/* Recent duels */}
+                                <section className="admin-card rounded-2xl p-5 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-cinzel text-xs font-black text-orange-400 flex items-center gap-2 uppercase tracking-widest">
+                                            <Swords size={13} /> קרבות אחרונים
+                                        </h3>
+                                        <button onClick={fetchArenaData}
+                                            className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-all">
+                                            <RotateCcw size={12} className="text-white/30" />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                                        {arenaRecentDuels.map((d: any) => {
+                                            const ch = d.challenger;
+                                            const op = d.opponent;
+                                            const win = d.winner;
+                                            const tie = !d.winner_id;
+                                            const HOUSE_COLORS: Record<string, string> = { Gryffindor: "#dc2626", Slytherin: "#16a34a", Ravenclaw: "#2563eb", Hufflepuff: "#d97706" };
+                                            return (
+                                                <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                                                    <div className="flex-1 min-w-0 flex items-center gap-2 text-xs">
+                                                        <span className="font-cinzel text-white/70 truncate max-w-[80px]"
+                                                            style={{ color: HOUSE_COLORS[ch?.house] || "white" }}>
+                                                            {ch?.full_name || "—"}
+                                                        </span>
+                                                        <span className="text-white/20 shrink-0">VS</span>
+                                                        <span className="font-cinzel text-white/70 truncate max-w-[80px]"
+                                                            style={{ color: HOUSE_COLORS[op?.house] || "white" }}>
+                                                            {op?.full_name || "—"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="shrink-0 text-xs">
+                                                        {tie
+                                                            ? <span className="text-blue-400 font-cinzel">🤝 תיקו</span>
+                                                            : <span className="text-green-400 font-cinzel">🏆 {win?.full_name}</span>
+                                                        }
+                                                    </div>
+                                                    <div className="shrink-0 text-[10px] text-white/20 font-cinzel">
+                                                        {d.finished_at ? new Date(d.finished_at).toLocaleDateString("he-IL") : "—"}
+                                                    </div>
+                                                    <button onClick={() => handleCancelDuel(d.id)}
+                                                        className="shrink-0 flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500 hover:text-white transition-all text-[10px] font-cinzel">
+                                                        <Ban size={10} /> בטל
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                        {arenaRecentDuels.length === 0 && (
+                                            <p className="text-center text-white/20 font-cinzel text-xs py-6">אין קרבות עדיין</p>
+                                        )}
+                                    </div>
+                                </section>
+
+                                {/* Suspicious players */}
+                                <section className="admin-card rounded-2xl p-5 space-y-3">
+                                    <h3 className="font-cinzel text-xs font-black text-red-400 flex items-center gap-2 uppercase tracking-widest">
+                                        <AlertCircle size={13} /> שחקנים חשודים ({">"} 5 ניצחונות ביום אחד)
+                                    </h3>
+                                    {arenaSuspects.length === 0 ? (
+                                        <p className="text-center text-white/20 font-cinzel text-xs py-4">אין חשודים ב-7 ימים האחרונים</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {arenaSuspects.map((s: any, i: number) => (
+                                                <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/15">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-cinzel text-xs font-black text-white/80">{s.full_name}</p>
+                                                        <p className="text-[9px] text-white/30 mt-0.5">{s.house} · {s.day}</p>
+                                                    </div>
+                                                    <span className="font-cinzel text-sm font-black text-red-400">{s.daily_wins} ניצחונות</span>
+                                                    <button onClick={() => handleResetDuelBadge(s.id, s.full_name)}
+                                                        className="px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500 hover:text-white transition-all text-[10px] font-cinzel">
+                                                        איפוס תואר
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </section>
+
+                                {/* Grant / reset badge */}
+                                <section className="admin-card rounded-2xl p-5 space-y-4">
+                                    <h3 className="font-cinzel text-xs font-black text-amber-400 flex items-center gap-2 uppercase tracking-widest">
+                                        <Crown size={13} /> הענקת / איפוס תואר ידנית
+                                    </h3>
+                                    <input
+                                        value={badgeGrantSearch}
+                                        onChange={e => searchBadgeGrantUsers(e.target.value)}
+                                        placeholder="חיפוש משתמש לפי שם..."
+                                        className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-amber-500/30 rounded-xl p-3 text-sm outline-none transition-all"
+                                        dir="rtl"
+                                    />
+                                    {badgeGrantSearch.trim().length > 0 && badgeGrantResults.length === 0 && (
+                                        <p className="text-center text-white/20 font-cinzel text-xs py-3">לא נמצאו קוסמים</p>
+                                    )}
+                                    {badgeGrantResults.length > 0 && (
+                                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                            {badgeGrantResults.map((u: any) => {
+                                                const isLoading = badgeGrantLoading === u.id;
+                                                const HCFG: Record<string, string> = { Gryffindor: "#dc2626", Slytherin: "#16a34a", Ravenclaw: "#2563eb", Hufflepuff: "#d97706" };
+                                                const HEMOJI: Record<string, string> = { Gryffindor: "🦁", Slytherin: "🐍", Ravenclaw: "🦅", Hufflepuff: "🦡" };
+                                                return (
+                                                    <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05]">
+                                                        <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center text-lg shrink-0"
+                                                            style={{ background: `${HCFG[u.house] || "#f59e0b"}15` }}>
+                                                            {u.avatar_url
+                                                                ? <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover" />
+                                                                : HEMOJI[u.house] || "🧙"}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-cinzel text-xs font-black text-white/80 truncate">{u.full_name}</p>
+                                                            {u.duel_badge
+                                                                ? <span style={{ fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif", padding: "1px 6px", borderRadius: "999px", color: "#f97316", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.35)" }}>{u.duel_badge}</span>
+                                                                : <span className="text-[9px] text-white/20 font-cinzel">אין תואר</span>
+                                                            }
+                                                        </div>
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <button onClick={() => handleGrantDuelBadge(u.id, u.full_name)} disabled={isLoading}
+                                                                className="px-3 py-1.5 bg-amber-500/15 text-amber-400 border border-amber-500/25 rounded-xl hover:bg-amber-500 hover:text-black transition-all text-[10px] font-cinzel font-black disabled:opacity-40 flex items-center gap-1">
+                                                                {isLoading ? <RotateCcw size={10} className="animate-spin" /> : "⚔️"} הענק
+                                                            </button>
+                                                            {u.duel_badge && (
+                                                                <button onClick={() => handleResetDuelBadge(u.id, u.full_name)} disabled={isLoading}
+                                                                    className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500 hover:text-white transition-all text-[10px] font-cinzel disabled:opacity-40">
+                                                                    איפוס
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </section>
+                            </div>
+                        )}
+
+                    </div>{/* end lg:col-span-2 */}
 
                     {/* ── RIGHT SIDEBAR — Broadcast (קבועה בכל טאב) ── */}
                     <div className="space-y-6">

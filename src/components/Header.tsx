@@ -438,10 +438,13 @@ export default function Header() {
                 {pathname !== '/' && <MagicTicker />}
             </header>
 
-            <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 flex flex-col items-center justify-start overflow-y-auto overflow-x-hidden ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl" style={{ height: '100dvh' }}>
+            <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 overflow-hidden ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl">
                 <div className="font-cinzel text-white/[0.02] text-[18vw] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none font-black z-0">LUMOS</div>
 
-                <nav className="relative z-10 flex flex-col items-center gap-1 w-full px-10 pt-28 pb-32 min-h-max">
+                <nav className="relative z-10 flex flex-col items-center gap-1 w-full px-10 pt-28 pb-32 h-full overflow-y-auto">
+                    <button onClick={() => setIsOpen(false)} className="absolute top-6 right-6 p-2 text-white/40 hover:text-white transition-colors">
+                        <X size={28} />
+                    </button>
                     {currentCTA && !isGuest && (
                         <Link href={currentCTA.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full justify-center py-4 px-8 mb-4 rounded-2xl bg-amber-500 text-amber-950 font-cinzel font-black text-lg uppercase tracking-widest shadow-[0_0_30px_rgba(245,158,11,0.3)]">
                             <PlusCircle size={22} /> {currentCTA.label}

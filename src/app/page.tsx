@@ -8,7 +8,7 @@ import {
   Sparkles, Mail, Trophy, Users, Star, ArrowRight, X, Lock,
   ScrollText, Wand2, Volume2, VolumeX, KeyRound, ChevronDown,
   MessageSquare, BookOpen, ShoppingBag, HelpCircle, GraduationCap,
-  Map, Zap, Bell
+  Map, Zap, Bell, Swords
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
@@ -447,6 +447,15 @@ export default function Home() {
                 href: "/faq",
                 color: "text-rose-400",
                 glow: "rgba(244,63,94,0.08)",
+                badge: "חדש",
+              },
+              {
+                icon: Swords,
+                title: "זירת הקרבות",
+                desc: "אתגרו קוסמים אחרים לדו-קרב לחשים — הטובים ביותר עולים לטבלת האלופים",
+                href: "/arena",
+                color: "text-orange-400",
+                glow: "rgba(251,146,60,0.08)",
                 badge: "חדש",
               },
             ].map(({ icon: Icon, title, desc, href, color, glow, badge }) => (

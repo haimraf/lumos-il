@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
     Sparkles, Shield, Feather, Map,
     ScrollText, Zap, ArrowUp, Users, Library, BookOpen,
-    MessageSquare, Castle, Wand2, HelpCircle
+    MessageSquare, Castle, Wand2, HelpCircle, Swords
 } from "lucide-react";
 
 export default function Footer() {
@@ -72,6 +72,7 @@ export default function Footer() {
 
                             <FooterLink href="/ollivanders" icon={Wand2} label="אוליבנדר" />
                             <FooterLink href="/faq" icon={HelpCircle} label="שאלות נפוצות" />
+                            <FooterLink href="/arena" icon={Swords} label="זירת הקרבות" />
                         </nav>
                     </div>
 

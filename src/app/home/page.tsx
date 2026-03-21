@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
     BookOpen, ScrollText, Users, Store, Wand2,
     Trophy, Map, Shield, Footprints, Hourglass, MessageSquare,
-    HelpCircle, GraduationCap, Zap, ArrowRight, Bell
+    HelpCircle, GraduationCap, Zap, ArrowRight, Bell, Swords
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
@@ -214,6 +214,20 @@ export default function HomePage() {
             iconColor: "text-pink-400/70",
             hoverText: "group-hover:text-pink-400",
             badge: "חדש"
+        },
+        {
+            id: 'arena',
+            title: "זירת הקרבות",
+            desc: "אתגר קוסמים לדו-קרב לחשים ועלה לטבלת האלופים",
+            icon: Swords,
+            href: "/arena",
+            className: "col-span-1 lg:col-span-2",
+            customGradient: "from-red-950/40",
+            hoverBorder: "group-hover:border-red-500/50",
+            hoverShadow: "hover:shadow-[0_0_50px_rgba(220,38,38,0.35)]",
+            iconColor: "text-red-500/70",
+            hoverText: "group-hover:text-red-400",
+            badge: "חדש"
         }
     ];
 
@@ -299,6 +313,54 @@ export default function HomePage() {
                                     </p>
                                 </div>
                                 <ArrowRight size={14} className="shrink-0 rotate-180 text-amber-400/40 group-hover:text-amber-300 group-hover:-translate-x-1 transition-all" />
+                            </div>
+                        </div>
+                    </Link>
+                </motion.div>
+
+                {/* ── ARENA ANNOUNCEMENT ── */}
+                <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4, duration: 0.6 }}
+                    className="mb-8"
+                >
+                    <Link href="/arena" className="group block">
+                        <div className="relative overflow-hidden rounded-2xl p-4 md:p-5 transition-all duration-500"
+                            style={{
+                                background: "linear-gradient(135deg, rgba(127,29,29,0.25) 0%, rgba(10,5,5,0.4) 100%)",
+                                border: "1px solid rgba(220,38,38,0.25)",
+                                boxShadow: "0 0 40px rgba(220,38,38,0.05)",
+                            }}>
+                            <div className="absolute inset-0 pointer-events-none"
+                                style={{ background: "radial-gradient(ellipse at 75% 50%, rgba(220,38,38,0.08), transparent 65%)" }} />
+                            <div className="absolute top-0 left-0 w-full h-px"
+                                style={{ background: "linear-gradient(to right, transparent, rgba(220,38,38,0.4), transparent)" }} />
+                            <div className="relative flex items-center gap-4">
+                                <div className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all"
+                                    style={{
+                                        background: "rgba(220,38,38,0.12)",
+                                        border: "1px solid rgba(220,38,38,0.25)",
+                                        boxShadow: "0 0 16px rgba(220,38,38,0.15)",
+                                    }}>
+                                    <Swords size={20} className="text-red-400 group-hover:scale-110 transition-transform" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-cinzel text-[8px] uppercase tracking-[0.25em]"
+                                            style={{ background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.25)", color: "#f87171" }}>
+                                            <Zap size={7} className="fill-red-400" /> חדש בטירה
+                                        </span>
+                                        <span className="text-[9px] font-cinzel text-red-400/60 animate-pulse">● זירה פעילה</span>
+                                    </div>
+                                    <p className="font-cinzel font-black text-sm text-white/80 group-hover:text-red-300 transition-colors">
+                                        זירת הקרבות — דו-קרב לחשים בזמן אמת!
+                                    </p>
+                                    <p className="font-crimson text-white/35 text-sm mt-0.5">
+                                        אתגר קוסמים אחרים, צבר ניצחונות ועלה לטבלת האלופים
+                                    </p>
+                                </div>
+                                <ArrowRight size={14} className="shrink-0 rotate-180 text-red-400/40 group-hover:text-red-300 group-hover:-translate-x-1 transition-all" />
                             </div>
                         </div>
                     </Link>

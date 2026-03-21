@@ -25,13 +25,21 @@ export default function MagicTicker() {
     const [houses, setHouses] = useState<Record<string, number>>({
         Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0,
     });
-    const [latestNews, setLatestNews] = useState<{ id: string; title: string }[]>([]);
+    const [tickerItems, setTickerItems] = useState<{ id: string; title: string }[]>([]);
     const [tickerReady, setTickerReady] = useState(false);
 
     const fetchTickerData = useCallback(async () => {
-        const [{ data: profiles }, { data: news }] = await Promise.all([
+        const [{ data: profiles }, { data: news }, { data: recentDuels }] = await Promise.all([
             supabase.from("profiles").select("house, points_contributed"),
             supabase.from("news").select("id, title").order("created_at", { ascending: false }).limit(5),
+            supabase.from("duels")
+                .select(`winner_id, challenger_id, opponent_id,
+                    winner:profiles!duels_winner_id_fkey(full_name),
+                    challenger:profiles!duels_challenger_id_fkey(full_name),
+                    opponent:profiles!duels_opponent_id_fkey(full_name)`)
+                .eq("status", "finished")
+                .order("finished_at", { ascending: false })
+                .limit(3),
         ]);
 
         const points: Record<string, number> = { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 };
@@ -39,7 +47,20 @@ export default function MagicTicker() {
             if (p.house && points[p.house] !== undefined) points[p.house] += p.points_contributed || 0;
         });
         setHouses(points);
-        setLatestNews(news || []);
+
+        const items: { id: string; title: string }[] = (news || []).map((n: any) => ({ id: n.id, title: n.title }));
+
+        recentDuels?.forEach((d: any) => {
+            const winnerName  = (d.winner as any)?.full_name;
+            const loserName   = d.winner_id === d.challenger_id
+                ? (d.opponent as any)?.full_name
+                : (d.challenger as any)?.full_name;
+            if (winnerName && loserName) {
+                items.push({ id: `duel-${d.winner_id}`, title: `⚔️ ${winnerName} ניצח את ${loserName} בדו-קרב!` });
+            }
+        });
+
+        setTickerItems(items);
         setTickerReady(true);
     }, [supabase]);
 
@@ -53,7 +74,6 @@ export default function MagicTicker() {
     }, [supabase, fetchTickerData]);
 
     // Smooth CSS animation for scrolling ticker
-    const tickerContent = latestNews.map(n => n.title).join("   ✦   ");
 
     // Leading house
     const leadingHouse = HOUSE_ORDER.reduce((a, b) => houses[a] >= houses[b] ? a : b);
@@ -176,7 +196,7 @@ export default function MagicTicker() {
 
                     {/* Ticker track */}
                     <div className="flex-1 min-w-0 overflow-hidden relative" style={{ maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)" }}>
-                        {tickerReady && latestNews.length > 0 ? (
+                        {tickerReady && tickerItems.length > 0 ? (
                             <div
                                 className="whitespace-nowrap text-xs font-bold"
                                 style={{
@@ -186,10 +206,10 @@ export default function MagicTicker() {
                                 }}
                             >
                                 {/* Duplicate for seamless loop */}
-                                {[...latestNews, ...latestNews].map((n, i) => (
+                                {[...tickerItems, ...tickerItems].map((n, i) => (
                                     <span key={`${n.id}-${i}`}>
                                         <Link
-                                            href={n.id ? `/news?article=${n.id}` : "#"}
+                                            href={n.id.startsWith("duel-") ? "#" : `/news?article=${n.id}`}
                                             className="hover:text-amber-400 transition-colors cursor-pointer"
                                         >
                                             {n.title}

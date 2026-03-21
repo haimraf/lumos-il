@@ -8,9 +8,10 @@ import {
     ChevronRight, Wand2, Shield, Star,
     Calendar, MessageSquare, BookOpen, Package, Clock,
     Sparkles, ExternalLink, Mars, Venus, UserPlus, UserMinus,
-    Users, Camera, ImagePlus, Loader2, Move, Check
+    Users, Camera, ImagePlus, Loader2, Move, Check, Swords
 } from "lucide-react";
 import { getYearFromProfile, getYearTitle, getYearLabel } from "@/lib/yearSystem";
+import { getItemBoostBadges } from "@/lib/inventoryBoosts";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const ANIMALS_MAP: Record<string, { emoji: string; nameHe: string; nameEn: string }> = {
@@ -117,7 +118,8 @@ export default function WizardProfilePage() {
     const [posts, setPosts] = useState<any[]>([]);
     const [threads, setThreads] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<"posts" | "inventory" | "traits" | "friends">("posts");
+    const [activeTab, setActiveTab] = useState<"posts" | "inventory" | "traits" | "friends" | "duels">("posts");
+    const [duelsHistory, setDuelsHistory] = useState<any[]>([]);
 
     // Auth
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -140,6 +142,9 @@ export default function WizardProfilePage() {
     const bannerRef = useRef<HTMLDivElement>(null);
     const dragStartY = useRef(0);
     const dragStartPosY = useRef(50);
+
+    // Duel
+    const [duelLoading, setDuelLoading] = useState(false);
 
     // Friends
     const [isFriend, setIsFriend] = useState(false);
@@ -193,6 +198,17 @@ export default function WizardProfilePage() {
                     .in("id", threadIds);
                 if (th) setThreads(th);
             }
+
+            const { data: dh } = await supabase
+                .from("duels")
+                .select(`id, status, winner_id, created_at, finished_at,
+                    challenger:profiles!duels_challenger_id_fkey(id, full_name, house, avatar_url),
+                    opponent:profiles!duels_opponent_id_fkey(id, full_name, house, avatar_url)`)
+                .or(`challenger_id.eq.${id},opponent_id.eq.${id}`)
+                .eq("status", "finished")
+                .order("finished_at", { ascending: false })
+                .limit(10);
+            if (dh) setDuelsHistory(dh);
 
             setIsLoading(false);
         };
@@ -276,6 +292,32 @@ export default function WizardProfilePage() {
         setIsFriend(false);
         setFriends(prev => prev.filter(f => f.id !== currentUser.id));
         setFriendshipLoading(false);
+    };
+
+    const handleChallengeDuel = async () => {
+        if (!currentUser || !id) return;
+        setDuelLoading(true);
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        const { data: duel, error } = await supabase.from("duels").insert({
+            challenger_id: currentUser.id,
+            opponent_id: id,
+            status: "pending",
+            expires_at: expiresAt,
+        }).select("id").single();
+        if (!error && duel) {
+            const { data: challenger } = await supabase
+                .from("profiles").select("full_name").eq("id", currentUser.id).single();
+            await supabase.from("notifications").insert({
+                user_id: id,
+                actor_id: currentUser.id,
+                type: "duel_challenge",
+                target_url: `/duels/${duel.id}`,
+                content: `${challenger?.full_name || "קוסם"} מאתגר אותך לדו-קרב!`,
+                is_read: false,
+            });
+            window.location.href = `/duels/${duel.id}`;
+        }
+        setDuelLoading(false);
     };
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -615,8 +657,22 @@ export default function WizardProfilePage() {
 
                     {/* Right side: stats + friend button */}
                     <div className="flex flex-col items-end gap-3 pb-2 slide-up delay-2">
-                        {/* Friend button (other users only) */}
+                        {/* Action buttons (other users only) */}
                         {currentUser && !isOwnProfile && (
+                            <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleChallengeDuel}
+                                disabled={duelLoading}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all"
+                                style={{
+                                    background: "rgba(220,38,38,0.12)",
+                                    borderColor: "rgba(220,38,38,0.4)",
+                                    color: "#f87171",
+                                }}
+                            >
+                                {duelLoading ? <Loader2 size={13} className="animate-spin" /> : "⚔️"}
+                                {duelLoading ? "..." : "אתגר"}
+                            </button>
                             <button
                                 onClick={isFriend ? handleRemoveFriend : handleAddFriend}
                                 disabled={friendshipLoading}
@@ -639,6 +695,7 @@ export default function WizardProfilePage() {
                                 }
                                 {friendshipLoading ? "..." : isFriend ? "הסר חבר" : "הוסף חבר"}
                             </button>
+                            </div>
                         )}
 
                         {/* Stats bar — desktop */}
@@ -688,6 +745,18 @@ export default function WizardProfilePage() {
                         {house && (
                             <span className={`text-[10px] px-3 py-1 rounded-full border font-black uppercase tracking-widest ${house.badgeBg}`}>
                                 {house.emoji} {house.name}
+                            </span>
+                        )}
+                        {profile.duel_badge && (
+                            <span style={{
+                                fontSize: "10px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                letterSpacing: "0.1em", padding: "3px 12px", borderRadius: "999px",
+                                color: "#f97316",
+                                background: "rgba(249,115,22,0.12)",
+                                border: "1px solid rgba(249,115,22,0.4)",
+                                textShadow: "0 0 8px rgba(249,115,22,0.5)",
+                            }}>
+                                {profile.duel_badge}
                             </span>
                         )}
                         <span className="flex items-center gap-1 text-white/30 text-xs">
@@ -872,6 +941,7 @@ export default function WizardProfilePage() {
                                 { key: "inventory", label: "חפצים", icon: <Package size={13} />, count: allItems.length },
                                 { key: "traits", label: "תכונות", icon: <Shield size={13} />, count: null },
                                 { key: "friends", label: "חברים", icon: <Users size={13} />, count: friends.length },
+                                { key: "duels", label: "קרבות", icon: <Swords size={13} />, count: duelsHistory.length },
                             ].map(tab => (
                                 <button key={tab.key}
                                     onClick={() => setActiveTab(tab.key as any)}
@@ -957,6 +1027,11 @@ export default function WizardProfilePage() {
                                                 {item.rarity && (
                                                     <p className="text-[9px] text-white/25 mt-1 uppercase">{item.rarity}</p>
                                                 )}
+                                                {getItemBoostBadges(item).map((badge, bi) => (
+                                                    <span key={bi} className="inline-block mt-1.5 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-400/80 font-cinzel">
+                                                        {badge}
+                                                    </span>
+                                                ))}
                                             </div>
                                         ))}
                                     </div>
@@ -992,6 +1067,78 @@ export default function WizardProfilePage() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+
+                        {/* Duels tab */}
+                        {activeTab === "duels" && (
+                            <div>
+                                {duelsHistory.length === 0 ? (
+                                    <div className="py-16 text-center text-white/20 font-crimson italic text-lg">
+                                        הקוסם עוד לא השתתף בדו-קרבות
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {duelsHistory.map((duel: any) => {
+                                            const profileId = id;
+                                            const isChallenger = duel.challenger?.id === profileId;
+                                            const self = isChallenger ? duel.challenger : duel.opponent;
+                                            const enemy = isChallenger ? duel.opponent : duel.challenger;
+                                            const won = duel.winner_id === profileId;
+                                            const tied = !duel.winner_id;
+                                            const enemyHouse = enemy?.house ? HOUSE_CONFIG[enemy.house] : null;
+                                            return (
+                                                <Link key={duel.id} href={`/duels/${duel.id}`}
+                                                    className="flex items-center gap-4 rounded-xl p-4 transition-all"
+                                                    style={{
+                                                        background: tied
+                                                            ? "rgba(255,255,255,0.03)"
+                                                            : won
+                                                                ? "rgba(34,197,94,0.06)"
+                                                                : "rgba(239,68,68,0.06)",
+                                                        border: `1px solid ${tied ? "rgba(255,255,255,0.06)" : won ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)"}`,
+                                                    }}>
+                                                    {/* Result badge */}
+                                                    <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black"
+                                                        style={{
+                                                            background: tied
+                                                                ? "rgba(255,255,255,0.06)"
+                                                                : won
+                                                                    ? "rgba(34,197,94,0.15)"
+                                                                    : "rgba(239,68,68,0.12)",
+                                                        }}>
+                                                        {tied ? "🤝" : won ? "🏆" : "💀"}
+                                                    </div>
+                                                    {/* Enemy info */}
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                        <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/[0.08] flex items-center justify-center text-lg shrink-0"
+                                                            style={{ background: enemyHouse?.banner || "rgba(255,255,255,0.05)" }}>
+                                                            {enemy?.avatar_url
+                                                                ? <img src={enemy.avatar_url} alt={enemy.full_name} className="w-full h-full object-cover" />
+                                                                : enemyHouse?.emoji || "🧙"}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="font-cinzel text-xs font-black text-white/70 truncate">
+                                                                {tied ? "תיקו מול " : won ? "ניצחת את " : "הפסדת מול "}
+                                                                <span style={{ color: enemyHouse?.accent || "white" }}>{enemy?.full_name || "קוסם"}</span>
+                                                            </p>
+                                                            {enemyHouse && (
+                                                                <p className="text-[9px] mt-0.5" style={{ color: enemyHouse.accent }}>
+                                                                    {enemyHouse.emoji} {enemyHouse.name}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {/* Date */}
+                                                    <div className="shrink-0 flex items-center gap-1 text-[10px] text-white/20">
+                                                        <Clock size={9} />
+                                                        {timeAgo(duel.finished_at || duel.created_at)}
+                                                    </div>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
 

@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { OwlMailProvider } from "@/components/OwlMail";
 import MagicSpells from "@/components/MagicSpells";
+import DuelChallenge from "@/components/DuelChallenge";
 import CookieBanner from "@/components/CookieBanner";
 import MagicTicker from "@/components/MagicTicker";
 import HouseElfHelper from "@/components/HouseElfHelper";
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {/* מנועי רקע */}
               <BackgroundMusic />
               <MagicSpells />
+              <DuelChallenge />
 
               {/* Header */}
               <Header />
