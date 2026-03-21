@@ -281,8 +281,8 @@ export default function AdminPanel() {
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
             sendOwl("עודכן", `תפקיד המשתמש שונה ל-${role}.`, "success");
-            setAllProfiles(prev => prev.map(p => p.id === id ? { ...p, role } : p));
             setEditingRole(null);
+            fetchData();
         }
         setIsSavingRole(false);
     };
@@ -296,8 +296,8 @@ export default function AdminPanel() {
         else {
             const grp = userGroups.find(g => g.id === group_id);
             sendOwl("עודכן", `קבוצת המשתמש שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
-            setAllProfiles(prev => prev.map(p => p.id === id ? { ...p, group_id, user_groups: grp || null } : p));
             setEditingGroup(null);
+            fetchData();
         }
         setIsSavingGroup(false);
     };
@@ -822,29 +822,21 @@ export default function AdminPanel() {
 
                         {/* ── TAB 5: ניהול משתמשים ── */}
                         {activeTab === "users" && (() => {
-                            const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-                                "מנהל":   { label: "מנהל",   color: "text-amber-400",  bg: "bg-amber-500/15 border-amber-500/25" },
-                                "מנחה":   { label: "מנחה",   color: "text-teal-400",   bg: "bg-teal-500/15 border-teal-500/25"   },
-                                "משתמש":  { label: "משתמש",  color: "text-white/40",   bg: "bg-white/5 border-white/10"           },
-                            };
                             const filteredUsers = allProfiles
-                                .filter(p => userFilter === "all" || p.role === userFilter)
                                 .filter(p => !userSearch || p.full_name?.toLowerCase().includes(userSearch.toLowerCase()));
 
-                            const roleCounts = {
-                                מנהל: allProfiles.filter(p => p.role === "מנהל").length,
-                                מנחה: allProfiles.filter(p => p.role === "מנחה").length,
-                                משתמש: allProfiles.filter(p => !p.role || p.role === "משתמש").length,
-                            };
+                            const totalUsers = allProfiles.length;
+                            const withGroup = allProfiles.filter(p => p.group_id).length;
+                            const admins = allProfiles.filter(p => p.role === "מנהל").length;
 
                             return (
                                 <>
                                     {/* Stats row */}
                                     <section className="grid grid-cols-3 gap-3">
                                         {[
-                                            { label: "מנהלים", count: roleCounts.מנהל, color: "text-amber-400", icon: "👑" },
-                                            { label: "מנחים",  count: roleCounts.מנחה,  color: "text-teal-400",  icon: "🛡️" },
-                                            { label: "משתמשים", count: roleCounts.משתמש, color: "text-white/50", icon: "🧙" },
+                                            { label: "קוסמים",    count: totalUsers,  color: "text-white/60",  icon: "🧙" },
+                                            { label: "עם דרגה",   count: withGroup,   color: "text-indigo-400", icon: "👑" },
+                                            { label: "מנהלים",    count: admins,      color: "text-amber-400",  icon: "🛡️" },
                                         ].map(r => (
                                             <div key={r.label} className="admin-card rounded-2xl p-4 text-center space-y-1">
                                                 <div className="text-2xl">{r.icon}</div>
@@ -854,10 +846,10 @@ export default function AdminPanel() {
                                         ))}
                                     </section>
 
-                                    {/* Search + filter */}
+                                    {/* Search */}
                                     <section className="admin-card rounded-2xl p-5 space-y-4">
                                         <h3 className="font-cinzel text-xs font-black text-teal-400 flex items-center gap-2 uppercase tracking-widest">
-                                            <UserCog size={13} /> ניהול משתמשים ותפקידים
+                                            <UserCog size={13} /> ניהול משתמשים ודרגות
                                         </h3>
                                         <div className="flex gap-3 flex-wrap">
                                             <div className="relative flex-1 min-w-[160px]">
@@ -871,7 +863,7 @@ export default function AdminPanel() {
                                                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
                                             </div>
                                             <div className="flex gap-1">
-                                                {(["all", "מנהל", "מנחה", "משתמש"] as const).map(f => (
+                                                {(["all"] as const).map(f => (
                                                     <button key={f}
                                                         onClick={() => setUserFilter(f)}
                                                         className={`px-3 py-2 rounded-xl font-cinzel text-[10px] uppercase tracking-wide transition-all border
@@ -892,9 +884,8 @@ export default function AdminPanel() {
                                             )}
                                             {filteredUsers.map(p => {
                                                 const cfg = p.house ? HOUSE_CONFIG[p.house] : null;
-                                                const roleCfg = ROLE_CONFIG[p.role] || ROLE_CONFIG["משתמש"];
-                                                const isEditingThisRole = editingRole?.id === p.id;
-                                                const isBanned = p.status === 'banned';
+                                                const isBanned = p.status === 'banned' || p.status === 'cooling';
+                                                const grp = p.user_groups as { name: string; color: string } | null;
                                                 return (
                                                     <div key={p.id} className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/[0.04] hover:border-white/[0.08] transition-all">
                                                         {/* Avatar */}
@@ -906,69 +897,24 @@ export default function AdminPanel() {
                                                             }
                                                         </div>
 
-                                                        {/* Name + house */}
+                                                        {/* Name + house + points */}
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center gap-2 flex-wrap">
                                                                 <span className="font-bold text-sm text-white/80 truncate">{p.full_name || "—"}</span>
                                                                 {isBanned && (
-                                                                    <span className="px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/20 text-red-400 font-cinzel text-[8px] uppercase">חסום</span>
+                                                                    <span className="px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/20 text-red-400 font-cinzel text-[8px] uppercase">
+                                                                        {p.status === 'cooling' ? "קירור" : "חסום"}
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center gap-2 mt-0.5">
                                                                 <span className={`font-cinzel text-[9px] uppercase ${cfg?.color || 'text-white/20'}`}>{p.house || "—"}</span>
                                                                 <span className="text-white/10 text-[8px]">·</span>
-                                                                <span className="text-white/20 text-[9px] font-cinzel">{p.points || 0} נק׳</span>
+                                                                <span className="text-white/20 text-[9px] font-cinzel">{p.points_contributed || 0} נק׳</span>
                                                             </div>
                                                         </div>
 
-                                                        {/* Role badge / editor */}
-                                                        <div className="shrink-0">
-                                                            {isEditingThisRole ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <select
-                                                                        value={editingRole?.role}
-                                                                        onChange={e => setEditingRole({ id: p.id, role: e.target.value })}
-                                                                        className="font-cinzel text-xs outline-none rounded-lg px-2 py-1"
-                                                                        style={{ backgroundColor: '#0f172a', color: '#5eead4', border: '1px solid rgba(20,184,166,0.35)', colorScheme: 'dark' }}
-                                                                    >
-                                                                        <option value="משתמש" style={{ backgroundColor: '#0f172a' }}>משתמש</option>
-                                                                        <option value="מנחה" style={{ backgroundColor: '#0f172a' }}>מנחה</option>
-                                                                        <option value="מנהל" style={{ backgroundColor: '#0f172a' }}>מנהל</option>
-                                                                    </select>
-                                                                    <button onClick={handleSaveRole} disabled={isSavingRole}
-                                                                        className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40">
-                                                                        <Save size={11} />
-                                                                    </button>
-                                                                    <button onClick={() => setEditingRole(null)}
-                                                                        className="p-1.5 bg-white/5 text-white/30 rounded-lg hover:bg-white/10 transition-all">
-                                                                        <X size={11} />
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <span className={`px-2 py-0.5 rounded-full border text-[9px] font-cinzel uppercase tracking-wide ${roleCfg.bg} ${roleCfg.color}`}>
-                                                                        {roleCfg.label}
-                                                                    </span>
-                                                                    <button
-                                                                        onClick={() => setEditingRole({ id: p.id, role: p.role || "משתמש" })}
-                                                                        title="שנה תפקיד"
-                                                                        className="p-1.5 bg-teal-500/10 text-teal-400 rounded-lg hover:bg-teal-500 hover:text-white transition-all">
-                                                                        <Pencil size={11} />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleToggleBan(p.id, p.status || 'active')}
-                                                                        title={isBanned ? "בטל חסימה" : "חסום משתמש"}
-                                                                        className={`p-1.5 rounded-lg transition-all ${isBanned
-                                                                            ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'
-                                                                            : 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white'
-                                                                        }`}>
-                                                                        <Shield size={11} />
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Group editor */}
+                                                        {/* Unified group/rank editor */}
                                                         <div className="shrink-0">
                                                             {editingGroup?.id === p.id ? (
                                                                 <div className="flex items-center gap-1">
@@ -977,9 +923,9 @@ export default function AdminPanel() {
                                                                         onChange={e => setEditingGroup({ id: p.id, group_id: e.target.value ? parseInt(e.target.value) : null })}
                                                                         style={{ backgroundColor: '#0f172a', color: '#e2e8f0', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', border: '1px solid rgba(99,102,241,0.4)', outline: 'none', colorScheme: 'dark' }}
                                                                     >
-                                                                        <option value="">ללא קבוצה</option>
+                                                                        <option value="" style={{ backgroundColor: '#0f172a' }}>ללא דרגה</option>
                                                                         {userGroups.map(g => (
-                                                                            <option key={g.id} value={g.id} style={{ backgroundColor: '#0f172a', color: '#e2e8f0' }}>{g.name}</option>
+                                                                            <option key={g.id} value={g.id} style={{ backgroundColor: '#0f172a', color: g.color }}>{g.name}</option>
                                                                         ))}
                                                                     </select>
                                                                     <button onClick={handleSaveGroup} disabled={isSavingGroup}
@@ -993,19 +939,32 @@ export default function AdminPanel() {
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex items-center gap-1.5">
-                                                                    {p.user_groups && (
+                                                                    {grp ? (
                                                                         <span
                                                                             className="px-2 py-0.5 rounded-full text-[9px] font-cinzel font-black uppercase tracking-wide"
-                                                                            style={{ background: `${p.user_groups.color}18`, color: p.user_groups.color, border: `1px solid ${p.user_groups.color}35` }}
+                                                                            style={{ background: `${grp.color}18`, color: grp.color, border: `1px solid ${grp.color}35` }}
                                                                         >
-                                                                            {p.user_groups.name}
+                                                                            {grp.name}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-cinzel uppercase tracking-wide bg-white/5 border border-white/10 text-white/30">
+                                                                            {p.role === "מנהל" ? "מנהל" : p.role === "מנחה" ? "מנחה" : "ללא דרגה"}
                                                                         </span>
                                                                     )}
                                                                     <button
                                                                         onClick={() => setEditingGroup({ id: p.id, group_id: p.group_id || null })}
-                                                                        title="שנה קבוצה"
+                                                                        title="שנה דרגה"
                                                                         className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500 hover:text-white transition-all">
                                                                         <Crown size={11} />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleToggleBan(p.id, p.status || 'active')}
+                                                                        title={isBanned ? "בטל חסימה" : "חסום משתמש"}
+                                                                        className={`p-1.5 rounded-lg transition-all ${isBanned
+                                                                            ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'
+                                                                            : 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white'
+                                                                        }`}>
+                                                                        <Shield size={11} />
                                                                     </button>
                                                                 </div>
                                                             )}
