@@ -346,6 +346,15 @@ export default function Header() {
                             </>
                         )}
 
+                        {/* Search icon — mobile only (desktop uses dropdown) */}
+                        <button
+                            onClick={() => setSearchOpen(true)}
+                            className="md:hidden p-2 text-white/35 hover:text-amber-400 transition-all shrink-0"
+                            aria-label="חיפוש"
+                        >
+                            <Search size={18} />
+                        </button>
+
                         {/* Hamburger — mobile/tablet */}
                         <button
                             onClick={() => setIsOpen(!isOpen)}
