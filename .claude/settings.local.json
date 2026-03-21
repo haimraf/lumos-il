@@ -4,7 +4,12 @@
       "Bash(cat supabase/migrations/*.sql)",
       "Bash(node -e \":*)",
       "Read(//c/Users/lasto/.supabase/**)",
-      "Read(//c/Users/lasto/**)"
+      "Read(//c/Users/lasto/**)",
+      "Bash(grep -r \"aria-label\\\\|role=\" /c/projects/lumos-il.co.il/src/app/*.tsx)",
+      "Bash(find /c/projects/lumos-il.co.il/public -name *.png -o -name *.jpg -o -name *.jpeg)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -n \"טוען\\\\|loading\\\\|לא נמצא\\\\|אין תוצאות\\\\|שלח\\\\|הודעה\\\\|ביטול\\\\|שמור\\\\|אישור\\\\|empty\" /c/projects/lumos-il.co.il/src/app/wizard/[id]/page.tsx)",
+      "Bash(grep:*)"
     ]
   }
 }

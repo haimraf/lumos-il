@@ -1,25 +1,42 @@
 import { Metadata } from "next";
 import { Sparkles, Star, Zap, Users, ShieldCheck, Wand2, Compass, Scroll, Flame } from "lucide-react";
 import Link from "next/link";
+import Script from "next/script";
 
 export const metadata: Metadata = {
-  title: "הסיפור מאחורי האור | LUMOS IL",
-  description: "איך הפכנו את החלום לטירה? גלו את הסיפור של לומוס ישראל - הבית הדיגיטלי האינטראקטיבי של קהילת הקוסמים והקוסמות בארץ.",
+  title: "הסיפור מאחורי האור",
+  description: "איך הפכנו את החלום לטירה? גלו את הסיפור של LUMOS IL — הבית הדיגיטלי האינטראקטיבי של קהילת הקוסמים והקוסמות בישראל.",
+  keywords: ["אודות", "LUMOS IL", "קהילת הארי פוטר", "ישראל", "הסיפור שלנו"],
   openGraph: {
     title: "הסיפור מאחורי האור | LUMOS IL",
     description: "הבית הדיגיטלי של קהילת הקוסמים בישראל",
     url: "https://lumos-il.co.il/about",
-    siteName: "Lumos IL",
+    siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "https://lumos-il.co.il/og-image.png", width: 1200, height: 630 }],
+    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "LUMOS IL — הסיפור שלנו" }],
   },
+};
+
+const orgJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "LUMOS IL",
+  "alternateName": "לומוס ישראל",
+  "description": "קהילת הארי פוטר הגדולה בישראל — הבית הדיגיטלי האינטראקטיבי של חובבי הקסם",
+  "url": "https://lumos-il.co.il",
+  "logo": "https://lumos-il.co.il/logo.png",
+  "foundingDate": "2024",
+  "inLanguage": "he",
+  "sameAs": [],
+  "knowsAbout": ["Harry Potter", "הארי פוטר", "J.K. Rowling", "Hogwarts", "הוגוורטס", "Fan Fiction"],
 };
 
 
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-[#020617] text-white py-20 px-6 relative overflow-hidden" dir="rtl">
+      <Script id="org-jsonld" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }} />
 
       {/* רקע כוכבים */}
       <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />

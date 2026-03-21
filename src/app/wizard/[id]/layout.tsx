@@ -8,22 +8,32 @@ const HOUSE_HE: Record<string, string> = {
   Hufflepuff: "הפלפאף",
 };
 
+interface Props {
+  params: Promise<{ id: string }>;
+  children: React.ReactNode;
+}
+
+async function getProfile(id: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("full_name, house, avatar_url, role, wand_type, patronus")
+    .eq("id", id)
+    .single();
+  return data;
+}
+
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Metadata> {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, house, avatar_url")
-    .eq("id", id)
-    .single();
+  const profile = await getProfile(id);
 
   if (!profile) return { title: "פרופיל קוסם" };
 
   const houseHe = HOUSE_HE[profile.house] || profile.house || "";
   const title = `${profile.full_name} — ${houseHe}`;
-  const description = `פרופיל הקוסם ${profile.full_name} מבית ${houseHe} ב-LUMOS IL.`;
+  const description = `פרופיל הקוסם ${profile.full_name} מבית ${houseHe} ב-LUMOS IL.${profile.wand_type ? ` שרביט: ${profile.wand_type}.` : ""}`;
 
   return {
     title,
@@ -31,12 +41,48 @@ export async function generateMetadata(
     openGraph: {
       title: `${title} | LUMOS IL`,
       description,
-      images: profile.avatar_url ? [{ url: profile.avatar_url }] : [],
+      images: profile.avatar_url ? [{ url: profile.avatar_url, alt: `אווטאר של ${profile.full_name}` }] : [{ url: "/images/og-image.png" }],
       type: "profile",
+      url: `https://lumos-il.co.il/wizard/${id}`,
+    },
+    twitter: {
+      card: "summary",
+      title: `${title} | LUMOS IL`,
+      description,
+      images: profile.avatar_url ? [profile.avatar_url] : ["/images/og-image.png"],
     },
   };
 }
 
-export default function WizardLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function WizardLayout({ params, children }: Props) {
+  const { id } = await params;
+  const profile = await getProfile(id);
+
+  if (!profile) return <>{children}</>;
+
+  const houseHe = HOUSE_HE[profile.house] || profile.house || "";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": profile.full_name,
+    "description": `קוסם/ת מבית ${houseHe} בקהילת LUMOS IL`,
+    "url": `https://lumos-il.co.il/wizard/${id}`,
+    "inLanguage": "he",
+    ...(profile.avatar_url ? { "image": profile.avatar_url } : {}),
+    "memberOf": {
+      "@type": "Organization",
+      "name": `בית ${houseHe} — LUMOS IL`,
+      "url": "https://lumos-il.co.il",
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {children}
+    </>
+  );
 }

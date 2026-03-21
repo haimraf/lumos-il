@@ -31,6 +31,7 @@ export default function ArenaPage() {
     const [challenging, setChallenging]   = useState<string | null>(null);
     const [loading, setLoading]           = useState(true);
     const [onlineIds, setOnlineIds]       = useState<Set<string>>(new Set());
+    const [randomTarget, setRandomTarget] = useState<{ id: string; user_name: string; house: string } | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
@@ -50,13 +51,14 @@ export default function ArenaPage() {
                     .eq("status", "finished")
                     .order("finished_at", { ascending: false })
                     .limit(10),
-                supabase.from("presence")
-                    .select("user_id")
-                    .gte("last_seen", since),
+                supabase.from("online_users")
+                    .select("id")
+                    .gte("last_seen", since)
+                    .eq("presence_type", "member"),
             ]);
 
             // online set
-            const ids = new Set<string>((presence || []).map((p: any) => p.user_id));
+            const ids = new Set<string>((presence || []).map((p: any) => p.id));
             setOnlineIds(ids);
 
             // Build leaderboard from raw wins
@@ -95,11 +97,12 @@ export default function ArenaPage() {
                 .ilike("full_name", `%${q}%`)
                 .neq("id", profile?.id || "")
                 .limit(8),
-            supabase.from("presence")
-                .select("user_id")
-                .gte("last_seen", since),
+            supabase.from("online_users")
+                .select("id")
+                .gte("last_seen", since)
+                .eq("presence_type", "member"),
         ]);
-        const liveIds = new Set<string>((presence || []).map((p: any) => p.user_id));
+        const liveIds = new Set<string>((presence || []).map((p: any) => p.id));
         setOnlineIds(liveIds);
         setSearchResults(users || []);
         setSearching(false);
@@ -137,19 +140,20 @@ export default function ArenaPage() {
     const challengeRandom = async () => {
         if (!profile?.id) return;
         const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-        const { data: online } = await supabase.from("presence")
-            .select("user_id, profiles(id, full_name, house)")
+        const { data: online, error: onlineErr } = await supabase.from("online_users")
+            .select("id, user_name, house")
             .gte("last_seen", since)
-            .neq("user_id", profile.id)
+            .eq("presence_type", "member")
+            .neq("id", profile.id)
             .limit(20);
-        const candidates = online?.filter((u: any) => u.user_id !== profile.id) || [];
+        if (onlineErr) console.error("challengeRandom error:", onlineErr);
+        const candidates = (online || []).filter((u: any) => u.id !== profile.id);
         if (!candidates.length) {
-            sendOwl("אין יריבים זמינים", "אף קוסם לא מחובר כרגע. נסה שוב מאוחר יותר.", "error");
+            sendOwl("הזירה שקטה", "אף קוסם לא מחובר כרגע. נסה שוב מאוחר יותר.", "error");
             return;
         }
         const pick = candidates[Math.floor(Math.random() * candidates.length)];
-        const p = pick.profiles as any;
-        challengeUser(pick.user_id, p?.full_name || "קוסם");
+        setRandomTarget({ id: pick.id, user_name: pick.user_name || "קוסם", house: pick.house || "" });
     };
 
     if (loading) return (
@@ -184,6 +188,40 @@ export default function ArenaPage() {
                             <Target size={16} /> אתגר אקראי
                         </button>
                     </div>
+
+                    {/* ── Random target confirmation ── */}
+                    {randomTarget && (
+                        <div className="mx-auto max-w-sm rounded-2xl p-5 text-center space-y-3 animate-in slide-in-from-bottom-4"
+                            style={{ background: "rgba(127,29,29,0.25)", border: "1px solid rgba(220,38,38,0.35)" }}>
+                            <p className="font-cinzel text-[10px] uppercase tracking-widest text-red-400/70">יריב נמצא ✦</p>
+                            <div className="flex items-center justify-center gap-3">
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-black"
+                                    style={{ background: HOUSE_COLOR[randomTarget.house] ? `${HOUSE_COLOR[randomTarget.house]}30` : "rgba(255,255,255,0.1)", border: `1px solid ${HOUSE_COLOR[randomTarget.house] || "#ffffff33"}` }}>
+                                    {HOUSE_EMOJI[randomTarget.house] || "⚡"}
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-cinzel font-black text-white text-base">{randomTarget.user_name}</p>
+                                    <p className="text-xs font-bold" style={{ color: HOUSE_COLOR[randomTarget.house] || "#9ca3af" }}>
+                                        {randomTarget.house || "קוסם"}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 justify-center pt-1">
+                                <button
+                                    onClick={() => { challengeUser(randomTarget.id, randomTarget.user_name); setRandomTarget(null); }}
+                                    disabled={!!challenging}
+                                    className="px-5 py-2 rounded-xl font-cinzel text-sm font-black text-white transition-all hover:scale-[1.02] disabled:opacity-50"
+                                    style={{ background: "linear-gradient(135deg, #991b1b, #dc2626)" }}>
+                                    {challenging ? "שולח אתגר..." : "⚔️ אתגר!"}
+                                </button>
+                                <button
+                                    onClick={() => setRandomTarget(null)}
+                                    className="px-5 py-2 rounded-xl font-cinzel text-sm font-black text-white/40 border border-white/10 hover:border-white/30 transition-all">
+                                    ביטול
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* ── My stats ── */}

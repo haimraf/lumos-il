@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
@@ -36,23 +36,20 @@ export default function QuestsPage() {
   const { sendOwl } = useOwlMail();
   const { profile, refreshProfile, isLoading: authLoading } = useAuth();
 
-  const [dailyStatus, setDailyStatus] = useState({ allowance: false, trivia: false, niffler: false, snitch: false });
   const [currentTrivia, setCurrentTrivia] = useState<any>(null);
   const [nifflerLoading, setNifflerLoading] = useState(false);
   const [snitchLoading, setSnitchLoading] = useState(false);
+  const [dailyStatus, setDailyStatus] = useState({ allowance: false, trivia: false, niffler: false, snitch: false });
 
-  const today = new Date().toLocaleDateString("en-CA");
+  // מרכיבים את התאריך של היום כמחרוזת בפורמט YYYY-MM-DD שזהה בדיוק למה שהשרת שומר
+  const dateObj = new Date();
+  const today = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
-  useEffect(() => {
-    if (profile) {
-      setDailyStatus({
-        allowance: profile.last_reward_date === today,
-        trivia: profile.last_trivia_date === today,
-        niffler: profile.last_niffler_date === today,
-        snitch: profile.last_snitch_date === today
-      });
-    }
-  }, [profile, today]);
+  // מחשבים מראש אם המשימה בוצעה כדי למנוע הבהובים
+  const isAllowanceDone = dailyStatus.allowance || profile?.last_reward_date === today;
+  const isTriviaDone = dailyStatus.trivia || profile?.last_trivia_date === today;
+  const isNifflerDone = dailyStatus.niffler || profile?.last_niffler_date === today;
+  const isSnitchDone = dailyStatus.snitch || profile?.last_snitch_date === today;
 
   useEffect(() => {
     // בחירה בטוחה של שאלה מתוך המאגר (לפי היום בחודש כדי שכולם יקבלו אותה שאלה באותו יום)
@@ -61,49 +58,90 @@ export default function QuestsPage() {
   }, []);
 
   const handleDailyCollect = async () => {
-    if (dailyStatus.allowance || !profile) return;
+    if (isAllowanceDone || !profile) return;
+    setDailyStatus(s => ({ ...s, allowance: true })); // optimistic
     const { data, error } = await supabase.rpc('claim_daily_allowance', { p_user_id: profile.id });
-    if (!error && data?.success) {
-      sendOwl("קצבה נאספה!", "5 גליאונים נוספו לכיסך.", "magic");
-      refreshProfile();
+    if (error) {
+      console.error("claim_daily_allowance error:", error);
+      setDailyStatus(s => ({ ...s, allowance: false }));
+      sendOwl("הלחש נכשל", `הקצבה לא נאספה: ${error.message}`, "error");
+      return;
     }
+    if (data?.success) {
+      sendOwl("קצבה נאספה!", "5 גליאונים נוספו לכיסך.", "magic");
+    } else {
+      sendOwl("כבר אספת היום", "הקצבה תתחדש מחר בשחר.", "info");
+    }
+    refreshProfile();
   };
 
   const handleTriviaAnswer = async (selected: string) => {
-    if (dailyStatus.trivia || !profile || !currentTrivia) return;
+    if (isTriviaDone || !profile || !currentTrivia) return;
     const isCorrect = selected === currentTrivia.a;
+    setDailyStatus(s => ({ ...s, trivia: true })); // optimistic
     const { data, error } = await supabase.rpc('claim_trivia_reward', { p_user_id: profile.id, p_is_correct: isCorrect });
-    if (!error && data?.success) {
-      sendOwl(isCorrect ? "תשובה נכונה!" : "טעות בלחש", isCorrect ? "10 נקודות לבית שלך!" : `התשובה הנכונה: ${currentTrivia.a}`, isCorrect ? "success" : "error");
-      refreshProfile();
+    if (error) {
+      console.error("claim_trivia_reward error:", error);
+      setDailyStatus(s => ({ ...s, trivia: false }));
+      sendOwl("הלחש נכשל", `מבחן הלחשים התפרק: ${error.message}`, "error");
+      return;
     }
+    if (data?.success) {
+      sendOwl(
+        isCorrect ? "לחש מוצלח! ✨" : "הלחש נכשל",
+        isCorrect ? "10 נקודות קסם נוספו לבית שלך!" : `התשובה הנכונה הייתה: ${currentTrivia.a}`,
+        isCorrect ? "success" : "error"
+      );
+    } else {
+      sendOwl("כבר ענית היום", "מבחן הלחשים יחזור מחר בשחר.", "info");
+    }
+    refreshProfile();
   };
 
   const handleNifflerHunt = async () => {
-    if (dailyStatus.niffler || nifflerLoading || !profile) return;
+    if (isNifflerDone || nifflerLoading || !profile) return;
     setNifflerLoading(true);
+    setDailyStatus(s => ({ ...s, niffler: true })); // optimistic
     const { data, error } = await supabase.rpc('claim_niffler_reward', { p_user_id: profile.id });
-    if (!error && data?.success) {
-      sendOwl("הניפלר נתפס!", `מצאת ${data.amount} נקודות!`, "magic");
-      refreshProfile();
+    if (error) {
+      console.error("claim_niffler_reward error:", error);
+      setDailyStatus(s => ({ ...s, niffler: false }));
+      sendOwl("הניפלר ברח", `הציד נכשל: ${error.message}`, "error");
+      setNifflerLoading(false);
+      return;
     }
+    if (data?.success) {
+      const typeHe = data.type === "galleons" ? "גליאונים" : "נקודות קסם";
+      sendOwl("הניפלר נתפס! 🐾", `הנבל הקטן הסתיר ${data.amount} ${typeHe}!`, "magic");
+    } else {
+      sendOwl("הניפלר ברח", "הוא כבר תפוס להיום. יחזור מחר בשחר.", "info");
+    }
+    refreshProfile();
     setNifflerLoading(false);
   };
 
-  // משימה חדשה: תפיסת הסניץ'
   const handleSnitchCatch = async () => {
-    if (dailyStatus.snitch || snitchLoading || !profile) return;
+    if (isSnitchDone || snitchLoading || !profile) return;
     setSnitchLoading(true);
+    setDailyStatus(s => ({ ...s, snitch: true })); // optimistic
     const { data, error } = await supabase.rpc('claim_snitch_reward', { p_user_id: profile.id });
-    if (!error && data?.success) {
-      sendOwl("הסניץ' ננתפס!", "איזה מחפש מעולה! הבאת 15 נקודות לבית שלך.", "success");
-      refreshProfile();
+    if (error) {
+      console.error("claim_snitch_reward error:", error);
+      setDailyStatus(s => ({ ...s, snitch: false }));
+      sendOwl("הסניץ' ברח", `לא הצלחת לתפוס: ${error.message}`, "error");
+      setSnitchLoading(false);
+      return;
     }
+    if (data?.success) {
+      sendOwl("הסניץ' הזהוב נתפס! ⚡", "מחפש מדהים! 15 נקודות קסם לבית שלך.", "success");
+    } else {
+      sendOwl("הסניץ' מתחבא", "כבר תפסת אותו היום. יחזור מחר לאחר שקיעה.", "info");
+    }
+    refreshProfile();
     setSnitchLoading(false);
   };
 
   if (authLoading) return <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center gap-4 bg-[#020617]"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div><p className="font-cinzel text-amber-500 tracking-widest animate-pulse">רוקח שיקוי...</p></div>;
-
   const hColor = (profile?.house && HOUSE_COLORS[profile.house]) ? HOUSE_COLORS[profile.house] : 'text-amber-400';
   const trophyClass = hColor.split(' ')[0] || 'text-amber-400';
 
@@ -131,7 +169,6 @@ export default function QuestsPage() {
           <p className="font-crimson text-2xl text-white/40 italic uppercase tracking-widest">עבודה קשה היא הדרך היחידה לתהילה</p>
         </div>
 
-        {/* שונה ל-4 עמודות במסכים גדולים בגלל שיש 4 משימות */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
           <QuestCard
@@ -139,34 +176,43 @@ export default function QuestsPage() {
             desc="משרד הקסמים מאשר דמי כיס."
             reward="5 גליאונים"
             icon={<Coins className="text-amber-500" size={32} />}
-            completed={dailyStatus.allowance}
+            completed={isAllowanceDone}
             onAction={handleDailyCollect}
             btnText="אסוף קצבה"
             color="amber"
           />
 
-          <div className={`relative group glass-panel rounded-[2.5rem] p-8 transition-all duration-500 flex flex-col ${dailyStatus.trivia ? 'opacity-60 border-white/5' : 'hover:border-blue-500/30 hover:shadow-[0_15px_50px_rgba(59,130,246,0.2)] hover:-translate-y-2 border-t border-r border-white/10'}`}>
+          <div className={`relative group glass-panel rounded-[2.5rem] p-8 transition-all duration-500 flex flex-col ${isTriviaDone ? 'opacity-60 border-white/5' : 'hover:border-blue-500/30 hover:shadow-[0_15px_50px_rgba(59,130,246,0.2)] hover:-translate-y-2 border-t border-r border-white/10'}`}>
             <div className="flex justify-between items-start mb-6">
               <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><BookOpen className="text-blue-400" size={28} /></div>
               <span className="text-[10px] font-black font-cinzel text-blue-400 uppercase tracking-tighter bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/20">10 נקודות</span>
             </div>
 
             <h3 className="font-cinzel text-xl font-bold mb-3">מבחן לחשים</h3>
-            <p className="font-crimson text-lg text-white/70 mb-6 h-16 line-clamp-2">{currentTrivia?.q || "טוען שאלה..."}</p>
 
-            <div className="grid grid-cols-2 gap-2 mt-auto">
-              {currentTrivia?.options?.map((opt: string) => (
-                <button
-                  key={opt}
-                  disabled={dailyStatus.trivia}
-                  onClick={() => handleTriviaAnswer(opt)}
-                  className={`py-2 rounded-xl border text-xs font-bold transition-all ${dailyStatus.trivia ? 'border-white/5 bg-white/5 cursor-not-allowed text-white/30' : 'border-white/10 hover:border-blue-500 hover:bg-blue-500/10 hover:text-blue-200'}`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-            {dailyStatus.trivia && <p className="mt-3 text-center font-cinzel text-[10px] text-white/30 italic">המבחן הבא יפתח מחר</p>}
+            {isTriviaDone ? (
+              <div className="flex-1 flex flex-col justify-end">
+                <p className="font-crimson text-lg text-white/40 mb-6 italic">ענית על המבחן היומי</p>
+                <div className="w-full py-4 rounded-xl bg-white/5 border border-white/10 text-white/30 font-cinzel font-bold text-center flex items-center justify-center gap-2">
+                  <CheckCircle2 size={18} /> הושלם להיום
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="font-crimson text-lg text-white/70 mb-6 h-16 line-clamp-2">{currentTrivia?.q || "טוען שאלה..."}</p>
+                <div className="grid grid-cols-2 gap-2 mt-auto">
+                  {currentTrivia?.options?.map((opt: string) => (
+                    <button
+                      key={opt}
+                      onClick={() => handleTriviaAnswer(opt)}
+                      className="py-2 rounded-xl border text-xs font-bold transition-all border-white/10 hover:border-blue-500 hover:bg-blue-500/10 hover:text-blue-200"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <QuestCard
@@ -174,19 +220,18 @@ export default function QuestsPage() {
             desc="ניפלר חצוף גנב אוצרות! עזור למצוא אותו."
             reward="מזל (נק'/גליאונים)"
             icon={<Search className="text-emerald-500" size={32} />}
-            completed={dailyStatus.niffler}
+            completed={isNifflerDone}
             onAction={handleNifflerHunt}
             btnText={nifflerLoading ? "מחפש..." : "צא לציד"}
             color="emerald"
           />
 
-          {/* המשימה החדשה: קווידיץ' */}
           <QuestCard
             title="אימון קווידיץ'"
             desc="הסניץ' מתעופף במגרש! נסה לתפוס אותו."
             reward="15 נקודות"
             icon={<Zap className="text-violet-400" size={32} />}
-            completed={dailyStatus.snitch}
+            completed={isSnitchDone}
             onAction={handleSnitchCatch}
             btnText={snitchLoading ? "מזנק..." : "תפוס סניץ'"}
             color="violet"

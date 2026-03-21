@@ -15,6 +15,15 @@ export const metadata: Metadata = {
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {
     // Schema.org - מסביר לבינה מלאכותית שזו קהילה מקוונת
+    const breadcrumb = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "LUMOS IL", "item": "https://lumos-il.co.il" },
+            { "@type": "ListItem", "position": 2, "name": "האולם הגדול", "item": "https://lumos-il.co.il/home" },
+        ],
+    };
+
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -39,10 +48,8 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
 
     return (
         <>
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
             {children}
         </>
     );

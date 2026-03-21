@@ -28,15 +28,16 @@ export default function MaraudersRadar() {
             const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString(); // 2 minutes
             const { data, error } = await supabase
                 .from("online_users")
-                .select("user_name, house, user_id")
+                .select("user_name, house, id")
                 .gte("last_seen", cutoff)
+                .eq("presence_type", "member")
                 .order("last_seen", { ascending: false })
                 .limit(5);
 
             if (!error && data) {
                 setOnlineCount(data.length);
                 // Enrich with group info via JOIN
-                const userIds = data.map((u: any) => u.user_id).filter(Boolean);
+                const userIds = data.map((u: any) => u.id).filter(Boolean);
                 let groupMap: Record<string, { group_name: string | null; group_color: string | null }> = {};
                 if (userIds.length) {
                     const { data: profiles } = await supabase
@@ -53,8 +54,8 @@ export default function MaraudersRadar() {
                 setRecentUsers(data.map((u: any) => ({
                     user_name: u.user_name,
                     house: u.house,
-                    group_name: groupMap[u.user_id]?.group_name || null,
-                    group_color: groupMap[u.user_id]?.group_color || null,
+                    group_name: groupMap[u.id]?.group_name || null,
+                    group_color: groupMap[u.id]?.group_color || null,
                 })));
             }
         };

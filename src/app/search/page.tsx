@@ -265,8 +265,8 @@ function SearchContent() {
                     <div className="flex flex-col items-center justify-center py-24 gap-5 border border-dashed border-white/8 rounded-[2rem]">
                         <Search size={36} className="text-white/10" />
                         <div className="text-center space-y-2">
-                            <p className="font-cinzel text-white/25 text-sm uppercase tracking-widest font-black">לא נמצאו תוצאות</p>
-                            <p className="font-crimson text-white/20 text-xl italic">"אולי הקסם שחיפשת עדיין לא נכתב..."</p>
+                            <p className="font-cinzel text-white/25 text-sm uppercase tracking-widest font-black">הקסם לא נמצא בספרי הטירה</p>
+                            <p className="font-crimson text-white/20 text-xl italic">"אולי הלחש הזה עדיין לא נכתב..."</p>
                         </div>
                     </div>
 
@@ -331,7 +331,7 @@ function SearchContent() {
                                 );
                             })}
                         </div>
-                        <p className="font-crimson text-xl text-white/20 italic">הקלידו להתחיל בחיפוש...</p>
+                        <p className="font-crimson text-xl text-white/20 italic">לחשו שם, כישרון או כותרת ספר...</p>
                     </div>
                 ) : null}
 

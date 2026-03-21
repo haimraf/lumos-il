@@ -9,6 +9,7 @@ import {
     Users, Flag, AlertTriangle, EyeOff, Eye, Loader2, Smile, Ghost
 } from "lucide-react";
 import { getRoleColor, getRoleDisplay, getRoleColorFromDB } from "@/lib/roleColor";
+import { useOwlMail } from "@/components/OwlMail";
 
 /**
  * LUMOS IL - THE GREAT HALL V5
@@ -45,6 +46,7 @@ const HOUSE_CONFIG: Record<string, { label: string; color: string; bg: string; b
 
 export default function GreatHall() {
     const supabase = createClient();
+    const { sendOwl } = useOwlMail();
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [myId, setMyId] = useState<string | null>(null);
@@ -198,13 +200,19 @@ export default function GreatHall() {
             target_type: "chat", reason: reportReason,
             content_preview: reportingMessage.content, status: "pending",
         }]);
-        if (!error) { alert("הדיווח התקבל."); setReportingMessage(null); setReportReason(""); }
+        if (!error) {
+            sendOwl("הקובלנה הוגשה 🦉", "הדיווח הועבר לצוות הניהול. תודה על שמירת הטירה.", "magic");
+            setReportingMessage(null);
+            setReportReason("");
+        } else {
+            sendOwl("שגיאה בהגשה", "לא ניתן היה לשלוח את הדיווח. נסה שוב.", "error");
+        }
         setIsReporting(false);
     };
 
     /* ── Loading ── */
     if (isLoading) return (
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4" aria-live="polite" aria-label="טוען את האולם הגדול">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4" aria-live="polite" aria-label="מאיר את האולם הגדול">
             <div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin" role="status" />
             <p className="font-cinzel text-amber-500 tracking-widest animate-pulse">לומוס מקסימה...</p>
         </div>
@@ -305,7 +313,7 @@ export default function GreatHall() {
                         <div
                             className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-full"
                             aria-live="polite"
-                            aria-label={`${onlineUsers.length} משתמשים מחוברים`}
+                            aria-label={`${onlineUsers.length} קוסמים נוכחים באולם הגדול`}
                         >
                             <span className="online-dot w-2 h-2 bg-emerald-400 rounded-full" aria-hidden="true" />
                             <span className="text-emerald-300 text-[10px] font-black uppercase font-cinzel tracking-wider">
@@ -433,13 +441,13 @@ export default function GreatHall() {
                                 if (isMuted) return (
                                     <div key={msg.id} className="flex justify-start bubble-in">
                                         <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl border border-white/[0.04] bg-white/[0.02] text-white/30 max-w-[75%] gap-4">
-                                            <span className="font-crimson italic text-sm">ההודעה של {displayName} מוסתרת</span>
+                                            <span className="font-crimson italic text-sm">לחש השתקה הוטל על {displayName}</span>
                                             <button
                                                 onClick={() => handleToggleMute(msg.user_id, displayName, true)}
                                                 className="magic-focus flex items-center gap-1 font-cinzel text-[10px] bg-white/[0.07] px-2.5 py-1 rounded-full hover:bg-white/15 transition-colors text-white/60 shrink-0"
-                                                aria-label={`בטל השתקה של ${displayName}`}
+                                                aria-label={`הסר לחש השתקה מ-${displayName}`}
                                             >
-                                                <Eye size={11} aria-hidden="true" /> ביטול
+                                                <Eye size={11} aria-hidden="true" /> הסר לחש
                                             </button>
                                         </div>
                                     </div>
@@ -572,7 +580,7 @@ export default function GreatHall() {
                             onSubmit={sendMessage}
                             className="p-3 md:p-4 border-t border-white/[0.06] flex gap-2 items-center z-10"
                             style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)" }}
-                            aria-label="שליחת הודעה"
+                            aria-label="שגר לחש לאולם"
                         >
                             <div className="flex-1 relative flex items-center">
                                 <button
@@ -597,9 +605,9 @@ export default function GreatHall() {
                                         }
                                     }}
                                     className="chat-input magic-focus w-full bg-white/[0.05] border border-white/[0.1] rounded-xl pr-11 pl-4 py-3.5 text-white font-assistant text-base focus:outline-none transition-all text-right placeholder:text-white/20"
-                                    placeholder="ללחוש הודעה לאולם..."
+                                    placeholder="לחשו קסם לאולם... (מקס׳ 500 תווים)"
                                     disabled={!myId || isSending}
-                                    aria-label="הקלד הודעה"
+                                    aria-label="לחוש אל האולם הגדול"
                                     autoComplete="off"
                                     maxLength={500}
                                 />
@@ -609,7 +617,7 @@ export default function GreatHall() {
                                 type="submit"
                                 disabled={!newMessage.trim() || isSending}
                                 className="magic-focus bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-amber-950 p-3.5 rounded-xl transition-all shadow-lg active:scale-95 shrink-0 flex items-center justify-center w-12 h-12"
-                                aria-label="שלח הודעה"
+                                aria-label="שגר לחש"
                             >
                                 {isSending
                                     ? <Loader2 size={20} className="animate-spin" aria-hidden="true" />
@@ -632,10 +640,10 @@ export default function GreatHall() {
                 >
                     <div className="bg-[#0e1117] text-white w-full max-w-sm rounded-2xl border border-red-900/30 p-7 space-y-5 shadow-2xl animate-in zoom-in duration-200">
                         <h2 id="report-title" className="font-cinzel text-lg font-bold text-red-400 flex items-center gap-2">
-                            <AlertTriangle size={20} aria-hidden="true" /> דיווח על הודעה
+                            <AlertTriangle size={20} aria-hidden="true" /> הגשת קובלנה למשרד
                         </h2>
-                        <div className="space-y-2" role="radiogroup" aria-label="סיבת הדיווח">
-                            {["הצפה (Spam)", "שפה פוגענית", "הטרדה", "אחר"].map(r => (
+                        <div className="space-y-2" role="radiogroup" aria-label="סיבת הקובלנה">
+                            {["הצפת לחשים (Spam)", "שפה פוגענית", "הטרדת קוסמים", "אחר"].map(r => (
                                 <button
                                     key={r}
                                     onClick={() => setReportReason(r)}
@@ -657,13 +665,13 @@ export default function GreatHall() {
                                 className="magic-focus flex-1 py-3 bg-red-700 hover:bg-red-600 rounded-xl font-cinzel font-bold text-sm disabled:opacity-40 flex items-center justify-center gap-2 transition-colors"
                             >
                                 {isReporting && <Loader2 size={14} className="animate-spin" />}
-                                {isReporting ? "שולח..." : "שלח דיווח"}
+                                {isReporting ? "מגיש לאוסטרה..." : "הגש קובלנה"}
                             </button>
                             <button
                                 onClick={() => { setReportingMessage(null); setReportReason(""); }}
                                 className="magic-focus flex-1 py-3 bg-white/[0.05] hover:bg-white/10 rounded-xl text-sm transition-colors"
                             >
-                                ביטול
+                                חזרה
                             </button>
                         </div>
                     </div>

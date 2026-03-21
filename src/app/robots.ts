@@ -10,5 +10,6 @@ export default function robots(): MetadataRoute.Robots {
       },
     ],
     sitemap: "https://lumos-il.co.il/sitemap.xml",
+    host: "https://lumos-il.co.il",
   };
 }
