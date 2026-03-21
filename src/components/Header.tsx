@@ -131,12 +131,6 @@ export default function Header() {
     }, [pathname]);
 
     useEffect(() => {
-        const handleAlohomora = () => setIsOpen(true);
-        window.addEventListener("magic-alohomora", handleAlohomora);
-        return () => window.removeEventListener("magic-alohomora", handleAlohomora);
-    }, []);
-
-    useEffect(() => {
         if (!searchMode) { setSearchQuery(""); setLiveResults([]); }
     }, [searchMode]);
 
