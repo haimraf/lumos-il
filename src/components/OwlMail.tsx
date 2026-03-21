@@ -92,8 +92,9 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
                     return;
                 }
 
-                // ✅ זיהוי שחרור חסימה
-                if (payload.new.status === 'active' && payload.old.status !== 'active') {
+                // ✅ זיהוי שחרור חסימה — רק כשהסטטוס הקודם היה banned או cooling במפורש
+                if (payload.new.status === 'active' &&
+                    (payload.old.status === 'banned' || payload.old.status === 'cooling')) {
                     sendOwl("החסימה הוסרה", "ברוך שובך לטירה! התנהג יפה.", "success");
                     return;
                 }

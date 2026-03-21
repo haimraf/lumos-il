@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat supabase/migrations/*.sql)",
+      "Bash(node -e \":*)",
+      "Read(//c/Users/lasto/.supabase/**)",
+      "Read(//c/Users/lasto/**)"
+    ]
+  }
+}

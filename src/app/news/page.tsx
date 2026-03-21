@@ -308,7 +308,25 @@ function NewsContent() {
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#1e0e04]/10">
-                      <div className="flex items-center gap-3 text-[10px] text-[#5d2a00]/45 font-bold">
+                      <div className="flex items-center gap-3 text-[10px] text-[#5d2a00]/45 font-bold flex-wrap">
+                        {item.author_profile?.id ? (
+                          <span className="flex items-center gap-1">
+                            <User size={9} aria-hidden="true" />
+                            <Link
+                              href={`/wizard/${item.author_profile.id}`}
+                              onClick={e => e.stopPropagation()}
+                              className="hover:underline transition-colors"
+                              style={{ color: item.author_profile.user_groups?.color || getRoleColor(item.author_profile.role, item.author_profile.house, roleColors) }}
+                            >
+                              {item.author || item.author_profile.full_name}
+                            </Link>
+                          </span>
+                        ) : item.author ? (
+                          <span className="flex items-center gap-1">
+                            <User size={9} aria-hidden="true" />
+                            {item.author}
+                          </span>
+                        ) : null}
                         <span className="flex items-center gap-1">
                           <Clock size={9} aria-hidden="true" />
                           {readingTime(item.content)} דק'
