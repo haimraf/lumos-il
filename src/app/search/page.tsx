@@ -18,7 +18,7 @@ interface Result {
     excerpt?: string;
     type: ResultType;
     href: string;
-    meta?: { house?: string; role?: string; avatar_url?: string; forum_name?: string };
+    meta?: { house?: string; role?: string; avatar_url?: string; forum_name?: string; group_name?: string; group_color?: string };
 }
 
 /* ─── Config ─── */
@@ -102,7 +102,7 @@ function SearchContent() {
             supabase.from('threads').select('id, title, forums(slug, name)')
                 .ilike('title', `%${term}%`)
                 .limit(8),
-            supabase.from('profiles').select('id, full_name, house, role, avatar_url')
+            supabase.from('profiles').select('id, full_name, house, role, avatar_url, user_groups(name, color)')
                 .ilike('full_name', `%${term}%`)
                 .limit(6),
         ]);
@@ -120,10 +120,16 @@ function SearchContent() {
             href: `/forums/${t.forums?.slug}/${t.id}`,
             meta: { forum_name: t.forums?.name },
         }));
-        (users || []).forEach(u => found.push({
+        (users || []).forEach((u: any) => found.push({
             id: u.id, title: u.full_name || 'קוסם אנונימי', type: 'user',
             href: `/wizard/${u.id}`,
-            meta: { house: u.house, role: u.role, avatar_url: u.avatar_url },
+            meta: {
+                house: u.house,
+                role: u.role,
+                avatar_url: u.avatar_url,
+                group_name: u.user_groups?.name,
+                group_color: u.user_groups?.color,
+            },
         }));
 
         setResults(found);
@@ -343,29 +349,32 @@ function ResultCard({ result, query, index }: { result: Result; query: string; i
         const house = result.meta?.house;
         const houseColor = house ? HOUSE_COLORS[house] : 'rgba(255,255,255,0.3)';
         const houseEmoji = house ? HOUSE_EMOJIS[house] : '✨';
+        const groupName = result.meta?.group_name;
+        const nameColor = result.meta?.group_color || houseColor;
+        const badgeLabel = groupName || result.meta?.role;
         return (
             <Link href={result.href}
                 className="flex items-center gap-4 p-4 rounded-2xl border border-white/[0.06] hover:bg-emerald-500/[0.03] transition-all group"
-                style={{ ['--hover-border' as any]: cfg.hoverBorder }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = cfg.hoverBorder)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)')}
             >
                 <div className="w-11 h-11 rounded-full overflow-hidden border-2 shrink-0 flex items-center justify-center text-xl bg-slate-900"
-                    style={{ borderColor: `${houseColor}40` }}>
+                    style={{ borderColor: `${nameColor}40` }}>
                     {result.meta?.avatar_url
                         ? <img src={result.meta.avatar_url} alt="" className="w-full h-full object-cover" />
                         : <span>{houseEmoji}</span>
                     }
                 </div>
                 <div className="flex-1 min-w-0 text-right">
-                    <p className="font-cinzel font-black text-[15px] text-white/85 group-hover:text-emerald-300 transition-colors truncate">
+                    <p className="font-cinzel font-black text-[15px] truncate transition-colors"
+                        style={{ color: nameColor }}>
                         <Highlight text={result.title} query={query} />
                     </p>
-                    {(house || result.meta?.role) && (
+                    {(house || badgeLabel) && (
                         <p className="font-assistant text-xs mt-0.5" style={{ color: `${houseColor}80` }}>
                             {house ? HOUSE_NAMES[house] : ''}
-                            {house && result.meta?.role && ' · '}
-                            {result.meta?.role || ''}
+                            {house && badgeLabel && ' · '}
+                            {badgeLabel || ''}
                         </p>
                     )}
                 </div>

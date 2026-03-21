@@ -43,7 +43,10 @@ export default function FAQPage() {
         : SITE_FAQ;
 
     return (
-        <div className="min-h-screen bg-[#06040a] text-white" dir="rtl">
+        <div className="min-h-screen bg-[#06040a] text-white relative overflow-hidden" dir="rtl">
+            {/* ambient glows */}
+            <div className="fixed top-0 right-1/3 w-[700px] h-[500px] bg-amber-500/[0.04] rounded-full blur-[160px] pointer-events-none" />
+            <div className="fixed bottom-1/4 left-0 w-[500px] h-[500px] bg-purple-500/[0.03] rounded-full blur-[140px] pointer-events-none" />
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
 

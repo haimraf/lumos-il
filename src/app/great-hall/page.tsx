@@ -213,6 +213,13 @@ export default function GreatHall() {
     /* ─────────────────────────── RENDER ─────────────────────────── */
     return (
         <>
+            {/* ── Ambient background glows ── */}
+            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                <div className="absolute top-0 right-0 w-[700px] h-[600px] bg-amber-500/[0.035] rounded-full blur-[160px]" />
+                <div className="absolute bottom-0 left-0 w-[600px] h-[500px] bg-emerald-500/[0.025] rounded-full blur-[140px]" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] bg-indigo-500/[0.018] rounded-full blur-[120px]" />
+            </div>
+
             <style>{`
                 /* ── Scrollbar ── */
                 .chat-scroll::-webkit-scrollbar { width: 4px; }

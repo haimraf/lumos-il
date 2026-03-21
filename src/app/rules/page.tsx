@@ -44,10 +44,13 @@ export default function RulesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white py-20 px-6 relative" dir="rtl">
+    <div className="min-h-screen bg-[#020617] text-white py-20 px-6 relative overflow-hidden" dir="rtl">
 
       {/* רקע Blueprint עדין */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/blueprint.png')]"></div>
+      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/blueprint.png')]" />
+      {/* Ambient glows */}
+      <div className="fixed top-0 right-1/3 w-[700px] h-[500px] bg-amber-500/[0.04] rounded-full blur-[160px] pointer-events-none" />
+      <div className="fixed bottom-0 left-1/4 w-[600px] h-[400px] bg-amber-900/[0.06] rounded-full blur-[140px] pointer-events-none" />
 
       <div className="max-w-5xl mx-auto space-y-20 relative z-10">
 

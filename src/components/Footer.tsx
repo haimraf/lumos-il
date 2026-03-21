@@ -68,6 +68,8 @@ export default function Footer() {
                             <FooterLink href="/news" icon={ScrollText} label="הנביא היומי" />
                             <FooterLink href="/map" icon={Map} label="מפת הקונדסאים" />
                             <FooterLink href="/rules" icon={Shield} label="חוקי הקהילה" />
+                            <FooterLink href="/about" icon={Wand2} label="אודות" />
+
                             <FooterLink href="/ollivanders" icon={Wand2} label="אוליבנדר" />
                             <FooterLink href="/faq" icon={HelpCircle} label="שאלות נפוצות" />
                         </nav>

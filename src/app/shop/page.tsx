@@ -134,7 +134,8 @@ function ShopContent() {
         <div className="min-h-screen bg-[#020617] text-slate-200 pb-24 font-crimson relative overflow-x-hidden" dir="rtl">
 
             {/* הילת רקע */}
-            <div className="absolute top-0 left-1/4 w-[60vw] h-[60vw] bg-amber-600/8 rounded-full blur-[180px] pointer-events-none opacity-50" />
+            <div className="absolute top-0 left-1/4 w-[60vw] h-[60vw] bg-amber-600/[0.07] rounded-full blur-[180px] pointer-events-none" />
+            <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-indigo-500/[0.03] rounded-full blur-[150px] pointer-events-none" />
 
             {/* ✅ תיקון רוחב */}
             <div className="px-4 md:px-6 pt-10 relative z-10" style={{ maxWidth: '80rem', marginLeft: 'auto', marginRight: 'auto' }}>

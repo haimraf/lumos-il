@@ -23,7 +23,9 @@ export default function AboutPage() {
 
       {/* רקע כוכבים */}
       <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-amber-500/5 rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[550px] bg-amber-500/[0.055] rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute top-1/3 right-0 w-[500px] h-[700px] bg-indigo-500/[0.04] rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[500px] bg-emerald-500/[0.03] rounded-full blur-[140px] pointer-events-none" />
 
       {/* ✅ תיקון רוחב */}
       <div className="relative z-10 space-y-32" style={{ maxWidth: '64rem', marginLeft: 'auto', marginRight: 'auto' }}>
