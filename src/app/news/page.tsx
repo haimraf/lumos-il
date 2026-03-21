@@ -544,6 +544,9 @@ const HOUSE_ACCENT: Record<string, { border: string; bg: string; text: string }>
   Ravenclaw:  { border: "#2563eb", bg: "rgba(37,99,235,0.05)",  text: "#1d4ed8" },
 };
 
+const MIN_COMMENT_LENGTH = 10;
+const COOLDOWN_MS = 30_000;
+
 function CommentsSection({ newsId }: { newsId: string }) {
   const [supabase] = useState(() => createClient());
   const [comments, setComments] = useState<any[]>([]);
@@ -554,8 +557,25 @@ function CommentsSection({ newsId }: { newsId: string }) {
   const [reportingComment, setReportingComment] = useState<any | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const cooldownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const { sendOwl } = useOwlMail();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Cooldown ticker
+  useEffect(() => {
+    if (cooldownRemaining <= 0) {
+      if (cooldownInterval.current) clearInterval(cooldownInterval.current);
+      return;
+    }
+    cooldownInterval.current = setInterval(() => {
+      setCooldownRemaining(prev => {
+        if (prev <= 1000) { clearInterval(cooldownInterval.current!); return 0; }
+        return prev - 1000;
+      });
+    }, 1000);
+    return () => { if (cooldownInterval.current) clearInterval(cooldownInterval.current); };
+  }, [cooldownRemaining]);
 
   const fetchData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -575,14 +595,30 @@ function CommentsSection({ newsId }: { newsId: string }) {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handlePost = async () => {
-    if (!newComment.trim()) return;
+    const trimmed = newComment.trim();
+
+    if (!trimmed) {
+      sendOwl("תגובה ריקה", "לא ניתן לשלוח תגובה ריקה.", "error");
+      return;
+    }
+
+    if (trimmed.length < MIN_COMMENT_LENGTH) {
+      sendOwl("הלחש קצר מדי 📜", `תגובה חייבת להכיל לפחות ${MIN_COMMENT_LENGTH} תווים. כתבת ${trimmed.length}.`, "error");
+      return;
+    }
+
+    if (cooldownRemaining > 0) {
+      sendOwl("חוקי הקסם ⏳", `המתן עוד ${Math.ceil(cooldownRemaining / 1000)} שניות לפני תגובה נוספת.`, "error");
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { sendOwl("שגיאה", "לא מחובר לטירה", "error"); return; }
+    if (!user) { sendOwl("לא מחובר 🔒", "יש להתחבר לטירה כדי להגיב.", "error"); return; }
 
     setIsPosting(true);
     const { error } = await supabase
       .from("comments")
-      .insert([{ news_id: newsId, user_id: user.id, content: newComment, user_name: null }])
+      .insert([{ news_id: newsId, user_id: user.id, content: trimmed, user_name: null }])
       .select()
       .maybeSingle();
 
@@ -598,6 +634,8 @@ function CommentsSection({ newsId }: { newsId: string }) {
 
     setNewComment("");
     fetchData();
+    setCooldownRemaining(COOLDOWN_MS);
+    sendOwl("התגובה נשלחה 🦉", "התגובה שלך פורסמה בהצלחה.", "success");
     setIsPosting(false);
   };
 
@@ -650,17 +688,36 @@ function CommentsSection({ newsId }: { newsId: string }) {
           className="w-full bg-white/50 border-2 border-amber-900/15 focus:border-amber-800/40 rounded-xl p-4 font-assistant text-sm text-[#1e0e04] placeholder:text-[#5d2a00]/35 outline-none resize-none transition-colors"
           aria-label="כתיבת תגובה חדשה"
         />
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] text-[#5d2a00]/35 font-bold">
-            {newComment.length} תווים
-          </span>
+        <div className="flex justify-between items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* char counter */}
+            <span
+              className="text-[10px] font-bold"
+              style={{
+                color: newComment.trim().length >= MIN_COMMENT_LENGTH
+                  ? "rgba(5,150,105,0.7)"
+                  : newComment.trim().length > 0
+                    ? "rgba(180,83,9,0.7)"
+                    : "rgba(93,42,0,0.35)",
+              }}
+            >
+              {newComment.trim().length} / {MIN_COMMENT_LENGTH} תווים מינימום
+              {newComment.trim().length >= MIN_COMMENT_LENGTH && " ✓"}
+            </span>
+            {/* cooldown indicator */}
+            {cooldownRemaining > 0 && (
+              <span className="text-[10px] font-bold flex items-center gap-1" style={{ color: "rgba(180,83,9,0.7)" }}>
+                <Clock size={10} /> המתן {Math.ceil(cooldownRemaining / 1000)} שניות
+              </span>
+            )}
+          </div>
           <button
             onClick={handlePost}
-            disabled={isPosting || !newComment.trim()}
-            className="px-6 py-2.5 bg-[#1e0e04] hover:bg-[#3d1500] text-[#e8d5a3] font-cinzel font-black text-xs rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed tracking-wide"
+            disabled={isPosting || cooldownRemaining > 0 || newComment.trim().length < MIN_COMMENT_LENGTH}
+            className="px-6 py-2.5 bg-[#1e0e04] hover:bg-[#3d1500] text-[#e8d5a3] font-cinzel font-black text-xs rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed tracking-wide shrink-0"
             aria-label="שלח תגובה"
           >
-            {isPosting ? "שולח…" : "שליחת ינשוף 🦉"}
+            {isPosting ? "שולח…" : cooldownRemaining > 0 ? `⏳ ${Math.ceil(cooldownRemaining / 1000)}s` : "שליחת ינשוף 🦉"}
           </button>
         </div>
       </div>
