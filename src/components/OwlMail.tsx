@@ -123,7 +123,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
         <ToastContext.Provider value={{ sendOwl }}>
             {children}
 
-            <div className="fixed bottom-6 left-6 z-[99999] flex flex-col gap-3 pointer-events-none" dir="rtl">
+            <div className="fixed bottom-6 left-6 z-[9999999] flex flex-col gap-3 pointer-events-none" dir="rtl">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}
