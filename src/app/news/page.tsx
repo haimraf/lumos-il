@@ -651,7 +651,11 @@ function CommentsSection({ newsId }: { newsId: string }) {
     setNewComment("");
     fetchData();
     setCooldownRemaining(COOLDOWN_MS);
-    sendOwl("התגובה נשלחה 🦉", "התגובה שלך פורסמה בהצלחה.", "success");
+    sendOwl(
+      "התגובה נשלחה 🦉",
+      "תגובתך פורסמה! הבית שלך קיבל +1 נקודה ו-+1 גליאון זהב עבור ההשתתפות.",
+      "magic"
+    );
     setIsPosting(false);
   };
 
