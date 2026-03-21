@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
     BookOpen, ScrollText, Users, Store, Wand2,
-    Trophy, Map, Shield, Footprints, Hourglass
+    Trophy, Map, Shield, Footprints, Hourglass, MessageSquare,
+    HelpCircle, GraduationCap, Zap, ArrowRight, Bell
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
+import HotTopicsTeaser from "@/components/HotTopicsTeaser";
 
 // הציטוטים הנבחרים - הכי מתאימים ללובי ולהרפתקאות
 const magicalQuotes = [
@@ -27,7 +29,7 @@ export default function HomePage() {
     const [randomQuote, setRandomQuote] = useState<string>(magicalQuotes[0]);
     const [candles, setCandles] = useState<{ id: number; left: number; delay: number; duration: number }[]>([]);
 
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     useEffect(() => {
         setRandomQuote(magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
@@ -158,6 +160,60 @@ export default function HomePage() {
             hoverShadow: "hover:shadow-[0_0_50px_rgba(6,182,212,0.25)]",
             iconColor: "text-cyan-400/70",
             hoverText: "group-hover:text-cyan-400"
+        },
+        {
+            id: 'map',
+            title: "מפת הקונדסאים",
+            desc: "גלה היכן הקוסמים נמצאים ברחבי ישראל",
+            icon: Map,
+            href: "/map",
+            className: "col-span-1",
+            customGradient: "from-teal-950/30",
+            hoverBorder: "group-hover:border-teal-500/50",
+            hoverShadow: "hover:shadow-[0_0_50px_rgba(20,184,166,0.25)]",
+            iconColor: "text-teal-400/70",
+            hoverText: "group-hover:text-teal-400"
+        },
+        {
+            id: 'great-hall',
+            title: "האולם הגדול (צ'אט)",
+            desc: "שיחה חיה עם חברי הקהילה",
+            icon: MessageSquare,
+            href: "/great-hall",
+            className: "col-span-1",
+            customGradient: "from-rose-950/30",
+            hoverBorder: "group-hover:border-rose-500/50",
+            hoverShadow: "hover:shadow-[0_0_50px_rgba(244,63,94,0.25)]",
+            iconColor: "text-rose-400/70",
+            hoverText: "group-hover:text-rose-400"
+        },
+        {
+            id: 'exams',
+            title: "בחינות O.W.L & N.E.W.T",
+            desc: "הוכיחו שליטה בקסם המתקדם — לקוסמים בכירים",
+            icon: GraduationCap,
+            href: "/exams/owl",
+            className: "col-span-1",
+            customGradient: "from-violet-950/30",
+            hoverBorder: "group-hover:border-violet-500/50",
+            hoverShadow: "hover:shadow-[0_0_50px_rgba(139,92,246,0.25)]",
+            iconColor: "text-violet-400/70",
+            hoverText: "group-hover:text-violet-400",
+            badge: "חדש"
+        },
+        {
+            id: 'faq',
+            title: "שאלות ותשובות",
+            desc: "כל סודות, פיצ׳רים ו-Easter Eggs של הטירה",
+            icon: HelpCircle,
+            href: "/faq",
+            className: "col-span-1",
+            customGradient: "from-pink-950/30",
+            hoverBorder: "group-hover:border-pink-500/50",
+            hoverShadow: "hover:shadow-[0_0_50px_rgba(236,72,153,0.25)]",
+            iconColor: "text-pink-400/70",
+            hoverText: "group-hover:text-pink-400",
+            badge: "חדש"
         }
     ];
 
@@ -213,8 +269,43 @@ export default function HomePage() {
                     </p>
                 </motion.header>
 
+                {/* ── FAQ ANNOUNCEMENT ── */}
+                <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.6 }}
+                    className="mb-8"
+                >
+                    <Link href="/faq" className="group block">
+                        <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-l from-amber-900/20 via-amber-950/15 to-transparent p-4 md:p-5 transition-all duration-500 hover:border-amber-400/45 hover:shadow-[0_0_40px_rgba(245,158,11,0.1)]">
+                            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_75%_50%,rgba(245,158,11,0.06),transparent_60%)] pointer-events-none" />
+                            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/35 to-transparent" />
+                            <div className="relative flex items-center gap-4">
+                                <div className="shrink-0 w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-[0_0_16px_rgba(245,158,11,0.12)] group-hover:shadow-[0_0_24px_rgba(245,158,11,0.22)] transition-all">
+                                    <HelpCircle size={20} className="text-amber-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/20 font-cinzel text-[8px] text-amber-400 uppercase tracking-[0.25em]">
+                                            <Zap size={7} className="fill-amber-400" /> חדש בטירה
+                                        </span>
+                                        <Bell size={11} className="text-amber-500/40 animate-pulse" />
+                                    </div>
+                                    <p className="font-cinzel font-black text-sm text-white/80 group-hover:text-amber-300 transition-colors">
+                                        ספר שאלות ותשובות הטירה — פתוח עכשיו!
+                                    </p>
+                                    <p className="font-crimson text-white/35 text-sm mt-0.5">
+                                        כל הפיצ׳רים, הקסמים, בחינות O.W.L ו-N.E.W.T ו-Easter Eggs במקום אחד
+                                    </p>
+                                </div>
+                                <ArrowRight size={14} className="shrink-0 rotate-180 text-amber-400/40 group-hover:text-amber-300 group-hover:-translate-x-1 transition-all" />
+                            </div>
+                        </div>
+                    </Link>
+                </motion.div>
+
                 {/* תפריט ניווט תגיות סמנטי (Bento Grid) */}
-                <nav aria-label="ניווט בטירה" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[190px]">
+                <nav aria-label="ניווט בטירה" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[210px]">
                     {destinations.map((dest, idx) => {
                         const Icon = dest.icon;
                         return (
@@ -277,6 +368,10 @@ export default function HomePage() {
                     })}
                 </nav>
 
+            </div>
+
+            <div className="relative z-10 mt-16" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
+                <HotTopicsTeaser />
             </div>
         </main>
     );
