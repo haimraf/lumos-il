@@ -19,13 +19,11 @@
       opacity: 1;
       box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
     }
-
     70% {
       transform: scale(1.15);
       opacity: 0.8;
       box-shadow: 0 0 15px 5px rgba(34, 197, 94, 0);
     }
-
     100% {
       transform: scale(1);
       opacity: 1;
@@ -33,13 +31,10 @@
   }
 
   @keyframes sparkle {
-
-    0%,
-    100% {
+    0%, 100% {
       opacity: 0.5;
       transform: scale(1) rotate(0deg);
     }
-
     50% {
       opacity: 1;
       transform: scale(1.2) rotate(15deg);
@@ -48,29 +43,19 @@
   }
 
   @keyframes float {
-
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-
-    50% {
-      transform: translateY(-10px);
-    }
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-10px); }
   }
 
   @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-
-    100% {
-      transform: translateX(100%);
-    }
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 }
 
-/* הגדרות בסיס */
+/* ═══════════════════════════════════════════
+   הגדרות בסיס
+═══════════════════════════════════════════ */
 :root {
   --background: #020617;
   --foreground: #f8fafc;
@@ -78,12 +63,16 @@
   --selection-text: #fffbeb;
 }
 
-/* FIX: RTL גלובלי + מניעת overflow */
+/* FIX: RTL גלובלי
+   ⚠️  overflow-x: hidden על html שובר position:sticky/fixed ב-iOS —
+       לכן מוגדר רק על body */
 html {
   direction: rtl;
-  overflow-x: hidden;
   width: 100%;
-  max-width: 100%;
+  /* גלילה חלקה, מבוטלת אם המשתמש מבקש */
+  scroll-behavior: smooth;
+  /* מניעת scroll אופקי בלי לשבור sticky */
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -91,12 +80,14 @@ body {
   color: var(--foreground);
   font-family: var(--font-assistant), sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   overflow-x: hidden;
   width: 100%;
   max-width: 100%;
   margin: 0;
   padding: 0;
   position: relative;
+  overscroll-behavior-x: none;
 }
 
 /* FIX: מניעת overflow בכל האלמנטים */
@@ -106,46 +97,122 @@ body {
   max-width: 100%;
 }
 
-/* FIX: main container */
 main {
   overflow-x: hidden;
   width: 100%;
   max-width: 100%;
 }
 
-/* סמל המחובר הנושם (MagicPresence) */
-.magic-online-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 9999px;
-  background-color: #22c55e;
-  border: 2px solid #020617;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
-  animation: magic-pulse 2s infinite;
+/* ═══════════════════════════════════════════
+   Box sizing + תמונות
+═══════════════════════════════════════════ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-/* פתרון גלילה במובייל (למפות ותפריטים) */
-.custom-scrollbar {
+/* FIX: תמונות — מונע layout shift + שומר על גבולות */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* FIX: Flex children — מונע overflow מ-truncate וטקסט ארוך */
+.flex > *,
+.flex-col > * {
+  min-width: 0;
+}
+
+/* ═══════════════════════════════════════════
+   טקסט ובחירה
+═══════════════════════════════════════════ */
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+/* ═══════════════════════════════════════════
+   RTL — inputs וטפסים
+═══════════════════════════════════════════ */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+textarea,
+select {
+  direction: rtl;
+  text-align: right;
+  /* FIX iOS: מניעת auto-zoom בפוקוס — iOS עושה zoom כשפונט < 16px */
+  font-size: max(16px, 1em);
+}
+
+/* FIX: RTL Support for lists */
+ul,
+ol {
+  padding-right: 1.5rem;
+  padding-left: 0;
+}
+
+/* ═══════════════════════════════════════════
+   לחיצה ואינטראקציה (מובייל)
+═══════════════════════════════════════════ */
+
+/* FIX: מסיר את ה-halo הכחול של iOS/Android בלחיצה על אלמנטים */
+a,
+button,
+[role="button"],
+input,
+label,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* FIX: מסיר 300ms delay לחיצה במכשירים ישנים */
+a,
+button,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* FIX: focus visible לנגישות מקלדת (לא מסתיר, לא מציג בלחיצת עכבר) */
+:focus-visible {
+  outline: 2px solid rgba(245, 158, 11, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════════
+   Scrollbar מותאם
+═══════════════════════════════════════════ */
+.custom-scrollbar,
+.overflow-x-auto,
+.overflow-y-auto {
   scrollbar-width: thin;
   scrollbar-color: rgba(245, 158, 11, 0.2) transparent;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
   background: rgba(245, 158, 11, 0.3);
   border-radius: 10px;
 }
 
-.overflow-x-auto {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(245, 158, 11, 0.2) transparent;
-}
-
-/* אפקט זכוכית קסומה (Glass Panel) */
+/* ═══════════════════════════════════════════
+   Glass Panel
+═══════════════════════════════════════════ */
 .glass-panel {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
   backdrop-filter: blur(20px);
@@ -160,82 +227,67 @@ main {
   background: rgba(255, 255, 255, 0.03);
 }
 
-/* FIX: RTL Support for inputs */
-input[type="text"],
-input[type="email"],
-input[type="password"],
-textarea,
-select {
-  direction: rtl;
-  text-align: right;
+/* ═══════════════════════════════════════════
+   נוכחות מחוברת (MagicPresence dot)
+═══════════════════════════════════════════ */
+.magic-online-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: #22c55e;
+  border: 2px solid #020617;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+  animation: magic-pulse 2s infinite;
 }
 
-/* FIX: RTL Support for lists */
-ul,
-ol {
-  padding-right: 1.5rem;
-  padding-left: 0;
-}
-
-/* FIX: Float adjustments for RTL */
-.float-left {
-  float: right !important;
-}
-
-.float-right {
-  float: left !important;
-}
-
-/* FIX: Prevent horizontal overflow on all containers */
-* {
-  box-sizing: border-box;
-}
-
-*:not(svg):not(path) {
-  max-width: 100%;
-}
-
-/* FIX: Mobile-specific overflow prevention */
-@media (max-width: 1024px) {
-
-  body,
-  html,
-  #__next,
-  main {
-    overflow-x: hidden !important;
-    width: 100% !important;
-    max-width: 100vw !important;
-  }
-
-  /* מניעת scroll אופקי ממסכי תוכן רחבים */
+/* ═══════════════════════════════════════════
+   מובייל — תיקונים ממוקדים
+═══════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* מניעת scroll אופקי — ממוקד רק ב-containers רלוונטיים */
   .container,
   .max-w-7xl,
   .max-w-6xl,
   .max-w-5xl,
-  .max-w-4xl {
-    max-width: 100% !important;
-    overflow-x: hidden !important;
+  .max-w-4xl,
+  .max-w-3xl {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* FIX: מניעת zoom בלחיצה על אלמנטים קטנים */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* FIX: גדלי touch target מינימליים — נגישות */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* FIX: Quill editor — לא גולש ממסך */
+  .ql-container,
+  .ql-editor {
+    max-width: 100%;
+    overflow-x: hidden;
+    word-break: break-word;
+  }
+
+  /* FIX: תוכן מפורום/פוסט — תמונות ומדיה לא גולשות */
+  .prose img,
+  .forum-content img,
+  .ql-editor img {
+    max-width: 100%;
+    height: auto;
   }
 }
 
-/* נגישות: צמצום תנועה */
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto !important;
-  }
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* ===== Marauders Footsteps (WORKING) ===== */
-
+/* ═══════════════════════════════════════════
+   Marauders Map — פסעונות
+═══════════════════════════════════════════ */
 .footstep {
   position: absolute;
   opacity: 0;
@@ -249,13 +301,29 @@ ol {
     opacity: 0;
     transform: scale(0.6) translateY(10px);
   }
-
   30% {
     opacity: 0.9;
   }
-
   100% {
     opacity: 0;
     transform: scale(1) translateY(-10px);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   נגישות: צמצום תנועה
+═══════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

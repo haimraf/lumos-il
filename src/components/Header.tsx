@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import { useAuth } from "@/context/AuthContext";
+import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import MagicTicker from "@/components/MagicTicker";
 
@@ -44,6 +45,25 @@ export default function Header() {
     // שליפת הפרופיל מהקונטקסט (אם אין פרופיל, סימן שזה אורח)
     const { profile } = useAuth();
     const isGuest = !profile;
+
+    const [nameColor, setNameColor] = useState<string>("rgba(255,255,255,0.85)");
+    useEffect(() => {
+        if (!profile) return;
+        (async () => {
+            // אם יש group_id — קח ישירות את צבע הקבוצה
+            if ((profile as any).group_id) {
+                const { data } = await supabase
+                    .from("user_groups")
+                    .select("color")
+                    .eq("id", (profile as any).group_id)
+                    .single();
+                if (data?.color) { setNameColor(data.color); return; }
+            }
+            // fallback — roleColors לפי שם דרגה
+            const map = await getRoleColorFromDB(supabase);
+            setNameColor(getRoleColor(profile.role, profile.house, map));
+        })();
+    }, [profile?.id, supabase]);
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -184,82 +204,48 @@ export default function Header() {
                         </nav>
                     </div>
 
-                    <div className="flex items-center gap-1.5 md:gap-3 relative">
-                        {currentCTA && !isGuest && (
-                            <Link
-                                href={currentCTA.href}
-                                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-cinzel font-black text-[10px] tracking-widest uppercase transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:shadow-[0_0_30px_rgba(245,158,11,0.5)] active:scale-95"
-                            >
-                                <PlusCircle size={14} />
-                                {currentCTA.label}
-                            </Link>
-                        )}
+                    {/* ══ צד ימין: [Galleons] [🔔] [Avatar▼] [☰] ══ */}
+                    <div className="flex items-center gap-2 md:gap-3">
 
-                        <button
-                            onClick={toggleMute}
-                            className="p-1.5 md:p-2 text-white/30 hover:text-amber-400 transition-all shrink-0"
-                        >
-                            {isMuted ? <VolumeX size={16} className="md:w-[18px] md:h-[18px]" /> : <Volume2 size={16} className="md:w-[18px] md:h-[18px]" />}
-                        </button>
-
-                        <div className="relative flex items-center shrink-0">
-                            {searchOpen ? (
-                                <form onSubmit={handleSearch} className="flex items-center gap-2">
-                                    <input
-                                        ref={searchRef}
-                                        value={searchQuery}
-                                        onChange={e => setSearchQuery(e.target.value)}
-                                        placeholder="חפש בטירה..."
-                                        className="w-40 md:w-56 bg-white/8 border border-amber-500/30 rounded-xl px-4 py-2 text-white text-[13px] font-assistant outline-none placeholder:text-white/30 text-right transition-all"
-                                        dir="rtl"
-                                    />
-                                    <button type="button" onClick={() => setSearchOpen(false)} className="p-1.5 text-white/30 hover:text-white transition-all"><X size={16} /></button>
-                                </form>
-                            ) : (
-                                <button onClick={() => setSearchOpen(true)} className="p-1.5 md:p-2 text-white/35 hover:text-amber-400 transition-all"><Search size={16} className="md:w-[18px] md:h-[18px]" /></button>
-                            )}
-                        </div>
-
-                        {/* הצגת פרטי משתמש או כפתור התחברות */}
                         {isGuest ? (
-                            <Link href="/" className="hidden md:flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-cinzel font-black text-[11px] tracking-widest uppercase transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] shrink-0 ml-1">
-                                <LogIn size={14} /> להתחברות
+                            <Link href="/" className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 font-cinzel font-black text-[10px] tracking-widest uppercase transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] shrink-0">
+                                <LogIn size={13} /> להתחברות
                             </Link>
                         ) : (
                             <>
-                                <div className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 md:py-2 rounded-xl bg-black/50 border ${houseTheme} shadow-lg transition-all shrink-0`}>
-                                    <Coins size={14} className="text-amber-500 md:w-4 md:h-4" />
-                                    <span className="font-cinzel font-black text-white text-[11px] md:text-sm">{profile?.galleons?.toLocaleString() || 0}</span>
+                                {/* Galleons */}
+                                <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/50 border ${houseTheme} shadow-lg shrink-0`}>
+                                    <Coins size={13} className="text-amber-500" />
+                                    <span className="font-cinzel font-black text-white text-[11px]">{profile?.galleons?.toLocaleString() || 0}</span>
                                 </div>
 
+                                {/* Notifications */}
                                 <div className="relative shrink-0 flex items-center">
                                     <NotificationDropdown />
-                                    <style jsx global>{`.notification-dropdown-container { min-width: 320px !important; margin-left: -5px; }`}</style>
+                                    <style jsx global>{`.notification-dropdown-container { min-width: 320px !important; }`}</style>
                                 </div>
 
-                                <div className="hidden md:block w-px h-6 bg-white/8 mx-1 shrink-0" />
-
-                                {/* Avatar + Dropdown */}
+                                {/* Avatar + Dropdown — כל האייקונים בפנים */}
                                 <div className="relative hidden md:block shrink-0" ref={avatarMenuRef}>
                                     <button
                                         onClick={() => setAvatarMenuOpen(!avatarMenuOpen)}
                                         className="flex items-center gap-1.5 group"
                                         aria-label="תפריט משתמש"
                                     >
-                                        <div className={`w-10 h-10 rounded-full border-2 ${houseTheme} overflow-hidden shadow-2xl transition-transform group-hover:scale-105`}>
-                                            <div className="w-full h-full bg-slate-900 flex items-center justify-center text-xl">
+                                        <div className={`w-9 h-9 rounded-full border-2 ${houseTheme} overflow-hidden shadow-2xl transition-transform group-hover:scale-105`}>
+                                            <div className="w-full h-full bg-slate-900 flex items-center justify-center text-lg">
                                                 {profile?.avatar_url
                                                     ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                                                     : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
                                                 }
                                             </div>
                                         </div>
-                                        <ChevronDown size={12} className={`text-white/30 transition-transform duration-200 ${avatarMenuOpen ? "rotate-180" : ""}`} />
+                                        <ChevronDown size={11} className={`text-white/30 transition-transform duration-200 ${avatarMenuOpen ? "rotate-180" : ""}`} />
                                     </button>
 
                                     {avatarMenuOpen && (
                                         <div
-                                            className="absolute right-0 top-[calc(100%+12px)] min-w-[220px] w-80 max-w-[calc(100vw-1.5rem)] bg-[#070d1a] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] z-[600] overflow-hidden"
+                                            className="absolute right-0 top-[calc(100%+12px)] w-72 max-w-[calc(100vw-1.5rem)] bg-[#070d1a] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] z-[600] overflow-hidden"
                                             dir="rtl"
                                             style={{ animation: "avatarMenuIn 0.18s cubic-bezier(0.22,1,0.36,1) forwards" }}
                                         >
@@ -270,7 +256,7 @@ export default function Header() {
                                                 }
                                             `}</style>
 
-                                            {/* User info */}
+                                            {/* ── User info ── */}
                                             <div className="px-5 py-4 border-b border-white/[0.07] flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-full border ${houseTheme} overflow-hidden shrink-0 flex items-center justify-center text-lg`}
                                                     style={{ background: "rgba(255,255,255,0.04)" }}>
@@ -280,7 +266,7 @@ export default function Header() {
                                                     }
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="font-assistant font-bold text-sm text-white truncate">{profile?.full_name}</p>
+                                                    <p className="font-assistant font-bold text-sm truncate" style={{ color: nameColor }}>{profile?.full_name}</p>
                                                     <p className="font-assistant text-xs text-white/35 mt-0.5">
                                                         {profile?.house === 'Gryffindor' ? "גריפינדור" : profile?.house === 'Slytherin' ? "סלית'רין" : profile?.house === 'Ravenclaw' ? "רייבנקלו" : "הפלפאף"}
                                                         {profile?.year ? ` · שנה ${profile.year}` : ""}
@@ -288,8 +274,47 @@ export default function Header() {
                                                 </div>
                                             </div>
 
-                                            {/* Links */}
-                                            <div className="py-2">
+                                            {/* ── Search ── */}
+                                            <div className="px-3 pt-2.5 pb-1 border-b border-white/[0.07]">
+                                                <button
+                                                    onClick={() => { setAvatarMenuOpen(false); setSearchOpen(true); }}
+                                                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-white/45 hover:text-white hover:bg-white/[0.05] transition-colors text-right"
+                                                >
+                                                    <Search size={15} className="text-white/25 shrink-0" />
+                                                    <span className="font-assistant text-sm">חיפוש בטירה...</span>
+                                                </button>
+                                            </div>
+
+                                            {/* ── CTA (אם רלוונטי לדף הנוכחי) ── */}
+                                            {currentCTA && (
+                                                <div className="px-3 py-1 border-b border-white/[0.07]">
+                                                    <Link
+                                                        href={currentCTA.href}
+                                                        onClick={() => setAvatarMenuOpen(false)}
+                                                        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/[0.07] transition-colors"
+                                                    >
+                                                        <PlusCircle size={15} className="shrink-0" />
+                                                        <span className="font-assistant text-sm font-semibold">{currentCTA.label}</span>
+                                                    </Link>
+                                                </div>
+                                            )}
+
+                                            {/* ── Mute toggle ── */}
+                                            <div className="px-3 py-1 border-b border-white/[0.07]">
+                                                <button
+                                                    onClick={toggleMute}
+                                                    className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-white/45 hover:text-white hover:bg-white/[0.05] transition-colors"
+                                                >
+                                                    {isMuted
+                                                        ? <VolumeX size={15} className="text-white/25 shrink-0" />
+                                                        : <Volume2 size={15} className="text-amber-500/50 shrink-0" />
+                                                    }
+                                                    <span className="font-assistant text-sm">{isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}</span>
+                                                </button>
+                                            </div>
+
+                                            {/* ── ניווט ── */}
+                                            <div className="py-1.5">
                                                 {[
                                                     { href: `/wizard/${profile?.id}`, icon: User, label: "הפרופיל שלי" },
                                                     { href: "/dashboard", icon: Castle, label: "הטירה שלי" },
@@ -298,39 +323,71 @@ export default function Header() {
                                                 ].map(({ href, icon: Icon, label }) => (
                                                     <Link key={href} href={href}
                                                         onClick={() => setAvatarMenuOpen(false)}
-                                                        className="flex items-center gap-3 px-5 py-3 text-white/55 hover:text-white hover:bg-white/[0.05] transition-colors group">
-                                                        <Icon size={16} className="text-white/25 group-hover:text-white/60 shrink-0 transition-colors" />
+                                                        className="flex items-center gap-3 px-5 py-2.5 text-white/55 hover:text-white hover:bg-white/[0.05] transition-colors group">
+                                                        <Icon size={15} className="text-white/25 group-hover:text-white/60 shrink-0 transition-colors" />
                                                         <span className="font-assistant text-sm font-medium">{label}</span>
                                                     </Link>
                                                 ))}
                                             </div>
 
-                                            <div className="border-t border-white/[0.07] py-2">
+                                            {/* ── Logout ── */}
+                                            <div className="border-t border-white/[0.07] py-1.5">
                                                 <button
                                                     onClick={() => { setAvatarMenuOpen(false); handleLogout(); }}
-                                                    className="flex items-center gap-3 px-5 py-3 w-full text-red-400/60 hover:text-red-400 hover:bg-red-500/[0.07] transition-colors group"
+                                                    className="flex items-center gap-3 px-5 py-2.5 w-full text-red-400/60 hover:text-red-400 hover:bg-red-500/[0.07] transition-colors group"
                                                 >
-                                                    <LogOut size={16} className="shrink-0 transition-colors" />
+                                                    <LogOut size={15} className="shrink-0 transition-colors" />
                                                     <span className="font-assistant text-sm font-medium">התעתקות</span>
                                                 </button>
                                             </div>
                                         </div>
                                     )}
                                 </div>
-
-                                <button onClick={handleLogout} className="hidden md:flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-cinzel text-[10px] font-bold tracking-widest uppercase transition-all duration-300 border border-red-500/10 text-red-500/60 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30 shrink-0 ml-1">
-                                    <LogOut size={14} /> <span className="hidden xl:inline">התעתקות</span>
-                                </button>
                             </>
                         )}
 
-                        <button onClick={() => setIsOpen(!isOpen)} className="lg:hidden p-1.5 md:p-3 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded-lg transition-all relative z-[10001] active:scale-95 shadow-lg shrink-0 flex items-center justify-center">
-                            {isOpen ? <X size={20} className="md:w-6 md:h-6" /> : <Menu size={20} className="md:w-6 md:h-6" />}
+                        {/* Hamburger — mobile/tablet */}
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            className="lg:hidden p-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded-lg transition-all relative z-[10001] active:scale-95 shadow-lg shrink-0 flex items-center justify-center"
+                        >
+                            {isOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
                     </div>
                 </div>
                 {pathname !== '/' && <MagicTicker />}
             </header>
+
+            {/* Search overlay — fixed, לא משפיע על layout ההאדר */}
+            {searchOpen && (
+                <div
+                    className="fixed inset-0 z-[700] flex items-start justify-center"
+                    style={{ background: "rgba(2,6,23,0.7)", backdropFilter: "blur(8px)", paddingTop: "80px" }}
+                    onClick={() => setSearchOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-xl mx-4"
+                        onClick={e => e.stopPropagation()}
+                        style={{ animation: "avatarMenuIn 0.18s cubic-bezier(0.22,1,0.36,1) forwards" }}
+                    >
+                        <form onSubmit={handleSearch} className="flex items-center gap-3 bg-[#070d1a] border border-amber-500/30 rounded-2xl px-5 py-4 shadow-[0_20px_60px_rgba(0,0,0,0.9)]" dir="rtl">
+                            <Search size={18} className="text-amber-500/60 shrink-0" />
+                            <input
+                                ref={searchRef}
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="חפש בטירה..."
+                                className="flex-1 bg-transparent text-white text-base outline-none placeholder:text-white/30 font-assistant text-right"
+                                dir="rtl"
+                            />
+                            <button type="button" onClick={() => setSearchOpen(false)} className="p-1 text-white/30 hover:text-white transition-all shrink-0">
+                                <X size={18} />
+                            </button>
+                        </form>
+                        <p className="text-center text-white/20 text-xs mt-3 font-cinzel tracking-widest">ESC לסגירה</p>
+                    </div>
+                </div>
+            )}
 
             <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 flex flex-col items-center justify-start overflow-y-auto overflow-x-hidden ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl" style={{ height: '100dvh' }}>
                 <div className="font-cinzel text-white/[0.02] text-[18vw] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none font-black z-0">LUMOS</div>

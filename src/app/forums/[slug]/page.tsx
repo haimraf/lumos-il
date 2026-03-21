@@ -42,6 +42,7 @@ interface Thread {
         role: string | null;
         is_online: boolean | null;
         avatar_url: string | null;
+        user_groups: { name: string; color: string } | null;
     };
 }
 
@@ -91,7 +92,8 @@ function ThreadRow({
 }) {
     const router = useRouter();
     const houseConf = thread.profiles?.house ? HOUSE_CONFIG[thread.profiles.house] : null;
-    const nameColor = getRoleColor(thread.profiles?.role, thread.profiles?.house, roleColors);
+    const grp = thread.profiles?.user_groups as { name: string; color: string } | null;
+    const nameColor = grp?.color || getRoleColor(thread.profiles?.role, thread.profiles?.house, roleColors);
     const prefixConf = thread.prefix ? PREFIX_CONFIG[thread.prefix] : null;
     const icon = thread.profiles?.house ? HOUSE_ICONS[thread.profiles.house] : null;
 
@@ -273,7 +275,7 @@ export default function ForumThreadsPage() {
 
             let { data: threadsData, error: threadsError } = await supabase
                 .from('threads')
-                .select('*, profiles(full_name, house, role, is_online, avatar_url), forum_posts(count)')
+                .select('*, profiles(full_name, house, role, is_online, avatar_url, user_groups(name, color)), forum_posts(count)')
                 .eq('forum_id', forumData.id)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
@@ -282,7 +284,7 @@ export default function ForumThreadsPage() {
             if (threadsError) {
                 const fallback = await supabase
                     .from('threads')
-                    .select('*, profiles(full_name, house, role, is_online, avatar_url), forum_posts(count)')
+                    .select('*, profiles(full_name, house, role, is_online, avatar_url, user_groups(name, color)), forum_posts(count)')
                     .eq('forum_id', forumData.id)
                     .order('created_at', { ascending: false });
                 threadsData = fallback.data;

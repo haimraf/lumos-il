@@ -727,7 +727,7 @@ export default function ThreadViewPage() {
                                     <Link
                                         href={`/wizard/${post.user_id}`}
                                         className="font-cinzel font-black text-sm text-center leading-tight hover:underline"
-                                        style={{ color: getRoleColor(post.profiles?.role, post.profiles?.house, roleColors) }}
+                                        style={{ color: (post.profiles as any)?.user_groups?.color || getRoleColor(post.profiles?.role, post.profiles?.house, roleColors) }}
                                     >
                                         {post.profiles?.full_name || "קוסם אנונימי"}
                                     </Link>

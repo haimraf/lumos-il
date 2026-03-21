@@ -26,6 +26,7 @@ interface Forum {
         author_house: string | null;
         author_role: string | null;
         author_id: string | null;
+        author_group_color: string | null;
     } | null;
 }
 
@@ -116,7 +117,7 @@ export default function ForumsPage() {
 
             const { data: forumsData } = await supabase
                 .from('forums')
-                .select(`*, threads(id, title, created_at, forum_posts(id), profiles(full_name, username, house, role))`)
+                .select(`*, threads(id, title, created_at, forum_posts(id), profiles(full_name, username, house, role, user_groups(name, color)))`)
                 .order('created_at', { ascending: true });
 
             if (forumsData) {
@@ -136,7 +137,8 @@ export default function ForumsPage() {
                             author_name: latest.profiles?.full_name || latest.profiles?.username || "קוסם אנונימי",
                             author_house: latest.profiles?.house || "Unknown",
                             author_role: latest.profiles?.role || null,
-                            author_id: latest.profiles?.id || null
+                            author_id: latest.profiles?.id || null,
+                            author_group_color: latest.profiles?.user_groups?.color || null,
                         } : null
                     };
                 });
@@ -459,7 +461,7 @@ function ForumRow({ forum, userYear, userRole, userHouse, roleColors }: any) {
         !!(forum.min_year && userYear < forum.min_year && userRole !== 'מנהל');
 
     const theme = forum.house_restriction ? HOUSE_THEMES[forum.house_restriction] : null;
-    const lastPosterColor = getRoleColor(forum.last_thread?.author_role, forum.last_thread?.author_house, roleColors);
+    const lastPosterColor = forum.last_thread?.author_group_color || getRoleColor(forum.last_thread?.author_role, forum.last_thread?.author_house, roleColors);
 
     const iconStyle = theme
         ? { background: theme.bg, borderColor: theme.border }

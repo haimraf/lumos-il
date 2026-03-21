@@ -21,6 +21,12 @@ const assistant = Assistant({ subsets: ["hebrew", "latin"], variable: "--font-as
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel", display: "swap" });
 const crimson = Crimson_Pro({ subsets: ["latin"], variable: "--font-crimson", display: "swap", style: "italic" });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // safe-area-inset לטלפונים עם notch (iPhone X+)
+};
+
 export const metadata = {
   metadataBase: new URL("https://lumos-il.co.il"),
   title: {

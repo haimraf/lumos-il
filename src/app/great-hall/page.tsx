@@ -460,7 +460,7 @@ export default function GreatHall() {
                                                     <Link
                                                         href={`/wizard/${msg.user_id}`}
                                                         className="font-cinzel text-sm font-black tracking-wide hover:underline"
-                                                        style={{ color: getRoleColor(msg.profiles?.role, msg.profiles?.house, roleColors) }}
+                                                        style={{ color: msgGrp?.color || getRoleColor(msg.profiles?.role, msg.profiles?.house, roleColors) }}
                                                     >
                                                         {displayName}
                                                     </Link>
