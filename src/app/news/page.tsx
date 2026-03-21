@@ -545,7 +545,7 @@ const HOUSE_ACCENT: Record<string, { border: string; bg: string; text: string }>
   Ravenclaw:  { border: "#2563eb", bg: "rgba(37,99,235,0.05)",  text: "#1d4ed8" },
 };
 
-const MIN_COMMENT_LENGTH = 10;
+const MIN_COMMENT_LENGTH = 20;
 const COOLDOWN_MS = 30_000;
 
 function CommentsSection({ newsId }: { newsId: string }) {
@@ -599,12 +599,16 @@ function CommentsSection({ newsId }: { newsId: string }) {
     const trimmed = newComment.trim();
 
     if (!trimmed) {
-      sendOwl("תגובה ריקה", "לא ניתן לשלוח תגובה ריקה.", "error");
+      sendOwl("תגובה ריקה 📭", "לא ניתן לשלוח תגובה ריקה.", "error");
       return;
     }
 
     if (trimmed.length < MIN_COMMENT_LENGTH) {
-      sendOwl("הלחש קצר מדי 📜", `תגובה חייבת להכיל לפחות ${MIN_COMMENT_LENGTH} תווים. כתבת ${trimmed.length}.`, "error");
+      sendOwl(
+        "הלחש קצר מדי 📜",
+        `תגובה איכותית דורשת לפחות ${MIN_COMMENT_LENGTH} תווים. כתבת ${trimmed.length} — עוד ${MIN_COMMENT_LENGTH - trimmed.length} תווים נדרשים.`,
+        "error"
+      );
       return;
     }
 
@@ -615,6 +619,17 @@ function CommentsSection({ newsId }: { newsId: string }) {
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { sendOwl("לא מחובר 🔒", "יש להתחבר לטירה כדי להגיב.", "error"); return; }
+
+    // בדיקה שהמשתמש לא כבר הגיב על אותה כתבה
+    const alreadyCommented = comments.some(c => c.user_id === user.id);
+    if (alreadyCommented) {
+      sendOwl(
+        "כבר הגבת 🦉",
+        "כבר שלחת תגובה לכתבה זו. הנקודות מוענקות רק על תגובה ראשונה ואיכותית.",
+        "error"
+      );
+      return;
+    }
 
     setIsPosting(true);
     const { error } = await supabase
@@ -704,6 +719,9 @@ function CommentsSection({ newsId }: { newsId: string }) {
             >
               {newComment.trim().length} / {MIN_COMMENT_LENGTH} תווים מינימום
               {newComment.trim().length >= MIN_COMMENT_LENGTH && " ✓"}
+              {currentUserId && comments.some(c => c.user_id === currentUserId) && (
+                <span className="mr-2" style={{ color: "rgba(180,83,9,0.6)" }}>· כבר הגבת לכתבה זו</span>
+              )}
             </span>
             {/* cooldown indicator */}
             {cooldownRemaining > 0 && (
