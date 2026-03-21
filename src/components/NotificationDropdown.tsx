@@ -22,12 +22,9 @@ export default function NotificationDropdown() {
 
     // ✨ ניקוי הניסוחים מהדאטהבייס (הופך "ציטוט שלך" לניסוח אנושי ומכיל)
     const formatContent = (content: string, type: string) => {
-        if (type === 'quote') {
-            return content.replace('ציטוט שלך בדיון', 'בתגובה מצוטטת לדיון');
-        }
-        if (type === 'tag') {
-            return content.replace('תיוג שלך בדיון', 'בתיוג בתוך הדיון');
-        }
+        if (type === 'quote') return content.replace('ציטוט שלך בדיון', 'בתגובה מצוטטת לדיון');
+        if (type === 'tag') return content.replace('תיוג שלך בדיון', 'בתיוג בתוך הדיון');
+        if (type === 'reply') return content;
         return content;
     };
 
@@ -84,6 +81,9 @@ export default function NotificationDropdown() {
         <div className="relative flex items-center justify-center" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-label={`התראות${unreadCount > 0 ? ` — ${unreadCount} לא נקראו` : ""}`}
+                aria-haspopup="true"
+                aria-expanded={isOpen}
                 className="p-2 text-white/40 hover:text-amber-400 relative group outline-none transition-all active:scale-90 flex items-center justify-center"
             >
                 <Bell size={20} className={unreadCount > 0 ? "animate-bounce text-amber-500" : ""} />
@@ -101,6 +101,8 @@ export default function NotificationDropdown() {
                     <div
                         className="fixed md:absolute top-[70px] md:top-[calc(100%+10px)] left-1/2 -translate-x-1/2 bg-[#0a0f1a]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl z-[1000] animate-in fade-in slide-in-from-top-2 duration-200"
                         dir="rtl"
+                        role="dialog"
+                        aria-label="התראות"
                         style={{ width: '90vw', maxWidth: '320px', minWidth: '300px' }}
                     >
                         <div className="p-4 border-b border-white/5 flex items-center justify-between">

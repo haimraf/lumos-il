@@ -22,12 +22,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = createClient();
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    setProfile(data);
+    const [{ data }, { count }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("forum_posts").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    ]);
+    setProfile(data ? { ...data, post_count: count ?? 0 } : null);
   };
 
   useEffect(() => {

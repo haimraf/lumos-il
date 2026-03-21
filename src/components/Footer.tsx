@@ -4,8 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-    Sparkles, Shield, Feather, Map, Wand2,
-    ScrollText, Zap, ArrowUp, Users, Library, BookOpen
+    Sparkles, Shield, Feather, Map,
+    ScrollText, Zap, ArrowUp, Users, Library, BookOpen,
+    MessageSquare, Castle, Wand2, HelpCircle
 } from "lucide-react";
 
 export default function Footer() {
@@ -60,12 +61,15 @@ export default function Footer() {
                             ניווט בטירה
                         </h3>
                         <nav className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3 w-full">
-                            <FooterLink href="/forums" icon={Users} label="מסדרונות הטירה" />
+                            <FooterLink href="/dashboard" icon={Castle} label="הטירה" />
+                            <FooterLink href="/forums" icon={Users} label="מסדרונות" />
+                            <FooterLink href="/great-hall" icon={MessageSquare} label="האולם הגדול" />
                             <FooterLink href="/library" icon={Library} label="הספרייה" />
                             <FooterLink href="/news" icon={ScrollText} label="הנביא היומי" />
                             <FooterLink href="/map" icon={Map} label="מפת הקונדסאים" />
-                            <FooterLink href="/about" icon={BookOpen} label="אודות" />
                             <FooterLink href="/rules" icon={Shield} label="חוקי הקהילה" />
+                            <FooterLink href="/ollivanders" icon={Wand2} label="אוליבנדר" />
+                            <FooterLink href="/faq" icon={HelpCircle} label="שאלות נפוצות" />
                         </nav>
                     </div>
 
@@ -95,7 +99,7 @@ export default function Footer() {
                         </p>
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-950/20 border border-amber-500/15 text-amber-500/60 rounded-lg text-[9px] font-cinzel font-black tracking-[0.2em] cursor-default">
                             <Zap size={12} className="fill-amber-500/60" />
-                            v2.2.0-PHASE2
+                            v2.3.0-PHASE2
                         </div>
                     </div>
 

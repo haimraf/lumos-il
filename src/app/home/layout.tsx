@@ -21,10 +21,20 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
         "name": "LUMOS IL - קהילת הקוסמים של ישראל",
         "url": "https://lumos-il.co.il",
         "description": "הבית של חובבי הארי פוטר בישראל. ספריית פאנפיקים, פורומים, ומשחקי תפקידים.",
+        "inLanguage": "he",
         "publisher": {
             "@type": "Organization",
-            "name": "LUMOS IL"
-        }
+            "name": "LUMOS IL",
+            "url": "https://lumos-il.co.il",
+        },
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://lumos-il.co.il/forums?q={search_term_string}",
+            },
+            "query-input": "required name=search_term_string",
+        },
     };
 
     return (

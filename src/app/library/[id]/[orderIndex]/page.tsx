@@ -16,10 +16,21 @@ export default function ChapterPage() {
     const { id, orderIndex } = useParams();
     const router = useRouter();
     const { sendOwl } = useOwlMail();
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
+    const [scrollPct, setScrollPct] = useState(0);
 
     const { scrollYProgress } = useScroll();
     const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+
+    useEffect(() => {
+        const handler = () => {
+            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+            if (scrollHeight <= clientHeight) return;
+            setScrollPct(scrollTop / (scrollHeight - clientHeight));
+        };
+        window.addEventListener("scroll", handler, { passive: true });
+        return () => window.removeEventListener("scroll", handler);
+    }, []);
 
     const [chapter, setChapter] = useState<any>(null);
     const [prevChapter, setPrevChapter] = useState<any>(null);
@@ -330,14 +341,19 @@ export default function ChapterPage() {
             </div>
 
             {/* כפתור חזרה למעלה */}
-            <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: scaleX.get() > 0.2 ? 1 : 0 }}
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            <button
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
                 className="fixed bottom-10 right-10 w-14 h-14 bg-amber-600 text-amber-950 rounded-full flex items-center justify-center shadow-2xl z-50 hover:bg-amber-500 transition-all active:scale-90"
+                style={{
+                    opacity: scrollPct > 0.15 ? 1 : 0,
+                    pointerEvents: scrollPct > 0.15 ? "auto" : "none",
+                    transform: `scale(${scrollPct > 0.15 ? 1 : 0.8})`,
+                    transition: "opacity 0.3s, transform 0.3s",
+                }}
+                aria-label="חזרה לראש הדף"
             >
                 <ArrowUp size={24} />
-            </motion.button>
+            </button>
 
             <style jsx global>{`
                 .chapter-content-view p { margin-bottom: 3rem; }

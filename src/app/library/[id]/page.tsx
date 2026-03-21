@@ -17,12 +17,13 @@ export default function StoryViewPage() {
     const { id } = useParams();
     const router = useRouter();
     const { sendOwl } = useOwlMail();
+    const [supabase] = useState(() => createClient());
     const [story, setStory] = useState<any>(null);
     const [chapters, setChapters] = useState<any[]>([]);
     const [isAdultConfirmed, setIsAdultConfirmed] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
-    const supabase = createClient();
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -30,6 +31,9 @@ export default function StoryViewPage() {
 
     useEffect(() => {
         const fetchStory = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) setCurrentUserId(user.id);
+
             const { data: storyData } = await supabase
                 .from('stories')
                 .select(`*, profiles:author_id(*)`)
@@ -201,11 +205,13 @@ export default function StoryViewPage() {
                             </div>
                         </div>
 
-                        <div className="pt-6">
-                            <Link href={`/library/${id}/add-chapter`} className="inline-flex items-center gap-3 px-12 py-5 bg-amber-600 hover:bg-amber-500 text-amber-950 rounded-[1.5rem] font-black font-cinzel transition-all shadow-xl transform hover:scale-105 active:scale-95">
-                                <Plus size={20} /> הוסף פרק חדש
-                            </Link>
-                        </div>
+                        {currentUserId && currentUserId === story?.author_id && (
+                            <div className="pt-6">
+                                <Link href={`/library/${id}/add-chapter`} className="inline-flex items-center gap-3 px-12 py-5 bg-amber-600 hover:bg-amber-500 text-amber-950 rounded-[1.5rem] font-black font-cinzel transition-all shadow-xl transform hover:scale-105 active:scale-95">
+                                    <Plus size={20} /> הוסף פרק חדש
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -270,12 +276,14 @@ export default function StoryViewPage() {
                                     "הדפים מחכים לדיו הראשון..."
                                 </p>
                             </div>
-                            <Link
-                                href={`/library/${id}/add-chapter`}
-                                className="inline-flex items-center gap-2 px-8 py-3 border border-dashed border-amber-500/20 hover:border-amber-500/50 rounded-2xl text-amber-500/40 hover:text-amber-500 font-cinzel text-xs uppercase tracking-widest font-black transition-all hover:bg-amber-500/5"
-                            >
-                                <Plus size={14} /> כתוב את הפרק הראשון
-                            </Link>
+                            {currentUserId === story?.author_id && (
+                                <Link
+                                    href={`/library/${id}/add-chapter`}
+                                    className="inline-flex items-center gap-2 px-8 py-3 border border-dashed border-amber-500/20 hover:border-amber-500/50 rounded-2xl text-amber-500/40 hover:text-amber-500 font-cinzel text-xs uppercase tracking-widest font-black transition-all hover:bg-amber-500/5"
+                                >
+                                    <Plus size={14} /> כתוב את הפרק הראשון
+                                </Link>
+                            )}
                         </div>
                     )}
                 </div>

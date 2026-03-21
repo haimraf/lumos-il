@@ -5,21 +5,47 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
-  User, Coins, Trophy, Wand2, Users, ScrollText, ShoppingBag, ShieldCheck,
+  Coins, Trophy, Wand2, Users, ScrollText, ShoppingBag,
   ChevronLeft, ChevronRight, LogOut, Settings, Mail, Lock, Sparkles, Zap, Home, Bell,
-  MessageSquare, Trash2, CheckCircle2, Briefcase, Star, GraduationCap, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu
+  Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import MaraudersMap from "@/components/MaraudersMap";
 import { useAuth } from "@/context/AuthContext";
+import MagicTraitsCard from "../../components/MagicTraitsCard";
+import PatronusQuiz from "@/components/PatronusQuiz";
+import { getYearFromProfile, getYearTitle, getYearLabel, getProgressPercentFromProfile, getNextYearRequirements } from "@/lib/yearSystem";
+
+const PATRONUS_ANIMALS: Record<string, { emoji: string; nameHe: string }> = {
+    stag:      { emoji: "🦌", nameHe: "צבי" },
+    otter:     { emoji: "🦦", nameHe: "Otter" },
+    wolf:      { emoji: "🐺", nameHe: "זאב" },
+    doe:       { emoji: "🦌", nameHe: "צביה" },
+    hare:      { emoji: "🐇", nameHe: "ארנב בר" },
+    boar:      { emoji: "🐗", nameHe: "חזיר בר" },
+    cat:       { emoji: "🐱", nameHe: "חתול" },
+    eagle:     { emoji: "🦅", nameHe: "נשר" },
+    lion:      { emoji: "🦁", nameHe: "אריה" },
+    dolphin:   { emoji: "🐬", nameHe: "דולפין" },
+    fox:       { emoji: "🦊", nameHe: "שועל" },
+    owl:       { emoji: "🦉", nameHe: "ינשוף" },
+    horse:     { emoji: "🐴", nameHe: "סוס" },
+    tiger:     { emoji: "🐯", nameHe: "נמר" },
+    swan:      { emoji: "🦢", nameHe: "ברבור" },
+    bear:      { emoji: "🐻", nameHe: "דוב" },
+    dragon:    { emoji: "🐉", nameHe: "דרקון" },
+    butterfly: { emoji: "🦋", nameHe: "פרפר" },
+    phoenix:   { emoji: "🔥", nameHe: "פיניקס" },
+    serpent:   { emoji: "🐍", nameHe: "נחש" },
+};
 
 /**
- * LUMOS IL - MASTER DASHBOARD V5.4 (The Unified Notifications Update)
- * שדרוג: סנכרון מלא עם ה-NotificationDropdown - ניקוי ניסוחים ("בתגובה מצוטטת")
- * ושפה א-בינארית/ניטרלית בתוך טאב ההתראות.
+ * LUMOS IL - MASTER DASHBOARD V6
+ * ✅ MagicTraitsCard מחובר
+ * ✅ מבנה JSX מתוקן
+ * ✅ ActionCards כפולות הוסרו
  */
 
-// --- Mobile Header Component ---
 function MobileHeader({ theme, onMenuClick }: any) {
   return (
     <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-xl border-b border-white/10">
@@ -28,13 +54,12 @@ function MobileHeader({ theme, onMenuClick }: any) {
           <Menu size={24} className={theme.accentText} />
         </button>
         <h1 className="font-cinzel text-xl font-black tracking-widest text-amber-500">LUMOS IL</h1>
-        <div className="w-10" /> {/* Spacer for centering */}
+        <div className="w-10" />
       </div>
     </header>
   );
 }
 
-// --- Spell Ritual Component ---
 function SpellRitual({ spell, onSuccess, onCancel }: any) {
   if (!spell) return null;
   const [progress, setProgress] = useState(0);
@@ -52,12 +77,12 @@ function SpellRitual({ spell, onSuccess, onCancel }: any) {
   };
 
   return (
-    <div className="fixed inset-0 z-[30000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-700 overflow-hidden" dir="rtl" role="dialog" aria-label={`למידת הלחש ${spell.name}`}>
+    <div className="fixed inset-0 z-[30000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-700 overflow-hidden" dir="rtl">
       <div className="relative w-full max-w-2xl p-6 md:p-12 text-center border border-amber-500/20 rounded-[3rem] md:rounded-[4rem] bg-black/40 shadow-[0_0_100px_rgba(245,158,11,0.1)] mx-4">
-        <button onClick={onCancel} className="absolute top-6 right-6 text-white/20 hover:text-white transition-colors z-50" aria-label="סגור ריטואל"><X size={32} /></button>
+        <button onClick={onCancel} className="absolute top-6 right-6 text-white/20 hover:text-white transition-colors z-50"><X size={32} /></button>
         {status === 'intro' && (
           <div className="space-y-8 animate-in zoom-in">
-            <div className="w-20 h-20 md:w-24 md:h-24 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20 shadow-lg"><BookOpen size={48} className="text-amber-500" /></div>
+            <div className="w-20 h-20 md:w-24 md:h-24 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20"><BookOpen size={48} className="text-amber-500" /></div>
             <h2 className="font-cinzel text-3xl md:text-5xl font-black text-amber-500 tracking-widest">{spell.name}</h2>
             <p className="font-crimson text-lg md:text-2xl text-white/60 italic leading-relaxed">"עליך להניף את השרביט בריכוז מוחלט כדי לשלוט בכשף."</p>
             <button onClick={() => setStatus('drawing')} className="px-10 py-4 md:px-14 md:py-5 rounded-full bg-amber-600 text-amber-950 font-cinzel font-black text-lg hover:shadow-2xl transition-all active:scale-95">התחל את הריטואל</button>
@@ -67,7 +92,7 @@ function SpellRitual({ spell, onSuccess, onCancel }: any) {
           <div className="flex flex-col items-center justify-center py-6 md:py-10" onMouseMove={handleDraw} onTouchMove={handleDraw}>
             <div className="text-amber-500/40 font-cinzel tracking-widest animate-pulse mb-8 text-xs md:text-sm uppercase text-center">הנע את העכבר/אצבע בתנועה סיבובית מעל הקלף</div>
             <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full border-4 border-dashed border-amber-500/10 animate-[spin_10s_linear_infinite]"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-dashed border-amber-500/10 animate-[spin_10s_linear_infinite]" />
               <div className="text-5xl md:text-6xl text-amber-500 font-cinzel font-black">{Math.floor(progress)}%</div>
               <Wand2 size={24} className="text-amber-500/40 animate-bounce absolute bottom-6" />
             </div>
@@ -84,15 +109,11 @@ function SpellRitual({ spell, onSuccess, onCancel }: any) {
   );
 }
 
-// --- Enhanced House Themes ---
 const HOUSE_THEMES: Record<string, any> = {
   Gryffindor: {
     cardBg: "bg-gradient-to-br from-red-950/30 via-red-900/20 to-amber-900/10 backdrop-blur-xl",
-    borderColor: "border-red-500/30",
-    textColor: "text-red-50",
-    accentText: "text-red-500",
-    glowColor: "drop-shadow-[0_0_25px_rgba(239,68,68,0.4)]",
-    nameHe: "גריפינדור",
+    borderColor: "border-red-500/30", textColor: "text-red-50", accentText: "text-red-500", accent: "#ef4444",
+    glowColor: "drop-shadow-[0_0_25px_rgba(239,68,68,0.4)]", nameHe: "גריפינדור",
     description: "אומץ, תעוזה ואבירות. כאן נבחנת גדולה.",
     colors: "from-red-600/40 via-red-900/60 to-amber-600/20",
     nebula: "bg-gradient-to-br from-red-900/20 via-amber-900/10 to-transparent",
@@ -101,11 +122,8 @@ const HOUSE_THEMES: Record<string, any> = {
   },
   Slytherin: {
     cardBg: "bg-gradient-to-br from-emerald-950/30 via-emerald-900/20 to-slate-900/10 backdrop-blur-xl",
-    borderColor: "border-emerald-500/30",
-    textColor: "text-emerald-50",
-    accentText: "text-emerald-500",
-    glowColor: "drop-shadow-[0_0_25px_rgba(16,185,129,0.4)]",
-    nameHe: "סלית'רין",
+    borderColor: "border-emerald-500/30", textColor: "text-emerald-50", accentText: "text-emerald-500", accent: "#10b981",
+    glowColor: "drop-shadow-[0_0_25px_rgba(16,185,129,0.4)]", nameHe: "סלית'רין",
     description: "שאפתנות, פיקחות וטהרת דם. הדרך לפסגה מתחילה פה.",
     colors: "from-emerald-600/40 via-emerald-900/60 to-slate-800/20",
     nebula: "bg-gradient-to-br from-emerald-900/20 via-slate-900/10 to-transparent",
@@ -114,11 +132,8 @@ const HOUSE_THEMES: Record<string, any> = {
   },
   Ravenclaw: {
     cardBg: "bg-gradient-to-br from-blue-950/30 via-blue-900/20 to-indigo-900/10 backdrop-blur-xl",
-    borderColor: "border-blue-500/30",
-    textColor: "text-blue-50",
-    accentText: "text-blue-400",
-    glowColor: "drop-shadow-[0_0_25px_rgba(59,130,246,0.4)]",
-    nameHe: "רייבנקלו",
+    borderColor: "border-blue-500/30", textColor: "text-blue-50", accentText: "text-blue-400", accent: "#60a5fa",
+    glowColor: "drop-shadow-[0_0_25px_rgba(59,130,246,0.4)]", nameHe: "רייבנקלו",
     description: "חכמה, יצירתיות ולמידה. הראש פתוח לכל תעלומה.",
     colors: "from-blue-600/40 via-blue-900/60 to-indigo-900/20",
     nebula: "bg-gradient-to-br from-blue-900/20 via-indigo-900/10 to-transparent",
@@ -127,11 +142,8 @@ const HOUSE_THEMES: Record<string, any> = {
   },
   Hufflepuff: {
     cardBg: "bg-gradient-to-br from-amber-950/30 via-amber-900/20 to-yellow-900/10 backdrop-blur-xl",
-    borderColor: "border-amber-500/30",
-    textColor: "text-amber-50",
-    accentText: "text-amber-500",
-    glowColor: "drop-shadow-[0_0_25px_rgba(245,158,11,0.4)]",
-    nameHe: "הפלפאף",
+    borderColor: "border-amber-500/30", textColor: "text-amber-50", accentText: "text-amber-500", accent: "#f59e0b",
+    glowColor: "drop-shadow-[0_0_25px_rgba(245,158,11,0.4)]", nameHe: "הפלפאף",
     description: "טוב לב, נאמנות ועבודה קשה. הבית של כולם.",
     colors: "from-amber-400/40 via-amber-700/60 to-yellow-900/20",
     nebula: "bg-gradient-to-br from-amber-900/30 via-yellow-900/15 to-transparent",
@@ -152,7 +164,6 @@ function DashboardContent() {
   const [spells, setSpells] = useState<any[]>([]);
   const [activeRitual, setActiveRitual] = useState<any | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const [newName, setNewName] = useState("");
   const [newGender, setNewGender] = useState("");
   const [newSignature, setNewSignature] = useState("");
@@ -160,19 +171,14 @@ function DashboardContent() {
   const [newPassword, setNewPassword] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const hasAnnounced = useRef(false);
+  const prevYearRef = useRef<number | null>(null);
 
-  // ✨ פונקציית העזר לניקוי ניסוחים מהדאטהבייס
   const formatNotificationContent = (content: string, type: string) => {
-    if (type === 'quote') {
-      return content.replace('ציטוט שלך בדיון', 'בתגובה מצוטטת לדיון');
-    }
-    if (type === 'tag') {
-      return content.replace('תיוג שלך בדיון', 'בתיוג בתוך הדיון');
-    }
+    if (type === 'quote') return content.replace('ציטוט שלך בדיון', 'בתגובה מצוטטת לדיון');
+    if (type === 'tag') return content.replace('תיוג שלך בדיון', 'בתיוג בתוך הדיון');
     return content;
   };
 
-  // Hide global header and ticker on dashboard
   useEffect(() => {
     const header = document.querySelector('header');
     const ticker = document.querySelector('[data-magic-ticker]');
@@ -188,12 +194,7 @@ function DashboardContent() {
     if (!profile?.inventory) return { companions: [], items: [], cards: [], potions_ingredients: [] };
     try {
       const data = typeof profile.inventory === 'string' ? JSON.parse(profile.inventory) : profile.inventory;
-      return {
-        companions: data.companions || [],
-        items: data.items || [],
-        cards: data.cards || [],
-        potions_ingredients: data.potions_ingredients || []
-      };
+      return { companions: data.companions || [], items: data.items || [], cards: data.cards || [], potions_ingredients: data.potions_ingredients || [] };
     } catch (e) { return { companions: [], items: [], cards: [], potions_ingredients: [] }; }
   };
 
@@ -212,13 +213,10 @@ function DashboardContent() {
     if (session?.user?.id) {
       fetchSpells();
       fetchNotifications(session.user.id);
-
       profileChannel = supabase
         .channel(`dashboard_updates_${session.user.id}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` },
-          () => refreshProfile())
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, () => refreshProfile())
         .subscribe();
-
       if (!hasAnnounced.current && profile) {
         const welcomeText = profile.gender === 'female' ? "ברוכה הבאה" : "ברוכים הבאים";
         sendOwl(welcomeText, `שמחים לראות אותך שוב בחדר המועדון.`, "info");
@@ -241,6 +239,16 @@ function DashboardContent() {
       setNewEmail(session?.user?.email || "");
     }
   }, [profile, session]);
+
+  // Year-up notification
+  useEffect(() => {
+    if (!profile) return;
+    const newYear = getYearFromProfile(profile);
+    if (prevYearRef.current !== null && newYear > prevYearRef.current) {
+      sendOwl(`עלית לשנה ${newYear}! 🎓`, `ברכות! הגעת לדרגת ${getYearTitle(newYear)}`, "magic");
+    }
+    prevYearRef.current = newYear;
+  }, [profile, sendOwl]);
 
   const handleUpdateProfile = async () => {
     setIsUpdating(true);
@@ -277,21 +285,19 @@ function DashboardContent() {
     setNotifications(notifications.filter(n => n.id !== id));
   };
 
-  if (authLoading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>;
+  if (authLoading || !profile) return <div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>;
+
   const theme = HOUSE_THEMES[profile?.house] || HOUSE_THEMES['Gryffindor'];
   const inventory = getInventory();
   const isInventoryEmpty = !inventory.items?.length && !inventory.companions?.length && !inventory.cards?.length;
 
   return (
     <>
-      {/* Mobile Header - Replaces global header on mobile */}
       <MobileHeader theme={theme} onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
 
-      {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/95 backdrop-blur-xl pt-20" dir="rtl">
           <div className="p-6 space-y-4">
-            {/* כפתור חזרה לאתר הראשי במובייל */}
             <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-4 w-full p-4 rounded-2xl text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 mb-2 transition-all">
               <ChevronRight size={18} />
               <span className="font-cinzel text-xs font-bold tracking-widest uppercase">חזרה לעמוד הראשי</span>
@@ -302,61 +308,76 @@ function DashboardContent() {
             <TabButton icon={Bell} label="תיבת ינשופים" active={activeTab === 'notifications'} onClick={() => { setActiveTab('notifications'); router.push('/dashboard?tab=notifications'); setMobileMenuOpen(false); }} theme={theme} count={notifications.filter(n => !n.is_read).length} />
             <TabButton icon={Settings} label="הגדרות קסם" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); router.push('/dashboard?tab=settings'); setMobileMenuOpen(false); }} theme={theme} />
             <button onClick={async () => { await supabase.auth.signOut(); router.push('/'); }} className="w-full mt-8 py-3 text-xs text-red-400/40 hover:text-red-400 font-cinzel tracking-widest uppercase transition-all flex items-center justify-center gap-2 border border-white/5 rounded-xl hover:border-red-400/20">
-              <LogOut size={14} />
-              <span>התנתקות</span>
+              <LogOut size={14} /><span>התנתקות</span>
             </button>
           </div>
         </div>
       )}
 
       <div className="relative w-full max-w-7xl mx-auto px-4 md:px-6 py-8 lg:py-12 min-h-screen pt-20 lg:pt-8" dir="rtl">
-        {activeRitual && <SpellRitual spell={activeRitual} onSuccess={async () => {
-          const newSpells = [...(profile.learned_spells || []), activeRitual.id];
-          await supabase.from('profiles').update({ learned_spells: newSpells }).eq('id', profile.id);
-          sendOwl("הריטואל הושלם!", `למדת את ${activeRitual.name}!`, "magic");
-          refreshProfile();
-          setActiveRitual(null);
-        }} onCancel={() => setActiveRitual(null)} />}
 
-        {/* Enhanced Background */}
-        <div className="fixed inset-0 z-[-3] bg-[#0a0e1a]"></div>
-        <div className={`fixed inset-0 z-[-2] pointer-events-none opacity-30 blur-[100px] ${theme.nebula}`}></div>
+        {activeRitual && (
+          <SpellRitual
+            spell={activeRitual}
+            onSuccess={async () => {
+              const newSpells = [...(profile.learned_spells || []), activeRitual.id];
+              await supabase.from('profiles').update({ learned_spells: newSpells }).eq('id', profile.id);
+              sendOwl("הריטואל הושלם!", `למדת את ${activeRitual.name}!`, "magic");
+              refreshProfile();
+              setActiveRitual(null);
+            }}
+            onCancel={() => setActiveRitual(null)}
+          />
+        )}
+
+        {/* Background */}
+        <div className="fixed inset-0 z-[-3] bg-[#0a0e1a]" />
+        <div className={`fixed inset-0 z-[-2] pointer-events-none opacity-30 blur-[100px] ${theme.nebula}`} />
         <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden">
-          <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-amber-500/30 rounded-full animate-pulse"></div>
-          <div className="absolute top-1/3 left-1/3 w-1 h-1 bg-amber-400/40 rounded-full animate-ping" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute bottom-1/4 right-1/3 w-1.5 h-1.5 bg-amber-500/20 rounded-full animate-pulse" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-amber-500/30 rounded-full animate-pulse" />
+          <div className="absolute top-1/3 left-1/3 w-1 h-1 bg-amber-400/40 rounded-full animate-ping" style={{ animationDelay: '1s' }} />
+          <div className="absolute bottom-1/4 right-1/3 w-1.5 h-1.5 bg-amber-500/20 rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start">
-          {/* Sidebar - Hidden on mobile, shown on desktop */}
-          <aside className="hidden lg:block w-full lg:w-80 shrink-0" role="complementary" aria-label="תפריט דמות">
+
+          {/* ── Sidebar ── */}
+          <aside className="hidden lg:block w-full lg:w-80 shrink-0">
             <div className={`glass-panel rounded-[2.5rem] border-t border-l ${theme.borderColor} p-6 md:p-8 sticky top-12 shadow-2xl overflow-hidden ${theme.glow}`}>
-              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none rounded-[2.5rem]"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none rounded-[2.5rem]" />
 
               <div className="relative z-10 flex flex-col items-center gap-4 border-b border-white/10 pb-6 text-center">
                 <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br ${theme.colors} p-1 shadow-lg ring-2 ring-white/10`}>
-                  <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-3xl md:text-4xl">
-                    {profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"}
+                  <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center text-3xl md:text-4xl">
+                    {profile?.avatar_url
+                      ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                      : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
+                    }
                   </div>
                 </div>
                 <div>
                   <h3 className={`font-cinzel text-xl md:text-2xl font-black tracking-tight ${theme.accentText} mb-1`}>{profile?.full_name}</h3>
-                  <span className="text-xs uppercase text-white/30 font-cinzel tracking-widest block">שנה {profile?.year} • {profile?.gender === 'female' ? 'מכשפה' : 'קוסם'}</span>
+                  <span className="text-xs text-white/30 font-cinzel tracking-widest block">{getYearTitle(getYearFromProfile(profile))} · שנה {getYearLabel(getYearFromProfile(profile))} · {profile?.gender === 'female' ? 'מכשפה' : 'קוסם'}</span>
                 </div>
               </div>
 
-              <nav className="relative z-10 flex flex-col gap-2 pt-6" role="navigation">
-                {/* כפתור חזרה לאתר הראשי */}
+              <nav className="relative z-10 flex flex-col gap-2 pt-6">
                 <Link href="/" className="flex items-center gap-4 w-full p-4 rounded-2xl text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 mb-4 transition-all group">
                   <ChevronRight size={18} className="group-hover:-translate-x-1 transition-transform" />
                   <span className="font-cinzel text-xs font-bold tracking-widest uppercase">חזרה לטירה (ראשי)</span>
                 </Link>
+                {profile?.id && (
+                  <Link href={`/wizard/${profile.id}`} className="flex items-center gap-4 w-full p-4 rounded-2xl text-white/50 hover:text-white hover:bg-white/5 border border-white/5 hover:border-white/10 mb-2 transition-all group">
+                    <Users size={18} className="shrink-0" />
+                    <span className="font-cinzel text-xs font-bold tracking-widest uppercase">הפרופיל שלי</span>
+                  </Link>
+                )}
                 <TabButton icon={Home} label="לוח בקרה" active={activeTab === 'overview'} onClick={() => { setActiveTab('overview'); router.push('/dashboard?tab=overview'); }} theme={theme} />
                 <TabButton icon={Briefcase} label="מזוודת חפצים" active={activeTab === 'inventory'} onClick={() => { setActiveTab('inventory'); router.push('/dashboard?tab=inventory'); }} theme={theme} />
                 <TabButton icon={BookOpen} label="ספר כשפים" active={activeTab === 'spells'} onClick={() => { setActiveTab('spells'); router.push('/dashboard?tab=spells'); }} theme={theme} />
                 <TabButton icon={Bell} label="תיבת ינשופים" active={activeTab === 'notifications'} onClick={() => { setActiveTab('notifications'); router.push('/dashboard?tab=notifications'); }} theme={theme} count={notifications.filter(n => !n.is_read).length} />
                 <TabButton icon={Settings} label="הגדרות קסם" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); router.push('/dashboard?tab=settings'); }} theme={theme} />
-                {(profile?.role === 'מנהל') && (
+                {profile?.role === 'מנהל' && (
                   <Link href="/admin-panel" className="flex items-center gap-4 w-full p-4 rounded-xl text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 mt-4 transition-all">
                     <ShieldAlert size={18} />
                     <span className="font-cinzel text-xs font-bold uppercase tracking-widest">ניהול הטירה</span>
@@ -368,7 +389,7 @@ function DashboardContent() {
                 <StatItem icon={Coins} label="גליאונים" value={profile?.galleons || 0} theme={theme} highlight="text-amber-500" />
                 <StatItem icon={Trophy} label="נקודות בית" value={profile?.points_contributed || 0} theme={theme} />
                 {profile?.wand_type && (
-                  <div className="pt-4 border-t border-white/10 group text-right">
+                  <div className="pt-4 border-t border-white/10 text-right">
                     <div className="flex items-center gap-2 text-white/30 text-xs uppercase mb-2">
                       <Wand2 size={12} />
                       <span className="font-bold font-cinzel">השרביט שלך</span>
@@ -379,24 +400,26 @@ function DashboardContent() {
               </div>
 
               <button onClick={async () => { await supabase.auth.signOut(); router.push('/'); }} className="relative z-10 w-full mt-8 py-3 text-xs text-red-400/40 hover:text-red-400 font-cinzel tracking-widest uppercase transition-all flex items-center justify-center gap-2 border border-white/5 rounded-xl hover:border-red-400/20">
-                <LogOut size={14} />
-                <span>התנתקות מהטירה</span>
+                <LogOut size={14} /><span>התנתקות מהטירה</span>
               </button>
             </div>
           </aside>
 
-          {/* Main Content */}
-          <main className="flex-1 w-full overflow-hidden" role="main">
+          {/* ── Main Content ── */}
+          <main className="flex-1 w-full overflow-hidden">
+
+            {/* ── Overview ── */}
             {activeTab === 'overview' && (
               <div className="space-y-10 animate-in fade-in duration-1000">
-                <section className={`relative overflow-hidden p-8 md:p-12 lg:p-16 rounded-[3rem] lg:rounded-[4rem] border-t border-r ${theme.borderColor} ${theme.heroGradient} ${theme.glow}`}>
-                  <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/[0.02] rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
 
+                {/* Hero */}
+                <section className={`relative overflow-hidden p-8 md:p-12 lg:p-16 rounded-[3rem] lg:rounded-[4rem] border-t border-r ${theme.borderColor} ${theme.heroGradient} ${theme.glow}`}>
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/[0.02] rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2 pointer-events-none" />
                   <div className="relative z-10 flex flex-col gap-4 text-right">
                     <div className="flex items-center justify-end gap-3 opacity-40 mb-6">
                       <span className="font-cinzel text-[10px] tracking-[0.4em] text-amber-500 uppercase">Room of Requirement</span>
-                      <span className="h-[1px] w-10 bg-amber-500"></span>
+                      <span className="h-[1px] w-10 bg-amber-500" />
                     </div>
                     <div className="space-y-8">
                       <h2 className="font-cinzel text-xl text-white/40 tracking-widest">{profile?.gender === 'female' ? "ברוכה הבאה" : "ברוכים הבאים"} לבית</h2>
@@ -407,15 +430,106 @@ function DashboardContent() {
                     <div className={`mt-10 border-r-4 ${theme.borderColor} pr-6 max-w-xl mr-0 ml-auto`}>
                       <p className="font-crimson text-xl md:text-2xl leading-relaxed text-white/70 italic text-right">"{theme.description}"</p>
                     </div>
+
+                    {/* Progress bar — שנת לימודים */}
+                    {(() => {
+                      const currentYear = getYearFromProfile(profile);
+                      const req = getNextYearRequirements(profile);
+                      const progress = getProgressPercentFromProfile(profile);
+                      return (
+                        <div className="mt-8 w-full max-w-xl mr-0 ml-auto">
+                          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                            <span className="font-cinzel text-[10px] text-white/30 tracking-widest">
+                              {getYearTitle(currentYear)} · שנה {getYearLabel(currentYear)}
+                            </span>
+                            {req && (
+                              <span className="font-cinzel text-[10px] text-white/20">
+                                עוד{req.months > 0 ? ` ${req.months} חודשים` : ""}
+                                {req.months > 0 && req.posts > 0 ? " + " : ""}
+                                {req.posts > 0 ? `${req.posts} פוסטים` : ""}
+                              </span>
+                            )}
+                          </div>
+                          <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-1000"
+                              style={{
+                                width: `${progress}%`,
+                                background: theme.accent || "#f59e0b",
+                                boxShadow: `0 0 6px ${theme.accent}80`,
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            {[1,2,3,4,5,6,7].map(y => (
+                              <span key={y} className="text-[8px] font-cinzel"
+                                style={{ color: y <= currentYear ? theme.accent : "rgba(255,255,255,0.1)" }}>
+                                {getYearLabel(y)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* בחינות O.W.L / N.E.W.T */}
+                    {(() => {
+                      const currentYear = getYearFromProfile(profile);
+                      const owlPassed = profile.owl_passed === true;
+                      const newtPassed = profile.newt_passed === true;
+                      const showOwl = currentYear >= 5;
+                      const showNewt = currentYear >= 6;
+                      if (!showOwl && !showNewt) return null;
+                      return (
+                        <div className="mt-6 flex flex-wrap gap-3 justify-end">
+                          {showOwl && (owlPassed ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 font-cinzel text-[11px] text-amber-400">
+                              🦉 בכיר O.W.L
+                            </span>
+                          ) : (
+                            <Link href="/exams/owl"
+                              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-cinzel font-black text-xs uppercase tracking-wide transition-all active:scale-[0.98] bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/30 text-amber-300`}>
+                              🦉 גש לבחינת O.W.L
+                            </Link>
+                          ))}
+                          {showNewt && (newtPassed ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 font-cinzel text-[11px] text-purple-400">
+                              ⚡ בכיר N.E.W.T
+                            </span>
+                          ) : (
+                            <Link href="/exams/newt"
+                              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-cinzel font-black text-xs uppercase tracking-wide transition-all active:scale-[0.98] bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-300">
+                              ⚡ גש לבחינת N.E.W.T
+                            </Link>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </section>
 
+                {/* Action Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   <ActionCard href="/shop" icon={ShoppingBag} title="דיאגון" desc="חנות קסמים" theme={theme} />
                   <ActionCard href="/forums" icon={Users} title="האולם הגדול" desc="שיחות וקהילה" theme={theme} />
                   <ActionCard href="/library" icon={ScrollText} title="הספרייה" desc="לור וסיפורים" theme={theme} />
                 </div>
 
+                {/* ✨ תכונות קסומות מולדות */}
+                <MagicTraitsCard profile={profile} theme={theme} />
+
+                {profile.patronus && (
+                  <div className="glass-panel rounded-2xl p-4 border border-white/[0.06] flex items-center gap-4">
+                    <span className="text-4xl">{PATRONUS_ANIMALS[profile.patronus]?.emoji || "🔮"}</span>
+                    <div>
+                      <p className="font-cinzel text-xs text-white/30 uppercase tracking-widest">הפטרונוס שלך</p>
+                      <p className={`font-cinzel font-black text-lg ${theme.accentText}`}>
+                        {PATRONUS_ANIMALS[profile.patronus]?.nameHe || profile.patronus}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* מפת הקונדסאים */}
                 <div className={`glass-panel rounded-[3rem] p-6 md:p-8 border ${theme.borderColor} shadow-2xl flex flex-col items-start overflow-hidden`}>
                   <div className="w-full flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
                     <Zap size={20} className="text-amber-500 animate-pulse" />
@@ -423,10 +537,11 @@ function DashboardContent() {
                   </div>
                   <div className="w-full overflow-x-auto custom-scrollbar"><MaraudersMap /></div>
                 </div>
+
               </div>
             )}
 
-            {/* ✨ התיקון: טאב ההתראות המיושר עם ניקוי ניסוחים */}
+            {/* ── Notifications ── */}
             {activeTab === 'notifications' && (
               <div className={`glass-panel rounded-[3rem] border-t border-l ${theme.borderColor} p-6 md:p-12 space-y-8 animate-in fade-in ${theme.glow}`}>
                 <h2 className="font-cinzel text-2xl md:text-3xl font-black flex items-center gap-4 text-white justify-end">
@@ -436,33 +551,25 @@ function DashboardContent() {
                 <div className="space-y-4">
                   {notifications.length > 0 ? notifications.map((n) => (
                     <div key={n.id} className={`p-6 md:p-8 rounded-[2rem] border ${!n.is_read ? 'bg-white/[0.03] border-white/10 shadow-xl' : 'bg-transparent border-white/5 opacity-50'} flex flex-col md:flex-row items-center justify-between gap-6 transition-all`}>
-
                       <div className="flex items-center gap-6 w-full md:w-auto">
                         <div className={`p-4 rounded-full ${!n.is_read ? 'bg-amber-500/20 text-amber-500' : 'bg-white/5 text-white/20'}`}>
                           <Mail size={24} />
                         </div>
                         <div className="flex-1 text-right">
                           <p className="text-sm md:text-base text-white/90 font-medium mb-1">
-                            {/* ✨ שפה מכילה (חבר/ת קהילה) וללא כפילות טקסט! */}
-                            <span className={`font-bold ${theme.accentText}`}>
-                              {n.actor_profile?.full_name || 'חבר/ת קהילה'}
-                            </span>
+                            <span className={`font-bold ${theme.accentText}`}>{n.actor_profile?.full_name || 'חבר/ת קהילה'}</span>
                             {" "}{formatNotificationContent(n.content, n.type)}
                           </p>
                           <div className="flex items-center gap-2 text-xs text-white/20 font-cinzel tracking-[0.2em] justify-end">
-                            {/* ✨ עיצוב זמן מלא: תאריך ושעה */}
-                            <span>
-                              {new Date(n.created_at).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                            <span>{new Date(n.created_at).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                             <Clock size={10} />
                           </div>
                         </div>
                       </div>
-
                       <div className="flex gap-4 w-full md:w-auto justify-end">
-                        {n.target_url && <Link href={n.target_url} onClick={() => markAsRead(n.id)} className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-cinzel tracking-widest flex items-center gap-2 transition-all"><span>עבור לדיון</span> <ExternalLink size={14} /></Link>}
-                        {!n.is_read && <button onClick={() => markAsRead(n.id)} className="p-3 hover:bg-green-500/20 text-green-500 rounded-full transition-all" aria-label="סמן כנקרא"><CheckCircle2 size={20} /></button>}
-                        <button onClick={() => deleteNotification(n.id)} className="p-3 hover:bg-red-500/20 text-red-500 rounded-full transition-all" aria-label="מחק"><Trash2 size={20} /></button>
+                        {n.target_url && <Link href={n.target_url} onClick={() => markAsRead(n.id)} className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-cinzel tracking-widest flex items-center gap-2 transition-all"><span>עבור לדיון</span><ExternalLink size={14} /></Link>}
+                        {!n.is_read && <button onClick={() => markAsRead(n.id)} className="p-3 hover:bg-green-500/20 text-green-500 rounded-full transition-all"><CheckCircle2 size={20} /></button>}
+                        <button onClick={() => deleteNotification(n.id)} className="p-3 hover:bg-red-500/20 text-red-500 rounded-full transition-all"><Trash2 size={20} /></button>
                       </div>
                     </div>
                   )) : <div className="py-24 opacity-20 font-cinzel italic text-center text-xl">אין מכתבים חדשים בתיבה.</div>}
@@ -470,6 +577,7 @@ function DashboardContent() {
               </div>
             )}
 
+            {/* ── Inventory ── */}
             {activeTab === 'inventory' && (
               <div className="space-y-12 animate-in fade-in">
                 <h2 className="font-cinzel text-3xl md:text-4xl font-black border-b border-white/10 pb-6 text-white text-right uppercase tracking-widest">מזוודת חפצים</h2>
@@ -490,6 +598,7 @@ function DashboardContent() {
               </div>
             )}
 
+            {/* ── Settings ── */}
             {activeTab === 'settings' && (
               <div className={`glass-panel rounded-[3rem] border-t border-l ${theme.borderColor} p-6 md:p-12 space-y-12 animate-in fade-in ${theme.glow}`}>
                 <h2 className="font-cinzel text-3xl font-black uppercase tracking-widest border-b border-white/10 pb-8 text-white text-right">הגדרות קסם</h2>
@@ -508,21 +617,22 @@ function DashboardContent() {
                   </div>
                   <div className="space-y-8">
                     <div className="p-8 md:p-10 rounded-[3rem] bg-black/20 border border-white/5 shadow-inner space-y-6">
-                      <h4 className="font-cinzel text-xs text-amber-500/60 uppercase flex items-center gap-2 border-b border-white/5 pb-4 justify-end"><span>אבטחת גרינגוטס</span> <Lock size={16} /></h4>
-                      <div className="relative"><InputField label="שינוי אימייל" value={newEmail} onChange={setNewEmail} /><button onClick={() => handleUpdateAuth('email')} className="absolute left-4 top-11 text-xs text-amber-500 uppercase font-black hover:underline transition-all">עדכן</button></div>
-                      <div className="relative"><InputField label="סיסמה חדשה" value={newPassword} onChange={setNewPassword} type="password" /><button onClick={() => handleUpdateAuth('password')} className="absolute left-4 top-11 text-xs text-amber-500 uppercase font-black hover:underline transition-all">עדכן</button></div>
+                      <h4 className="font-cinzel text-xs text-amber-500/60 uppercase flex items-center gap-2 border-b border-white/5 pb-4 justify-end"><span>אבטחת גרינגוטס</span><Lock size={16} /></h4>
+                      <div className="relative"><InputField label="שינוי אימייל" value={newEmail} onChange={setNewEmail} /><button onClick={() => handleUpdateAuth('email')} className="absolute left-4 top-11 text-xs text-amber-500 uppercase font-black hover:underline">עדכן</button></div>
+                      <div className="relative"><InputField label="סיסמה חדשה" value={newPassword} onChange={setNewPassword} type="password" /><button onClick={() => handleUpdateAuth('password')} className="absolute left-4 top-11 text-xs text-amber-500 uppercase font-black hover:underline">עדכן</button></div>
                     </div>
                     <div className="p-8 md:p-10 rounded-[3rem] bg-gradient-to-br from-purple-900/10 to-transparent border border-purple-500/20 flex flex-col items-center gap-6 text-center">
                       <div className={`p-5 rounded-full bg-white/5 ${theme.accentText} animate-pulse`}><Sparkles size={32} /></div>
                       <h4 className="font-cinzel text-xl font-bold uppercase tracking-widest text-purple-400">שיקוי הזדמנות שנייה</h4>
                       <p className="font-crimson text-white/50 text-base italic leading-relaxed">המצנפת מוכנה לשקול שוב את גורלך... תמורת 500 גליאונים.</p>
-                      <button onClick={handleResetHouse} disabled={profile?.house_changes_count >= 1 || profile?.galleons < 500} className="w-full py-4 rounded-full bg-purple-600 hover:bg-purple-500 disabled:bg-white/5 text-white font-black transition-all active:scale-95">מיון מחדש (500 גליאונים)</button>
+                      <button onClick={handleResetHouse} disabled={profile?.house_changes_count >= 1 || profile?.galleons < 500} className="px-10 py-3 rounded-full bg-purple-600 hover:bg-purple-500 disabled:bg-white/5 text-white font-black transition-all active:scale-95">מיון מחדש (500 גליאונים)</button>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* ── Spells ── */}
             {activeTab === 'spells' && (
               <div className="space-y-10 animate-in fade-in">
                 <h2 className="font-cinzel text-4xl font-black border-b border-white/10 pb-6 text-white text-right uppercase tracking-widest">ספר הכשפים התקני</h2>
@@ -531,11 +641,14 @@ function DashboardContent() {
                     const locked = profile?.year < s.min_year;
                     const learned = profile?.learned_spells?.includes(s.id);
                     return (
-                      <div key={s.id} className={`group relative p-8 md:p-10 glass-panel rounded-[3rem] border transition-all duration-700 overflow-hidden ${locked ? 'border-red-900/40 bg-black/80 grayscale opacity-70 shadow-inner' : learned ? `border-amber-500/30 bg-amber-500/5 shadow-lg` : 'border-white/10 hover:border-amber-500/40'}`}>
+                      <div key={s.id} className={`group relative p-8 md:p-10 glass-panel rounded-[3rem] border transition-all duration-700 overflow-hidden ${locked ? 'border-red-900/40 bg-black/80 grayscale opacity-70' : learned ? 'border-amber-500/30 bg-amber-500/5 shadow-lg' : 'border-white/10 hover:border-amber-500/40'}`}>
                         {locked && <div className="absolute top-6 left-6 text-red-500/60 flex flex-col items-center animate-pulse z-10"><Lock size={28} /><span className="text-[9px] font-cinzel mt-1 uppercase font-black">שנה {s.min_year}</span></div>}
                         <div className="flex items-start justify-between mb-6">
                           {learned && <CheckCircle2 className="text-amber-500" size={24} />}
-                          <div className="flex-1 text-right"><h3 className="font-cinzel text-xl md:text-2xl font-black text-white group-hover:text-amber-500 transition-colors">{s.name}</h3><span className="text-sm font-crimson text-amber-500/60 italic tracking-widest block">{s.latin_name}</span></div>
+                          <div className="flex-1 text-right">
+                            <h3 className="font-cinzel text-xl md:text-2xl font-black text-white group-hover:text-amber-500 transition-colors">{s.name}</h3>
+                            <span className="text-sm font-crimson text-amber-500/60 italic tracking-widest block">{s.latin_name}</span>
+                          </div>
                         </div>
                         <p className="text-sm md:text-base text-white/50 mb-8 italic text-right leading-relaxed">"{s.description}"</p>
                         {!locked && !learned && <button onClick={() => setActiveRitual(s)} className="w-full py-4 bg-amber-600/10 border border-amber-500/30 text-amber-500 rounded-2xl font-cinzel hover:bg-amber-500 hover:text-amber-950 font-black text-xs uppercase transition-all shadow-lg active:scale-95">התחל ריטואל למידה</button>}
@@ -544,8 +657,17 @@ function DashboardContent() {
                     );
                   })}
                 </div>
+
+                {profile && (
+                  <PatronusQuiz
+                    profileId={profile.id}
+                    currentYear={profile.year || 1}
+                    onComplete={() => refreshProfile()}
+                  />
+                )}
               </div>
             )}
+
           </main>
         </div>
       </div>
@@ -554,7 +676,11 @@ function DashboardContent() {
 }
 
 export default function DashboardPage() {
-  return <Suspense fallback={<div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>}><DashboardContent /></Suspense>;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>}>
+      <DashboardContent />
+    </Suspense>
+  );
 }
 
 function InventorySection({ title, items, icon: Icon, theme }: any) {
@@ -562,15 +688,20 @@ function InventorySection({ title, items, icon: Icon, theme }: any) {
   return (
     <div className="space-y-6 animate-in fade-in">
       <h3 className="font-cinzel text-xs font-bold text-white/40 flex items-center gap-3 uppercase tracking-widest justify-end">
-        <span>{title}</span>
-        <Icon size={16} />
+        <span>{title}</span><Icon size={16} />
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
         {items.map((item: any, idx: number) => (
           <div key={idx} className="glass-panel p-6 rounded-[2.5rem] border border-white/5 flex flex-col items-center gap-4 hover:border-amber-500/30 transition-all group relative overflow-hidden text-center shadow-lg bg-black/20">
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            {item.image_url ? <img src={item.image_url} alt={item.name} className="w-16 h-16 rounded-2xl object-cover border border-white/5 group-hover:scale-110 transition-transform" /> : <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-amber-500/20"><Star size={32} /></div>}
-            <div className="text-center relative z-10 w-full"><h4 className="font-cinzel text-[10px] font-bold uppercase tracking-widest truncate text-white">{item.name}</h4><span className="text-[9px] text-white/20 tracking-widest mt-1 block uppercase">{item.rarity}</span>{item.boosts?.galleons_multiplier && <div className="mt-2 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-full text-[9px] font-bold inline-flex items-center gap-1 shadow-sm"><Coins size={10} /> +{item.boosts.galleons_multiplier * 100}%</div>}</div>
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            {item.image_url
+              ? <img src={item.image_url} alt={item.name} className="w-16 h-16 rounded-2xl object-cover border border-white/5 group-hover:scale-110 transition-transform" />
+              : <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-amber-500/20"><Star size={32} /></div>}
+            <div className="text-center relative z-10 w-full">
+              <h4 className="font-cinzel text-[10px] font-bold uppercase tracking-widest truncate text-white">{item.name}</h4>
+              <span className="text-[9px] text-white/20 tracking-widest mt-1 block uppercase">{item.rarity}</span>
+              {item.boosts?.galleons_multiplier && <div className="mt-2 bg-amber-500/10 text-amber-500 px-3 py-1 rounded-full text-[9px] font-bold inline-flex items-center gap-1"><Coins size={10} />+{item.boosts.galleons_multiplier * 100}%</div>}
+            </div>
           </div>
         ))}
       </div>
@@ -602,8 +733,8 @@ function TabButton({ icon: Icon, label, active, onClick, theme, count }: any) {
 
 function ActionCard({ href, icon: Icon, title, desc, theme }: any) {
   return (
-    <Link href={href} className={`group glass-panel p-10 rounded-[2.5rem] border-t border-r flex flex-col items-center text-center gap-6 hover:border-amber-500/30 transition-all duration-700 relative overflow-hidden shadow-xl`} style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+    <Link href={href} className="group glass-panel p-10 rounded-[2.5rem] border-t border-r flex flex-col items-center text-center gap-6 hover:border-amber-500/30 transition-all duration-700 relative overflow-hidden shadow-xl" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <div className={`relative z-10 p-5 rounded-2xl bg-white/5 ${theme.accentText} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}><Icon size={32} /></div>
       <div className="relative z-10">
         <h3 className="font-cinzel text-lg font-bold tracking-widest mb-1">{title}</h3>

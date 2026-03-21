@@ -1,100 +1,98 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-
-const ACTIVITY_TIMEOUT = 1000 * 60 * 2; // 2 דקות AFK
-const HEARTBEAT_INTERVAL = 1000 * 30; // כל 30 שניות
-
-const getGuestKey = () => {
-    if (typeof window === "undefined") return "ssr";
-    let key = localStorage.getItem("lumos_guest_key");
-    if (!key) {
-        key = "guest_" + Math.random().toString(36).slice(2);
-        localStorage.setItem("lumos_guest_key", key);
-    }
-    return key;
-};
 
 export default function MagicPresence() {
     const supabase = createClient();
     const pathname = usePathname();
-    const { profile, session } = useAuth();
 
-    const channelRef = useRef<any>(null);
-    const lastActiveRef = useRef(Date.now());
+    const [profile, setProfile] = useState<any>(null);
 
-    // 🧠 פעילות משתמש
     useEffect(() => {
-        const updateActivity = () => {
-            lastActiveRef.current = Date.now();
+        const loadProfile = async () => {
+            const { data: userData } = await supabase.auth.getUser();
+
+            if (!userData?.user) {
+                setProfile(null);
+                return;
+            }
+
+            const { data: profileData, error } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", userData.user.id)
+                .single();
+
+            if (error) {
+                console.error("❌ profiles load error:", error);
+                setProfile(null);
+                return;
+            }
+
+            setProfile(profileData);
         };
 
-        window.addEventListener("mousemove", updateActivity);
-        window.addEventListener("keydown", updateActivity);
-        window.addEventListener("click", updateActivity);
+        loadProfile();
+    }, [supabase]);
+
+    useEffect(() => {
+        const guestId =
+            localStorage.getItem("presence_id") ||
+            (() => {
+                const id = "guest_" + Math.random().toString(36).slice(2);
+                localStorage.setItem("presence_id", id);
+                return id;
+            })();
+
+        const presenceId = profile?.id || guestId;
+        const presenceType = profile?.id ? "member" : "guest";
+
+        const getLocationLabel = () => {
+            if (!pathname || pathname === "/" || pathname === "/home") return "באולם הגדול";
+            if (pathname.includes("/map")) return "במפת הקונדסאים";
+            if (pathname.includes("/news")) return "בנביא היומי";
+            if (pathname.includes("/profile")) return "בחדר המועדון";
+            if (pathname.includes("/shop")) return "בסמטת דיאגון";
+            if (pathname.includes("/forums")) return "בפורומים";
+            return "במסדרונות";
+        };
+
+        let cancelled = false;
+
+        const updatePresence = async () => {
+            const payload = {
+                id: presenceId,
+                user_name: profile?.full_name || profile?.username || "אורח מסתורי",
+                house: profile?.house || "Guest",
+                current_path: pathname,
+                location_label: getLocationLabel(),
+                last_seen: new Date().toISOString(),
+                presence_type: presenceType,
+            };
+
+            const { error } = await supabase
+                .from("online_users")
+                .upsert(payload, { onConflict: "id" });
+
+            if (error) {
+                console.error("❌ online_users upsert error:", error);
+                console.log("🔍 upsert error details:", JSON.stringify(error, null, 2));
+                console.log("🔍 payload that failed:", JSON.stringify(payload, null, 2));
+            } else if (!cancelled) {
+                console.log("✅ online_users upsert ok:", payload);
+            }
+        };
+
+        updatePresence();
+        const interval = setInterval(updatePresence, 10000);
 
         return () => {
-            window.removeEventListener("mousemove", updateActivity);
-            window.removeEventListener("keydown", updateActivity);
-            window.removeEventListener("click", updateActivity);
+            cancelled = true;
+            clearInterval(interval);
         };
-    }, []);
+    }, [pathname, profile, supabase]);
 
-    const buildPayload = useCallback(() => {
-        const isGuest = !session?.user?.id;
-        const now = Date.now();
-        const isAFK = now - lastActiveRef.current > ACTIVITY_TIMEOUT;
-
-        return {
-            user_id: session?.user?.id || getGuestKey(),
-            user_name: isGuest
-                ? "אורח מסתורי"
-                : profile?.full_name || "קוסם",
-            house: isGuest ? "Guest" : profile?.house || "Unknown",
-            current_path: pathname,
-            location_label: document.title || "בטירה",
-            user_agent: navigator.userAgent,
-            online_at: new Date().toISOString(),
-            is_afk: isAFK,
-            last_seen: new Date().toISOString(),
-        };
-    }, [pathname, profile, session]);
-
-    useEffect(() => {
-        if (channelRef.current) return;
-
-        const channel = supabase.channel("lumos_global_presence", {
-            config: {
-                presence: {
-                    key: session?.user?.id || getGuestKey(),
-                },
-            },
-        });
-
-        channelRef.current = channel;
-
-        channel.subscribe((status) => {
-            console.log("STATUS:", status);
-
-            if (status === "SUBSCRIBED") {
-                console.log("TRACK 🔥");
-
-                channel.track(buildPayload());
-            }
-        });
-
-        // 🫀 heartbeat
-        const interval = setInterval(() => {
-            if (channelRef.current) {
-                channelRef.current.track(buildPayload());
-            }
-        }, HEARTBEAT_INTERVAL);
-
-        return () => clearInterval(interval);
-
-    }, [session, profile, pathname]);
     return null;
 }

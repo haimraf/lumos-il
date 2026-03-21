@@ -16,7 +16,7 @@ export default function LibraryPage() {
     const [showAgeGate, setShowAgeGate] = useState(false);
     const [isAdultConfirmed, setIsAdultConfirmed] = useState(false);
 
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     useEffect(() => {
         const confirmed = localStorage.getItem("lumos_adult_confirmed") === "true";
@@ -53,7 +53,8 @@ export default function LibraryPage() {
             }
         };
         fetchStories();
-    }, [supabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleConfirmAge = () => {
         localStorage.setItem("lumos_adult_confirmed", "true");

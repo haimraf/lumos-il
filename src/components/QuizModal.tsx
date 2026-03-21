@@ -32,8 +32,13 @@ export default function QuizModal({ onClose }: { onClose: () => void }) {
 
     useEffect(() => {
         document.body.style.overflow = "hidden";
-        return () => { document.body.style.overflow = "unset"; };
-    }, []);
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.body.style.overflow = "unset";
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [onClose]);
 
     const startQuiz = async (selectedDifficulty: 'easy' | 'medium' | 'hard') => {
         setDifficulty(selectedDifficulty);

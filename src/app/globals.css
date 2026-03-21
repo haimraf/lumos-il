@@ -233,3 +233,29 @@ ol {
     scroll-behavior: auto !important;
   }
 }
+
+/* ===== Marauders Footsteps (WORKING) ===== */
+
+.footstep {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.6);
+  animation: fadeStep 3s ease-in-out forwards;
+  pointer-events: none;
+}
+
+@keyframes fadeStep {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(10px);
+  }
+
+  30% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1) translateY(-10px);
+  }
+}

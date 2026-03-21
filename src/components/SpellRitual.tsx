@@ -53,6 +53,17 @@ export default function SpellRitual({ spell, onSuccess, onCancel }: any) {
         };
     }, [status, animateParticles]);
 
+    // body lock + Escape
+    useEffect(() => {
+        document.body.style.overflow = "hidden";
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.body.style.overflow = "";
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [onCancel]);
+
     const addParticles = (x: number, y: number) => {
         for (let i = 0; i < 3; i++) {
             particles.current.push({
@@ -96,7 +107,13 @@ export default function SpellRitual({ spell, onSuccess, onCancel }: any) {
     };
 
     return (
-        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-500 overflow-hidden" dir="rtl">
+        <div
+            className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-500 overflow-hidden"
+            dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`ריטואל לחש: ${spell?.name || ''}`}
+        >
             <div className="absolute inset-0 opacity-10 pointer-events-none">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/aged-paper.png')]"></div>
             </div>

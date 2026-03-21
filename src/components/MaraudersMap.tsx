@@ -1,81 +1,299 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Footprints, Map as MapIcon, Coins, ChevronLeft } from "lucide-react";
+import { Footprints, ChevronLeft, Compass } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-/**
- * LUMOS IL - MARAUDERS RADAR V2.2 (The Inclusive & Elegant Update)
- * שדרוגים: ניסוחים א-בינאריים וניטרליים מגדרית, נעילת רוחב למניעת מתיחה, 
- * ושימוש בנתוני אמת מהדאטהבייס.
- */
+const HOUSE_COLORS: Record<string, string> = {
+    Gryffindor: "#dc2626",
+    Slytherin: "#059669",
+    Ravenclaw: "#2563eb",
+    Hufflepuff: "#d97706",
+    Guest: "#8b6914",
+};
 
 export default function MaraudersRadar() {
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
     const { profile } = useAuth();
-    const [onlineCount, setOnlineCount] = useState(1);
+    const [onlineCount, setOnlineCount] = useState(0);
+    const [recentUsers, setRecentUsers] = useState<{ user_name: string; house: string }[]>([]);
 
     useEffect(() => {
-        const fetchOnlineCount = async () => {
-            const { count } = await supabase
-                .from('profiles')
-                .select('*', { count: 'exact', head: true })
-                .eq('is_online', true);
+        const fetchOnlineData = async () => {
+            const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString(); // 2 minutes
+            const { data, error } = await supabase
+                .from("online_users")
+                .select("user_name, house")
+                .gte("last_seen", cutoff)
+                .order("last_seen", { ascending: false })
+                .limit(5);
 
-            setOnlineCount(count || 1);
+            if (!error && data) {
+                setOnlineCount(data.length);
+                setRecentUsers(data);
+            }
         };
 
-        fetchOnlineCount();
-
-        const channel = supabase.channel('online_status_radar')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-                fetchOnlineCount();
-            })
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
+        fetchOnlineData();
+        const interval = setInterval(fetchOnlineData, 10000);
+        return () => clearInterval(interval);
     }, [supabase]);
 
+    const houseColor = profile?.house ? (HOUSE_COLORS[profile.house] ?? HOUSE_COLORS.Guest) : HOUSE_COLORS.Guest;
+
     return (
-        <div
-            className="w-full bg-[#f3e5ab] rounded-3xl border-2 border-[#8b4513]/20 p-6 shadow-lg relative overflow-hidden font-assistant mx-auto"
-            dir="rtl"
-            style={{ maxWidth: '420px' }}
-        >
-            <div className="absolute top-0 left-0 p-4 opacity-10 rotate-12"><Footprints size={80} className="text-[#8b4513]" /></div>
+        <>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&display=swap');
 
-            <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-cinzel text-sm font-black text-[#5d4037] uppercase tracking-widest">רדאר הטירה</h3>
-                    <div className="flex items-center gap-2 px-3 py-1 bg-[#8b4513]/10 rounded-full border border-[#8b4513]/20">
-                        <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse" />
-                        {/* ✨ שפה מכילה: "שרביטים מחוברים" במקום "קוסמים" */}
-                        <span className="font-cinzel text-[10px] font-black text-[#8b4513]">{onlineCount} שרביטים מחוברים</span>
+                .radar-root {
+                    position: relative;
+                    background: radial-gradient(ellipse at 20% 10%, #f7edd5 0%, #e8d5a3 45%, #cdb273 100%);
+                    border-radius: 3px;
+                    padding: 28px 28px 22px;
+                    box-shadow:
+                        0 0 0 1px #7a5c14,
+                        0 0 0 4px #f0e0b0,
+                        0 0 0 5px #7a5c14,
+                        0 0 0 7px rgba(100,70,0,0.2),
+                        10px 14px 40px rgba(0,0,0,0.35),
+                        inset 0 0 60px rgba(160,120,20,0.06);
+                    font-family: 'IM Fell English', Georgia, serif;
+                    direction: rtl;
+                    max-width: 420px;
+                    width: 100%;
+                    margin: 0 auto;
+                    overflow: hidden;
+                }
+
+                .radar-root::before {
+                    content: '';
+                    position: absolute;
+                    inset: 8px;
+                    border: 1px solid rgba(122,92,20,0.25);
+                    border-radius: 2px;
+                    pointer-events: none;
+                    z-index: 0;
+                }
+
+                .radar-root::after {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 3px;
+                    pointer-events: none;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+                    opacity: 0.5;
+                    z-index: 0;
+                }
+
+                .radar-content { position: relative; z-index: 1; }
+
+                .radar-title {
+                    font-family: 'UnifrakturMaguntia', cursive;
+                    font-size: 1.6rem;
+                    color: #2c1304;
+                    line-height: 1;
+                    text-shadow: 1px 1px 0 rgba(255,240,200,0.6), 0 0 20px rgba(160,90,10,0.15);
+                }
+
+                .radar-subtitle {
+                    font-family: 'IM Fell English', Georgia, serif;
+                    font-style: italic;
+                    font-size: 0.68rem;
+                    color: #5e3a10;
+                    letter-spacing: 0.04em;
+                    opacity: 0.8;
+                    margin-top: 2px;
+                }
+
+                .radar-ornament {
+                    text-align: center;
+                    color: #9a7020;
+                    font-size: 0.75rem;
+                    letter-spacing: 8px;
+                    margin: 12px 0;
+                    opacity: 0.5;
+                    user-select: none;
+                }
+
+                @keyframes radar-compass {
+                    from { transform: rotate(0deg); }
+                    to   { transform: rotate(360deg); }
+                }
+                .radar-compass {
+                    animation: radar-compass 10s linear infinite;
+                    color: #5e3a10;
+                    filter: drop-shadow(0 0 4px rgba(120,80,10,0.35));
+                    flex-shrink: 0;
+                }
+
+                .radar-count {
+                    font-family: 'UnifrakturMaguntia', cursive;
+                    font-size: 2rem;
+                    color: #2c1304;
+                    line-height: 1;
+                }
+
+                @keyframes radar-ink {
+                    0%, 100% { opacity: 0.5; box-shadow: 0 0 0 0 var(--rc); }
+                    50%      { opacity: 1;   box-shadow: 0 0 0 3px transparent; }
+                }
+                .radar-dot {
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                    animation: radar-ink 2s ease-in-out infinite;
+                }
+
+                .radar-stat-box {
+                    background: rgba(255,255,255,0.3);
+                    border: 1px solid rgba(122,92,20,0.2);
+                    border-radius: 2px;
+                    padding: 12px 14px;
+                    text-align: center;
+                }
+
+                .radar-stat-label {
+                    font-family: 'Cinzel', serif;
+                    font-size: 0.6rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    color: #6b4010;
+                    margin-bottom: 4px;
+                }
+
+                .radar-stat-value {
+                    font-family: 'UnifrakturMaguntia', cursive;
+                    font-size: 1.5rem;
+                    color: #2c1304;
+                    line-height: 1;
+                }
+
+                .radar-house-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    padding: 3px 10px;
+                    border-radius: 2px;
+                    font-family: 'Cinzel', serif;
+                    font-size: 0.72rem;
+                    font-weight: 600;
+                    border: 1px solid;
+                }
+
+                .radar-link {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    padding: 12px 16px;
+                    background: #2c1304;
+                    color: #f0e0b0;
+                    border-radius: 2px;
+                    font-family: 'Cinzel', serif;
+                    font-size: 0.72rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    text-decoration: none;
+                    transition: background 0.2s;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+                }
+                .radar-link:hover { background: #5e3a10; }
+                .radar-link:hover .radar-link-arrow { transform: translateX(-3px); }
+                .radar-link-arrow { transition: transform 0.2s; }
+
+                .radar-user-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 6px 0;
+                    border-bottom: 1px solid rgba(122,92,20,0.12);
+                    font-size: 0.88rem;
+                    color: #2c1304;
+                }
+                .radar-user-row:last-child { border-bottom: none; }
+            `}</style>
+
+            <div className="radar-root">
+                <div className="radar-content">
+
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 0 }}>
+                        <div>
+                            <div className="radar-title">רדאר הטירה</div>
+                            <div className="radar-subtitle">Solemnly swear that I am up to no good</div>
+                        </div>
+                        <div style={{ textAlign: "center" }}>
+                            <Compass className="radar-compass" size={22} />
+                            <div className="radar-count">{onlineCount}</div>
+                            <div className="radar-subtitle" style={{ marginTop: 0 }}>פעילים</div>
+                        </div>
                     </div>
+
+                    <div className="radar-ornament">✦ ✦ ✦</div>
+
+                    {/* Stats row */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+                        <div className="radar-stat-box">
+                            <div className="radar-stat-label">גליאונים</div>
+                            <div className="radar-stat-value">{profile?.galleons ?? 0}</div>
+                        </div>
+                        <div className="radar-stat-box">
+                            <div className="radar-stat-label">בית</div>
+                            {profile?.house ? (
+                                <span
+                                    className="radar-house-badge"
+                                    style={{
+                                        color: houseColor,
+                                        borderColor: houseColor,
+                                        background: `${houseColor}18`,
+                                        marginTop: "4px",
+                                        display: "inline-flex",
+                                    }}
+                                >
+                                    {profile.house}
+                                </span>
+                            ) : (
+                                <div style={{ fontStyle: "italic", fontSize: "0.8rem", color: "#7a5a18", marginTop: "4px" }}>ללא מיון</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Online users list */}
+                    {recentUsers.length > 0 && (
+                        <div style={{ marginBottom: "14px" }}>
+                            <div className="radar-stat-label" style={{ marginBottom: "6px" }}>נצפו לאחרונה</div>
+                            {recentUsers.map((u, i) => {
+                                const color = HOUSE_COLORS[u.house] ?? HOUSE_COLORS.Guest;
+                                return (
+                                    <div key={i} className="radar-user-row">
+                                        <div
+                                            className="radar-dot"
+                                            style={{ background: color, "--rc": color } as React.CSSProperties}
+                                        />
+                                        <span style={{ flex: 1 }}>{u.user_name || "אורח מסתורי"}</span>
+                                        <span style={{ fontSize: "0.72rem", color: "#7a5a18", fontStyle: "italic" }}>{u.house || "Guest"}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* CTA */}
+                    <Link href="/map" className="radar-link">
+                        <Footprints size={14} />
+                        לפתוח את מפת הקונדסאים המלאה
+                        <ChevronLeft size={14} className="radar-link-arrow" />
+                    </Link>
+
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-white/40 p-4 rounded-2xl border border-[#8b4513]/10 text-center">
-                        <Coins size={18} className="text-amber-600 mx-auto mb-2" />
-                        <p className="text-[10px] text-[#8b4513]/60 font-bold uppercase">גליאונים</p>
-                        <span className="font-cinzel text-xl font-black text-[#5d4037]">{profile?.galleons || 0}</span>
-                    </div>
-                    <div className="bg-white/40 p-4 rounded-2xl border border-[#8b4513]/10 text-center">
-                        <MapIcon size={18} className="text-blue-700 mx-auto mb-2" />
-                        <p className="text-[10px] text-[#8b4513]/60 font-bold uppercase">בית</p>
-                        {/* ✨ שפה מכילה: "ללא מיון" במקום "טרם מוין" (שנשמע כמו פנייה לזכר) */}
-                        <span className="font-cinzel text-xs font-black text-[#5d4037] truncate">{profile?.house || 'ללא מיון'}</span>
-                    </div>
-                </div>
-
-                {/* ✨ שפה מכילה: "לחשיפת מפת..." במקום ציווי "חשוף את..." */}
-                <Link href="/map" className="group flex items-center justify-center gap-2 w-full py-4 bg-[#8b4513] text-[#f3e5ab] rounded-2xl font-cinzel text-xs font-black uppercase hover:bg-[#5d4037] transition-all shadow-md">
-                    לחשיפת מפת הקונדסאים המלאה
-                    <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-                </Link>
             </div>
-        </div>
+        </>
     );
 }
