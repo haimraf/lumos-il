@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
-    MessagesSquare, Lock, ChevronLeft, MessageSquare, Home, Hash, Clock, Sparkles
+    MessagesSquare, Lock, ChevronLeft, MessageSquare, Home, Hash, Clock, Sparkles, Users, Trophy, Flame, Skull, Bird, Leaf
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 
@@ -46,6 +46,21 @@ function timeAgo(dateString: string) {
     return date.toLocaleDateString("he-IL");
 }
 
+interface UserGroup {
+    id: number;
+    name: string;
+    color: string;
+    display_order: number;
+}
+
+const HOUSE_POINTS_META: Record<string, { icon: any; color: string; glow: string; nameHe: string }> = {
+    Gryffindor: { icon: Flame,  color: "#ef4444", glow: "rgba(239,68,68,0.4)",   nameHe: "גריפינדור" },
+    Slytherin:  { icon: Skull,  color: "#34d399", glow: "rgba(52,211,153,0.4)",  nameHe: "סליתרין"   },
+    Ravenclaw:  { icon: Bird,   color: "#60a5fa", glow: "rgba(96,165,250,0.4)",  nameHe: "רייבנקלו"  },
+    Hufflepuff: { icon: Leaf,   color: "#fbbf24", glow: "rgba(251,191,36,0.4)",  nameHe: "הפלפאף"    },
+};
+const HOUSE_ORDER = ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"] as const;
+
 export default function ForumsPage() {
     const [supabase] = useState(() => createClient());
     const [forums, setForums] = useState<Forum[]>([]);
@@ -53,7 +68,35 @@ export default function ForumsPage() {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [userYear, setUserYear] = useState<number>(1);
     const [isLoading, setIsLoading] = useState(true);
+    const [onlineCount, setOnlineCount] = useState<number>(0);
+    const [groups, setGroups] = useState<UserGroup[]>([]);
+    const [housePoints, setHousePoints] = useState<Record<string, number>>({ Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 });
     const { sendOwl } = useOwlMail();
+
+    // Client-side polling for online users + groups + house points
+    const fetchSidebarData = useCallback(async () => {
+        const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const [{ count }, { data: groupsData }, { data: profilesData }] = await Promise.all([
+            supabase.from("online_users").select("id", { count: "exact", head: true }).gte("last_seen", cutoff),
+            supabase.from("user_groups").select("*").order("display_order"),
+            supabase.from("profiles").select("house, points_contributed"),
+        ]);
+        if (count !== null) setOnlineCount(count);
+        if (groupsData) setGroups(groupsData);
+        if (profilesData) {
+            const pts: Record<string, number> = { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 };
+            profilesData.forEach((p: any) => {
+                if (p.house && pts[p.house] !== undefined) pts[p.house] += p.points_contributed || 0;
+            });
+            setHousePoints(pts);
+        }
+    }, [supabase]);
+
+    useEffect(() => {
+        fetchSidebarData();
+        const interval = setInterval(fetchSidebarData, 60_000);
+        return () => clearInterval(interval);
+    }, [fetchSidebarData]);
 
     const getData = useCallback(async () => {
         try {
@@ -262,6 +305,101 @@ export default function ForumsPage() {
                             userRole={userRole}
                             userHouse={userHouse}
                         />
+                    </div>
+
+                    {/* ── Bottom section: House Cup + Groups Legend ── */}
+                    <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                        {/* House Cup */}
+                        <div
+                            className="rounded-2xl p-5 border"
+                            style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
+                        >
+                            <div className="flex items-center gap-2.5 mb-4">
+                                <Trophy size={15} style={{ color: "#f59e0b", filter: "drop-shadow(0 0 8px rgba(245,158,11,0.5))" }} />
+                                <span className="font-cinzel text-xs font-black uppercase tracking-widest text-amber-500/80">גביע הבתים</span>
+                            </div>
+                            {(() => {
+                                const maxPts = Math.max(...HOUSE_ORDER.map(h => housePoints[h]), 1);
+                                return (
+                                    <div className="space-y-3">
+                                        {HOUSE_ORDER.map(house => {
+                                            const meta = HOUSE_POINTS_META[house];
+                                            const Icon = meta.icon;
+                                            const pts = housePoints[house];
+                                            const pct = Math.round((pts / maxPts) * 100);
+                                            return (
+                                                <div key={house}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Icon size={11} style={{ color: meta.color }} />
+                                                            <span className="font-cinzel text-[10px] font-black uppercase tracking-wider" style={{ color: meta.color }}>{meta.nameHe}</span>
+                                                        </div>
+                                                        <span className="font-cinzel text-xs font-black tabular-nums" style={{ color: meta.color }}>{pts.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                                                        <div
+                                                            className="h-full rounded-full transition-all duration-700"
+                                                            style={{
+                                                                width: `${pct}%`,
+                                                                background: `linear-gradient(to left, ${meta.color}, ${meta.color}88)`,
+                                                                boxShadow: `0 0 8px ${meta.glow}`,
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Groups Legend + Online */}
+                        <div
+                            className="rounded-2xl p-5 border"
+                            style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2.5">
+                                    <Sparkles size={14} style={{ color: "#a78bfa" }} />
+                                    <span className="font-cinzel text-xs font-black uppercase tracking-widest text-purple-400/80">מקרא דרגות</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    <span className="font-cinzel text-[10px] font-black text-emerald-400">{onlineCount} מחוברים</span>
+                                    <Users size={10} className="text-emerald-400/60" />
+                                </div>
+                            </div>
+                            {groups.length > 0 ? (
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    {groups.map(g => (
+                                        <div
+                                            key={g.id}
+                                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+                                            style={{
+                                                background: `${g.color}12`,
+                                                border: `1px solid ${g.color}28`,
+                                            }}
+                                        >
+                                            <span
+                                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                                style={{ background: g.color, boxShadow: `0 0 6px ${g.color}80` }}
+                                            />
+                                            <span
+                                                className="font-cinzel text-[10px] font-black truncate"
+                                                style={{ color: g.color }}
+                                            >
+                                                {g.name}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-xs text-white/20 italic font-crimson text-center py-4">טוען דרגות...</div>
+                            )}
+                        </div>
+
                     </div>
 
                 </div>
