@@ -586,7 +586,7 @@ function CommentsSection({ newsId }: { newsId: string }) {
     }
     const { data } = await supabase
       .from("comments")
-      .select("*, profiles(full_name, house, role)")
+      .select("*, profiles(id, full_name, house, role, avatar_url)")
       .eq("news_id", newsId)
       .order("created_at", { ascending: true });
     if (data) setComments(data);
@@ -763,12 +763,31 @@ function CommentsSection({ newsId }: { newsId: string }) {
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className="font-cinzel font-black text-sm"
+                  {/* Avatar */}
+                  <Link href={`/wizard/${c.user_id}`} className="shrink-0 group/av">
+                    <div
+                      className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center text-base border transition-transform group-hover/av:scale-105"
+                      style={{
+                        background: houseStyle?.bg || "rgba(146,64,14,0.08)",
+                        borderColor: houseStyle?.border ? `${houseStyle.border}50` : "rgba(146,64,14,0.2)",
+                      }}
+                    >
+                      {c.profiles?.avatar_url
+                        ? <img src={c.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                        : house === "Gryffindor" ? "🦁"
+                        : house === "Slytherin"  ? "🐍"
+                        : house === "Ravenclaw"  ? "🦅"
+                        : house === "Hufflepuff" ? "🦡" : "🧙"}
+                    </div>
+                  </Link>
+                  {/* Name as profile link */}
+                  <Link
+                    href={`/wizard/${c.user_id}`}
+                    className="font-cinzel font-black text-sm hover:underline transition-colors"
                     style={{ color: houseStyle?.text || "#5d2a00" }}
                   >
                     {c.profiles?.full_name || "קוסם אנונימי"}
-                  </span>
+                  </Link>
                   {house && (
                     <span
                       className="text-[9px] font-bold px-2 py-0.5 rounded-full border"
