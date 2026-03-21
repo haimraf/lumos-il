@@ -22,6 +22,8 @@ interface NewsItem {
   meta_title?: string;
   meta_description?: string;
   image_url?: string;
+  author_id?: string | null;
+  author_profile?: { id: string; full_name?: string; role?: string; house?: string; group_id?: string | null; user_groups?: { name: string; color: string } | null } | null;
 }
 
 function readingTime(html: string) {
@@ -67,8 +69,18 @@ function NewsContent() {
 
   useEffect(() => {
     const fetchNews = async () => {
-      const { data } = await supabase.from("news").select("*").order("created_at", { ascending: false });
-      const newsData = data || [];
+      const { data } = await supabase
+        .from("news")
+        .select(`
+          id, title, content, author, created_at,
+          meta_title, meta_description, image_url, author_id,
+          author_profile:profiles!news_author_id_fkey(
+              id, full_name, role, house, group_id,
+              user_groups(name, color)
+          )
+        `)
+        .order("created_at", { ascending: false });
+      const newsData = (data || []) as unknown as NewsItem[];
       setNews(newsData);
       setIsLoading(false);
       if (!initialCheckDone.current) {
@@ -230,7 +242,16 @@ function NewsContent() {
                       <div className="flex items-center gap-4 text-xs text-[#5d2a00]/55 font-bold">
                         <span className="flex items-center gap-1.5">
                           <User size={11} aria-hidden="true" />
-                          {featured.author || "כתב מערכת"}
+                          {featured.author_profile?.id ? (
+                            <Link
+                              href={`/wizard/${featured.author_profile.id}`}
+                              onClick={e => e.stopPropagation()}
+                              className="hover:underline transition-colors"
+                              style={{ color: featured.author_profile.user_groups?.color || getRoleColor(featured.author_profile.role, featured.author_profile.house, roleColors) }}
+                            >
+                              {featured.author || featured.author_profile.full_name}
+                            </Link>
+                          ) : (featured.author || "כתב מערכת")}
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Clock size={11} aria-hidden="true" />
@@ -396,7 +417,19 @@ function ArticleReader({ article, roleColors, onClose }: { article: NewsItem; ro
               <div className="flex items-center justify-center gap-4 text-xs text-[#5d2a00]/60 font-bold flex-wrap">
                 <span className="flex items-center gap-1.5">
                   <User size={11} aria-hidden="true" />
-                  {article.author || "כתב מערכת"}
+                  {article.author_profile?.id ? (() => {
+                    const authorColor = article.author_profile.user_groups?.color ||
+                      getRoleColor(article.author_profile.role, article.author_profile.house, roleColors);
+                    return (
+                      <Link
+                        href={`/wizard/${article.author_profile.id}`}
+                        className="hover:underline transition-colors"
+                        style={{ color: authorColor }}
+                      >
+                        {article.author || article.author_profile.full_name}
+                      </Link>
+                    );
+                  })() : (article.author || "כתב מערכת")}
                 </span>
                 <span className="text-[#1e0e04]/20">·</span>
                 <span>{formatDate(article.created_at)}</span>
@@ -809,7 +842,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
                   {/* Name as profile link */}
                   {(() => {
                     const cGrp = (c.profiles as any)?.user_groups as { name: string; color: string } | null;
-                    const nameColor = getRoleColor(c.profiles?.role, c.profiles?.house, roleColors);
+                    const nameColor = cGrp?.color || getRoleColor(c.profiles?.role, c.profiles?.house, roleColors);
                     const badgeLabel = cGrp?.name || c.profiles?.role || null;
                     const badgeColor = cGrp?.color || nameColor;
                     return (

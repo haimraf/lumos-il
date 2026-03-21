@@ -1,20 +1,61 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Search, BookOpen, ScrollText, Users, Sparkles, X } from "lucide-react";
+import {
+    Search, BookOpen, ScrollText, MessageSquare, Sparkles,
+    X, User, Loader2, Wand2, ChevronRight
+} from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+
+/* ─── Types ─── */
+type ResultType = 'story' | 'news' | 'thread' | 'user';
 
 interface Result {
     id: string;
     title: string;
-    excerpt: string;
-    type: 'story' | 'news' | 'forum';
+    excerpt?: string;
+    type: ResultType;
     href: string;
+    meta?: { house?: string; role?: string; avatar_url?: string; forum_name?: string };
 }
 
+/* ─── Config ─── */
+const TYPE_CONFIG: Record<ResultType, { label: string; labelPlural: string; icon: any; color: string; bg: string; border: string; hoverBorder: string }> = {
+    story:  { label: 'סיפור',  labelPlural: 'סיפורים',  icon: BookOpen,        color: '#818cf8', bg: 'rgba(129,140,248,0.07)', border: 'rgba(129,140,248,0.2)', hoverBorder: 'rgba(129,140,248,0.35)' },
+    news:   { label: 'כתבה',   labelPlural: 'כתבות',    icon: ScrollText,      color: '#94a3b8', bg: 'rgba(148,163,184,0.07)', border: 'rgba(148,163,184,0.2)', hoverBorder: 'rgba(148,163,184,0.35)' },
+    thread: { label: 'אשכול',  labelPlural: 'אשכולות',  icon: MessageSquare,   color: '#f59e0b', bg: 'rgba(245,158,11,0.07)',  border: 'rgba(245,158,11,0.2)',  hoverBorder: 'rgba(245,158,11,0.35)'  },
+    user:   { label: 'קוסם',   labelPlural: 'קוסמים',   icon: User,            color: '#34d399', bg: 'rgba(52,211,153,0.07)',  border: 'rgba(52,211,153,0.2)',  hoverBorder: 'rgba(52,211,153,0.35)'  },
+};
+
+const HOUSE_COLORS: Record<string, string> = {
+    Gryffindor: '#ef4444', Slytherin: '#10b981', Ravenclaw: '#60a5fa', Hufflepuff: '#f59e0b',
+};
+const HOUSE_NAMES: Record<string, string> = {
+    Gryffindor: 'גריפינדור', Slytherin: "סלית'רין", Ravenclaw: 'רייבנקלו', Hufflepuff: 'הפלפאף',
+};
+const HOUSE_EMOJIS: Record<string, string> = {
+    Gryffindor: '🦁', Slytherin: '🐍', Ravenclaw: '🦅', Hufflepuff: '🦡',
+};
+
+/* ─── Highlight component ─── */
+function Highlight({ text, query }: { text: string; query: string }) {
+    if (!query.trim() || !text) return <>{text}</>;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+    return (
+        <>
+            {parts.map((p, i) =>
+                p.toLowerCase() === query.toLowerCase()
+                    ? <mark key={i} className="bg-amber-500/30 text-amber-200 rounded px-0.5 not-italic">{p}</mark>
+                    : p
+            )}
+        </>
+    );
+}
+
+/* ─── Page wrapper (Suspense for useSearchParams) ─── */
 export default function SearchPage() {
     return (
         <Suspense fallback={
@@ -27,229 +68,341 @@ export default function SearchPage() {
     );
 }
 
+/* ─── Main content ─── */
 function SearchContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     const initialQuery = searchParams.get("q") || "";
     const [query, setQuery] = useState(initialQuery);
     const [results, setResults] = useState<Result[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searched, setSearched] = useState(false);
-    const [activeFilter, setActiveFilter] = useState<'all' | 'story' | 'news' | 'forum'>('all');
+    const [activeFilter, setActiveFilter] = useState<ResultType | 'all'>('all');
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // חיפוש אוטומטי עם query מה-URL
-    useEffect(() => {
-        if (initialQuery.trim()) {
-            runSearch(initialQuery);
-        }
-    }, []);
-
-    const runSearch = async (q: string) => {
-        if (!q.trim()) return;
+    const runSearch = useCallback(async (q: string) => {
+        if (!q.trim() || q.trim().length < 2) return;
         setIsLoading(true);
         setSearched(true);
-
-        // עדכון URL
         router.replace(`/search?q=${encodeURIComponent(q.trim())}`, { scroll: false });
 
         const term = q.trim();
         const found: Result[] = [];
 
-        // חיפוש בסיפורים
-        const { data: stories } = await supabase
-            .from('stories')
-            .select('id, title, description')
-            .eq('is_published', true)
-            .or(`title.ilike.%${term}%,description.ilike.%${term}%`)
-            .limit(8);
+        const [{ data: stories }, { data: news }, { data: threads }, { data: users }] = await Promise.all([
+            supabase.from('stories').select('id, title, description')
+                .eq('is_published', true)
+                .or(`title.ilike.%${term}%,description.ilike.%${term}%`)
+                .limit(8),
+            supabase.from('news').select('id, title, content')
+                .or(`title.ilike.%${term}%,content.ilike.%${term}%`)
+                .limit(6),
+            supabase.from('threads').select('id, title, forums(slug, name)')
+                .ilike('title', `%${term}%`)
+                .limit(8),
+            supabase.from('profiles').select('id, full_name, house, role, avatar_url')
+                .ilike('full_name', `%${term}%`)
+                .limit(6),
+        ]);
 
         (stories || []).forEach(s => found.push({
-            id: s.id,
-            title: s.title,
-            excerpt: s.description?.replace(/<[^>]*>?/gm, '').slice(0, 120) + '...' || '',
-            type: 'story',
-            href: `/library/${s.id}`
+            id: s.id, title: s.title, type: 'story', href: `/library/${s.id}`,
+            excerpt: s.description?.replace(/<[^>]*>/g, '').slice(0, 150),
         }));
-
-        // חיפוש בחדשות
-        const { data: news } = await supabase
-            .from('news')
-            .select('id, title, content')
-            .or(`title.ilike.%${term}%,content.ilike.%${term}%`)
-            .limit(6);
-
         (news || []).forEach(n => found.push({
-            id: n.id,
-            title: n.title,
-            excerpt: n.content?.replace(/<[^>]*>?/gm, '').slice(0, 120) + '...' || '',
-            type: 'news',
-            href: `/news?article=${n.id}`
+            id: n.id, title: n.title, type: 'news', href: `/news?article=${n.id}`,
+            excerpt: n.content?.replace(/<[^>]*>/g, '').slice(0, 150),
         }));
-
-        // חיפוש בפורומים (אם קיים טבלה)
-        const { data: forums } = await supabase
-            .from('forums')  // ✅
-            .select('id, title, content')
-            .or(`title.ilike.%${term}%,content.ilike.%${term}%`)
-            .limit(6);
-        (forums || []).forEach(f => found.push({
-            id: f.id,
-            title: f.title,
-            excerpt: f.content?.replace(/<[^>]*>?/gm, '').slice(0, 120) + '...' || '',
-            type: 'forum',
-            href: `/forums/${f.id}`
+        (threads || []).forEach((t: any) => found.push({
+            id: t.id, title: t.title, type: 'thread',
+            href: `/forums/${t.forums?.slug}/${t.id}`,
+            meta: { forum_name: t.forums?.name },
+        }));
+        (users || []).forEach(u => found.push({
+            id: u.id, title: u.full_name || 'קוסם אנונימי', type: 'user',
+            href: `/wizard/${u.id}`,
+            meta: { house: u.house, role: u.role, avatar_url: u.avatar_url },
         }));
 
         setResults(found);
         setIsLoading(false);
-    };
+    }, [supabase, router]);
+
+    // Auto-search on load from URL
+    useEffect(() => {
+        if (initialQuery.trim()) runSearch(initialQuery);
+    }, []);
+
+    // Live search while typing
+    useEffect(() => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        const q = query.trim();
+        if (q.length < 2) { setResults([]); setSearched(false); setIsLoading(false); return; }
+        setIsLoading(true);
+        debounceRef.current = setTimeout(() => runSearch(q), 380);
+        return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    }, [query]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (debounceRef.current) clearTimeout(debounceRef.current);
         runSearch(query);
     };
-
-    const typeConfig = {
-        story: { label: 'סיפור', icon: BookOpen, color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20' },
-        news: { label: 'כתבה', icon: ScrollText, color: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-500/20' },
-        forum: { label: 'אשכול', icon: Users, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
-    };
-
-    const filtered = activeFilter === 'all' ? results : results.filter(r => r.type === activeFilter);
 
     const counts = {
         all: results.length,
         story: results.filter(r => r.type === 'story').length,
         news: results.filter(r => r.type === 'news').length,
-        forum: results.filter(r => r.type === 'forum').length,
+        thread: results.filter(r => r.type === 'thread').length,
+        user: results.filter(r => r.type === 'user').length,
     };
 
+    const filtered = activeFilter === 'all' ? results : results.filter(r => r.type === activeFilter);
+    const groupOrder: ResultType[] = ['user', 'thread', 'story', 'news'];
+
     return (
-        <div className="min-h-screen bg-[#060608] pt-36 pb-24 px-6 relative overflow-hidden" dir="rtl">
+        <div className="min-h-screen bg-[#060608] pt-36 pb-24 px-4 md:px-6 relative overflow-hidden" dir="rtl">
 
-            {/* הילה */}
-            <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-amber-500/5 rounded-full blur-[120px] pointer-events-none z-0" />
+            {/* Ambient */}
+            <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-amber-500/[0.04] rounded-full blur-[150px] pointer-events-none z-0" />
+            <div className="fixed top-1/3 right-0 w-[350px] h-[350px] bg-indigo-500/[0.03] rounded-full blur-[100px] pointer-events-none z-0" />
+            <div className="fixed bottom-1/4 left-0 w-[350px] h-[350px] bg-emerald-500/[0.025] rounded-full blur-[100px] pointer-events-none z-0" />
 
-            <div className="relative z-10" style={{ maxWidth: '52rem', marginLeft: 'auto', marginRight: 'auto' }}>
+            <div className="relative z-10 max-w-3xl mx-auto">
 
-                {/* כותרת */}
-                <div className="text-center mb-12">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full border border-amber-500/20 bg-amber-500/5 mb-6">
-                        <Search size={28} className="text-amber-500/70" />
+                {/* ── Header ── */}
+                <div className="text-center mb-10">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/8 border border-amber-500/15 mb-5">
+                        <Wand2 size={12} className="text-amber-500/70" />
+                        <span className="font-cinzel text-[10px] font-black uppercase tracking-widest text-amber-500/60">חדר הרשומות</span>
                     </div>
-                    <h1 className="font-cinzel text-4xl md:text-5xl font-black text-amber-500 uppercase tracking-widest mb-3">
-                        חיפוש בטירה
+                    <h1 className="font-cinzel text-4xl md:text-5xl font-black tracking-tight mb-3">
+                        <span className="text-white">חיפוש </span>
+                        <span style={{ color: '#f59e0b' }}>בטירה</span>
                     </h1>
-                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent mx-auto" />
+                    <div className="flex items-center justify-center gap-3 mt-3">
+                        {(['story','news','thread','user'] as ResultType[]).map((t) => {
+                            const cfg = TYPE_CONFIG[t];
+                            const Icon = cfg.icon;
+                            return (
+                                <div key={t} className="flex items-center gap-1.5 opacity-35">
+                                    <Icon size={12} style={{ color: cfg.color }} />
+                                    <span className="font-cinzel text-[9px] uppercase tracking-widest text-white/60">{cfg.label}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
-                {/* שדה חיפוש */}
-                <form onSubmit={handleSubmit} className="relative mb-10">
-                    <div className="flex items-center gap-3 bg-[#0c0c0f] border border-white/12 hover:border-amber-500/30 focus-within:border-amber-500/50 rounded-2xl px-6 py-4 transition-all shadow-2xl">
-                        <Search size={20} className="text-amber-500/50 shrink-0" />
+                {/* ── Search input ── */}
+                <form onSubmit={handleSubmit} className="relative mb-8">
+                    <div className={`flex items-center gap-3 bg-[#0b0f1e] border rounded-2xl px-5 py-4 transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.5)] ${
+                        query ? 'border-amber-500/40' : 'border-white/8 hover:border-white/15 focus-within:border-amber-500/40'
+                    }`}>
+                        {isLoading
+                            ? <Loader2 size={20} className="text-amber-500/60 shrink-0 animate-spin" />
+                            : <Search size={20} className="text-amber-500/35 shrink-0" />
+                        }
                         <input
                             value={query}
                             onChange={e => setQuery(e.target.value)}
-                            placeholder="חפש סיפורים, כתבות, אשכולות..."
-                            className="flex-1 bg-transparent text-white text-xl outline-none placeholder:text-white/25 text-right font-assistant"
+                            placeholder="חפש סיפורים, כתבות, אשכולות, קוסמים..."
+                            className="flex-1 bg-transparent text-white text-lg outline-none placeholder:text-white/20 text-right font-assistant"
                             dir="rtl"
                             autoFocus
                         />
                         {query && (
-                            <button type="button" onClick={() => { setQuery(""); setResults([]); setSearched(false); }}
-                                className="text-white/25 hover:text-white/60 transition-colors shrink-0">
-                                <X size={18} />
+                            <button type="button"
+                                onClick={() => { setQuery(""); setResults([]); setSearched(false); }}
+                                className="text-white/20 hover:text-white/60 transition-colors shrink-0 p-1 rounded-lg hover:bg-white/5">
+                                <X size={16} />
                             </button>
                         )}
                     </div>
                 </form>
 
-                {/* פילטרים */}
+                {/* ── Filter tabs ── */}
                 {searched && results.length > 0 && (
                     <div className="flex items-center gap-2 mb-8 flex-wrap">
-                        {(['all', 'story', 'news', 'forum'] as const).map(f => (
-                            <button
-                                key={f}
-                                onClick={() => setActiveFilter(f)}
-                                className={`px-4 py-2 rounded-xl font-cinzel text-[10px] font-black uppercase tracking-widest transition-all border ${activeFilter === f
-                                        ? 'bg-amber-500 text-amber-950 border-amber-500 shadow-lg'
-                                        : 'bg-white/5 text-white/50 border-white/8 hover:text-white/80 hover:border-white/20'
+                        {(['all', 'user', 'thread', 'story', 'news'] as const).map(f => {
+                            const cfg = f === 'all' ? null : TYPE_CONFIG[f];
+                            const Icon = cfg?.icon;
+                            const count = counts[f];
+                            if (f !== 'all' && count === 0) return null;
+                            return (
+                                <button key={f} onClick={() => setActiveFilter(f)}
+                                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-cinzel text-[10px] font-black uppercase tracking-widest transition-all border ${
+                                        activeFilter === f
+                                            ? 'bg-amber-500 text-amber-950 border-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.25)]'
+                                            : 'bg-white/[0.03] text-white/40 border-white/8 hover:text-white/70 hover:border-white/15'
                                     }`}
-                            >
-                                {f === 'all' ? 'הכל' : typeConfig[f].label}
-                                <span className="mr-2 opacity-60">({counts[f]})</span>
-                            </button>
-                        ))}
+                                >
+                                    {Icon && <Icon size={11} />}
+                                    {f === 'all' ? 'הכל' : cfg!.label}
+                                    <span className={`${activeFilter === f ? 'text-amber-900/70' : 'text-white/20'}`}>({count})</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* תוצאות */}
-                <AnimatePresence mode="wait">
-                    {isLoading ? (
-                        <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="flex flex-col items-center justify-center py-24 gap-4">
-                            <Sparkles className="text-amber-500 animate-pulse" size={36} />
-                            <p className="font-crimson text-xl text-white/40 italic">הטירה מחפשת...</p>
-                        </motion.div>
-                    ) : searched && filtered.length === 0 ? (
-                        <motion.div key="empty" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                            className="flex flex-col items-center justify-center py-24 gap-5 border border-dashed border-white/8 rounded-[2rem]">
-                            <Search size={40} className="text-white/15" />
-                            <div className="text-center space-y-2">
-                                <p className="font-cinzel text-white/30 text-sm uppercase tracking-widest font-black">לא נמצאו תוצאות</p>
-                                <p className="font-crimson text-white/20 text-lg italic">
-                                    "אולי הקסם שחיפשת עדיין לא נכתב..."
-                                </p>
+                {/* ── States ── */}
+                {isLoading && !searched ? (
+                    <div className="flex flex-col items-center justify-center py-24 gap-4">
+                        <Sparkles className="text-amber-500/50 animate-pulse" size={36} />
+                        <p className="font-crimson text-xl text-white/30 italic">הטירה מחפשת...</p>
+                    </div>
+
+                ) : searched && filtered.length === 0 && !isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-24 gap-5 border border-dashed border-white/8 rounded-[2rem]">
+                        <Search size={36} className="text-white/10" />
+                        <div className="text-center space-y-2">
+                            <p className="font-cinzel text-white/25 text-sm uppercase tracking-widest font-black">לא נמצאו תוצאות</p>
+                            <p className="font-crimson text-white/20 text-xl italic">"אולי הקסם שחיפשת עדיין לא נכתב..."</p>
+                        </div>
+                    </div>
+
+                ) : searched && filtered.length > 0 ? (
+                    <div>
+                        {/* Results summary */}
+                        <div className="flex items-center gap-2 mb-6">
+                            <span className="font-cinzel text-[11px] font-black uppercase tracking-widest text-white/20">נמצאו</span>
+                            <span className="font-cinzel text-sm font-black text-amber-500/70">{filtered.length}</span>
+                            <span className="font-cinzel text-[11px] font-black uppercase tracking-widest text-white/20">תוצאות עבור</span>
+                            <span className="font-assistant text-sm text-white/50">"{query}"</span>
+                        </div>
+
+                        {/* Grouped or flat */}
+                        {activeFilter === 'all' ? (
+                            <div className="space-y-8">
+                                {groupOrder.filter(t => counts[t] > 0).map(type => {
+                                    const typeResults = results.filter(r => r.type === type);
+                                    const cfg = TYPE_CONFIG[type];
+                                    const Icon = cfg.icon;
+                                    return (
+                                        <section key={type}>
+                                            <div className="flex items-center gap-2.5 mb-3">
+                                                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                                                    style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                                                    <Icon size={13} style={{ color: cfg.color }} />
+                                                </div>
+                                                <span className="font-cinzel text-xs font-black uppercase tracking-widest" style={{ color: cfg.color }}>
+                                                    {cfg.labelPlural}
+                                                </span>
+                                                <span className="font-cinzel text-[10px] text-white/20">({typeResults.length})</span>
+                                                <div className="flex-1 h-px" style={{ background: `${cfg.color}15` }} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                {typeResults.map((r, i) => (
+                                                    <ResultCard key={r.id} result={r} query={query} index={i} />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    );
+                                })}
                             </div>
-                        </motion.div>
-                    ) : searched ? (
-                        <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-                            <p className="text-[11px] text-white/30 font-black uppercase tracking-widest mb-6">
-                                נמצאו {filtered.length} תוצאות עבור "{initialQuery}"
-                            </p>
-                            {filtered.map((r, i) => {
-                                const cfg = typeConfig[r.type];
+                        ) : (
+                            <div className="space-y-2">
+                                {filtered.map((r, i) => <ResultCard key={r.id} result={r} query={query} index={i} />)}
+                            </div>
+                        )}
+                    </div>
+
+                ) : !query ? (
+                    /* Idle state */
+                    <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
+                        <div className="grid grid-cols-4 gap-3 mb-2">
+                            {(['story','news','thread','user'] as ResultType[]).map(t => {
+                                const cfg = TYPE_CONFIG[t];
                                 const Icon = cfg.icon;
                                 return (
-                                    <motion.div
-                                        key={r.id}
-                                        initial={{ opacity: 0, y: 16 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: i * 0.05 }}
-                                    >
-                                        <Link href={r.href}
-                                            className="flex items-start gap-5 p-6 rounded-2xl border border-white/6 hover:border-amber-500/25 hover:bg-amber-500/[0.03] bg-[#0c0c0f] transition-all group">
-                                            <div className={`p-2.5 rounded-xl border shrink-0 mt-0.5 ${cfg.bg}`}>
-                                                <Icon size={18} className={cfg.color} />
-                                            </div>
-                                            <div className="flex-1 text-right">
-                                                <div className="flex items-center gap-3 justify-end mb-1.5">
-                                                    <span className={`text-[9px] font-black uppercase tracking-widest ${cfg.color}`}>{cfg.label}</span>
-                                                </div>
-                                                <h3 className="font-cinzel text-lg font-black text-white/85 group-hover:text-amber-400 transition-colors mb-2 leading-snug">
-                                                    {r.title}
-                                                </h3>
-                                                <p className="font-crimson text-base text-white/45 leading-relaxed line-clamp-2">
-                                                    {r.excerpt}
-                                                </p>
-                                            </div>
-                                        </Link>
-                                    </motion.div>
+                                    <div key={t} className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-white/5 bg-white/[0.02]">
+                                        <Icon size={20} style={{ color: `${cfg.color}60` }} />
+                                        <span className="font-cinzel text-[9px] uppercase tracking-widest text-white/20">{cfg.label}</span>
+                                    </div>
                                 );
                             })}
-                        </motion.div>
-                    ) : (
-                        <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                            className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-                            <p className="font-crimson text-2xl text-white/20 italic">
-                                "הקלידו את שם הקסם שאתם מחפשים..."
-                            </p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        </div>
+                        <p className="font-crimson text-xl text-white/20 italic">הקלידו להתחיל בחיפוש...</p>
+                    </div>
+                ) : null}
+
             </div>
         </div>
+    );
+}
+
+/* ─── Result Card ─── */
+function ResultCard({ result, query, index }: { result: Result; query: string; index: number }) {
+    const cfg = TYPE_CONFIG[result.type];
+    const Icon = cfg.icon;
+
+    if (result.type === 'user') {
+        const house = result.meta?.house;
+        const houseColor = house ? HOUSE_COLORS[house] : 'rgba(255,255,255,0.3)';
+        const houseEmoji = house ? HOUSE_EMOJIS[house] : '✨';
+        return (
+            <Link href={result.href}
+                className="flex items-center gap-4 p-4 rounded-2xl border border-white/[0.06] hover:bg-emerald-500/[0.03] transition-all group"
+                style={{ ['--hover-border' as any]: cfg.hoverBorder }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = cfg.hoverBorder)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)')}
+            >
+                <div className="w-11 h-11 rounded-full overflow-hidden border-2 shrink-0 flex items-center justify-center text-xl bg-slate-900"
+                    style={{ borderColor: `${houseColor}40` }}>
+                    {result.meta?.avatar_url
+                        ? <img src={result.meta.avatar_url} alt="" className="w-full h-full object-cover" />
+                        : <span>{houseEmoji}</span>
+                    }
+                </div>
+                <div className="flex-1 min-w-0 text-right">
+                    <p className="font-cinzel font-black text-[15px] text-white/85 group-hover:text-emerald-300 transition-colors truncate">
+                        <Highlight text={result.title} query={query} />
+                    </p>
+                    {(house || result.meta?.role) && (
+                        <p className="font-assistant text-xs mt-0.5" style={{ color: `${houseColor}80` }}>
+                            {house ? HOUSE_NAMES[house] : ''}
+                            {house && result.meta?.role && ' · '}
+                            {result.meta?.role || ''}
+                        </p>
+                    )}
+                </div>
+                <ChevronRight size={14} className="text-white/15 group-hover:text-white/40 transition-colors shrink-0 rotate-180" />
+            </Link>
+        );
+    }
+
+    return (
+        <Link href={result.href}
+            className="flex items-start gap-4 p-5 rounded-2xl border border-white/[0.06] bg-[#0a0e1a]/60 hover:bg-white/[0.02] transition-all group"
+            onMouseEnter={e => (e.currentTarget.style.borderColor = cfg.hoverBorder)}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)')}
+        >
+            <div className="p-2.5 rounded-xl shrink-0 mt-0.5"
+                style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                <Icon size={16} style={{ color: cfg.color }} />
+            </div>
+            <div className="flex-1 text-right min-w-0">
+                <div className="flex items-center gap-2 justify-end mb-1.5">
+                    <span className="font-cinzel text-[9px] font-black uppercase tracking-widest" style={{ color: cfg.color }}>
+                        {cfg.label}
+                    </span>
+                    {result.meta?.forum_name && (
+                        <span className="text-[10px] text-white/20 font-assistant">· {result.meta.forum_name}</span>
+                    )}
+                </div>
+                <h3 className="font-cinzel text-[15px] font-black text-white/80 group-hover:text-white transition-colors mb-1.5 leading-snug">
+                    <Highlight text={result.title} query={query} />
+                </h3>
+                {result.excerpt && (
+                    <p className="font-crimson text-[15px] text-white/35 leading-relaxed line-clamp-2">
+                        <Highlight text={result.excerpt} query={query} />
+                    </p>
+                )}
+            </div>
+            <ChevronRight size={13} className="text-white/15 group-hover:text-white/40 transition-colors shrink-0 mt-1 rotate-180" />
+        </Link>
     );
 }
