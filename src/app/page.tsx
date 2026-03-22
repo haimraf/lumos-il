@@ -348,7 +348,7 @@ export default function Home() {
                     FAQ ANNOUNCEMENT BANNER
                 ══════════════════════════════════════ */}
         <section className="relative z-10 px-4 max-w-5xl mx-auto -mt-4 mb-4">
-          <Link href="/faq" className="group block">
+          <button onClick={() => setIsModalOpen(true)} className="group block w-full text-right">
             <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-l from-amber-900/25 via-amber-950/20 to-[#020617]/80 p-5 md:p-6 transition-all duration-500 hover:border-amber-400/50 hover:shadow-[0_0_40px_rgba(245,158,11,0.12)]">
               {/* glow blob */}
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_50%,rgba(245,158,11,0.07),transparent_65%)] pointer-events-none" />
@@ -382,7 +382,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </Link>
+          </button>
         </section>
 
         {/* ══════════════════════════════════════
@@ -458,9 +458,9 @@ export default function Home() {
                 glow: "rgba(251,146,60,0.08)",
                 badge: "חדש",
               },
-            ].map(({ icon: Icon, title, desc, href, color, glow, badge }) => (
-              <Link key={title} href={href}
-                className="feature-card group rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden">
+            ].map(({ icon: Icon, title, desc, color, glow, badge }) => (
+              <button key={title} onClick={() => setIsModalOpen(true)}
+                className="feature-card group rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden text-right cursor-pointer">
                 {badge && (
                   <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/20 font-cinzel text-[8px] text-amber-400 uppercase tracking-wider">
                     {badge}
@@ -475,9 +475,9 @@ export default function Home() {
                   <p className="text-white/35 text-sm font-crimson leading-relaxed">{desc}</p>
                 </div>
                 <div className={`flex items-center gap-1 text-xs font-cinzel uppercase tracking-widest ${color} opacity-0 group-hover:opacity-100 transition-opacity mt-auto`}>
-                  כניסה <ArrowRight size={11} className="rotate-180" />
+                  <Lock size={10} /> להצטרף ולגלות
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
         </section>
