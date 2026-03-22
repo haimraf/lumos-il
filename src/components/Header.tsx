@@ -328,7 +328,7 @@ export default function Header() {
                                         <div className={`w-9 h-9 rounded-full border-2 ${houseTheme} overflow-hidden shadow-2xl transition-transform group-hover:scale-105`}>
                                             <div className="w-full h-full bg-slate-900 flex items-center justify-center text-lg">
                                                 {profile?.avatar_url
-                                                    ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                                                    ? <img src={profile.avatar_url} alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"} className="w-full h-full object-cover" />
                                                     : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
                                                 }
                                             </div>
@@ -354,7 +354,7 @@ export default function Header() {
                                                 <div className={`w-10 h-10 rounded-full border ${houseTheme} overflow-hidden shrink-0 flex items-center justify-center text-lg`}
                                                     style={{ background: "rgba(255,255,255,0.04)" }}>
                                                     {profile?.avatar_url
-                                                        ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                                                        ? <img src={profile.avatar_url} alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"} className="w-full h-full object-cover" />
                                                         : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
                                                     }
                                                 </div>

@@ -37,7 +37,7 @@ const TAB_CONFIG: { id: AdminTab; label: string; icon: any; color: string }[] = 
     { id: "prophet",      label: "נביא היומי",  icon: Newspaper,     color: "text-blue-400"   },
     { id: "moderation",   label: "מודרציה",     icon: Flag,          color: "text-red-400"    },
     { id: "year-system",  label: "מערכת שנים",  icon: GraduationCap, color: "text-purple-400" },
-    { id: "users",        label: "משתמשים",     icon: UserCog,       color: "text-teal-400"   },
+    { id: "users",        label: "קוסמים",      icon: UserCog,       color: "text-teal-400"   },
     { id: "forums",       label: "פורומים",     icon: MessageSquare, color: "text-orange-400" },
     { id: "shop",         label: "חנות",        icon: Store,         color: "text-emerald-400"},
     { id: "exams",        label: "בחינות",      icon: BookOpenCheck, color: "text-violet-400" },
@@ -92,7 +92,7 @@ export default function AdminPanel() {
 
     // Users management
     const [userSearch, setUserSearch] = useState("");
-    const [userFilter, setUserFilter] = useState<"all" | "מנהל" | "מנחה" | "משתמש">("all");
+    const [userFilter, setUserFilter] = useState<"all" | "מנהל" | "מנחה" | "קוסמ׳">("all");
     const [editingRole, setEditingRole] = useState<{ id: string; role: string } | null>(null);
     const [isSavingRole, setIsSavingRole] = useState(false);
     const [userGroups, setUserGroups] = useState<any[]>([]);
@@ -282,7 +282,7 @@ export default function AdminPanel() {
         const { error } = await supabase.from('profiles').update({ year }).eq('id', id);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
-            sendOwl("עודכן", "שנת המשתמש עודכנה.", "success");
+            sendOwl("עודכן", "שנת הקוסמ׳ עודכנה.", "success");
             setAllProfiles(prev => prev.map(p => p.id === id ? { ...p, year } : p));
             setEditingYear(null);
         }
@@ -297,7 +297,7 @@ export default function AdminPanel() {
         const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
-            sendOwl("עודכן", `תפקיד המשתמש שונה ל-${role}.`, "success");
+            sendOwl("עודכן", `תפקיד הקוסמ׳ שונה ל-${role}.`, "success");
             setEditingRole(null);
             fetchData();
         }
@@ -312,7 +312,7 @@ export default function AdminPanel() {
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
             const grp = userGroups.find(g => g.id === group_id);
-            sendOwl("עודכן", `קבוצת המשתמש שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
+            sendOwl("עודכן", `קבוצת הקוסמ׳ שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
             setEditingGroup(null);
             fetchData();
         }
@@ -322,11 +322,11 @@ export default function AdminPanel() {
     const handleToggleBan = async (userId: string, currentStatus: string) => {
         const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
         const label = newStatus === 'banned' ? 'חסום' : 'פעיל';
-        if (newStatus === 'banned' && !confirm(`לחסום משתמש זה?`)) return;
+        if (newStatus === 'banned' && !confirm(`לחסום קוסמ׳ זה?`)) return;
         const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
-            sendOwl("עודכן", `סטטוס המשתמש שונה ל${label}.`, "success");
+            sendOwl("עודכן", `סטטוס הקוסמ׳ שונה ל${label}.`, "success");
             setAllProfiles(prev => prev.map(p => p.id === userId ? { ...p, status: newStatus } : p));
         }
     };
@@ -652,7 +652,7 @@ export default function AdminPanel() {
                                     </h3>
                                     <div className="space-y-2 max-h-52 overflow-y-auto">
                                         {onlineMembers.length === 0 ? (
-                                            <p className="text-white/15 text-xs text-center py-6 font-cinzel">אין משתמשים מחוברים</p>
+                                            <p className="text-white/15 text-xs text-center py-6 font-cinzel">אין קוסמים מחוברים</p>
                                         ) : onlineMembers.map((w, i) => {
                                             const cfg = w.house ? HOUSE_CONFIG[w.house] : null;
                                             return (
@@ -867,7 +867,7 @@ export default function AdminPanel() {
                                 {/* Users table */}
                                 <section className="admin-card rounded-2xl p-6 space-y-4">
                                     <h3 className="font-cinzel text-xs font-black text-white/30 flex items-center gap-2 uppercase tracking-widest">
-                                        <Users size={13} /> כל המשתמשים ({allProfiles.length})
+                                        <Users size={13} /> כל הקוסמים ({allProfiles.length})
                                     </h3>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm">
@@ -948,7 +948,7 @@ export default function AdminPanel() {
                             </>
                         )}
 
-                        {/* ── TAB 5: ניהול משתמשים ── */}
+                        {/* ── TAB 5: ניהול קוסמים ── */}
                         {activeTab === "users" && (() => {
                             const filteredUsers = allProfiles
                                 .filter(p => !userSearch || p.full_name?.toLowerCase().includes(userSearch.toLowerCase()));
@@ -977,7 +977,7 @@ export default function AdminPanel() {
                                     {/* Search */}
                                     <section className="admin-card rounded-2xl p-5 space-y-4">
                                         <h3 className="font-cinzel text-xs font-black text-teal-400 flex items-center gap-2 uppercase tracking-widest">
-                                            <UserCog size={13} /> ניהול משתמשים ודרגות
+                                            <UserCog size={13} /> ניהול קוסמים ודרגות
                                         </h3>
                                         <div className="flex gap-3 flex-wrap">
                                             <div className="relative flex-1 min-w-[160px]">
@@ -1008,7 +1008,7 @@ export default function AdminPanel() {
                                         {/* User list */}
                                         <div className="space-y-2 max-h-[480px] overflow-y-auto">
                                             {filteredUsers.length === 0 && (
-                                                <p className="text-center text-white/20 font-cinzel text-xs py-8">לא נמצאו משתמשים</p>
+                                                <p className="text-center text-white/20 font-cinzel text-xs py-8">לא נמצאו קוסמים</p>
                                             )}
                                             {filteredUsers.map(p => {
                                                 const cfg = p.house ? HOUSE_CONFIG[p.house] : null;
@@ -1095,7 +1095,7 @@ export default function AdminPanel() {
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleToggleBan(p.id, p.status || 'active')}
-                                                                        title={isBanned ? "בטל חסימה" : "חסום משתמש"}
+                                                                        title={isBanned ? "בטל חסימה" : "חסום קוסמ׳"}
                                                                         className={`p-1.5 rounded-lg transition-all ${isBanned
                                                                             ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'
                                                                             : 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white'
@@ -1567,7 +1567,7 @@ export default function AdminPanel() {
                                     <input
                                         value={badgeGrantSearch}
                                         onChange={e => searchBadgeGrantUsers(e.target.value)}
-                                        placeholder="חיפוש משתמש לפי שם..."
+                                        placeholder="חיפוש קוסמ׳ לפי שם..."
                                         className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-amber-500/30 rounded-xl p-3 text-sm outline-none transition-all"
                                         dir="rtl"
                                     />
@@ -1627,7 +1627,7 @@ export default function AdminPanel() {
                             <textarea
                                 value={broadcastMsg}
                                 onChange={(e) => setBroadcastMsg(e.target.value)}
-                                placeholder="הודעה לכל המשתמשים המחוברים..."
+                                placeholder="הודעה לכל הקוסמים המחוברים..."
                                 className="w-full bg-white/[0.02] border border-white/[0.06] focus:border-purple-500/30 rounded-xl p-3.5 text-sm outline-none h-24 resize-none transition-all"
                                 dir="rtl"
                             />
@@ -1642,7 +1642,7 @@ export default function AdminPanel() {
                             <h3 className="font-cinzel text-xs font-black text-white/20 uppercase tracking-widest">סטטיסטיקות</h3>
                             <div className="grid grid-cols-2 gap-3">
                                 {[
-                                    { label: "משתמשים", value: allProfiles.length, color: "text-white/60" },
+                                    { label: "קוסמים", value: allProfiles.length, color: "text-white/60" },
                                     { label: "מחוברים", value: onlineMembers.length, color: "text-emerald-400" },
                                     { label: "דיווחים", value: reports.length, color: "text-red-400" },
                                     { label: "כתבות", value: news.length, color: "text-blue-400" },

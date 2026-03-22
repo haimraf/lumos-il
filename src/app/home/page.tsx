@@ -270,7 +270,7 @@ export default function HomePage() {
 
                     {/* באנר ה-SEO הקצר והקולע */}
                     <div className="max-w-3xl mx-auto bg-amber-950/20 border border-amber-500/10 rounded-2xl p-6 mb-8 backdrop-blur-sm">
-                        <h2 className="font-cinzel text-2xl text-amber-300/90 mb-2">ברוכים הבאים ללומוס IL</h2>
+                        <h2 className="font-cinzel text-2xl text-amber-300/90 mb-2">ברוכ׳ הבא׳ ללומוס IL</h2>
                         <p className="font-crimson text-white/70 text-lg md:text-xl leading-relaxed">
                             הגעתם לפורטל המרכזי של קהילת הקוסמים של ישראל. מכאן תוכלו לנווט בין מסדרונות הטירה, לצלול אל ספריית הפאנפיקים העצומה שלנו, להתעדכן בנביא היומי או להיכנס אל חדר המועדון האישי שלכם.
                         </p>

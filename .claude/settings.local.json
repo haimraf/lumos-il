@@ -10,7 +10,8 @@
       "Bash(npx tsc:*)",
       "Bash(grep -n \"טוען\\\\|loading\\\\|לא נמצא\\\\|אין תוצאות\\\\|שלח\\\\|הודעה\\\\|ביטול\\\\|שמור\\\\|אישור\\\\|empty\" /c/projects/lumos-il.co.il/src/app/wizard/[id]/page.tsx)",
       "Bash(grep:*)",
-      "Bash(cat C:/projects/lumos-il.co.il/supabase/migrations/*.sql)"
+      "Bash(cat C:/projects/lumos-il.co.il/supabase/migrations/*.sql)",
+      "Bash(find /c/projects/lumos-il.co.il/src -type f \\\\\\(-name *auth* -o -name *login* -o -name *signup* \\\\\\))"
     ]
   }
 }

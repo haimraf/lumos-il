@@ -97,7 +97,7 @@ export default function MaraudersMasterMap() {
                 id: "post_" + p.id,
                 type: "post",
                 icon: "📜",
-                text: `${p.profiles?.full_name || "קוסם"} כתב/ה בפורום`,
+                text: `${p.profiles?.full_name || "קוסמ׳"} כתב׳ בפורום`,
                 house: p.profiles?.house,
                 time: p.created_at,
             });
@@ -117,7 +117,7 @@ export default function MaraudersMasterMap() {
                 id: "member_" + m.id,
                 type: "join",
                 icon: "✨",
-                text: `${m.full_name || "קוסם"} הצטרף/ה לבית ${HOUSE_NAMES[m.house] || m.house}`,
+                text: `${m.full_name || "קוסמ׳"} הצטרפ׳ לבית ${HOUSE_NAMES[m.house] || m.house}`,
                 house: m.house,
                 time: m.created_at,
             });
@@ -136,7 +136,7 @@ export default function MaraudersMasterMap() {
                 threadId: t.id,
                 type: "thread",
                 icon: "🔮",
-                text: `${t.profiles?.full_name || "קוסם"} פתח/ה שרשור חדש`,
+                text: `${t.profiles?.full_name || "קוסמ׳"} פתח׳ שרשור חדש`,
                 house: t.profiles?.house,
                 time: t.created_at,
                 sub: t.title,

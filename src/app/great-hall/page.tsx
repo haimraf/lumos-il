@@ -143,7 +143,7 @@ export default function GreatHall() {
                         await channel.track({
                             user_id: userId,
                             name: profileCheck?.full_name || extractedName,
-                            role: profileCheck?.role || "תלמיד/ה",
+                            role: profileCheck?.role || "תלמיד׳",
                             house: profileCheck?.house || "Unknown",
                             group_id: (profileCheck as any)?.group_id || null,
                             group_name: pcGrp?.name || null,

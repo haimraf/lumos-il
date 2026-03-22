@@ -293,7 +293,7 @@ export default function ThreadViewPage() {
 
         // ✅ Inline styles — Quill לא יכול לדרוס אותם
         const quoteHtml = `<blockquote style="${BLOCKQUOTE_STYLE}">` +
-            `<strong style="color:${color};font-style:normal;font-weight:700">${author} כתב/ה:</strong>` +
+            `<strong style="color:${color};font-style:normal;font-weight:700">${author} כתב׳:</strong>` +
             `<br>${cleanContent}` +
             `</blockquote>`;
 
@@ -787,7 +787,7 @@ export default function ThreadViewPage() {
                                     {/* join date */}
                                     {post.profiles?.created_at && (
                                         <div className="post-sidebar-stat w-full">
-                                            <span className="post-sidebar-stat-label">הצטרף/ה</span>
+                                            <span className="post-sidebar-stat-label">הצטרפ׳</span>
                                             <span className="post-sidebar-stat-num" style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)" }}>
                                                 {new Date(post.profiles.created_at).toLocaleDateString("he-IL", { year: "numeric", month: "short" })}
                                             </span>
