@@ -53,13 +53,16 @@ export default function MaraudersMasterMap() {
     const [steps, setSteps] = useState<any[]>([]);
     const [topHouse, setTopHouse] = useState<string>("Guest");
     const [tick, setTick] = useState(0);
+    const [onlineNamedUsers, setOnlineNamedUsers] = useState<any[]>([]);
 
     /* ── Fetch zone counts ── */
     const fetchZones = useCallback(async () => {
+        const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
         const { data } = await supabase
             .from("online_users")
-            .select("location_label, house")
-            .gte("last_seen", new Date(Date.now() - 5 * 60 * 1000).toISOString());
+            .select("id, user_name, location_label, house")
+            .gte("last_seen", cutoff)
+            .order("last_seen", { ascending: false });
 
         if (!data) return;
 
@@ -79,6 +82,24 @@ export default function MaraudersMasterMap() {
 
         const top = Object.entries(houseCounts).sort(([, a], [, b]) => b - a)[0];
         if (top) setTopHouse(top[0]);
+
+        // Enrich members with group color
+        const members = (data || []).filter((u: any) => !String(u.id).startsWith("guest_")).slice(0, 15);
+        const memberIds = members.map((u: any) => u.id).filter(Boolean);
+        let grpMap: Record<string, string | null> = {};
+        if (memberIds.length > 0) {
+            const { data: profs } = await supabase
+                .from("profiles")
+                .select("id, user_groups(name, color)")
+                .in("id", memberIds);
+            if (profs) {
+                profs.forEach((p: any) => {
+                    const g = p.user_groups as { color: string } | null;
+                    grpMap[p.id] = g?.color || null;
+                });
+            }
+        }
+        setOnlineNamedUsers(members.map((u: any) => ({ ...u, group_color: grpMap[u.id] || null })));
     }, [supabase]);
 
     /* ── Fetch recent activity ── */
@@ -488,6 +509,52 @@ export default function MaraudersMasterMap() {
                                         );
                                     })}
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* ── Who's Online ── */}
+                        <div className="mm-parchment p-6">
+                            <div className="relative z-10">
+                                <div className="mm-section-title flex items-center gap-2">
+                                    <span>✦</span> מחוברים עכשיו
+                                    <span className="mr-auto font-cinzel text-xs" style={{ color: "#7a5a18" }}>{totalOnline} סה"כ</span>
+                                </div>
+                                {onlineNamedUsers.length === 0 ? (
+                                    <div style={{ textAlign: "center", padding: "12px 0", fontStyle: "italic", color: "#7a5a18", opacity: 0.6, fontFamily: "'IM Fell English', serif", fontSize: "0.85rem" }}>
+                                        הטירה שקטה...
+                                    </div>
+                                ) : (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
+                                        {onlineNamedUsers.map((u: any) => {
+                                            const color = HOUSE_COLORS[u.house] ?? HOUSE_COLORS.Guest;
+                                            const nameColor = u.group_color || color;
+                                            const houseIcon = ({ Gryffindor: "🦁", Slytherin: "🐍", Ravenclaw: "🦅", Hufflepuff: "🦡" } as Record<string,string>)[u.house] || "🧙";
+                                            return (
+                                                <Link
+                                                    key={u.id}
+                                                    href={`/wizard/${u.id}`}
+                                                    style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        gap: "4px",
+                                                        padding: "3px 8px",
+                                                        borderRadius: "8px",
+                                                        fontSize: "0.72rem",
+                                                        fontFamily: "'Cinzel', serif",
+                                                        fontWeight: 700,
+                                                        color: nameColor,
+                                                        background: `${nameColor}18`,
+                                                        border: `1px solid ${nameColor}35`,
+                                                        textDecoration: "none",
+                                                    }}
+                                                >
+                                                    <span>{houseIcon}</span>
+                                                    {u.user_name}
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
 

@@ -44,6 +44,7 @@ type Topic = {
         username: string | null;
         house: string | null;
         avatar_url: string | null;
+        user_groups: { name: string; color: string } | null;
     } | null;
 };
 
@@ -58,7 +59,7 @@ export default function HotTopicsTeaser() {
                 const selectQuery = `
                     id, title, created_at,
                     forums ( name, slug ),
-                    profiles!threads_author_id_fkey ( full_name, username, house, avatar_url ),
+                    profiles!threads_author_id_fkey ( full_name, username, house, avatar_url, user_groups(name, color) ),
                     forum_posts ( id )
                 `;
 
@@ -143,6 +144,8 @@ export default function HotTopicsTeaser() {
                             return name.includes("@") ? name.split("@")[0] : name;
                         })();
                         const isHottest = index === 0;
+                        const groupColor = (topic.profiles?.user_groups as any)?.color || null;
+                        const nameColor = groupColor || (house ? HOUSE_HEX[house] : 'rgba(245,158,11,0.6)');
 
                         return (
                             <Link
@@ -174,7 +177,7 @@ export default function HotTopicsTeaser() {
                                     {/* Forum name */}
                                     {topic.forums?.name && (
                                         <span className="inline-block text-[9px] font-black uppercase tracking-[0.2em] mb-3 mt-1"
-                                            style={{ color: house ? HOUSE_HEX[house] : 'rgba(245,158,11,0.6)' }}>
+                                            style={{ color: nameColor }}>
                                             {topic.forums.name}
                                         </span>
                                     )}
@@ -195,7 +198,7 @@ export default function HotTopicsTeaser() {
                                                 : <User size={10} className={houseTheme?.text || "text-white/40"} />
                                             }
                                         </div>
-                                        <span className={`text-xs font-bold ${houseTheme?.text || 'text-white/40'}`}>
+                                        <span className="text-xs font-bold" style={{ color: nameColor }}>
                                             {authorName}
                                         </span>
                                     </div>

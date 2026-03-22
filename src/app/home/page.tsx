@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
+import WhoIsOnline from "@/components/WhoIsOnline";
 
 // הציטוטים הנבחרים - הכי מתאימים ללובי ולהרפתקאות
 const magicalQuotes = [
@@ -432,7 +433,8 @@ export default function HomePage() {
 
             </div>
 
-            <div className="relative z-10 mt-16" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
+            <div className="relative z-10 mt-16 space-y-10" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
+                <WhoIsOnline />
                 <HotTopicsTeaser />
             </div>
         </main>
