@@ -10,11 +10,11 @@ import Link from "next/link";
 import { getDuelStats } from "@/lib/duelStats";
 
 const DUEL_RANKS = [
-    { min: 0,  label: "מתמחה",    color: "#9ca3af", glow: "rgba(156,163,175,0.3)" },
-    { min: 3,  label: "לוחם",     color: "#60a5fa", glow: "rgba(96,165,250,0.3)"  },
-    { min: 7,  label: "מכשף",     color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
+    { min: 0, label: "מתמחה", color: "#9ca3af", glow: "rgba(156,163,175,0.3)" },
+    { min: 3, label: "לוחם", color: "#60a5fa", glow: "rgba(96,165,250,0.3)" },
+    { min: 7, label: "מכשף", color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
     { min: 15, label: "גרנד-מאגוס", color: "#f59e0b", glow: "rgba(245,158,11,0.4)" },
-    { min: 30, label: "אגדה",     color: "#ef4444", glow: "rgba(239,68,68,0.5)"   },
+    { min: 30, label: "אגדה", color: "#ef4444", glow: "rgba(239,68,68,0.5)" },
 ];
 function getDuelRank(wins: number) {
     return [...DUEL_RANKS].reverse().find(r => wins >= r.min) || DUEL_RANKS[0];
@@ -33,16 +33,16 @@ export default function ArenaPage() {
     const { sendOwl } = useOwlMail();
     const supabase = createClient();
 
-    const [leaderboard, setLeaderboard]   = useState<any[]>([]);
-    const [recentDuels, setRecentDuels]   = useState<any[]>([]);
-    const [myStats, setMyStats]           = useState<any>(null);
+    const [leaderboard, setLeaderboard] = useState<any[]>([]);
+    const [recentDuels, setRecentDuels] = useState<any[]>([]);
+    const [myStats, setMyStats] = useState<any>(null);
     const [currentStreak, setCurrentStreak] = useState(0);
-    const [searchQuery, setSearchQuery]   = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [searching, setSearching]       = useState(false);
-    const [challenging, setChallenging]   = useState<string | null>(null);
-    const [loading, setLoading]           = useState(true);
-    const [onlineIds, setOnlineIds]       = useState<Set<string>>(new Set());
+    const [searching, setSearching] = useState(false);
+    const [challenging, setChallenging] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
     const [randomTarget, setRandomTarget] = useState<{ id: string; user_name: string; house: string } | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -114,7 +114,7 @@ export default function ArenaPage() {
         const handleVisibility = () => { if (!document.hidden) load(); };
         document.addEventListener("visibilitychange", handleVisibility);
         return () => document.removeEventListener("visibilitychange", handleVisibility);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile?.id]);
 
     const runSearch = useCallback(async (q: string) => {
@@ -269,8 +269,8 @@ export default function ArenaPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                             {[
                                 { label: "ניצחונות", value: myStats.wins, color: "#16a34a" },
-                                { label: "הפסדות",   value: myStats.losses, color: "#dc2626" },
-                                { label: "תיקו",     value: myStats.ties, color: "#f59e0b" },
+                                { label: "הפסדים", value: myStats.losses, color: "#dc2626" },
+                                { label: "תיקו", value: myStats.ties, color: "#f59e0b" },
                                 { label: "% ניצחון", value: `${myStats.winRate}%`, color: "#60a5fa" },
                                 { label: "רצף נצחונות", value: currentStreak, color: "#f97316" },
                             ].map(s => (
