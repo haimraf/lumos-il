@@ -203,7 +203,13 @@ function DashboardContent() {
     if (!profile?.inventory) return { companions: [], items: [], cards: [], potions_ingredients: [] };
     try {
       const data = typeof profile.inventory === 'string' ? JSON.parse(profile.inventory) : profile.inventory;
-      return { companions: data.companions || [], items: data.items || [], cards: data.cards || [], potions_ingredients: data.potions_ingredients || [] };
+      const allItems = [...(data.items || []), ...(data.companions || [])];
+      return {
+        companions: allItems.filter((i: any) => i.category === 'companion' || i.type === 'goblin'),
+        items: allItems.filter((i: any) => !['companion', 'cards', 'potions'].includes(i.category) && !i.type),
+        cards: allItems.filter((i: any) => i.category === 'cards'),
+        potions_ingredients: allItems.filter((i: any) => i.category === 'potions'),
+      };
     } catch (e) { return { companions: [], items: [], cards: [], potions_ingredients: [] }; }
   };
 
@@ -611,8 +617,14 @@ function DashboardContent() {
                         </div>
                         <div className="flex-1 text-right">
                           <p className="text-sm md:text-base text-white/90 font-medium mb-1">
-                            <span className={`font-bold ${theme.accentText}`}>{n.actor_profile?.full_name || 'חבר/ת קהילה'}</span>
-                            {" "}{formatNotificationContent(n.content, n.type)}
+                            {n.actor_profile?.full_name ? (
+                              <>
+                                <span className={`font-bold ${theme.accentText}`}>{n.actor_profile.full_name}</span>
+                                {" "}{formatNotificationContent(n.content?.replace(n.actor_profile.full_name, '').trim(), n.type)}
+                              </>
+                            ) : (
+                              <span>{formatNotificationContent(n.content, n.type)}</span>
+                            )}
                           </p>
                           <div className="flex items-center gap-2 text-xs text-white/20 font-cinzel tracking-[0.2em] justify-end">
                             <span>{new Date(n.created_at).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>

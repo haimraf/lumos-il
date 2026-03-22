@@ -100,19 +100,28 @@ function ShopContent() {
             return;
         }
 
+        const currentInventory = profile.inventory || { items: [], equipped_pet: null };
+        if (item.is_one_time) {
+            const alreadyOwned = currentInventory.items?.some((i: any) => i.id === item.id);
+            if (alreadyOwned) {
+                sendOwl("כבר ברשותך!", "חפץ זה ניתן לרכישה פעם אחת בלבד.", "error");
+                return;
+            }
+        }
+
         setPurchasingId(item.id);
 
-        const currentInventory = profile.inventory || { items: [], companions: [], cards: [], potions_ingredients: [] };
-        const newInventory = { ...currentInventory };
+        const newInventory = {
+            ...currentInventory,
+            items: [...(currentInventory.items || [])],
+        };
         const newItemToAdd = {
             id: item.id, name: item.name, rarity: item.rarity,
-            image_url: item.image_url, boosts: item.stats_boost, equipped: false
+            image_url: item.image_url, boosts: item.stats_boost, equipped: false,
+            category: item.category
         };
 
-        if (item.category === 'companion') newInventory.companions.push(newItemToAdd);
-        else if (item.category === 'card') newInventory.cards.push(newItemToAdd);
-        else if (item.category === 'ingredient') newInventory.potions_ingredients.push(newItemToAdd);
-        else newInventory.items.push(newItemToAdd);
+        newInventory.items.push(newItemToAdd);
 
         const { error } = await supabase.rpc('purchase_item_secure', {
             p_item_id: item.id,

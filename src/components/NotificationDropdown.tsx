@@ -123,10 +123,14 @@ export default function NotificationDropdown() {
                                     >
                                         <div className="flex-1 min-w-0 text-right">
                                             <p className="text-sm md:text-xs text-white/80 leading-relaxed">
-                                                <span className="font-bold text-amber-500">
-                                                    {n.actor_profile?.full_name || 'חבר/ת קהילה'}
-                                                </span>
-                                                {" "}{formatContent(n.content, n.type)}
+                                                {n.actor_profile?.full_name ? (
+                                                    <>
+                                                        <span className="font-bold text-amber-500">{n.actor_profile.full_name}</span>
+                                                        {" "}{formatContent(n.content?.replace(n.actor_profile.full_name, '').trim(), n.type)}
+                                                    </>
+                                                ) : (
+                                                    <span>{formatContent(n.content, n.type)}</span>
+                                                )}
                                             </p>
                                             <span className="text-[10px] md:text-[9px] text-white/20 mt-1 block uppercase tracking-tighter">
                                                 {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}

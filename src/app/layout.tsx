@@ -13,6 +13,7 @@ import { UIProvider } from "@/context/UIContext";
 import MagicPresence from "@/components/MagicPresence";
 import { AuthProvider } from "@/context/AuthContext";
 import CoolingRoomBanner from "@/components/CoolingRoomBanner";
+import SortingReminder from "@/components/SortingReminder";
 
 /**
  * LUMOS IL - ROOT LAYOUT V3.1 FIXED
@@ -106,6 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <HouseElfHelper />
               <CookieBanner />
               <CoolingRoomBanner />
+              <SortingReminder />
 
             </OwlMailProvider>
           </UIProvider>

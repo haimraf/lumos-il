@@ -307,8 +307,8 @@ export default function Header() {
                                     className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 bg-black/40 hover:bg-white/5 hover:border-amber-500/30 transition-all duration-200"
                                 >
                                     {isMuted
-                                        ? <VolumeX size={15} className="text-white/30" />
-                                        : <Volume2 size={15} className="text-amber-400" />
+                                        ? <VolumeX size={15} className="text-white/50" />
+                                        : <Volume2 size={15} className="text-amber-400 animate-pulse" />
                                     }
                                 </button>
 
@@ -451,7 +451,7 @@ export default function Header() {
                 {pathname !== '/' && <MagicTicker />}
             </header>
 
-            <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 overflow-hidden ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl">
+            <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl">
                 <div className="font-cinzel text-white/[0.02] text-[18vw] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none font-black z-0">LUMOS</div>
 
                 <nav className="relative z-10 flex flex-col items-center gap-1 w-full px-10 pt-28 pb-32 h-full overflow-y-auto">
@@ -506,6 +506,19 @@ export default function Header() {
                         </Link>
                     ) : (
                         <>
+                            <button
+                                onClick={() => {
+                                    if (isMuted) window.dispatchEvent(new Event('lumos:play'));
+                                    toggleMute();
+                                }}
+                                className="flex items-center gap-6 text-2xl font-cinzel font-black text-white/50 hover:text-amber-500 transition-all uppercase tracking-[0.1em] py-4 w-full justify-center"
+                            >
+                                {isMuted
+                                    ? <VolumeX size={20} className="text-amber-500/40" />
+                                    : <Volume2 size={20} className="text-amber-500 animate-pulse" />
+                                }
+                                {isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
+                            </button>
                             <Link href="/dashboard?tab=settings" onClick={() => setIsOpen(false)} className="flex items-center gap-4 text-xl font-cinzel font-bold text-white/40 hover:text-white transition-all uppercase justify-center mb-6">
                                 <Settings size={18} className="text-amber-500/50" /> הגדרות חשבון
                             </Link>

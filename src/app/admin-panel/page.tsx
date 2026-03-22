@@ -49,6 +49,8 @@ export default function AdminPanel() {
     const supabase = createClient();
     const { sendOwl } = useOwlMail();
     const { profile, isLoading: authLoading } = useAuth();
+    const isAdmin = profile?.role === 'מנהל';
+    const isModerator = profile?.role === 'מנחה';
 
     const [activeTab, setActiveTab] = useState<AdminTab>("house-cup");
     const [loading, setLoading] = useState(true);
@@ -178,7 +180,7 @@ export default function AdminPanel() {
 
     useEffect(() => {
         if (!authLoading) {
-            if (!profile || profile.role !== 'מנהל') { router.push('/dashboard'); return; }
+            if (!profile || !['מנהל', 'מנחה'].includes(profile.role || '')) { router.push('/dashboard'); return; }
             setNewArticle(prev => ({ ...prev, author: profile.full_name || "הנהלה" }));
             fetchData();
             setLoading(false);
@@ -605,6 +607,7 @@ export default function AdminPanel() {
                 </header>
 
                 {/* ── Season Reset Banner ── */}
+                {isAdmin && (
                 <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-l from-amber-900/20 via-amber-900/10 to-transparent p-6 flex items-center justify-between gap-6">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_50%,rgba(245,158,11,0.08),transparent)] pointer-events-none" />
                     <div className="relative flex items-center gap-4">
@@ -620,10 +623,13 @@ export default function AdminPanel() {
                         {isResetting ? 'מאפס...' : 'הפעל סיום עונה'}
                     </button>
                 </div>
+                )}
 
                 {/* ── Tab Navigation ── */}
                 <div className="flex gap-2 border-b border-white/[0.06] pb-0">
-                    {TAB_CONFIG.map(tab => {
+                    {TAB_CONFIG
+                    .filter(tab => isAdmin || ['house-cup', 'moderation', 'forums'].includes(tab.id))
+                    .map(tab => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
                         return (
@@ -704,6 +710,7 @@ export default function AdminPanel() {
                                 </section>
 
                                 {/* Rewards */}
+                                {isAdmin && (
                                 <section className="admin-card rounded-2xl p-5 space-y-4">
                                     <h3 className="font-cinzel text-xs font-black text-amber-500 flex items-center gap-2 uppercase tracking-widest">
                                         <Crown size={13} /> מענקי דמויות
@@ -775,6 +782,7 @@ export default function AdminPanel() {
                                         </div>
                                     )}
                                 </section>
+                                )}
                             </>
                         )}
 
@@ -1127,6 +1135,26 @@ export default function AdminPanel() {
                                                                         <X size={11} />
                                                                     </button>
                                                                 </div>
+                                                            ) : editingRole?.id === p.id ? (
+                                                                <div className="flex items-center gap-1">
+                                                                    <select
+                                                                        value={editingRole?.role ?? "קוסמ׳"}
+                                                                        onChange={e => setEditingRole({ id: p.id, role: e.target.value })}
+                                                                        style={{ backgroundColor: '#0f172a', color: '#e2e8f0', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', border: '1px solid rgba(20,184,166,0.4)', outline: 'none', colorScheme: 'dark' }}
+                                                                    >
+                                                                        <option value="קוסמ׳" style={{ backgroundColor: '#0f172a' }}>קוסמ׳</option>
+                                                                        <option value="מנחה" style={{ backgroundColor: '#0f172a' }}>מנחה</option>
+                                                                        <option value="מנהל" style={{ backgroundColor: '#0f172a' }}>מנהל</option>
+                                                                    </select>
+                                                                    <button onClick={handleSaveRole} disabled={isSavingRole}
+                                                                        className="p-1.5 bg-teal-500/20 text-teal-400 rounded-lg hover:bg-teal-500 hover:text-white transition-all disabled:opacity-40">
+                                                                        <Save size={11} />
+                                                                    </button>
+                                                                    <button onClick={() => setEditingRole(null)}
+                                                                        className="p-1.5 bg-white/5 text-white/30 rounded-lg hover:bg-white/10 transition-all">
+                                                                        <X size={11} />
+                                                                    </button>
+                                                                </div>
                                                             ) : (
                                                                 <div className="flex items-center gap-1.5">
                                                                     {grp ? (
@@ -1164,6 +1192,14 @@ export default function AdminPanel() {
                                                                         }`}>
                                                                         <Shield size={11} />
                                                                     </button>
+                                                                    {isAdmin && (
+                                                                        <button
+                                                                            onClick={() => setEditingRole({ id: p.id, role: p.role || "קוסמ׳" })}
+                                                                            title="שנה תפקיד"
+                                                                            className="p-1.5 bg-teal-500/10 text-teal-400 rounded-lg hover:bg-teal-500 hover:text-white transition-all">
+                                                                            <UserCog size={11} />
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1682,6 +1718,7 @@ export default function AdminPanel() {
 
                     {/* ── RIGHT SIDEBAR — Broadcast (קבועה בכל טאב) ── */}
                     <div className="space-y-6">
+                        {isAdmin && (
                         <section className="admin-card rounded-2xl p-5 space-y-4">
                             <h3 className="font-cinzel text-xs font-black text-purple-400 flex items-center gap-2 uppercase tracking-widest">
                                 <Megaphone size={13} /> הכרזה גלובלית
@@ -1698,6 +1735,7 @@ export default function AdminPanel() {
                                 שיגור ✨
                             </button>
                         </section>
+                        )}
 
                         {/* Stats summary */}
                         <section className="admin-card rounded-2xl p-5 space-y-3">

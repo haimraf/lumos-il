@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import dynamic from 'next/dynamic';
@@ -68,6 +69,7 @@ function timeAgo(dateString: string) {
     const date = new Date(dateString);
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diff < 0) return "ממש עכשיו";
     if (diff < 60) return "ממש עכשיו";
     if (diff < 3600) return `לפני ${Math.floor(diff / 60)} דק'`;
     if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שע'`;
@@ -90,7 +92,6 @@ function ThreadRow({
     onLock?: (t: Thread) => void;
     onDelete?: (t: Thread) => void;
 }) {
-    const router = useRouter();
     const houseConf = thread.profiles?.house ? HOUSE_CONFIG[thread.profiles.house] : null;
     const grp = thread.profiles?.user_groups as { name: string; color: string } | null;
     const nameColor = grp?.color || getRoleColor(thread.profiles?.role, thread.profiles?.house, roleColors);
@@ -155,16 +156,18 @@ function ThreadRow({
                     </div>
                     <div className="thread-meta">
                         {icon && <span>{icon}</span>}
-                        <span
-                            onClick={e => { e.preventDefault(); e.stopPropagation(); router.push(`/wizard/${thread.author_id}`); }}
-                            style={{ color: nameColor, fontWeight: 700, cursor: "pointer" }}
+                        <Link
+                            href={`/wizard/${thread.author_id}`}
+                            onClick={e => e.stopPropagation()}
+                            style={{ color: nameColor, fontWeight: 700 }}
                             className="hover:underline"
                         >
                             {thread.profiles?.full_name || "קוסם אנונימי"}
-                        </span>
+                        </Link>
                         <span className="text-white/15">·</span>
                         <Clock size={10} />
                         <span>{new Date(thread.created_at).toLocaleDateString("he-IL")}</span>
+                        <span className="sm:hidden text-white/20">· {thread.reply_count || 0} תגובות</span>
                     </div>
                 </div>
             </Link>
@@ -177,13 +180,14 @@ function ThreadRow({
 
             {/* last reply + mod actions */}
             <div className="thread-col-lastpost" style={{ position: "relative" }}>
-                <span
-                    onClick={() => router.push(`/wizard/${thread.author_id}`)}
-                    className="lastpost-author hover:underline cursor-pointer"
+                <Link
+                    href={`/wizard/${thread.author_id}`}
+                    onClick={e => e.stopPropagation()}
+                    className="lastpost-author hover:underline"
                     style={{ color: nameColor }}
                 >
                     {thread.profiles?.full_name || "קוסם אנונימי"}
-                </span>
+                </Link>
                 <div className="lastpost-time">
                     <Clock size={9} />
                     {timeAgo(thread.created_at)}
@@ -235,14 +239,14 @@ function ThreadRow({
 export default function ForumThreadsPage() {
     const { slug } = useParams();
     const router = useRouter();
-    const [supabase] = useState(() => createClient());
+    const supabase = useMemo(() => createClient(), []);
     const { sendOwl } = useOwlMail();
 
     const [forum, setForum] = useState<Forum | null>(null);
     const [threads, setThreads] = useState<Thread[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isNewThreadOpen, setIsNewThreadOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [sortBy, setSortBy] = useState<"new" | "replies">("new");
 
@@ -273,22 +277,12 @@ export default function ForumThreadsPage() {
             setUserRole(profile?.role || null);
             setForum(forumData);
 
-            let { data: threadsData, error: threadsError } = await supabase
+            const { data: threadsData } = await supabase
                 .from('threads')
                 .select('*, profiles(full_name, house, role, is_online, avatar_url, user_groups(name, color)), forum_posts(count)')
                 .eq('forum_id', forumData.id)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
-
-            // Fallback if is_pinned column doesn't exist yet
-            if (threadsError) {
-                const fallback = await supabase
-                    .from('threads')
-                    .select('*, profiles(full_name, house, role, is_online, avatar_url, user_groups(name, color)), forum_posts(count)')
-                    .eq('forum_id', forumData.id)
-                    .order('created_at', { ascending: false });
-                threadsData = fallback.data;
-            }
 
             const formattedThreads = threadsData?.map((t: any) => ({
                 ...t,
@@ -344,28 +338,10 @@ export default function ForumThreadsPage() {
 
         setIsSubmitting(true);
         try {
-            // Try inserting with is_pinned/is_locked; fall back without if those columns don't exist yet
-            let threadData: any = null;
-            let tError: any = null;
-
-            const withFlags = await supabase
+            const { data: threadData, error: tError } = await supabase
                 .from('threads')
                 .insert([{ forum_id: forum.id, author_id: currentUser.id, title: newThreadTitle.trim(), prefix: newThreadPrefix, is_pinned: newThreadPinned, is_locked: newThreadLocked }])
                 .select().single();
-
-            if (withFlags.error && withFlags.error.message?.includes('is_pinned')) {
-                // Columns don't exist yet — insert without mod flags
-                const fallback = await supabase
-                    .from('threads')
-                    .insert([{ forum_id: forum.id, author_id: currentUser.id, title: newThreadTitle.trim(), prefix: newThreadPrefix }])
-                    .select().single();
-                threadData = fallback.data;
-                tError = fallback.error;
-            } else {
-                threadData = withFlags.data;
-                tError = withFlags.error;
-            }
-
             if (tError) throw tError;
 
             const { error: pError } = await supabase
@@ -383,7 +359,10 @@ export default function ForumThreadsPage() {
             setIsNewThreadOpen(false);
             fetchThreads();
             router.push(`/forums/thread/${threadData.id}`);
-        } catch (err: any) { console.error("Thread creation failed:", err); } finally { setIsSubmitting(false); }
+        } catch (err: any) {
+            console.error("Thread creation failed:", err);
+            sendOwl("שגיאה ביצירת דיון", "משהו השתבש, נסה שוב בעוד רגע.", "error");
+        } finally { setIsSubmitting(false); }
     };
 
     if (isLoading) return (

@@ -9,6 +9,17 @@ import { Loader2, Search, Swords, Trophy, Shield, Target, Circle } from "lucide-
 import Link from "next/link";
 import { getDuelStats } from "@/lib/duelStats";
 
+const DUEL_RANKS = [
+    { min: 0,  label: "מתמחה",    color: "#9ca3af", glow: "rgba(156,163,175,0.3)" },
+    { min: 3,  label: "לוחם",     color: "#60a5fa", glow: "rgba(96,165,250,0.3)"  },
+    { min: 7,  label: "מכשף",     color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
+    { min: 15, label: "גרנד-מאגוס", color: "#f59e0b", glow: "rgba(245,158,11,0.4)" },
+    { min: 30, label: "אגדה",     color: "#ef4444", glow: "rgba(239,68,68,0.5)"   },
+];
+function getDuelRank(wins: number) {
+    return [...DUEL_RANKS].reverse().find(r => wins >= r.min) || DUEL_RANKS[0];
+}
+
 const HOUSE_EMOJI: Record<string, string> = {
     Gryffindor: "🦁", Slytherin: "🐍", Ravenclaw: "🦅", Hufflepuff: "🦡",
 };
@@ -25,6 +36,7 @@ export default function ArenaPage() {
     const [leaderboard, setLeaderboard]   = useState<any[]>([]);
     const [recentDuels, setRecentDuels]   = useState<any[]>([]);
     const [myStats, setMyStats]           = useState<any>(null);
+    const [currentStreak, setCurrentStreak] = useState(0);
     const [searchQuery, setSearchQuery]   = useState("");
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searching, setSearching]       = useState(false);
@@ -80,10 +92,28 @@ export default function ArenaPage() {
             if (profile?.id) {
                 const stats = await getDuelStats(supabase, profile.id);
                 setMyStats(stats);
+
+                // Calculate win streak from recent duels
+                const { data: myDuels } = await supabase.from("duels")
+                    .select("winner_id, challenger_id, opponent_id")
+                    .eq("status", "finished")
+                    .or(`challenger_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+                    .order("finished_at", { ascending: false })
+                    .limit(20);
+                let streak = 0;
+                for (const d of myDuels || []) {
+                    if (d.winner_id === profile.id) streak++;
+                    else break;
+                }
+                setCurrentStreak(streak);
             }
             setLoading(false);
         };
         load();
+
+        const handleVisibility = () => { if (!document.hidden) load(); };
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () => document.removeEventListener("visibilitychange", handleVisibility);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile?.id]);
 
@@ -228,15 +258,27 @@ export default function ArenaPage() {
                 {myStats && profile && (
                     <div className="rounded-2xl p-6"
                         style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <h2 className="font-cinzel text-xs font-black text-white/40 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Shield size={13} /> הסטטיסטיקות שלי
-                        </h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="font-cinzel text-xs font-black text-white/40 uppercase tracking-widest flex items-center gap-2">
+                                <Shield size={13} /> הסטטיסטיקות שלי
+                            </h2>
+                            {(() => {
+                                const rank = getDuelRank(myStats.wins);
+                                return (
+                                    <span className="font-cinzel text-[10px] font-black px-3 py-1 rounded-full"
+                                        style={{ color: rank.color, background: `${rank.glow}20`, border: `1px solid ${rank.color}40`, textShadow: `0 0 8px ${rank.glow}` }}>
+                                        ✦ {rank.label}
+                                    </span>
+                                );
+                            })()}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                             {[
                                 { label: "ניצחונות", value: myStats.wins, color: "#16a34a" },
                                 { label: "הפסדות",   value: myStats.losses, color: "#dc2626" },
                                 { label: "תיקו",     value: myStats.ties, color: "#f59e0b" },
                                 { label: "% ניצחון", value: `${myStats.winRate}%`, color: "#60a5fa" },
+                                { label: "רצף נצחונות", value: currentStreak, color: "#f97316" },
                             ].map(s => (
                                 <div key={s.label} className="text-center rounded-xl p-3"
                                     style={{ background: `${s.color}10`, border: `1px solid ${s.color}25` }}>

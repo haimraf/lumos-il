@@ -63,6 +63,17 @@ export default function BackgroundMusic() {
     };
   }, [isMuted, isInitialized, fadeVolume]);
 
+  // Allow gesture-synchronous play trigger from mobile buttons
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const handleForcePlay = () => {
+      audio.play().then(() => fadeVolume(0.25)).catch(() => {});
+    };
+    window.addEventListener('lumos:play', handleForcePlay);
+    return () => window.removeEventListener('lumos:play', handleForcePlay);
+  }, [fadeVolume]);
+
   // השהיה כשהטאב ברקע, חידוש כשחוזרים
   useEffect(() => {
     const audio = audioRef.current;
