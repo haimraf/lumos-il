@@ -299,6 +299,12 @@ function DashboardContent() {
     setNotifications(notifications.filter(n => n.id !== id));
   };
 
+  const deleteAllNotifications = async () => {
+    if (!session?.user?.id) return;
+    await supabase.from('notifications').delete().eq('user_id', session.user.id);
+    setNotifications([]);
+  };
+
   if (authLoading || !profile) return <div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>;
 
   const theme = HOUSE_THEMES[profile?.house] || HOUSE_THEMES['Gryffindor'];
@@ -604,10 +610,20 @@ function DashboardContent() {
             {/* ── Notifications ── */}
             {activeTab === 'notifications' && (
               <div className={`glass-panel rounded-[3rem] border-t border-l ${theme.borderColor} p-6 md:p-12 space-y-8 animate-in fade-in ${theme.glow}`}>
-                <h2 className="font-cinzel text-2xl md:text-3xl font-black flex items-center gap-4 text-white justify-end">
-                  <span>תיבת ינשופים</span>
-                  <Bell className={theme.accentText} />
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-cinzel text-2xl md:text-3xl font-black flex items-center gap-4 text-white">
+                    <span>תיבת ינשופים</span>
+                    <Bell className={theme.accentText} />
+                  </h2>
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={deleteAllNotifications}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-400/60 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all font-cinzel uppercase tracking-widest"
+                    >
+                      <Trash2 size={14} /> מחק הכל
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-4">
                   {notifications.length > 0 ? notifications.map((n) => (
                     <div key={n.id} className={`p-6 md:p-8 rounded-[2rem] border ${!n.is_read ? 'bg-white/[0.03] border-white/10 shadow-xl' : 'bg-transparent border-white/5 opacity-50'} flex flex-col md:flex-row items-center justify-between gap-6 transition-all`}>

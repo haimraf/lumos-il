@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Bell, X } from "lucide-react";
+import { Bell, X, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -26,6 +26,22 @@ export default function NotificationDropdown() {
         if (type === 'tag') return content.replace('תיוג שלך בדיון', 'בתיוג בתוך הדיון');
         if (type === 'reply') return content;
         return content;
+    };
+
+    const deleteNotification = async (id: string) => {
+        await supabase.from('notifications').delete().eq('id', id);
+        setNotifications(prev => {
+            const updated = prev.filter(n => n.id !== id);
+            setUnreadCount(updated.filter(n => !n.is_read).length);
+            return updated;
+        });
+    };
+
+    const deleteAll = async () => {
+        if (!userId) return;
+        await supabase.from('notifications').delete().eq('user_id', userId);
+        setNotifications([]);
+        setUnreadCount(0);
     };
 
     // ✨ שימוש ב-useCallback כדי לשמור על הפונקציה יציבה
@@ -105,39 +121,58 @@ export default function NotificationDropdown() {
                         aria-label="התראות"
                         style={{ width: '90vw', maxWidth: '320px', minWidth: '300px' }}
                     >
-                        <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                        <div className="p-4 border-b border-white/5 flex items-center justify-between gap-2">
                             <h3 className="font-cinzel text-xs text-white uppercase tracking-widest font-black">התראות אחרונות</h3>
-                            <button onClick={() => setIsOpen(false)} className="md:hidden text-white/40 hover:text-white">
-                                <X size={18} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                {notifications.length > 0 && (
+                                    <button
+                                        onClick={deleteAll}
+                                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                        title="מחק את כל ההתראות"
+                                    >
+                                        <Trash2 size={11} /> מחק הכל
+                                    </button>
+                                )}
+                                <button onClick={() => setIsOpen(false)} className="md:hidden text-white/40 hover:text-white p-1">
+                                    <X size={18} />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="max-h-[60vh] md:max-h-[350px] overflow-y-auto custom-scrollbar">
                             {notifications.length > 0 ? (
                                 notifications.map((n) => (
-                                    <Link
-                                        key={n.id}
-                                        href={n.target_url}
-                                        onClick={() => setIsOpen(false)}
-                                        className={`flex items-start gap-3 p-4 border-b border-white/[0.03] hover:bg-white/5 transition-colors ${!n.is_read ? 'bg-amber-500/[0.05]' : ''}`}
-                                    >
-                                        <div className="flex-1 min-w-0 text-right">
-                                            <p className="text-sm md:text-xs text-white/80 leading-relaxed">
-                                                {n.actor_profile?.full_name ? (
-                                                    <>
-                                                        <span className="font-bold text-amber-500">{n.actor_profile.full_name}</span>
-                                                        {" "}{formatContent(n.content?.replace(n.actor_profile.full_name, '').trim(), n.type)}
-                                                    </>
-                                                ) : (
-                                                    <span>{formatContent(n.content, n.type)}</span>
-                                                )}
-                                            </p>
-                                            <span className="text-[10px] md:text-[9px] text-white/20 mt-1 block uppercase tracking-tighter">
-                                                {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                        {!n.is_read && <div className="w-2 h-2 bg-amber-500 rounded-full mt-1 shrink-0 shadow-[0_0_8px_#f59e0b]"></div>}
-                                    </Link>
+                                    <div key={n.id} className={`flex items-start gap-2 border-b border-white/[0.03] group ${!n.is_read ? 'bg-amber-500/[0.05]' : ''}`}>
+                                        <Link
+                                            href={n.target_url}
+                                            onClick={() => setIsOpen(false)}
+                                            className="flex items-start gap-3 p-4 flex-1 min-w-0 hover:bg-white/5 transition-colors"
+                                        >
+                                            <div className="flex-1 min-w-0 text-right">
+                                                <p className="text-sm md:text-xs text-white/80 leading-relaxed">
+                                                    {n.actor_profile?.full_name ? (
+                                                        <>
+                                                            <span className="font-bold text-amber-500">{n.actor_profile.full_name}</span>
+                                                            {" "}{formatContent(n.content?.replace(n.actor_profile.full_name, '').trim(), n.type)}
+                                                        </>
+                                                    ) : (
+                                                        <span>{formatContent(n.content, n.type)}</span>
+                                                    )}
+                                                </p>
+                                                <span className="text-[10px] md:text-[9px] text-white/20 mt-1 block uppercase tracking-tighter">
+                                                    {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            {!n.is_read && <div className="w-2 h-2 bg-amber-500 rounded-full mt-1 shrink-0 shadow-[0_0_8px_#f59e0b]"></div>}
+                                        </Link>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                                            className="opacity-0 group-hover:opacity-100 p-2 mt-2 ml-1 shrink-0 text-white/20 hover:text-red-400 transition-all rounded-lg hover:bg-red-500/10"
+                                            title="מחק התראה"
+                                        >
+                                            <X size={13} />
+                                        </button>
+                                    </div>
                                 ))
                             ) : (
                                 <div className="p-12 text-center text-white/20 text-[10px] font-cinzel tracking-widest uppercase">אין מכתבים חדשים בנמצא</div>

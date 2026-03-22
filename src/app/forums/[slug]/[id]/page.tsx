@@ -220,6 +220,13 @@ export default function ThreadViewPage() {
             if (threadError || !threadData) { router.push('/forums'); return; }
             setThread(threadData);
 
+            // Increment views (fire-and-forget, race condition acceptable)
+            supabase.from('threads').update({ views: (threadData.views || 0) + 1 }).eq('id', id).then(() => {});
+            // Mark as read in localStorage
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(`thread_read_${id}`, Date.now().toString());
+            }
+
             const { data: forumData } = await supabase
                 .from('forums').select('*').eq('id', threadData.forum_id).single();
             if (forumData) setForum(forumData);
@@ -622,6 +629,11 @@ export default function ThreadViewPage() {
                         <span className="flex items-center gap-1.5">
                             <MessageSquare size={11} />
                             {posts.length} תגובות
+                        </span>
+                        <span className="text-white/10">·</span>
+                        <span className="flex items-center gap-1.5">
+                            <Eye size={11} />
+                            {((thread?.views || 0) + 1).toLocaleString()} צפיות
                         </span>
                         <span className="text-white/10">·</span>
                         <span className="flex items-center gap-1.5">

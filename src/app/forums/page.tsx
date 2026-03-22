@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
@@ -75,16 +76,23 @@ export default function ForumsPage() {
     const [groups, setGroups] = useState<UserGroup[]>([]);
     const [housePoints, setHousePoints] = useState<Record<string, number>>({ Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 });
     const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    const [recentPosts, setRecentPosts] = useState<any[]>([]);
+    const [recentThreads, setRecentThreads] = useState<any[]>([]);
+    const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+    const [forumStats, setForumStats] = useState<{ totalMembers: number; newestMember: any | null }>({ totalMembers: 0, newestMember: null });
     const { sendOwl } = useOwlMail();
     useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
-    // Client-side polling for online users + groups + house points
+    // Client-side polling for online users + groups + house points + stats
     const fetchSidebarData = useCallback(async () => {
         const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        const [{ count }, { data: groupsData }, { data: profilesData }] = await Promise.all([
+        const [{ count }, { data: groupsData }, { data: profilesData }, { data: onlineUsersData }, { count: totalMembersCount }, { data: newestMemberData }] = await Promise.all([
             supabase.from("online_users").select("id", { count: "exact", head: true }).gte("last_seen", cutoff),
             supabase.from("user_groups").select("*").order("display_order"),
             supabase.from("profiles").select("house, points_contributed"),
+            supabase.from("online_users").select("id, user_name, house").gte("last_seen", cutoff).eq("presence_type", "member").order("last_seen", { ascending: false }).limit(15),
+            supabase.from("profiles").select("*", { count: "exact", head: true }),
+            supabase.from("profiles").select("id, full_name, house").order("created_at", { ascending: false }).limit(1),
         ]);
         if (count !== null) setOnlineCount(count);
         if (groupsData) setGroups(groupsData);
@@ -95,6 +103,28 @@ export default function ForumsPage() {
             });
             setHousePoints(pts);
         }
+        // Enrich online users with group color (same pattern as MaraudersMap)
+        if (onlineUsersData && onlineUsersData.length > 0) {
+            const userIds = onlineUsersData.map((u: any) => u.id).filter(Boolean);
+            const { data: onlineProfiles } = await supabase
+                .from("profiles")
+                .select("id, user_groups(name, color)")
+                .in("id", userIds);
+            const groupMap: Record<string, string | null> = {};
+            if (onlineProfiles) {
+                onlineProfiles.forEach((p: any) => {
+                    const g = p.user_groups as { name: string; color: string } | null;
+                    groupMap[p.id] = g?.color || null;
+                });
+            }
+            setOnlineUsers(onlineUsersData.map((u: any) => ({ ...u, group_color: groupMap[u.id] || null })));
+        } else {
+            setOnlineUsers([]);
+        }
+        setForumStats({
+            totalMembers: totalMembersCount ?? 0,
+            newestMember: newestMemberData?.[0] ?? null,
+        });
     }, [supabase]);
 
     useEffect(() => {
@@ -119,34 +149,106 @@ export default function ForumsPage() {
 
             const { data: forumsData, error: forumsError } = await supabase
                 .from('forums')
-                .select(`*, threads(id, title, created_at, forum_posts(id), profiles(full_name, username, house, role, user_groups(name, color)))`)
+                .select(`*, threads(id, title, created_at, forum_posts(id), profiles(id, full_name, username, house, role, user_groups(name, color)))`)
                 .order('created_at', { ascending: true });
 
             console.log('[forums] forumsData:', forumsData, 'error:', forumsError);
 
             if (forumsData) {
+                // Fetch last post per forum in one batch query
+                const allThreadIds = forumsData.flatMap((f: any) => (f.threads || []).map((t: any) => t.id));
+                const forumLastPostMap: Record<string, { post: any; thread: any }> = {};
+                let rawPosts: any[] = [];
+
+                if (allThreadIds.length > 0) {
+                    const { data: rawPostsData } = await supabase
+                        .from('forum_posts')
+                        .select('id, created_at, user_id, thread_id, profiles(id, full_name, house, role, user_groups(name, color))')
+                        .in('thread_id', allThreadIds)
+                        .order('created_at', { ascending: false })
+                        .limit(500);
+
+                    rawPosts = rawPostsData || [];
+
+                    // Build a thread_id -> forum mapping
+                    const threadForumMap: Record<string, { thread: any; forumId: string }> = {};
+                    for (const f of forumsData) {
+                        for (const t of f.threads || []) {
+                            threadForumMap[t.id] = { thread: t, forumId: f.id };
+                        }
+                    }
+
+                    for (const p of rawPosts) {
+                        const mapping = threadForumMap[p.thread_id];
+                        if (!mapping) continue;
+                        if (!forumLastPostMap[mapping.forumId]) {
+                            forumLastPostMap[mapping.forumId] = { post: p, thread: mapping.thread };
+                        }
+                    }
+                }
+
                 const formattedForums = forumsData.map((f: any) => {
+                    const lastEntry = forumLastPostMap[f.id];
+                    const lastPost = lastEntry?.post;
+                    const lastThread = lastEntry?.thread;
+                    const lastPosterProfile = lastPost
+                        ? (Array.isArray(lastPost.profiles) ? lastPost.profiles[0] : lastPost.profiles)
+                        : null;
+
+                    // Fallback: last created thread + its author
                     const sortedThreads = [...(f.threads || [])].sort((a: any, b: any) =>
                         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                     );
-                    const latest = sortedThreads[0];
+                    const fallbackThread = sortedThreads[0];
+                    const fallbackProfile = fallbackThread
+                        ? (Array.isArray(fallbackThread.profiles) ? fallbackThread.profiles[0] : fallbackThread.profiles)
+                        : null;
+
+                    const displayThread = lastThread || fallbackThread;
+                    const displayAt = lastPost?.created_at || fallbackThread?.created_at;
+                    const displayProfile = lastPosterProfile || fallbackProfile;
+                    const displayUserId = lastPost?.user_id || displayProfile?.id || null;
+
                     return {
                         ...f,
                         thread_count: f.threads?.length || 0,
                         post_count: f.threads?.reduce((acc: number, t: any) => acc + (t.forum_posts?.length || 0), 0) || 0,
-                        last_thread: latest ? {
-                            id: latest.id,
-                            title: latest.title,
-                            created_at: latest.created_at,
-                            author_name: latest.profiles?.full_name || latest.profiles?.username || "קוסם אנונימי",
-                            author_house: latest.profiles?.house || "Unknown",
-                            author_role: latest.profiles?.role || null,
-                            author_id: latest.profiles?.id || null,
-                            author_group_color: latest.profiles?.user_groups?.color || null,
+                        last_thread: displayThread ? {
+                            id: displayThread.id,
+                            title: displayThread.title,
+                            created_at: displayAt,
+                            author_name: displayProfile?.full_name || displayProfile?.username || "קוסם אנונימי",
+                            author_house: displayProfile?.house || "Unknown",
+                            author_role: displayProfile?.role || null,
+                            author_id: displayUserId,
+                            author_group_color: displayProfile?.user_groups?.color || null,
                         } : null
                     };
                 });
                 setForums(formattedForums);
+
+                // Build thread lookup for recent activity widget
+                const threadMap: Record<string, { id: string; title: string; forumName: string; forumSlug: string }> = {};
+                const allThreadsFlat: any[] = [];
+                for (const f of forumsData) {
+                    for (const t of f.threads || []) {
+                        threadMap[t.id] = { id: t.id, title: t.title, forumName: f.name, forumSlug: f.slug };
+                        const author = Array.isArray(t.profiles) ? t.profiles[0] : t.profiles;
+                        allThreadsFlat.push({ ...t, forumName: f.name, forumSlug: f.slug, author });
+                    }
+                }
+
+                // Recent threads (sorted by created_at)
+                allThreadsFlat.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                setRecentThreads(allThreadsFlat.slice(0, 8));
+
+                // Recent posts (replies) — from the batch query above
+                const enrichedPosts = rawPosts.slice(0, 8).map((p: any) => ({
+                    ...p,
+                    threadInfo: threadMap[p.thread_id] || null,
+                    poster: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
+                }));
+                setRecentPosts(enrichedPosts);
             }
         } catch (error) {
             console.error(error);
@@ -296,123 +398,227 @@ export default function ForumsPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-6">
-                        {/* public forums */}
-                        <ForumSection
-                            title="פורומים כלליים"
-                            accentColor="#f59e0b"
-                            forums={publicForums}
-                            userYear={userYear}
-                            userRole={userRole}
-                            userHouse={userHouse}
-                            roleColors={roleColors}
-                        />
+                    {/* ── Main layout: forums + sidebar ── */}
+                    <div className="flex gap-6 items-start">
 
-                        {/* house forums */}
-                        <ForumSection
-                            title="חדרי המועדון והבתים"
-                            accentColor="rgba(255,255,255,0.3)"
-                            forums={houseForums}
-                            userYear={userYear}
-                            userRole={userRole}
-                            userHouse={userHouse}
-                            roleColors={roleColors}
-                        />
-                    </div>
+                        {/* Main column — forum lists */}
+                        <div className="flex-1 min-w-0 space-y-6">
+                            <ForumSection
+                                title="פורומים כלליים"
+                                accentColor="#f59e0b"
+                                forums={publicForums}
+                                userYear={userYear}
+                                userRole={userRole}
+                                userHouse={userHouse}
+                                roleColors={roleColors}
+                            />
+                            <ForumSection
+                                title="חדרי המועדון והבתים"
+                                accentColor="rgba(255,255,255,0.3)"
+                                forums={houseForums}
+                                userYear={userYear}
+                                userRole={userRole}
+                                userHouse={userHouse}
+                                roleColors={roleColors}
+                            />
+                        </div>
 
-                    {/* ── Bottom section: House Cup + Groups Legend ── */}
-                    <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Sidebar — sticky on desktop, stacks below on mobile */}
+                        <aside className="hidden lg:flex flex-col gap-4 w-[240px] shrink-0 sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-4 custom-scrollbar">
 
-                        {/* House Cup */}
-                        <div
-                            className="rounded-2xl p-5 border"
-                            style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
-                        >
-                            <div className="flex items-center gap-2.5 mb-4">
-                                <Trophy size={15} style={{ color: "#f59e0b", filter: "drop-shadow(0 0 8px rgba(245,158,11,0.5))" }} />
-                                <span className="font-cinzel text-xs font-black uppercase tracking-widest text-amber-500/80">גביע הבתים</span>
-                            </div>
-                            {(() => {
-                                const maxPts = Math.max(...HOUSE_ORDER.map(h => housePoints[h]), 1);
-                                return (
-                                    <div className="space-y-3">
-                                        {HOUSE_ORDER.map(house => {
-                                            const meta = HOUSE_POINTS_META[house];
-                                            const Icon = meta.icon;
-                                            const pts = housePoints[house];
-                                            const pct = Math.round((pts / maxPts) * 100);
-                                            return (
-                                                <div key={house}>
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Icon size={11} style={{ color: meta.color }} />
-                                                            <span className="font-cinzel text-[10px] font-black uppercase tracking-wider" style={{ color: meta.color }}>{meta.nameHe}</span>
-                                                        </div>
-                                                        <span className="font-cinzel text-xs font-black tabular-nums" style={{ color: meta.color }}>{pts.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
-                                                        <div
-                                                            className="h-full rounded-full transition-all duration-700"
-                                                            style={{
-                                                                width: `${pct}%`,
-                                                                background: `linear-gradient(to left, ${meta.color}, ${meta.color}88)`,
-                                                                boxShadow: `0 0 8px ${meta.glow}`,
-                                                            }}
-                                                        />
+                            {/* Recent Replies */}
+                            <div className="rounded-2xl p-4 border" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <MessageSquare size={12} className="text-amber-500/50" />
+                                    <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-white/35">תגובות אחרונות</span>
+                                </div>
+                                <div className="space-y-0.5">
+                                    {recentPosts.length === 0 && <p className="text-[10px] text-white/20 italic text-center py-3">אין תגובות עדיין</p>}
+                                    {recentPosts.map((p: any) => {
+                                        const houseKey = p.poster?.house || "Unknown";
+                                        const houseConf = HOUSE_THEMES[houseKey] || HOUSE_THEMES["Unknown"];
+                                        const grpColor = p.poster?.user_groups?.color;
+                                        const nameColor = grpColor || getRoleColor(p.poster?.role, p.poster?.house, roleColors);
+                                        return (
+                                            <Link key={p.id} href={p.threadInfo ? `/forums/thread/${p.threadInfo.id}` : "#"}
+                                                className="flex items-start gap-2 p-2 rounded-lg hover:bg-white/[0.04] transition-colors group">
+                                                <span className="text-sm shrink-0 mt-px leading-none">{houseConf?.icon || "🧙"}</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-cinzel text-[10px] font-black text-white/70 truncate group-hover:text-white transition-colors leading-snug">
+                                                        {p.threadInfo?.title || "—"}
+                                                    </p>
+                                                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                                        <span className="text-[9px] font-bold" style={{ color: nameColor }}>{p.poster?.full_name || "קוסם"}</span>
+                                                        <span className="text-white/15 text-[9px]">·</span>
+                                                        <span className="text-[9px] text-white/20">{timeAgo(p.created_at)}</span>
                                                     </div>
                                                 </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* New Threads */}
+                            <div className="rounded-2xl p-4 border" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <MessagesSquare size={12} className="text-amber-500/50" />
+                                    <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-white/35">אשכולות חדשים</span>
+                                </div>
+                                <div className="space-y-0.5">
+                                    {recentThreads.map((t: any) => {
+                                        const houseKey = t.author?.house || "Unknown";
+                                        const houseConf = HOUSE_THEMES[houseKey] || HOUSE_THEMES["Unknown"];
+                                        const grpColor = t.author?.user_groups?.color;
+                                        const nameColor = grpColor || getRoleColor(t.author?.role, t.author?.house, roleColors);
+                                        return (
+                                            <Link key={t.id} href={`/forums/thread/${t.id}`}
+                                                className="flex items-start gap-2 p-2 rounded-lg hover:bg-white/[0.04] transition-colors group">
+                                                <span className="text-sm shrink-0 mt-px leading-none">{houseConf?.icon || "🧙"}</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-cinzel text-[10px] font-black text-white/70 truncate group-hover:text-white transition-colors leading-snug">
+                                                        {t.title}
+                                                    </p>
+                                                    <div className="flex items-center gap-1 mt-0.5">
+                                                        <span className="text-[9px] font-bold" style={{ color: nameColor }}>{t.author?.full_name || "קוסם"}</span>
+                                                        <span className="text-white/15 text-[9px]">·</span>
+                                                        <span className="text-[9px] text-white/20">{timeAgo(t.created_at)}</span>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Who's Online */}
+                            <div className="rounded-2xl p-4 border" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Users size={12} style={{ color: "#34d399" }} />
+                                        <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-emerald-400/70">מחוברים עכשיו</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md" style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className="font-cinzel text-[9px] font-black text-emerald-400">{onlineCount}</span>
+                                    </div>
+                                </div>
+                                {onlineUsers.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                        {onlineUsers.map((u: any) => {
+                                            const houseKey = u.house || "Unknown";
+                                            const houseConf = HOUSE_THEMES[houseKey] || HOUSE_THEMES["Unknown"];
+                                            const nameColor = u.group_color || houseConf.color;
+                                            return (
+                                                <Link key={u.id} href={`/wizard/${u.id}`}
+                                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold transition-all hover:opacity-80"
+                                                    style={{ background: `${nameColor}12`, border: `1px solid ${nameColor}25`, color: nameColor }}
+                                                    title={houseConf.nameHe}
+                                                >
+                                                    <span className="text-[10px] leading-none">{houseConf.icon}</span>
+                                                    {u.user_name}
+                                                </Link>
                                             );
                                         })}
                                     </div>
-                                );
-                            })()}
-                        </div>
+                                ) : (
+                                    <p className="text-[10px] text-white/20 italic text-center py-2">אין מחוברים כעת</p>
+                                )}
+                            </div>
 
-                        {/* Groups Legend + Online */}
-                        <div
-                            className="rounded-2xl p-5 border"
-                            style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2.5">
-                                    <Sparkles size={14} style={{ color: "#a78bfa" }} />
-                                    <span className="font-cinzel text-xs font-black uppercase tracking-widest text-purple-400/80">מקרא דרגות</span>
+                            {/* House Cup */}
+                            <div className="rounded-2xl p-4 border" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Trophy size={12} style={{ color: "#f59e0b" }} />
+                                    <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-amber-500/70">גביע הבתים</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)" }}>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                    <span className="font-cinzel text-[10px] font-black text-emerald-400">{onlineCount} מחוברים</span>
-                                    <Users size={10} className="text-emerald-400/60" />
+                                {(() => {
+                                    const maxPts = Math.max(...HOUSE_ORDER.map(h => housePoints[h]), 1);
+                                    return (
+                                        <div className="space-y-2.5">
+                                            {HOUSE_ORDER.map(house => {
+                                                const meta = HOUSE_POINTS_META[house];
+                                                const Icon = meta.icon;
+                                                const pts = housePoints[house];
+                                                const pct = Math.round((pts / maxPts) * 100);
+                                                return (
+                                                    <div key={house}>
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Icon size={10} style={{ color: meta.color }} />
+                                                                <span className="font-cinzel text-[9px] font-black uppercase tracking-wider" style={{ color: meta.color }}>{meta.nameHe}</span>
+                                                            </div>
+                                                            <span className="font-cinzel text-[10px] font-black tabular-nums" style={{ color: meta.color }}>{pts.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                                                            <div className="h-full rounded-full transition-all duration-700"
+                                                                style={{ width: `${pct}%`, background: `linear-gradient(to left, ${meta.color}, ${meta.color}88)`, boxShadow: `0 0 6px ${meta.glow}` }} />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Groups Legend */}
+                            <div className="rounded-2xl p-4 border" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles size={12} style={{ color: "#a78bfa" }} />
+                                    <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-purple-400/70">מקרא דרגות</span>
+                                </div>
+                                {groups.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-1">
+                                        {groups.map(g => (
+                                            <div key={g.id} className="flex items-center gap-1.5 px-2 py-1 rounded-md"
+                                                style={{ background: `${g.color}10`, border: `1px solid ${g.color}22` }}>
+                                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.color, boxShadow: `0 0 4px ${g.color}80` }} />
+                                                <span className="font-cinzel text-[9px] font-black truncate" style={{ color: g.color }}>{g.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-[10px] text-white/20 italic text-center py-3">טוען...</div>
+                                )}
+                            </div>
+
+                            {/* Forum Statistics */}
+                            <div className="rounded-2xl p-4 border" style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.06)" }}>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Hash size={12} className="text-amber-500/50" />
+                                    <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-white/35">סטטיסטיקות</span>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-white/30">קוסמים רשומים</span>
+                                        <span className="font-cinzel text-[11px] font-black text-white/60">{forumStats.totalMembers.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-white/30">אשכולות</span>
+                                        <span className="font-cinzel text-[11px] font-black text-white/60">{totalThreads.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-white/30">הודעות</span>
+                                        <span className="font-cinzel text-[11px] font-black text-white/60">{totalPosts.toLocaleString()}</span>
+                                    </div>
+                                    {forumStats.newestMember && (
+                                        <>
+                                            <div className="w-full h-px bg-white/[0.05] my-1" />
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-[10px] text-white/30 shrink-0">חבר חדש</span>
+                                                <Link href={`/wizard/${forumStats.newestMember.id}`}
+                                                    className="text-[10px] font-bold truncate hover:underline"
+                                                    style={{ color: HOUSE_THEMES[forumStats.newestMember.house || "Unknown"]?.color || "rgba(255,255,255,0.5)" }}>
+                                                    {HOUSE_THEMES[forumStats.newestMember.house || "Unknown"]?.icon} {forumStats.newestMember.full_name}
+                                                </Link>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
-                            {groups.length > 0 ? (
-                                <div className="grid grid-cols-2 gap-1.5">
-                                    {groups.map(g => (
-                                        <div
-                                            key={g.id}
-                                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
-                                            style={{
-                                                background: `${g.color}12`,
-                                                border: `1px solid ${g.color}28`,
-                                            }}
-                                        >
-                                            <span
-                                                className="w-2 h-2 rounded-full flex-shrink-0"
-                                                style={{ background: g.color, boxShadow: `0 0 6px ${g.color}80` }}
-                                            />
-                                            <span
-                                                className="font-cinzel text-[10px] font-black truncate"
-                                                style={{ color: g.color }}
-                                            >
-                                                {g.name}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-xs text-white/20 italic font-crimson text-center py-4">טוען דרגות...</div>
-                            )}
-                        </div>
 
+                        </aside>
                     </div>
 
                 </div>
@@ -461,6 +667,7 @@ function ForumSection({ title, accentColor, forums, userYear, userRole, userHous
 }
 
 function ForumRow({ forum, userYear, userRole, userHouse, roleColors }: any) {
+    const router = useRouter();
     const isLocked = !!(forum.house_restriction && forum.house_restriction !== userHouse && userRole !== 'מנהל') ||
         !!(forum.min_year && userYear < forum.min_year && userRole !== 'מנהל');
 
@@ -472,10 +679,9 @@ function ForumRow({ forum, userYear, userRole, userHouse, roleColors }: any) {
         : { background: "rgba(245,158,11,0.06)", borderColor: "rgba(245,158,11,0.12)" };
 
     return (
-        <Link
-            href={isLocked ? "#" : `/forums/${forum.slug}`}
-            onClick={(e) => isLocked && e.preventDefault()}
-            className={`forum-row-grid ${isLocked ? "locked" : ""}`}
+        <div
+            onClick={() => !isLocked && router.push(`/forums/${forum.slug}`)}
+            className={`forum-row-grid ${isLocked ? "locked" : "cursor-pointer"}`}
         >
             {/* main info column */}
             <div className="forum-col-main">
@@ -540,6 +746,6 @@ function ForumRow({ forum, userYear, userRole, userHouse, roleColors }: any) {
                     <span className="text-[11px] text-white/15 italic">אין פוסטים עדיין</span>
                 )}
             </div>
-        </Link>
+        </div>
     );
 }

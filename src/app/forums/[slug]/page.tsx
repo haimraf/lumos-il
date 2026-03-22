@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import dynamic from 'next/dynamic';
 import {
-    ChevronLeft, Pin, Lock, MessageSquare, Clock, Plus, X, Home, Sparkles, Tag
+    ChevronLeft, Pin, Lock, MessageSquare, Clock, Plus, X, Home, Sparkles, Tag, Eye, CheckCheck
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
@@ -34,9 +34,17 @@ interface Thread {
     is_pinned: boolean;
     is_locked: boolean;
     created_at: string;
+    views?: number;
     reply_count?: number;
     last_post_at?: string;
-    last_post_by?: string;
+    last_post_author_id?: string;
+    last_post_profile?: {
+        id: string;
+        full_name: string | null;
+        house: string | null;
+        role: string | null;
+        user_groups: { name: string; color: string } | null;
+    };
     profiles: {
         full_name: string | null;
         house: string | null;
@@ -81,6 +89,7 @@ function ThreadRow({
     thread,
     canModerate,
     roleColors = {},
+    isNew = false,
     onPin,
     onLock,
     onDelete,
@@ -88,6 +97,7 @@ function ThreadRow({
     thread: Thread;
     canModerate?: boolean;
     roleColors?: Record<string, string>;
+    isNew?: boolean;
     onPin?: (t: Thread) => void;
     onLock?: (t: Thread) => void;
     onDelete?: (t: Thread) => void;
@@ -95,6 +105,12 @@ function ThreadRow({
     const houseConf = thread.profiles?.house ? HOUSE_CONFIG[thread.profiles.house] : null;
     const grp = thread.profiles?.user_groups as { name: string; color: string } | null;
     const nameColor = grp?.color || getRoleColor(thread.profiles?.role, thread.profiles?.house, roleColors);
+
+    const lastProfile = thread.last_post_profile || thread.profiles;
+    const lastAuthorId = thread.last_post_author_id || thread.author_id;
+    const lastAt = thread.last_post_at || thread.created_at;
+    const lastGrp = lastProfile?.user_groups as { name: string; color: string } | null;
+    const lastNameColor = lastGrp?.color || getRoleColor(lastProfile?.role, (lastProfile as any)?.house, roleColors);
     const prefixConf = thread.prefix ? PREFIX_CONFIG[thread.prefix] : null;
     const icon = thread.profiles?.house ? HOUSE_ICONS[thread.profiles.house] : null;
 
@@ -150,7 +166,10 @@ function ThreadRow({
                                 🔒 נעול
                             </span>
                         )}
-                        <span className={`thread-title ${thread.is_pinned ? "text-amber-200" : ""}`}>
+                        {isNew && (
+                            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 shadow-[0_0_6px_#f59e0b]" title="יש תגובות חדשות" />
+                        )}
+                        <span className={`thread-title ${thread.is_pinned ? "text-amber-200" : ""} ${isNew ? "!text-white" : ""}`}>
                             {thread.title}
                         </span>
                     </div>
@@ -178,19 +197,25 @@ function ThreadRow({
                 <span className="thread-stat-label">תגובות</span>
             </Link>
 
+            {/* views */}
+            <div className="thread-col-views">
+                <span className="thread-stat-num">{(thread.views || 0).toLocaleString()}</span>
+                <span className="thread-stat-label">צפיות</span>
+            </div>
+
             {/* last reply + mod actions */}
             <div className="thread-col-lastpost" style={{ position: "relative" }}>
                 <Link
-                    href={`/wizard/${thread.author_id}`}
+                    href={`/wizard/${lastAuthorId}`}
                     onClick={e => e.stopPropagation()}
                     className="lastpost-author hover:underline"
-                    style={{ color: nameColor }}
+                    style={{ color: lastNameColor }}
                 >
-                    {thread.profiles?.full_name || "קוסם אנונימי"}
+                    {lastProfile?.full_name || "קוסם אנונימי"}
                 </Link>
                 <div className="lastpost-time">
                     <Clock size={9} />
-                    {timeAgo(thread.created_at)}
+                    {timeAgo(lastAt)}
                 </div>
 
                 {/* ── Mod actions — shown on hover for mods/admins ── */}
@@ -257,7 +282,21 @@ export default function ForumThreadsPage() {
     const [newThreadLocked, setNewThreadLocked] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    const [readMap, setReadMap] = useState<Record<string, number>>({});
     useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
+
+    // Load read timestamps from localStorage after mount
+    useEffect(() => {
+        const map: Record<string, number> = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.startsWith('thread_read_')) {
+                const tid = key.replace('thread_read_', '');
+                map[tid] = parseInt(localStorage.getItem(key) || '0', 10);
+            }
+        }
+        setReadMap(map);
+    }, []);
 
     const fetchThreads = useCallback(async () => {
         if (!slug) return;
@@ -284,12 +323,33 @@ export default function ForumThreadsPage() {
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
-            const formattedThreads = threadsData?.map((t: any) => ({
-                ...t,
-                is_pinned: t.is_pinned ?? false,
-                is_locked: t.is_locked ?? false,
-                reply_count: t.forum_posts?.[0]?.count || 0
-            }));
+            // Batch-fetch last post per thread
+            const threadIds = (threadsData || []).map((t: any) => t.id);
+            const lastPostMap: Record<string, any> = {};
+            if (threadIds.length > 0) {
+                const { data: lastPosts } = await supabase
+                    .from('forum_posts')
+                    .select('thread_id, created_at, user_id, profiles(id, full_name, house, role, user_groups(name, color))')
+                    .in('thread_id', threadIds)
+                    .order('created_at', { ascending: false });
+                for (const p of lastPosts || []) {
+                    if (!lastPostMap[p.thread_id]) lastPostMap[p.thread_id] = p;
+                }
+            }
+
+            const formattedThreads = threadsData?.map((t: any) => {
+                const lp = lastPostMap[t.id];
+                const lpProfile = lp ? (Array.isArray(lp.profiles) ? lp.profiles[0] : lp.profiles) : null;
+                return {
+                    ...t,
+                    is_pinned: t.is_pinned ?? false,
+                    is_locked: t.is_locked ?? false,
+                    reply_count: t.forum_posts?.[0]?.count || 0,
+                    last_post_at: lp?.created_at,
+                    last_post_author_id: lp?.user_id,
+                    last_post_profile: lpProfile,
+                };
+            });
 
             setThreads(formattedThreads as any || []);
         } catch (err) { console.error(err); } finally { setIsLoading(false); }
@@ -397,7 +457,7 @@ export default function ForumThreadsPage() {
                 }
                 .thread-col-headers {
                     display: grid;
-                    grid-template-columns: 1fr 80px 160px;
+                    grid-template-columns: 1fr 80px 80px 160px;
                     padding: 10px 20px;
                     background: rgba(0,0,0,0.3);
                     border-bottom: 1px solid rgba(255,255,255,0.04);
@@ -405,16 +465,19 @@ export default function ForumThreadsPage() {
                 @media (max-width: 640px) {
                     .thread-col-headers { display: none; }
                     .thread-row { grid-template-columns: 1fr !important; }
-                    .thread-col-stat, .thread-col-lastpost { display: none !important; }
+                    .thread-col-stat, .thread-col-views, .thread-col-lastpost { display: none !important; }
                 }
                 .thread-col-header-label {
                     font-size: 9px; font-weight: 700;
                     text-transform: uppercase; letter-spacing: 0.12em;
                     color: rgba(255,255,255,0.2);
                 }
+                .thread-col-views {
+                    padding: 14px 10px; text-align: center;
+                }
                 .thread-row {
                     display: grid;
-                    grid-template-columns: 1fr 80px 160px;
+                    grid-template-columns: 1fr 80px 80px 160px;
                     align-items: center;
                     border-bottom: 1px solid rgba(255,255,255,0.03);
                     position: relative;
@@ -571,6 +634,23 @@ export default function ForumThreadsPage() {
                         <span className="mr-auto text-[10px] text-white/20">
                             {threads.length} נושאים
                         </span>
+                        {currentUser && (
+                            <button
+                                onClick={() => {
+                                    const now = Date.now();
+                                    const newMap: Record<string, number> = { ...readMap };
+                                    threads.forEach(t => {
+                                        localStorage.setItem(`thread_read_${t.id}`, now.toString());
+                                        newMap[t.id] = now;
+                                    });
+                                    setReadMap(newMap);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold text-white/30 hover:text-emerald-400 hover:bg-emerald-500/[0.08] border border-transparent hover:border-emerald-500/20 transition-all"
+                                title="סמן את כל האשכולות כנקראו"
+                            >
+                                <CheckCheck size={12} /> סמן הכל כנקרא
+                            </button>
+                        )}
                     </div>
 
                     {/* thread table */}
@@ -578,21 +658,28 @@ export default function ForumThreadsPage() {
                         <div className="thread-col-headers">
                             <span className="thread-col-header-label">אשכול</span>
                             <span className="thread-col-header-label text-center">תגובות</span>
+                            <span className="thread-col-header-label text-center">צפיות</span>
                             <span className="thread-col-header-label">פוסט אחרון</span>
                         </div>
 
                         {sortedThreads.length > 0 ? (
-                            sortedThreads.map((t) => (
+                            sortedThreads.map((t) => {
+                                const lastActivity = t.last_post_at || t.created_at;
+                                const lastRead = readMap[t.id] || 0;
+                                const isNew = !!lastActivity && new Date(lastActivity).getTime() > lastRead;
+                                return (
                                 <ThreadRow
                                     key={t.id}
                                     thread={t}
                                     canModerate={canModerate}
                                     roleColors={roleColors}
+                                    isNew={isNew}
                                     onPin={handlePinThread}
                                     onLock={handleLockThread}
                                     onDelete={handleDeleteThread}
                                 />
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="py-24 text-center">
                                 <Sparkles size={40} className="mx-auto mb-5 text-amber-500/10 animate-pulse" />
