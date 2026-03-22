@@ -154,12 +154,6 @@ export default function ArenaPage() {
             challenger_id: profile.id, opponent_id: opponentId, status: "pending", expires_at: expiresAt,
         }).select("id").single();
         if (!error && duel) {
-            await supabase.from("notifications").insert({
-                user_id: opponentId, actor_id: profile.id, type: "duel_challenge",
-                target_url: `/duels/${duel.id}`,
-                content: `${profile.full_name || "קוסם"} מאתגר אותך לדו-קרב!`,
-                is_read: false,
-            });
             router.push(`/duels/${duel.id}`);
         } else {
             sendOwl("שגיאה", "לא ניתן ליצור אתגר.", "error");

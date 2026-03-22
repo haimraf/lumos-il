@@ -235,12 +235,33 @@ export default function DuelPage() {
         if (!duel || duel.status !== "pending") return;
         const expires = duel.expires_at ? new Date(duel.expires_at).getTime() : Date.now() + 300_000;
 
+        const expireDuel = async () => {
+            await supabase.from("duels").update({ status: "expired" }).eq("id", id);
+            await supabase.from("notifications").insert([
+                {
+                    user_id: duel.challenger_id,
+                    actor_id: duel.opponent_id,
+                    type: "duel_missed",
+                    target_url: `/arena`,
+                    content: "האתגר שלך לדו-קרב פג תוקף — הצד השני לא הגיע ⏰",
+                    is_read: false,
+                },
+                {
+                    user_id: duel.opponent_id,
+                    actor_id: duel.challenger_id,
+                    type: "duel_missed",
+                    target_url: `/arena`,
+                    content: "פספסת אתגר לדו-קרב! ⚔️ אפשר לאתגר בחזרה מהזירה",
+                    is_read: false,
+                },
+            ]);
+        };
+
         const tick = () => {
             const secs = Math.max(0, Math.floor((expires - Date.now()) / 1000));
             setPendingSecsLeft(secs);
             if (secs === 0 && myId === duel.challenger_id) {
-                // challenger auto-expires
-                supabase.from("duels").update({ status: "expired" }).eq("id", id);
+                expireDuel();
             }
         };
         tick();

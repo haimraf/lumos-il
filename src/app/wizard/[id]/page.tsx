@@ -300,16 +300,6 @@ export default function WizardProfilePage() {
             expires_at: expiresAt,
         }).select("id").single();
         if (!error && duel) {
-            const { data: challenger } = await supabase
-                .from("profiles").select("full_name").eq("id", currentUser.id).single();
-            await supabase.from("notifications").insert({
-                user_id: id,
-                actor_id: currentUser.id,
-                type: "duel_challenge",
-                target_url: `/duels/${duel.id}`,
-                content: `${challenger?.full_name || "קוסם"} מאתגר אותך לדו-קרב!`,
-                is_read: false,
-            });
             window.location.href = `/duels/${duel.id}`;
         }
         setDuelLoading(false);

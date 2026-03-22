@@ -24,6 +24,7 @@ export default function NotificationDropdown() {
         if (type === 'quote') return content.replace('ציטוט שלך בדיון', 'בתגובה מצוטטת לדיון');
         if (type === 'tag') return content.replace('תיוג שלך בדיון', 'בתיוג בתוך הדיון');
         if (type === 'duel_challenge') return 'מאתגר אותך לקרב בזירה ⚔️';
+        if (type === 'duel_missed') return content;
         if (type === 'duel_result') return content;
         return content;
     };
