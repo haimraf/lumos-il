@@ -91,6 +91,8 @@ export default function MagicTicker() {
                 background: "rgba(2,4,8,0.96)",
                 borderColor: "rgba(245,158,11,0.15)",
                 backdropFilter: "blur(12px)",
+                position: 'relative',
+                zIndex: 10,
             }}
             dir="rtl"
         >

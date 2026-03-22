@@ -63,6 +63,26 @@ export default function BackgroundMusic() {
     };
   }, [isMuted, isInitialized, fadeVolume]);
 
+  // השהיה כשהטאב ברקע, חידוש כשחוזרים
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (fadeInterval.current) clearInterval(fadeInterval.current);
+        audio.pause();
+      } else if (!isMuted) {
+        audio.play().then(() => fadeVolume(0.25)).catch(() => {});
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isMuted, fadeVolume]);
+
   return (
     <audio ref={audioRef} loop preload="auto">
       <source src="/hogwarts_theme.mp3" type="audio/mpeg" />

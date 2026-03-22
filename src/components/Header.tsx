@@ -299,6 +299,19 @@ export default function Header() {
                                     <span className="font-cinzel font-black text-white text-[11px]">{profile?.galleons?.toLocaleString() || 0}</span>
                                 </div>
 
+                                {/* Mute toggle */}
+                                <button
+                                    onClick={toggleMute}
+                                    title={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
+                                    aria-label={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
+                                    className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 bg-black/40 hover:bg-white/5 hover:border-amber-500/30 transition-all duration-200"
+                                >
+                                    {isMuted
+                                        ? <VolumeX size={15} className="text-white/30" />
+                                        : <Volume2 size={15} className="text-amber-400" />
+                                    }
+                                </button>
+
                                 {/* Notifications */}
                                 <div className="relative shrink-0 flex items-center">
                                     <NotificationDropdown />

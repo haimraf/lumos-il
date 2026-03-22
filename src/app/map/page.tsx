@@ -12,6 +12,13 @@ import { Compass, Footprints, Flame } from "lucide-react";
  * ✅ עיצוב קלף קסמים — HP atmosphere מלא
  */
 
+const HOUSE_NAMES: Record<string, string> = {
+    Gryffindor: 'גריפינדור',
+    Slytherin: "סלית'רין",
+    Ravenclaw: 'רייבנקלו',
+    Hufflepuff: 'הפלפאף',
+};
+
 const HOUSE_COLORS: Record<string, string> = {
     Gryffindor: "#dc2626",
     Slytherin: "#059669",
@@ -110,7 +117,7 @@ export default function MaraudersMasterMap() {
                 id: "member_" + m.id,
                 type: "join",
                 icon: "✨",
-                text: `${m.full_name || "קוסם"} הצטרף/ה לבית`,
+                text: `${m.full_name || "קוסם"} הצטרף/ה לבית ${HOUSE_NAMES[m.house] || m.house}`,
                 house: m.house,
                 time: m.created_at,
             });

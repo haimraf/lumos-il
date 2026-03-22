@@ -136,12 +136,7 @@ export default function WizardProfilePage() {
 
     // Cover position
     const [coverPosition, setCoverPosition] = useState("50% 50%");
-    const [coverEditMode, setCoverEditMode] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const [savingPosition, setSavingPosition] = useState(false);
     const bannerRef = useRef<HTMLDivElement>(null);
-    const dragStartY = useRef(0);
-    const dragStartPosY = useRef(50);
 
     // Duel
     const [duelLoading, setDuelLoading] = useState(false);
@@ -354,51 +349,6 @@ export default function WizardProfilePage() {
         setUploadingCover(false);
     };
 
-    const parsePosY = (pos: string) => parseFloat(pos.split(" ")[1] ?? "50");
-
-    const handleCoverDragStart = (clientY: number) => {
-        if (!coverEditMode) return;
-        dragStartY.current = clientY;
-        dragStartPosY.current = parsePosY(coverPosition);
-        setIsDragging(true);
-        document.body.style.userSelect = "none";
-    };
-
-    const handleCoverDragMove = (clientY: number) => {
-        if (!isDragging) return;
-        const bannerHeight = bannerRef.current?.offsetHeight || 256;
-        const deltaY = clientY - dragStartY.current;
-        const newY = Math.max(0, Math.min(100, dragStartPosY.current - (deltaY / bannerHeight) * 100));
-        setCoverPosition(`50% ${newY.toFixed(1)}%`);
-    };
-
-    const handleCoverDragEnd = () => {
-        setIsDragging(false);
-        document.body.style.userSelect = "";
-    };
-
-    const handleSaveCoverPosition = async () => {
-        if (!currentUser) return;
-        setSavingPosition(true);
-        await supabase.from("profiles").update({ cover_position: coverPosition }).eq("id", currentUser.id);
-        setSavingPosition(false);
-        setCoverEditMode(false);
-    };
-
-    const handleCancelCoverPosition = () => {
-        setCoverEditMode(false);
-        setIsDragging(false);
-        document.body.style.userSelect = "";
-        setCoverPosition(profile?.cover_position || "50% 50%");
-    };
-
-    // Escape לביטול מצב עריכה
-    useEffect(() => {
-        if (!coverEditMode) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleCancelCoverPosition(); };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [coverEditMode, profile]);
 
     if (isLoading) return (
         <div className="min-h-screen bg-[#060910] flex items-center justify-center">
@@ -494,19 +444,7 @@ export default function WizardProfilePage() {
             <div
                 ref={bannerRef}
                 className="relative h-52 md:h-64 overflow-hidden"
-                onMouseDown={(e) => { e.preventDefault(); handleCoverDragStart(e.clientY); }}
-                onMouseMove={(e) => handleCoverDragMove(e.clientY)}
-                onMouseUp={handleCoverDragEnd}
-                onMouseLeave={handleCoverDragEnd}
-                onDoubleClick={() => { if (coverEditMode) handleSaveCoverPosition(); }}
-                onTouchStart={(e) => handleCoverDragStart(e.touches[0].clientY)}
-                onTouchMove={(e) => { e.preventDefault(); handleCoverDragMove(e.touches[0].clientY); }}
-                onTouchEnd={handleCoverDragEnd}
-                style={{
-                    touchAction: coverEditMode ? "none" : "auto",
-                    userSelect: "none",
-                    cursor: !coverEditMode ? "default" : isDragging ? "grabbing" : "grab"
-                }}
+                style={{ position: 'relative', zIndex: 1 }}
             >
                 {/* Cover image or house gradient */}
                 {coverUrl ? (
@@ -514,7 +452,7 @@ export default function WizardProfilePage() {
                         src={coverUrl}
                         alt="cover"
                         className="absolute inset-0 w-full h-full object-cover transition-[object-position] duration-100"
-                        style={{ objectPosition: coverPosition, userSelect: "none", WebkitUserDrag: "none" } as React.CSSProperties}
+                        style={{ objectPosition: coverPosition }}
                         draggable={false}
                     />
                 ) : (
@@ -565,42 +503,23 @@ export default function WizardProfilePage() {
                 {isOwnProfile && (
                     <div className="absolute bottom-4 left-4 z-50 flex items-center gap-2">
                         {/* כפתור שנה תמונה */}
-                        {!coverEditMode && (
-                            <label
-                                htmlFor="cover-upload"
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-white/70 hover:text-white text-xs font-cinzel uppercase tracking-wider backdrop-blur-sm cursor-pointer transition-all"
-                            >
-                                {uploadingCover ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
-                                {uploadingCover ? "מעלה..." : "שנה תמונת רקע"}
-                                <input
-                                    id="cover-upload"
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleCoverUpload}
-                                />
-                            </label>
-                        )}
-
-                        {/* כפתור כוון תמונה — רק כשיש coverUrl */}
-                        {coverUrl && !coverEditMode && (
-                            <button
-                                onClick={() => setCoverEditMode(true)}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-white/70 hover:text-white text-xs font-cinzel uppercase tracking-wider backdrop-blur-sm transition-all"
-                            >
-                                <Move size={13} /> כוון תמונה
-                            </button>
-                        )}
+                        <label
+                            htmlFor="cover-upload"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-white/70 hover:text-white text-xs font-cinzel uppercase tracking-wider backdrop-blur-sm cursor-pointer transition-all"
+                        >
+                            {uploadingCover ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+                            {uploadingCover ? "מעלה..." : "שנה תמונת רקע"}
+                            <input
+                                id="cover-upload"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleCoverUpload}
+                            />
+                        </label>
 
                     </div>
                 )}
-                {/* רמז מצב עריכה */}
-                {coverEditMode && (
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs font-cinzel px-3 py-1 rounded-full z-50 pointer-events-none">
-                        {savingPosition ? "שומר..." : "גרור לכוון • לחץ פעמיים לשמירה • Escape לביטול"}
-                    </div>
-                )}
-
                 {/* Back button */}
                 <Link href="/forums"
                     className="absolute top-4 right-4 flex items-center gap-2 text-white/40 hover:text-white/80 transition-colors text-xs font-cinzel uppercase tracking-widest">
@@ -609,11 +528,12 @@ export default function WizardProfilePage() {
             </div>
 
 
+
             {/* ══ PROFILE HEADER ══ */}
             <div className="max-w-5xl mx-auto px-4">
 
                 {/* Avatar row */}
-                <div className="relative -mt-14 md:-mt-16 mb-6 flex items-end justify-between">
+                <div className="relative -mt-14 md:-mt-16 mb-6 flex items-end justify-between" style={{ position: 'relative', zIndex: 20 }}>
                     <div className="slide-up">
                         {/* Avatar wrapper */}
                         <div className="avatar-wrapper relative cursor-pointer group"

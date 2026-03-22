@@ -106,8 +106,10 @@ export default function ForumsPage() {
     const getData = useCallback(async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
+            console.log('[forums] session:', session?.user?.id ?? 'guest');
             if (session?.user) {
-                const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
+                const { data: profile, error: profileError } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
+                console.log('[forums] profile:', profile, 'error:', profileError);
                 setUserHouse(profile?.house || null);
                 setUserRole(profile?.role || null);
                 setUserYear(profile?.year || 1);
@@ -115,10 +117,12 @@ export default function ForumsPage() {
                 setUserYear(0);
             }
 
-            const { data: forumsData } = await supabase
+            const { data: forumsData, error: forumsError } = await supabase
                 .from('forums')
                 .select(`*, threads(id, title, created_at, forum_posts(id), profiles(full_name, username, house, role, user_groups(name, color)))`)
                 .order('created_at', { ascending: true });
+
+            console.log('[forums] forumsData:', forumsData, 'error:', forumsError);
 
             if (forumsData) {
                 const formattedForums = forumsData.map((f: any) => {

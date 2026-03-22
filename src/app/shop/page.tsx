@@ -79,7 +79,10 @@ function ShopContent() {
     useEffect(() => {
         const fetchShopItems = async () => {
             const { data } = await supabase.from('shop_items').select('*').order('price', { ascending: true });
-            if (data) setItems(data);
+            if (data) {
+                setItems(data);
+                console.log('[shop] unique categories:', [...new Set(data.map((i: any) => i.category))]);
+            }
             setLoading(false);
         };
         fetchShopItems();
@@ -173,7 +176,7 @@ function ShopContent() {
                 </div>
 
                 {/* ✅ קטגוריות — עם מספר פריטים */}
-                <div className="flex overflow-x-auto custom-scrollbar md:justify-center gap-3 mb-14 pb-3 md:pb-0">
+                <div className="flex overflow-x-auto gap-3 mb-14 pb-3">
                     {CATEGORIES.map((cat) => {
                         const Icon = cat.icon;
                         const isActive = activeCategory === cat.id;
@@ -185,6 +188,7 @@ function ShopContent() {
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
+                                style={{ flexShrink: 0 }}
                                 className={`flex items-center gap-2.5 px-5 py-3.5 rounded-2xl font-cinzel text-[10px] uppercase tracking-widest transition-all duration-300 border whitespace-nowrap ${isActive
                                     ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
                                     : 'bg-white/4 border-white/6 text-white/35 hover:text-white/60 hover:border-white/15'

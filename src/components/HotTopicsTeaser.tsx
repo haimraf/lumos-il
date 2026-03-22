@@ -26,6 +26,13 @@ const HOUSE_COLORS: Record<string, { text: string; bg: string; border: string; g
     Hufflepuff: { text: "text-amber-400", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.25)", glow: "rgba(251,191,36,0.15)" },
 };
 
+const HOUSE_HEX: Record<string, string> = {
+    Gryffindor: '#f87171',
+    Slytherin: '#34d399',
+    Ravenclaw: '#60a5fa',
+    Hufflepuff: '#fbbf24',
+};
+
 type Topic = {
     id: string;
     title: string;
@@ -48,32 +55,43 @@ export default function HotTopicsTeaser() {
     useEffect(() => {
         async function fetchHotTopics() {
             try {
-                const { data, error } = await supabase
-                    .from("threads")
-                    .select(`
-                        id, title, created_at,
-                        forums ( name, slug ),
-                        profiles!threads_author_id_fkey ( full_name, username, house, avatar_url ),
-                        forum_posts ( id )
-                    `)
-                    .order("created_at", { ascending: false })
-                    .limit(12); // מושכים יותר כדי למיין לפי חום
+                const selectQuery = `
+                    id, title, created_at,
+                    forums ( name, slug ),
+                    profiles!threads_author_id_fkey ( full_name, username, house, avatar_url ),
+                    forum_posts ( id )
+                `;
 
-                if (error) throw error;
+                const [{ data: recentData, error: e1 }, { data: newestData, error: e2 }] = await Promise.all([
+                    supabase.from("threads").select(selectQuery).order("created_at", { ascending: false }).limit(20),
+                    supabase.from("threads").select(selectQuery).order("created_at", { ascending: false }).limit(3),
+                ]);
 
-                if (data) {
-                    const withCounts = (data as any[]).map(t => ({
-                        ...t,
-                        reply_count: t.forum_posts?.length || 0,
-                    }));
+                if (e1) throw e1;
+                if (e2) throw e2;
 
-                    // מיון לפי כמות תגובות — הכי חם קודם
-                    const sorted = withCounts
-                        .sort((a, b) => b.reply_count - a.reply_count)
-                        .slice(0, 3);
+                const addCounts = (rows: any[]) => rows.map(t => ({
+                    ...t,
+                    reply_count: t.forum_posts?.length || 0,
+                }));
 
-                    setTopics(sorted);
+                // Top 2 by reply count from last 20
+                const topReplied = addCounts(recentData || [])
+                    .sort((a, b) => b.reply_count - a.reply_count)
+                    .slice(0, 2);
+
+                // Newest 1
+                const newest = addCounts(newestData || []).slice(0, 1);
+
+                // Merge, deduplicate, take 3
+                const seen = new Set<string>();
+                const merged: Topic[] = [];
+                for (const t of [...topReplied, ...newest]) {
+                    if (!seen.has(t.id)) { seen.add(t.id); merged.push(t); }
+                    if (merged.length === 3) break;
                 }
+
+                setTopics(merged);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -156,7 +174,7 @@ export default function HotTopicsTeaser() {
                                     {/* Forum name */}
                                     {topic.forums?.name && (
                                         <span className="inline-block text-[9px] font-black uppercase tracking-[0.2em] mb-3 mt-1"
-                                            style={{ color: houseTheme ? houseTheme.text.replace('text-', '') : 'rgba(245,158,11,0.6)' }}>
+                                            style={{ color: house ? HOUSE_HEX[house] : 'rgba(245,158,11,0.6)' }}>
                                             {topic.forums.name}
                                         </span>
                                     )}
