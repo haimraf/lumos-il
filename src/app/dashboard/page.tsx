@@ -7,7 +7,7 @@ import Link from "next/link";
 import {
   Coins, Trophy, Wand2, Users, ScrollText, ShoppingBag,
   ChevronLeft, ChevronRight, LogOut, Settings, Mail, Lock, Sparkles, Zap, Home, Bell,
-  Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu
+  Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu, Swords
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import MaraudersMap from "@/components/MaraudersMap";
@@ -649,7 +649,21 @@ function DashboardContent() {
                         </div>
                       </div>
                       <div className="flex gap-4 w-full md:w-auto justify-end">
-                        {n.target_url && <Link href={n.target_url} onClick={() => markAsRead(n.id)} className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-cinzel tracking-widest flex items-center gap-2 transition-all"><span>עבור לדיון</span><ExternalLink size={14} /></Link>}
+                        {n.target_url && (
+                          n.type === 'duel_challenge' ? (
+                            <Link href={n.target_url} onClick={() => markAsRead(n.id)} className="px-5 py-2.5 rounded-full bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 text-orange-400 text-xs font-cinzel tracking-widest flex items-center gap-2 transition-all">
+                              <Swords size={14} /><span>לזירת הקרב</span>
+                            </Link>
+                          ) : n.type === 'duel_result' ? (
+                            <Link href={n.target_url} onClick={() => markAsRead(n.id)} className="px-5 py-2.5 rounded-full bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 text-xs font-cinzel tracking-widest flex items-center gap-2 transition-all">
+                              <Swords size={14} /><span>תוצאות הקרב</span>
+                            </Link>
+                          ) : (
+                            <Link href={n.target_url} onClick={() => markAsRead(n.id)} className="px-5 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-cinzel tracking-widest flex items-center gap-2 transition-all">
+                              <span>עבור לדיון</span><ExternalLink size={14} />
+                            </Link>
+                          )
+                        )}
                         {!n.is_read && <button onClick={() => markAsRead(n.id)} className="p-3 hover:bg-green-500/20 text-green-500 rounded-full transition-all"><CheckCircle2 size={20} /></button>}
                         <button onClick={() => deleteNotification(n.id)} className="p-3 hover:bg-red-500/20 text-red-500 rounded-full transition-all"><Trash2 size={20} /></button>
                       </div>

@@ -20,16 +20,17 @@ export default function NotificationDropdown() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
 
-    // ✨ ניקוי הניסוחים מהדאטהבייס (הופך "ציטוט שלך" לניסוח אנושי ומכיל)
     const formatContent = (content: string, type: string) => {
         if (type === 'quote') return content.replace('ציטוט שלך בדיון', 'בתגובה מצוטטת לדיון');
         if (type === 'tag') return content.replace('תיוג שלך בדיון', 'בתיוג בתוך הדיון');
-        if (type === 'reply') return content;
+        if (type === 'duel_challenge') return 'מאתגר אותך לקרב בזירה ⚔️';
+        if (type === 'duel_result') return content;
         return content;
     };
 
     const deleteNotification = async (id: string) => {
-        await supabase.from('notifications').delete().eq('id', id);
+        const { error } = await supabase.from('notifications').delete().eq('id', id);
+        if (error) { console.error('delete notification error:', error); return; }
         setNotifications(prev => {
             const updated = prev.filter(n => n.id !== id);
             setUnreadCount(updated.filter(n => !n.is_read).length);
@@ -39,7 +40,8 @@ export default function NotificationDropdown() {
 
     const deleteAll = async () => {
         if (!userId) return;
-        await supabase.from('notifications').delete().eq('user_id', userId);
+        const { error } = await supabase.from('notifications').delete().eq('user_id', userId);
+        if (error) { console.error('deleteAll error:', error); return; }
         setNotifications([]);
         setUnreadCount(0);
     };
