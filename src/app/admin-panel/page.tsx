@@ -9,7 +9,7 @@ import {
     X, AlertCircle, Clock, Zap, RotateCcw, Crown, Users, Coins,
     TrendingUp, Activity, Eye, Bell, GraduationCap, Pencil, Save,
     UserCog, Shield, ChevronDown as ChevronDownIcon,
-    Store, BookOpenCheck, MessageSquare, Lock, Pin, Plus, Hash, Swords, Ban
+    Store, BookOpenCheck, MessageSquare, Lock, Pin, Plus, Hash, Swords, Ban, BarChart3
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor } from "@/lib/roleColor";
@@ -74,6 +74,9 @@ export default function AdminPanel() {
         meta_title: "", meta_description: "", image_url: ""
     });
     const [isPublishing, setIsPublishing] = useState(false);
+    const [pollQuestion, setPollQuestion] = useState("");
+    const [pollOptions, setPollOptions] = useState(["", "", "", ""]);
+    const [isCreatingPoll, setIsCreatingPoll] = useState(false);
 
     // Rewards
     const [pointsToAdd, setPointsToAdd] = useState(0);
@@ -246,17 +249,49 @@ export default function AdminPanel() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const handleSavePoll = async (newsId: string) => {
+        if (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2) {
+            sendOwl("שגיאה", "יש למלא שאלה ולפחות 2 אפשרויות.", "error");
+            return;
+        }
+        setIsCreatingPoll(true);
+        const { data: poll, error: pollError } = await supabase
+            .from('polls')
+            .insert({ news_id: newsId, question: pollQuestion })
+            .select('id')
+            .single();
+        if (pollError) {
+            sendOwl("שגיאת סקר", pollError.message, "error");
+            setIsCreatingPoll(false);
+            return;
+        }
+        if (poll) {
+            const options = pollOptions
+                .filter(o => o.trim())
+                .map(o => ({ poll_id: poll.id, option_text: o.trim(), votes_count: 0 }));
+            await supabase.from('poll_options').insert(options);
+            sendOwl("סקר נוצר!", "הסקר נוסף לכתבה.", "magic");
+            setPollQuestion("");
+            setPollOptions(["", "", "", ""]);
+        }
+        setIsCreatingPoll(false);
+    };
+
     const handleSaveNews = async () => {
         if (!newArticle.title || !newArticle.content) { sendOwl("מידע חסר", "חובה למלא כותרת ותוכן.", "error"); return; }
         setIsPublishing(true);
-        const { error } = editingId
-            ? await supabase.from('news').update(newArticle).eq('id', editingId)
-            : await supabase.from('news').insert([newArticle]);
-        if (!error) {
+        const { data: created, error } = editingId
+            ? await supabase.from('news').update(newArticle).eq('id', editingId).select('id').single()
+            : await supabase.from('news').insert([{ ...newArticle, author_id: profile?.id }]).select('id').single();
+        if (!error && created) {
             window.dispatchEvent(new CustomEvent('play-magic-ding'));
             sendOwl(editingId ? "עודכן!" : "פורסם!", "השינויים נשמרו.", "success");
+            if (!editingId && pollQuestion.trim()) {
+                await handleSavePoll(created.id);
+            }
             setNewArticle(prev => ({ ...prev, title: "", content: "", image_url: "" }));
-            setEditingId(null); fetchData();
+            setEditingId(null);
+            fetchData();
         }
         setIsPublishing(false);
     };
@@ -784,6 +819,33 @@ export default function AdminPanel() {
                                         className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-cinzel font-black text-sm uppercase tracking-widest transition-all active:scale-[0.99] disabled:opacity-40">
                                         {isPublishing ? 'מפרסם...' : (editingId ? 'שמירת שינויים ✨' : 'פרסום בנביא היומי ✨')}
                                     </button>
+
+                                    {/* ── סקר ── */}
+                                    <div className="border border-amber-500/20 rounded-2xl p-5 space-y-4 bg-amber-500/5">
+                                        <h3 className="font-cinzel text-xs font-black text-amber-400 flex items-center gap-2 uppercase tracking-widest">
+                                            <BarChart3 size={13} /> הוספת סקר לכתבה (אופציונלי)
+                                        </h3>
+                                        <input
+                                            value={pollQuestion}
+                                            onChange={e => setPollQuestion(e.target.value)}
+                                            placeholder="שאלת הסקר..."
+                                            className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-amber-500/30 rounded-xl p-3 text-sm outline-none"
+                                            dir="rtl"
+                                        />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {pollOptions.map((opt, i) => (
+                                                <input
+                                                    key={i}
+                                                    value={opt}
+                                                    onChange={e => { const updated = [...pollOptions]; updated[i] = e.target.value; setPollOptions(updated); }}
+                                                    placeholder={`אפשרות ${i + 1}`}
+                                                    className="bg-white/[0.03] border border-white/[0.06] focus:border-amber-500/30 rounded-xl p-2.5 text-sm outline-none"
+                                                    dir="rtl"
+                                                />
+                                            ))}
+                                        </div>
+                                        {pollQuestion.trim() && <p className="text-[10px] text-amber-400/60 font-cinzel">✓ הסקר יצורף אוטומטית עם פרסום הכתבה</p>}
+                                    </div>
                                 </section>
 
                                 <section className="admin-card rounded-2xl p-6 space-y-4">
