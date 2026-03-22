@@ -474,6 +474,9 @@ export default function MaraudersMasterMap() {
                     {/* Two columns */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+                        {/* ── Left column: Zones + Who's Online ── */}
+                        <div className="flex flex-col gap-6">
+
                         {/* ── Zones ── */}
                         <div className="mm-parchment p-6">
                             <div className="relative z-10">
@@ -513,7 +516,7 @@ export default function MaraudersMasterMap() {
                         </div>
 
                         {/* ── Who's Online ── */}
-                        <div className="mm-parchment p-6">
+                        <div className="mm-parchment p-6" style={{ flex: 1 }}>
                             <div className="relative z-10">
                                 <div className="mm-section-title flex items-center gap-2">
                                     <span>✦</span> מחוברים עכשיו
@@ -558,7 +561,9 @@ export default function MaraudersMasterMap() {
                             </div>
                         </div>
 
-                        {/* ── Activity ── */}
+                        </div>{/* end left column */}
+
+                        {/* ── Activity (right column) ── */}
                         <div className="mm-parchment p-6">
                             <div className="relative z-10">
                                 <div className="mm-section-title flex items-center gap-2">
