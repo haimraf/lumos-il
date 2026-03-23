@@ -15,6 +15,7 @@ export default function Footer() {
     const pathname = usePathname();
     const { isMuted, toggleMute } = useUIState();
     if (pathname === "/") return null;
+    const isGreatHall = pathname === "/great-hall";
 
     const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
     const handleMusicToggle = () => {
@@ -24,7 +25,8 @@ export default function Footer() {
 
     return (
         <>
-        {/* ── Mobile FAB (floating action bar) ── */}
+        {/* ── Mobile FAB (floating action bar) — hidden on great-hall ── */}
+        {!isGreatHall && (
         <div className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[490] flex items-center gap-2 px-3 py-2 rounded-full bg-[#070d1a]/90 backdrop-blur-xl border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
             <button
                 onClick={handleMusicToggle}
@@ -52,8 +54,9 @@ export default function Footer() {
                 <span className="font-cinzel text-[9px] font-black uppercase tracking-widest">למעלה</span>
             </button>
         </div>
+        )}
 
-        <footer className="relative mt-32 border-t border-amber-500/20 bg-[#02040f] pt-24 pb-12 overflow-hidden" dir="rtl">
+        <footer className={`relative mt-32 border-t border-amber-500/20 bg-[#02040f] pt-24 pb-12 overflow-hidden ${isGreatHall ? 'hidden' : ''}`} dir="rtl">
 
             {/* הילת רקע */}
             <div className="absolute bottom-[-20%] left-1/2 -translate-x-1/2 w-full h-[500px] bg-amber-600/8 blur-[150px] pointer-events-none" />

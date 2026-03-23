@@ -1,5 +1,7 @@
 "use client";
 
+import imageCompression from 'browser-image-compression';
+
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -309,9 +311,14 @@ export default function WizardProfilePage() {
         const file = e.target.files?.[0];
         if (!file || !currentUser) return;
         setUploadingAvatar(true);
-        const ext = file.name.split(".").pop();
-        const path = `${currentUser.id}/avatar.${ext}`;
-        const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+        const compressed = await imageCompression(file, {
+            maxSizeMB: 0.2,
+            maxWidthOrHeight: 512,
+            useWebWorker: true,
+            fileType: 'image/webp',
+        });
+        const path = `${currentUser.id}/avatar.webp`;
+        const { error } = await supabase.storage.from("avatars").upload(path, compressed, { upsert: true });
         if (!error) {
             const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
             const urlWithBust = `${publicUrl}?t=${Date.now()}`;
@@ -323,13 +330,16 @@ export default function WizardProfilePage() {
 
     const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        console.log('file:', file); // ← הוסף זה
-
         if (!file || !currentUser) return;
         setUploadingCover(true);
-        const ext = file.name.split(".").pop();
-        const path = `${currentUser.id}/cover.${ext}`;
-        const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+        const compressed = await imageCompression(file, {
+            maxSizeMB: 0.5,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+            fileType: 'image/webp',
+        });
+        const path = `${currentUser.id}/cover.webp`;
+        const { error } = await supabase.storage.from("avatars").upload(path, compressed, { upsert: true });
         if (!error) {
             const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
             const urlWithBust = `${publicUrl}?t=${Date.now()}`;

@@ -175,7 +175,7 @@ function ShopContent() {
                     <div className="inline-block mb-5 px-4 py-1.5 rounded-full border border-amber-500/20 bg-amber-500/5 text-amber-500/60 font-cinzel text-[10px] tracking-[0.4em] uppercase">
                         London, Charing Cross Road
                     </div>
-                    <h1 className="font-cinzel text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-500 to-amber-900 mb-5 tracking-tighter">
+                    <h1 className="font-cinzel text-4xl sm:text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-500 to-amber-900 mb-5 tracking-tighter">
                         סמטת דיאגון
                     </h1>
                     <div className="h-px w-40 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent mx-auto mb-6" />
@@ -185,7 +185,7 @@ function ShopContent() {
                 </div>
 
                 {/* ✅ קטגוריות — עם מספר פריטים */}
-                <div className="flex overflow-x-auto gap-3 mb-14 pb-3">
+                <div className="flex overflow-x-auto gap-3 mb-14 pb-3 scrollbar-hide">
                     {CATEGORIES.map((cat) => {
                         const Icon = cat.icon;
                         const isActive = activeCategory === cat.id;

@@ -51,8 +51,8 @@ export default function MagicTicker() {
         const items: { id: string; title: string }[] = (news || []).map((n: any) => ({ id: n.id, title: n.title }));
 
         recentDuels?.forEach((d: any) => {
-            const winnerName  = (d.winner as any)?.full_name;
-            const loserName   = d.winner_id === d.challenger_id
+            const winnerName = (d.winner as any)?.full_name;
+            const loserName = d.winner_id === d.challenger_id
                 ? (d.opponent as any)?.full_name
                 : (d.challenger as any)?.full_name;
             if (winnerName && loserName) {
@@ -86,14 +86,7 @@ export default function MagicTicker() {
     return (
         <div
             data-magic-ticker
-            className="w-full border-t py-1.5 md:py-2.5"
-            style={{
-                background: "rgba(2,4,8,0.96)",
-                borderColor: "rgba(245,158,11,0.15)",
-                backdropFilter: "blur(12px)",
-                position: 'relative',
-                zIndex: 10,
-            }}
+            className="w-full border-t border-amber-500/10 py-1 md:py-2.5 backdrop-blur-xl bg-[#020408]/70 relative z-10"
             dir="rtl"
         >
             <div className="w-full max-w-7xl mx-auto flex items-center gap-2 md:gap-4 px-3 md:px-6">
@@ -101,7 +94,7 @@ export default function MagicTicker() {
                 {/* ── Left: Galleons + trophy ── */}
                 <div className="flex items-center gap-2 shrink-0">
                     <div
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                        className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-1 md:py-1.5 rounded-xl"
                         style={{
                             background: "linear-gradient(to left, rgba(245,158,11,0.2), rgba(245,158,11,0.07))",
                             border: "1px solid rgba(245,158,11,0.3)",
@@ -184,7 +177,7 @@ export default function MagicTicker() {
                 {/* ── Right: Scrolling news ticker ── */}
                 <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
                     <div
-                        className="flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-lg"
+                        className="hidden sm:flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-lg"
                         style={{
                             background: "rgba(245,158,11,0.1)",
                             border: "1px solid rgba(245,158,11,0.2)",
@@ -200,37 +193,36 @@ export default function MagicTicker() {
                     <div className="flex-1 min-w-0 overflow-hidden relative" style={{ maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)" }}>
                         {tickerReady && tickerItems.length > 0 ? (
                             <div
-                                className="whitespace-nowrap text-xs font-bold"
+                                className="flex w-max items-center text-xs font-bold"
                                 style={{
                                     color: "rgba(255,255,255,0.55)",
-                                    animation: "ticker-scroll 30s linear infinite",
-                                    display: "inline-block",
+                                    animation: "ticker-scroll-rtl 45s linear infinite",
                                 }}
                             >
                                 {/* Duplicate for seamless loop */}
                                 {[...tickerItems, ...tickerItems].map((n, i) => (
-                                    <span key={`${n.id}-${i}`}>
+                                    <span key={`${n.id}-${i}`} className="flex items-center">
                                         <Link
                                             href={n.id.startsWith("duel-") ? "#" : `/news?article=${n.id}`}
-                                            className="hover:text-amber-400 transition-colors cursor-pointer"
+                                            className="hover:text-amber-400 transition-colors cursor-pointer whitespace-nowrap"
                                         >
                                             {n.title}
                                         </Link>
-                                        <span className="mx-3 text-amber-600/40">✦</span>
+                                        <span className="mx-3 text-amber-600/40 shrink-0">✦</span>
                                     </span>
                                 ))}
                             </div>
                         ) : (
-                            <span className="text-xs text-white/20 italic font-crimson">הנביא היומי בדרך...</span>
+                            <span className="text-xs text-white/20 italic font-crimson whitespace-nowrap flex items-center h-full">הנביא היומי בדרך...</span>
                         )}
                     </div>
                 </div>
             </div>
 
             <style>{`
-                @keyframes ticker-scroll {
+                @keyframes ticker-scroll-rtl {
                     0%   { transform: translateX(0); }
-                    100% { transform: translateX(-50%); }
+                    100% { transform: translateX(50%); } /* מזיז ימינה בדיוק חצי מהרוחב ללופ מושלם */
                 }
             `}</style>
         </div>

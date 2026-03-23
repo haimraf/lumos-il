@@ -40,7 +40,8 @@ export default function Home() {
   const { isMuted, toggleMute } = useUIState();
 
   useEffect(() => {
-    const generated = Array.from({ length: 80 }, () => ({
+    const count = window.innerWidth < 768 ? 30 : 80;
+    const generated = Array.from({ length: count }, () => ({
       x: Math.random() * 100,
       y: Math.random() * 100,
       size: Math.random() * 2 + 0.5,
@@ -468,7 +469,7 @@ export default function Home() {
               },
             ].map(({ icon: Icon, title, desc, color, glow, badge }) => (
               <button key={title} onClick={() => setIsModalOpen(true)}
-                className="feature-card group rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden text-right cursor-pointer">
+                className="feature-card group rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden text-right cursor-pointer active:scale-[0.98] transition-transform">
                 {badge && (
                   <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/20 font-cinzel text-[8px] text-amber-400 uppercase tracking-wider">
                     {badge}

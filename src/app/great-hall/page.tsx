@@ -6,8 +6,11 @@ import Link from "next/link";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import {
     Wand2, ChevronRight, Sparkles, Zap, Info, Shield,
-    Users, Flag, AlertTriangle, EyeOff, Eye, Loader2, Smile, Ghost
+    Users, Flag, AlertTriangle, EyeOff, Eye, Loader2, Smile, Ghost,
+    Volume2, VolumeX
 } from "lucide-react";
+import { useUIState } from "@/context/UIContext";
+import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { getRoleColor, getRoleDisplay, getRoleColorFromDB } from "@/lib/roleColor";
 import { useOwlMail } from "@/components/OwlMail";
 
@@ -72,8 +75,33 @@ export default function GreatHall() {
     const emojiPickerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // ── במובייל: גלילה אוטומטית לתחתית הצ'אט + פוקוס על שדה הכתיבה ──
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (!isLoading && inputRef.current && window.innerWidth < 768) {
+            setTimeout(() => {
+                // גוללים את מיכל הצ'אט הפנימי לתחתית (ולא את כל הדף!)
+                const chatContainer = document.querySelector('.chat-scroll');
+                if (chatContainer) {
+                    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+                }
+                // פוקוס לשדה הקלט — הוא כבר גלוי בתחתית ה-flex
+                inputRef.current?.focus();
+            }, 400);
+        }
+    }, [isLoading]);
+
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            // תופסים את הדיב שעוטף את הצ'אט (שיש לו את הקלאס chat-scroll)
+            const chatContainer = messagesEndRef.current.closest('.chat-scroll');
+            if (chatContainer) {
+                // גוללים רק אותו פנימה, בלי להזיז את כל המסך!
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: "smooth"
+                });
+            }
+        }
     }, [messages]);
 
     useEffect(() => {
@@ -218,6 +246,76 @@ export default function GreatHall() {
         </div>
     );
 
+    /* ───────── MuteToggle — replaces hidden footer FAB ───────── */
+    function MuteToggle() {
+        const { isMuted, toggleMute } = useUIState();
+        const handleClick = () => {
+            if (isMuted) triggerAudioPlay();
+            toggleMute();
+        };
+        return (
+            <button
+                onClick={handleClick}
+                className={`magic-focus flex items-center gap-1 px-2.5 py-1.5 rounded-full border transition-all ${
+                    isMuted
+                        ? 'bg-white/[0.04] text-white/35 border-white/[0.08] hover:bg-white/[0.08]'
+                        : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                }`}
+                aria-label={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
+                title={isMuted ? "הפעל מוזיקה" : "השתק"}
+            >
+                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} className="animate-pulse" />}
+            </button>
+        );
+    }
+
+    const ChatNav = ({ className = "" }: { className?: string }) => (
+        <nav className={`flex justify-between items-center shrink-0 w-full ${className}`} aria-label="ניווט ראשי">
+            <div className="flex items-center gap-2">
+                <Link
+                    href="/dashboard"
+                    className="magic-focus flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] hover:bg-white/10 transition-all text-white/50 hover:text-white"
+                    aria-label="חזרה ללוח הבקרה"
+                >
+                    <ChevronRight size={18} />
+                    <span className="hidden sm:inline font-cinzel text-[11px] font-black uppercase tracking-widest">חזרה</span>
+                </Link>
+                <h1 className="font-cinzel text-lg md:text-2xl font-black tracking-widest flex items-center gap-2 text-white mt-1">
+                    האולם הגדול
+                    <Sparkles className="text-amber-500" size={16} aria-hidden="true" />
+                </h1>
+            </div>
+
+            <div className="flex items-center gap-1.5 md:gap-2">
+                {/* 🔇 מוזיקה */}
+                <MuteToggle />
+
+                {/* גלימת היעלמות */}
+                <button
+                    onClick={() => setHideSignatures(s => !s)}
+                    className={`magic-focus flex items-center gap-1 md:gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full border transition-all font-cinzel text-[11px] font-black uppercase tracking-widest ${hideSignatures
+                        ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]'
+                        : 'bg-white/[0.04] text-white/35 border-white/[0.08] hover:bg-white/[0.08]'
+                        }`}
+                >
+                    <Ghost size={15} className={hideSignatures ? "animate-pulse" : ""} aria-hidden="true" />
+                    <span className="hidden sm:inline">{hideSignatures ? "מוסתרות" : "הסתר"}</span>
+                </button>
+
+                {/* Online count */}
+                <div
+                    className="flex items-center gap-1.5 md:gap-2 bg-emerald-500/10 border border-emerald-500/25 px-2.5 md:px-3 py-1.5 rounded-full"
+                    aria-live="polite"
+                >
+                    <span className="online-dot w-2 h-2 md:w-2.5 md:h-2.5 bg-emerald-400 rounded-full" aria-hidden="true" />
+                    <span className="text-emerald-300 text-[11px] md:text-xs font-black uppercase font-cinzel tracking-wider mt-0.5">
+                        {onlineUsers.length}
+                    </span>
+                </div>
+            </div>
+        </nav>
+    );
+
     /* ─────────────────────────── RENDER ─────────────────────────── */
     return (
         <>
@@ -272,58 +370,12 @@ export default function GreatHall() {
             `}</style>
 
             <div
-                className="relative w-full max-w-full md:max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden"
+                className="relative w-full max-w-full md:max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col h-[calc(100dvh-210px)] md:h-[calc(100dvh-240px)] overflow-hidden"
                 dir="rtl"
                 role="main"
                 aria-label="האולם הגדול — צ'אט קהילתי"
             >
-                {/* ── Nav ── */}
-                <nav className="flex justify-between items-center mb-4 px-1 shrink-0" aria-label="ניווט ראשי">
-                    <div className="flex items-center gap-3">
-                        <Link
-                            href="/dashboard"
-                            className="magic-focus p-2 rounded-full hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-                            aria-label="חזרה ללוח הבקרה"
-                        >
-                            <ChevronRight size={22} />
-                        </Link>
-                        <h1 className="font-cinzel text-lg md:text-2xl font-black tracking-widest flex items-center gap-2 text-white">
-                            האולם הגדול
-                            <Sparkles className="text-amber-500" size={16} aria-hidden="true" />
-                        </h1>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                        {/* גלימת היעלמות */}
-                        <button
-                            onClick={() => setHideSignatures(s => !s)}
-                            className={`magic-focus flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all font-cinzel text-[10px] font-black uppercase tracking-widest ${hideSignatures
-                                    ? 'bg-amber-500 text-amber-950 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]'
-                                    : 'bg-white/[0.04] text-white/35 border-white/[0.08] hover:bg-white/[0.08]'
-                                }`}
-                            aria-pressed={hideSignatures}
-                            aria-label={hideSignatures ? "הסר גלימת היעלמות מהחתימות" : "הטל גלימת היעלמות על החתימות"}
-                            title={hideSignatures ? "הצג חתימות" : "הסתר חתימות"}
-                        >
-                            <Ghost size={13} className={hideSignatures ? "animate-pulse" : ""} aria-hidden="true" />
-                            <span className="hidden sm:inline">{hideSignatures ? "מוסתרות" : "גלימת היעלמות"}</span>
-                        </button>
-
-                        {/* Online count */}
-                        <div
-                            className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1.5 rounded-full"
-                            aria-live="polite"
-                            aria-label={`${onlineUsers.length} קוסמים נוכחים באולם הגדול`}
-                        >
-                            <span className="online-dot w-2 h-2 bg-emerald-400 rounded-full" aria-hidden="true" />
-                            <span className="text-emerald-300 text-[10px] font-black uppercase font-cinzel tracking-wider">
-                                {onlineUsers.length} נוכחים
-                            </span>
-                        </div>
-                    </div>
-                </nav>
-
-                {/* ── Body ── */}
                 <div className="flex flex-col lg:flex-row gap-4 flex-1 overflow-hidden min-h-0">
 
                     {/* Sidebar */}
@@ -405,14 +457,14 @@ export default function GreatHall() {
                         style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(2,6,23,0.95) 100%)" }}
                         aria-label="אזור ההודעות"
                     >
-                        {/* Messages */}
+                        {/* ── Desktop In-Chat Nav (Top Fixed) ── */}
+                        {!isLoading && <ChatNav className="hidden md:flex p-4 md:px-6 border-b border-white/[0.06] bg-black/40 backdrop-blur-md z-20" />}
+
+                        {/* Messages Area */}
                         <div
-                            className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 chat-scroll"
-                            role="log"
-                            aria-live="polite"
-                            aria-label="הודעות האולם הגדול"
-                            tabIndex={0}
+                            className="flex-1 overflow-y-auto chat-scroll custom-scrollbar p-3 md:p-6 pb-4"
                         >
+
                             {messages.length === 0 && (
                                 <div className="h-full flex items-center justify-center opacity-20 font-cinzel text-xl text-white text-center px-4">
                                     האולם שקט... היה הראשון להטיל לחש! ✨
@@ -493,8 +545,8 @@ export default function GreatHall() {
                                                 {/* Bubble */}
                                                 <div
                                                     className={`group relative px-4 py-3 md:px-5 md:py-4 rounded-2xl border shadow-lg ${isMe
-                                                            ? 'rounded-tl-sm bg-white/[0.07] border-white/[0.12] text-right'
-                                                            : `rounded-tr-sm ${h.bg} ${h.border} text-right`
+                                                        ? 'rounded-tl-sm bg-white/[0.07] border-white/[0.12] text-right'
+                                                        : `rounded-tr-sm ${h.bg} ${h.border} text-right`
                                                         }`}
                                                     style={!isMe && msg.profiles?.house && HOUSE_CONFIG[msg.profiles.house]
                                                         ? { background: `linear-gradient(135deg, ${HOUSE_CONFIG[msg.profiles.house].gradientFrom.replace('from-', '').replace('/20', '')} 0%, transparent 80%)`.replace('from-', '') }
@@ -565,8 +617,11 @@ export default function GreatHall() {
                                     </div>
                                 );
                             })}
-                            <div ref={messagesEndRef} aria-hidden="true" />
+                            <div ref={messagesEndRef} aria-hidden="true" className="h-4" />
                         </div>
+
+                        {/* ── Mobile In-Chat Nav (Bottom) ── */}
+                        {!isLoading && <ChatNav className="flex md:hidden px-3 pt-1 pb-3" />}
 
                         {/* Emoji picker */}
                         {showEmojiPicker && (
@@ -650,8 +705,8 @@ export default function GreatHall() {
                                     role="radio"
                                     aria-checked={reportReason === r}
                                     className={`magic-focus w-full text-right px-4 py-3 rounded-xl border text-sm transition-all font-bold ${reportReason === r
-                                            ? 'bg-red-900/40 border-red-600/50 text-red-200'
-                                            : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] text-white/70'
+                                        ? 'bg-red-900/40 border-red-600/50 text-red-200'
+                                        : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] text-white/70'
                                         }`}
                                 >
                                     {r}

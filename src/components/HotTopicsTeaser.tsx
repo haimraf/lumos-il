@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Flame, Clock, MessageSquare, ArrowLeft, User, TrendingUp } from "lucide-react";
+import { Flame, Clock, MessageSquare, ArrowLeft, User, TrendingUp, Zap } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 function timeAgo(dateString: string) {
+    if (!dateString) return "...";
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
@@ -37,6 +39,7 @@ type Topic = {
     id: string;
     title: string;
     created_at: string;
+    last_activity_at: string;
     reply_count: number;
     forums: { name: string; slug: string } | null;
     profiles: {
@@ -57,44 +60,46 @@ export default function HotTopicsTeaser() {
         async function fetchHotTopics() {
             try {
                 const selectQuery = `
-                    id, title, created_at,
+                    id, title, created_at, last_activity_at,
                     forums ( name, slug ),
                     profiles!threads_author_id_fkey ( full_name, username, house, avatar_url, user_groups(name, color) ),
                     forum_posts ( id )
                 `;
 
-                const [{ data: recentData, error: e1 }, { data: newestData, error: e2 }] = await Promise.all([
-                    supabase.from("threads").select(selectQuery).order("created_at", { ascending: false }).limit(20),
-                    supabase.from("threads").select(selectQuery).order("created_at", { ascending: false }).limit(3),
-                ]);
+                const { data, error } = await supabase
+                    .from("threads")
+                    .select(selectQuery)
+                    .order("last_activity_at", { ascending: false })
+                    .limit(12);
 
-                if (e1) throw e1;
-                if (e2) throw e2;
+                if (error) throw error;
 
-                const addCounts = (rows: any[]) => rows.map(t => ({
-                    ...t,
-                    reply_count: t.forum_posts?.length || 0,
-                }));
+                // כאן התיקון - אנחנו מוודאים ש-forums ו-profiles הם אובייקטים ולא מערכים
+                const processed: Topic[] = (data || []).map((t: any) => {
+                    const forumObj = Array.isArray(t.forums) ? t.forums[0] : t.forums;
+                    const profileObj = Array.isArray(t.profiles) ? t.profiles[0] : t.profiles;
 
-                // Top 2 by reply count from last 20
-                const topReplied = addCounts(recentData || [])
-                    .sort((a, b) => b.reply_count - a.reply_count)
+                    return {
+                        id: t.id,
+                        title: t.title,
+                        created_at: t.created_at,
+                        last_activity_at: t.last_activity_at,
+                        reply_count: t.forum_posts?.length || 0,
+                        forums: forumObj || null,
+                        profiles: profileObj || null
+                    };
+                });
+
+                const sortedByHeat = [...processed].sort((a, b) => b.reply_count - a.reply_count);
+                const hottest = sortedByHeat[0];
+
+                const others = processed
+                    .filter(t => t.id !== hottest?.id)
                     .slice(0, 2);
 
-                // Newest 1
-                const newest = addCounts(newestData || []).slice(0, 1);
-
-                // Merge, deduplicate, take 3
-                const seen = new Set<string>();
-                const merged: Topic[] = [];
-                for (const t of [...topReplied, ...newest]) {
-                    if (!seen.has(t.id)) { seen.add(t.id); merged.push(t); }
-                    if (merged.length === 3) break;
-                }
-
-                setTopics(merged);
+                setTopics(hottest ? [hottest, ...others] : []);
             } catch (e) {
-                console.error(e);
+                console.error("Error fetching hot topics:", e);
             } finally {
                 setIsLoading(false);
             }
@@ -103,133 +108,119 @@ export default function HotTopicsTeaser() {
     }, [supabase]);
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
-
-            {/* כותרת */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <Flame className="text-amber-500 relative z-10" size={28} />
-                        <div className="absolute inset-0 bg-amber-500 blur-xl opacity-50 rounded-full" />
+        <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-12">
+            <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                    <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-500/5 border border-amber-500/20">
+                        <Flame className="text-amber-500 relative z-10" size={24} />
+                        <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full animate-pulse" />
                     </div>
                     <div>
-                        <h3 className="font-cinzel text-xl md:text-3xl font-black text-white tracking-tight">
+                        <h3 className="font-cinzel text-2xl md:text-3xl font-black text-white tracking-wide">
                             הלחשושים החמים
                         </h3>
-                        <p className="text-[10px] text-white/25 uppercase tracking-widest font-cinzel mt-0.5">
-                            דיונים פעילים באולם הגדול
+                        <p className="text-[10px] md:text-xs text-white/30 uppercase tracking-[0.2em] font-cinzel mt-1">
+                            דיונים פעילים במסדרונות
                         </p>
                     </div>
                 </div>
                 <Link
                     href="/forums"
-                    className="hidden md:flex items-center gap-2 text-xs text-amber-500/60 hover:text-amber-400 transition-colors font-cinzel uppercase tracking-widest border border-amber-500/15 hover:border-amber-500/30 px-4 py-2 rounded-full"
+                    className="hidden md:flex items-center gap-2 text-[10px] text-amber-500/60 hover:text-amber-400 transition-all font-black uppercase tracking-widest border border-amber-500/10 hover:border-amber-500/30 bg-white/5 px-5 py-2.5 rounded-xl"
                 >
                     כל הפורומים <ArrowLeft size={12} />
                 </Link>
             </div>
 
-            {/* Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {isLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="h-52 rounded-2xl bg-white/[0.02] border border-white/[0.04] animate-pulse" />
+                        <div key={i} className="h-64 rounded-[2rem] bg-white/[0.02] border border-white/[0.05] animate-pulse" />
                     ))
                 ) : topics.length > 0 ? (
                     topics.map((topic, index) => {
                         const house = topic.profiles?.house || null;
                         const houseTheme = house ? HOUSE_COLORS[house] : null;
-                        const authorName = (() => {
-                            const name = topic.profiles?.full_name || topic.profiles?.username || "קוסם אנונימי";
-                            return name.includes("@") ? name.split("@")[0] : name;
-                        })();
+                        const authorName = topic.profiles?.full_name || topic.profiles?.username || "קוסם אנונימי";
                         const isHottest = index === 0;
                         const groupColor = (topic.profiles?.user_groups as any)?.color || null;
-                        const nameColor = groupColor || (house ? HOUSE_HEX[house] : 'rgba(245,158,11,0.6)');
+                        const nameColor = groupColor || (house ? HOUSE_HEX[house] : 'rgba(255,255,255,0.5)');
 
                         return (
-                            <Link
+                            <motion.div
                                 key={topic.id}
-                                href={`/forums/thread/${topic.id}`}
-                                className="group relative flex flex-col justify-between p-5 md:p-6 rounded-2xl border transition-all duration-500 overflow-hidden hover:-translate-y-1"
-                                style={{
-                                    background: houseTheme
-                                        ? `linear-gradient(135deg, ${houseTheme.bg} 0%, rgba(2,6,23,0.95) 60%)`
-                                        : "rgba(255,255,255,0.02)",
-                                    borderColor: houseTheme ? houseTheme.border : "rgba(255,255,255,0.06)",
-                                    boxShadow: isHottest && houseTheme
-                                        ? `0 0 40px ${houseTheme.glow}`
-                                        : "none",
-                                }}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                className="h-full"
                             >
-                                {/* Shimmer on hover */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
-
-                                {/* Hot badge */}
-                                {isHottest && (
-                                    <div className="absolute top-4 left-4 flex items-center gap-1 bg-amber-500/15 border border-amber-500/25 px-2 py-0.5 rounded-full">
-                                        <TrendingUp size={9} className="text-amber-400" />
-                                        <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">הכי חם</span>
-                                    </div>
-                                )}
-
-                                <div className="relative z-10">
-                                    {/* Forum name */}
-                                    {topic.forums?.name && (
-                                        <span className="inline-block text-[9px] font-black uppercase tracking-[0.2em] mb-3 mt-1"
-                                            style={{ color: nameColor }}>
-                                            {topic.forums.name}
+                                <Link
+                                    href={`/forums/thread/${topic.id}`}
+                                    className="group relative flex flex-col h-full p-7 rounded-[2rem] border transition-all duration-500 overflow-hidden bg-[#0a0a0c] hover:-translate-y-2 active:scale-[0.98]"
+                                    style={{
+                                        borderColor: isHottest && houseTheme ? houseTheme.border : "rgba(255,255,255,0.06)",
+                                        boxShadow: isHottest && houseTheme ? `0 20px 40px -15px ${houseTheme.glow}` : "none",
+                                    }}
+                                >
+                                    <div className="flex items-center justify-between mb-6 relative z-10">
+                                        {isHottest ? (
+                                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 font-black text-[9px] text-amber-500 uppercase tracking-widest">
+                                                <TrendingUp size={10} /> הכי חם
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 font-black text-[9px] text-white/40 uppercase tracking-widest">
+                                                <Zap size={10} className="fill-white/20" /> פעילות טרייה
+                                            </span>
+                                        )}
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-white/20">
+                                            {topic.forums?.name}
                                         </span>
-                                    )}
+                                    </div>
 
-                                    {/* Title */}
-                                    <h4 className="font-cinzel text-base md:text-lg font-black text-white/90 group-hover:text-white line-clamp-2 leading-snug transition-colors mb-4">
+                                    <h4 className="font-cinzel text-lg md:text-xl font-black text-white/90 group-hover:text-white leading-tight transition-colors mb-auto line-clamp-3 relative z-10">
                                         {topic.title}
                                     </h4>
-                                </div>
 
-                                {/* Footer */}
-                                <div className="relative z-10 flex items-center justify-between pt-4 border-t border-white/[0.05]">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-xs shrink-0"
-                                            style={{ background: houseTheme ? houseTheme.bg : "rgba(255,255,255,0.05)", border: `1px solid ${houseTheme ? houseTheme.border : "rgba(255,255,255,0.1)"}` }}>
-                                            {topic.profiles?.avatar_url
-                                                ? <img src={topic.profiles.avatar_url} alt={authorName} className="w-full h-full object-cover" />
-                                                : <User size={10} className={houseTheme?.text || "text-white/40"} />
-                                            }
+                                    <div className="mt-8 pt-5 border-t border-white/[0.05] flex items-center justify-between relative z-10">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-8 h-8 rounded-xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center shrink-0">
+                                                {topic.profiles?.avatar_url ? (
+                                                    <img src={topic.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <User size={14} className="text-white/20" />
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] font-bold truncate max-w-[80px]" style={{ color: nameColor }}>
+                                                {authorName.split('@')[0]}
+                                            </span>
                                         </div>
-                                        <span className="text-xs font-bold" style={{ color: nameColor }}>
-                                            {authorName}
-                                        </span>
+
+                                        <div className="flex items-center gap-3 text-[10px] font-black text-white/30">
+                                            <div className="flex items-center gap-1.5">
+                                                <MessageSquare size={12} className="text-white/20" />
+                                                <span className="tabular-nums">{topic.reply_count}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <Clock size={12} className="text-white/20" />
+                                                <span>{timeAgo(topic.last_activity_at)}</span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3 text-[11px] text-white/25">
-                                        <span className="flex items-center gap-1">
-                                            <MessageSquare size={10} />
-                                            {topic.reply_count}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            <Clock size={10} />
-                                            {timeAgo(topic.created_at)}
-                                        </span>
-                                    </div>
-                                </div>
-                            </Link>
+                                    {houseTheme && (
+                                        <div className="absolute -bottom-10 -right-10 w-32 h-32 blur-[50px] opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none"
+                                            style={{ background: houseTheme.glow }} />
+                                    )}
+                                </Link>
+                            </motion.div>
                         );
                     })
                 ) : (
-                    <div className="col-span-3 text-center text-white/20 font-crimson py-12 border border-white/[0.04] rounded-2xl bg-white/[0.01] italic">
-                        אין עדיין לחשושים במסדרונות... פתחו את הדיון הראשון!
+                    <div className="col-span-3 text-center py-20 opacity-40">
+                        <p className="font-crimson italic text-xl text-white">המסדרונות שקטים... פתחו את הדיון הראשון!</p>
                     </div>
                 )}
             </div>
-
-            {/* Mobile link */}
-            <div className="mt-6 flex justify-center md:hidden">
-                <Link href="/forums" className="flex items-center gap-2 text-xs text-amber-500/50 font-cinzel uppercase tracking-widest">
-                    לכל הפורומים <ArrowLeft size={12} />
-                </Link>
-            </div>
-        </div>
+        </section>
     );
 }

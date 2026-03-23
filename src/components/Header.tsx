@@ -236,7 +236,7 @@ export default function Header() {
                                     alt="Lumos IL Logo"
                                     width={220}
                                     height={220}
-                                    className="h-[90px] md:h-[120px] w-auto object-contain drop-shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                                    className="h-[60px] md:h-[90px] lg:h-[120px] w-auto object-contain drop-shadow-[0_0_20px_rgba(245,158,11,0.4)]"
                                     priority
                                 />
                             </Link>
@@ -456,8 +456,8 @@ export default function Header() {
                 <div className="font-cinzel text-white/[0.02] text-[18vw] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none font-black z-0">LUMOS</div>
 
                 <nav className="relative z-10 flex flex-col items-center gap-1 w-full px-10 pt-28 pb-32 h-full overflow-y-auto">
-                    <button onClick={() => setIsOpen(false)} className="absolute top-6 right-6 p-2 text-white/40 hover:text-white transition-colors">
-                        <X size={28} />
+                    <button onClick={() => setIsOpen(false)} className="absolute top-5 left-5 p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-colors z-20">
+                        <X size={22} />
                     </button>
                     {currentCTA && !isGuest && (
                         <Link href={currentCTA.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full justify-center py-4 px-8 mb-4 rounded-2xl bg-amber-500 text-amber-950 font-cinzel font-black text-lg uppercase tracking-widest shadow-[0_0_30px_rgba(245,158,11,0.3)]">

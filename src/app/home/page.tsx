@@ -35,7 +35,8 @@ export default function HomePage() {
     useEffect(() => {
         setRandomQuote(magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
 
-        const generatedCandles = Array.from({ length: 20 }).map((_, i) => ({
+        const count = window.innerWidth < 768 ? 8 : 20;
+        const generatedCandles = Array.from({ length: count }).map((_, i) => ({
             id: i,
             left: Math.random() * 100,
             delay: Math.random() * 5,
@@ -87,7 +88,7 @@ export default function HomePage() {
         {
             id: 'library',
             title: "הספרייה",
-            desc: "מאות סיפורים ויצירות",
+            desc: "מאות סיפורים ויצירות פאנפיקשן קסומות",
             icon: BookOpen,
             href: "/library",
             className: "col-span-1",
@@ -99,8 +100,8 @@ export default function HomePage() {
         },
         {
             id: 'forums',
-            title: "מסדרונות הטירה",
-            desc: "פורומים, דיונים ומפגשים חברתיים",
+            title: "מסדרונות הטירה (פורומים)",
+            desc: "דיונים, הצעות, תמיכה ומפגשים חברתיים",
             icon: Users,
             href: "/forums",
             className: "col-span-1 lg:col-span-2",
@@ -113,7 +114,7 @@ export default function HomePage() {
         {
             id: 'news',
             title: "הנביא היומי",
-            desc: "חדשות וכתבות מהקהילה",
+            desc: "חדשות, כתבות ועדכונים שוטפים מהקהילה",
             icon: ScrollText,
             href: "/news",
             className: "col-span-1",
@@ -126,7 +127,7 @@ export default function HomePage() {
         {
             id: 'shop',
             title: "סמטת דיאגון",
-            desc: "חנות הקסמים",
+            desc: "חנות הקסמים הרשמית של לומוס IL",
             icon: Store,
             href: "/shop",
             className: "col-span-1",
@@ -139,7 +140,7 @@ export default function HomePage() {
         {
             id: 'ollivanders',
             title: "אוליבנדר",
-            desc: "התאמת שרביטים",
+            desc: "מבחן התאמת שרביטים אישי וייחודי",
             icon: Wand2,
             href: "/shop/ollivanders",
             className: "col-span-1",
@@ -152,7 +153,7 @@ export default function HomePage() {
         {
             id: 'quests',
             title: "לוח משימות",
-            desc: "אתגרים ותגמולים",
+            desc: "אתגרים יומיים, משימות ותגמולי נקודות",
             icon: Trophy,
             href: "/quests",
             className: "col-span-1",
@@ -165,7 +166,7 @@ export default function HomePage() {
         {
             id: 'map',
             title: "מפת הקונדסאים",
-            desc: "גלה היכן הקוסמים נמצאים ברחבי ישראל",
+            desc: "גלה היכן הקוסמים נמצאים בזמן אמת",
             icon: Map,
             href: "/map",
             className: "col-span-1",
@@ -177,8 +178,8 @@ export default function HomePage() {
         },
         {
             id: 'great-hall',
-            title: "האולם הגדול (צ'אט)",
-            desc: "שיחה חיה עם חברי הקהילה",
+            title: "האולם הגדול (צ'אט חי)",
+            desc: "שיחה אינטראקטיבית מיידית עם חברי הקהילה",
             icon: MessageSquare,
             href: "/great-hall",
             className: "col-span-1",
@@ -191,7 +192,7 @@ export default function HomePage() {
         {
             id: 'exams',
             title: "בחינות O.W.L & N.E.W.T",
-            desc: "הוכיחו שליטה בקסם המתקדם — לקוסמים בכירים",
+            desc: "מבחני ידע קסומים לקוסמים מתקדמים",
             icon: GraduationCap,
             href: "/exams/owl",
             className: "col-span-1",
@@ -204,8 +205,8 @@ export default function HomePage() {
         },
         {
             id: 'faq',
-            title: "שאלות ותשובות",
-            desc: "כל סודות, פיצ׳רים ו-Easter Eggs של הטירה",
+            title: "ספר השאלות",
+            desc: "מדריכים, סודות וכל מה שרציתם לדעת על הטירה",
             icon: HelpCircle,
             href: "/faq",
             className: "col-span-1",
@@ -219,7 +220,7 @@ export default function HomePage() {
         {
             id: 'arena',
             title: "זירת הקרבות",
-            desc: "אתגר קוסמים לדו-קרב לחשים ועלה לטבלת האלופים",
+            desc: "דו-קרב לחשים אסטרטגי וטבלת אלופים",
             icon: Swords,
             href: "/arena",
             className: "col-span-1 lg:col-span-2",
@@ -255,7 +256,7 @@ export default function HomePage() {
 
             <div className="relative z-10" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
 
-                {/* כותרת ובאנר היכרות (מעולה ל-SEO) */}
+                {/* כותרת ובאנר היכרות */}
                 <motion.header
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -266,7 +267,7 @@ export default function HomePage() {
                         <Map size={36} className="text-amber-500/60" />
                     </div>
                     <h1 className="font-cinzel text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-400 to-amber-700 mb-5 tracking-widest uppercase drop-shadow-[0_5px_15px_rgba(245,158,11,0.2)]">
-                        האולם הגדול
+                        רחבת הכניסה
                     </h1>
 
                     {/* באנר ה-SEO הקצר והקולע */}
@@ -279,96 +280,13 @@ export default function HomePage() {
 
                     <div className="w-40 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent mx-auto mb-6" />
 
-                    <p className="font-crimson text-xl md:text-2xl text-amber-100/50 italic tracking-wide min-h-[3rem]">
+                    <p className="font-crimson text-xl md:text-2xl text-amber-100/50 italic tracking-wide min-h-[4rem] md:min-h-[3rem]">
                         {randomQuote}
                     </p>
                 </motion.header>
 
-                {/* ── FAQ ANNOUNCEMENT ── */}
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3, duration: 0.6 }}
-                    className="mb-8"
-                >
-                    <Link href="/faq" className="group block">
-                        <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-l from-amber-900/20 via-amber-950/15 to-transparent p-4 md:p-5 transition-all duration-500 hover:border-amber-400/45 hover:shadow-[0_0_40px_rgba(245,158,11,0.1)]">
-                            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_75%_50%,rgba(245,158,11,0.06),transparent_60%)] pointer-events-none" />
-                            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-amber-500/35 to-transparent" />
-                            <div className="relative flex items-center gap-4">
-                                <div className="shrink-0 w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-[0_0_16px_rgba(245,158,11,0.12)] group-hover:shadow-[0_0_24px_rgba(245,158,11,0.22)] transition-all">
-                                    <HelpCircle size={20} className="text-amber-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/20 font-cinzel text-[8px] text-amber-400 uppercase tracking-[0.25em]">
-                                            <Zap size={7} className="fill-amber-400" /> חדש בטירה
-                                        </span>
-                                        <Bell size={11} className="text-amber-500/40 animate-pulse" />
-                                    </div>
-                                    <p className="font-cinzel font-black text-sm text-white/80 group-hover:text-amber-300 transition-colors">
-                                        ספר שאלות ותשובות הטירה — פתוח עכשיו!
-                                    </p>
-                                    <p className="font-crimson text-white/35 text-sm mt-0.5">
-                                        כל הפיצ׳רים, הקסמים, בחינות O.W.L ו-N.E.W.T ו-Easter Eggs במקום אחד
-                                    </p>
-                                </div>
-                                <ArrowRight size={14} className="shrink-0 rotate-180 text-amber-400/40 group-hover:text-amber-300 group-hover:-translate-x-1 transition-all" />
-                            </div>
-                        </div>
-                    </Link>
-                </motion.div>
-
-                {/* ── ARENA ANNOUNCEMENT ── */}
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.6 }}
-                    className="mb-8"
-                >
-                    <Link href="/arena" className="group block">
-                        <div className="relative overflow-hidden rounded-2xl p-4 md:p-5 transition-all duration-500"
-                            style={{
-                                background: "linear-gradient(135deg, rgba(127,29,29,0.25) 0%, rgba(10,5,5,0.4) 100%)",
-                                border: "1px solid rgba(220,38,38,0.25)",
-                                boxShadow: "0 0 40px rgba(220,38,38,0.05)",
-                            }}>
-                            <div className="absolute inset-0 pointer-events-none"
-                                style={{ background: "radial-gradient(ellipse at 75% 50%, rgba(220,38,38,0.08), transparent 65%)" }} />
-                            <div className="absolute top-0 left-0 w-full h-px"
-                                style={{ background: "linear-gradient(to right, transparent, rgba(220,38,38,0.4), transparent)" }} />
-                            <div className="relative flex items-center gap-4">
-                                <div className="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all"
-                                    style={{
-                                        background: "rgba(220,38,38,0.12)",
-                                        border: "1px solid rgba(220,38,38,0.25)",
-                                        boxShadow: "0 0 16px rgba(220,38,38,0.15)",
-                                    }}>
-                                    <Swords size={20} className="text-red-400 group-hover:scale-110 transition-transform" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-cinzel text-[8px] uppercase tracking-[0.25em]"
-                                            style={{ background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.25)", color: "#f87171" }}>
-                                            <Zap size={7} className="fill-red-400" /> חדש בטירה
-                                        </span>
-                                        <span className="text-[9px] font-cinzel text-red-400/60 animate-pulse">● זירה פעילה</span>
-                                    </div>
-                                    <p className="font-cinzel font-black text-sm text-white/80 group-hover:text-red-300 transition-colors">
-                                        זירת הקרבות — דו-קרב לחשים בזמן אמת!
-                                    </p>
-                                    <p className="font-crimson text-white/35 text-sm mt-0.5">
-                                        אתגר קוסמים אחרים, צבר ניצחונות ועלה לטבלת האלופים
-                                    </p>
-                                </div>
-                                <ArrowRight size={14} className="shrink-0 rotate-180 text-red-400/40 group-hover:text-red-300 group-hover:-translate-x-1 transition-all" />
-                            </div>
-                        </div>
-                    </Link>
-                </motion.div>
-
                 {/* תפריט ניווט תגיות סמנטי (Bento Grid) */}
-                <nav aria-label="ניווט בטירה" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[210px]">
+                <nav aria-label="ניווט בטירה" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[180px] md:auto-rows-[210px]">
                     {destinations.map((dest, idx) => {
                         const Icon = dest.icon;
                         return (
@@ -382,7 +300,7 @@ export default function HomePage() {
                                 <Link
                                     href={dest.href}
                                     className={`group relative h-full p-8 rounded-[2rem] border border-white/6 transition-all duration-500 overflow-hidden flex flex-col justify-between bg-gradient-to-br ${dest.customGradient || ''} to-[#0a0a0c] backdrop-blur-sm
-                                        ${dest.hoverBorder} ${dest.hoverShadow} hover:-translate-y-1.5`}
+                                        ${dest.hoverBorder} ${dest.hoverShadow} hover:-translate-y-1.5 active:scale-[0.98]`}
                                     aria-label={`מעבר אל ${dest.title}`}
                                 >
                                     <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-10 transition-opacity duration-700 flex items-center justify-center gap-6 -rotate-12 scale-150 z-0">

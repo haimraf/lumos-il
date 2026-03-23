@@ -158,14 +158,14 @@ export default function QuestsPage() {
             <ChevronRight size={20} className="group-hover:translate-x-1" /> חזרה לטירה
           </Link>
 
-          <div className="flex items-center gap-6 bg-black/40 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-full shadow-2xl">
+          <div className="flex items-center gap-3 md:gap-6 bg-black/40 backdrop-blur-xl border border-white/10 px-3 md:px-6 py-3 rounded-full shadow-2xl flex-wrap justify-center">
             <div className="flex items-center gap-2"><Coins size={18} className="text-amber-500" /><span className="text-amber-400 font-bold font-cinzel">{profile?.galleons || 0}</span></div>
             <div className="flex items-center gap-2"><Trophy size={18} className={trophyClass} /><span className={`font-bold font-cinzel ${hColor}`}>{profile?.points_contributed || 0}</span></div>
           </div>
         </div>
 
         <div className="text-center mb-20">
-          <h1 className="font-cinzel text-6xl md:text-8xl font-black text-white mb-4 drop-shadow-2xl">לוח <span className="text-amber-500 italic">המשימות</span></h1>
+          <h1 className="font-cinzel text-4xl sm:text-6xl md:text-8xl font-black text-white mb-4 drop-shadow-2xl">לוח <span className="text-amber-500 italic">המשימות</span></h1>
           <p className="font-crimson text-2xl text-white/40 italic uppercase tracking-widest">עבודה קשה היא הדרך היחידה לתהילה</p>
         </div>
 

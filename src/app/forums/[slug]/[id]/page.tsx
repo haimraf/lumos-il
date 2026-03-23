@@ -732,7 +732,7 @@ export default function ThreadViewPage() {
                                 }}
                             >
                                 {/* Sidebar */}
-                                <aside className="w-full md:w-44 shrink-0 p-4 flex flex-col items-center gap-1.5 border-l border-white/[0.04] bg-black/20">
+                                <aside className="w-full md:w-44 shrink-0 p-4 flex flex-row flex-wrap items-center gap-3 md:flex-col md:items-center md:gap-1.5 border-b md:border-b-0 md:border-l border-white/[0.04] bg-black/20">
                                     <Avatar house={post.profiles?.house} avatarUrl={post.profiles?.avatar_url} isOnline={isOnline} className="w-14 h-14 text-2xl mb-1" />
 
                                     {/* name */}

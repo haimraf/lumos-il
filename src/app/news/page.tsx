@@ -174,7 +174,7 @@ function NewsContent() {
           <div className="masthead-rule" />
           <div className="flex items-center justify-center gap-3 my-4">
             <ScrollText size={28} className="text-amber-500/70" aria-hidden="true" />
-            <h1 className="font-cinzel text-5xl md:text-7xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-amber-600">
+            <h1 className="font-cinzel text-3xl sm:text-5xl md:text-7xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-200 to-amber-600">
               הנביא היומי
             </h1>
             <ScrollText size={28} className="text-amber-500/70" aria-hidden="true" />

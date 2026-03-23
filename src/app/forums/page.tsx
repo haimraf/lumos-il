@@ -349,12 +349,15 @@ export default function ForumsPage() {
                     display: flex; align-items: center; gap: 4px;
                 }
                 .stats-bar {
-                    display: flex; gap: 24px; align-items: center;
-                    padding: 12px 20px;
+                    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+                    padding: 12px 16px;
                     background: rgba(255,255,255,0.02);
                     border: 1px solid rgba(255,255,255,0.05);
                     border-radius: 12px;
                     margin-bottom: 28px;
+                }
+                @media (min-width: 768px) {
+                    .stats-bar { gap: 24px; padding: 12px 20px; }
                 }
                 .stats-bar-item {
                     display: flex; align-items: center; gap: 8px;

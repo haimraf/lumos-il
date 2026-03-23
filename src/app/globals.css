@@ -210,6 +210,15 @@ button,
   border-radius: 10px;
 }
 
+/* Hide scrollbar — for horizontal scroll pills etc */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ═══════════════════════════════════════════
    Glass Panel
 ═══════════════════════════════════════════ */
