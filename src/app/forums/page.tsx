@@ -19,7 +19,8 @@ interface Forum {
     name: string;
     description: string;
     slug: string;
-    category_id: string | null; // <--- הוסף את השורה הזו!
+    category_id: string | null;
+    staff_only_create: boolean;
     house_restriction: string | null;
     min_year: number | null;
     thread_count?: number;
@@ -308,6 +309,20 @@ export default function ForumsPage() {
         try {
             const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
             const forum = forums.find(f => f.id === selectedForumId);
+
+            // בדיקת אבטחה: האם זה פורום לצוות בלבד והמשתמש אינו מנהל?
+            if (forum?.staff_only_create && !canModerate) {
+                setIsSubmitting(false);
+                alert("עצרו! פורום זה מיועד להודעות רשמיות של משרד הקסמים בלבד. רק חברי צוות הנהלת הטירה יכולים לפתוח כאן דיונים.");
+                return;
+            }
+
+            // בדיקת הגבלת צוות
+            if (forum?.staff_only_create && !canModerate) {
+                setIsSubmitting(false);
+                alert("רק חברי צוות הנהלת הטירה יכולים לפתוח דיונים בפורום זה.");
+                return;
+            }
 
             if (!forum) {
                 setIsSubmitting(false);
@@ -843,16 +858,26 @@ export default function ForumsPage() {
                                         }}
                                     >
                                         <option value="" disabled className="bg-[#0c0f18] text-white/40">בחר פורום מתוך הרשימה...</option>
+
                                         <optgroup label="פורומים כלליים" className="bg-[#0c0f18] text-amber-500">
-                                            {publicForums.map(f => (
-                                                <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
-                                            ))}
+                                            {publicForums.map(f => {
+                                                // התיקון: שימוש בסוגריים מסולסלים + return
+                                                if (f.staff_only_create && !canModerate) return null;
+                                                return (
+                                                    <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
+                                                );
+                                            })}
                                         </optgroup>
+
                                         {(canModerate || houseForums.some(f => f.house_restriction === userHouse)) && (
                                             <optgroup label="פורומי בתים" className="bg-[#0c0f18] text-blue-400">
                                                 {houseForums.map(f => {
                                                     if (f.house_restriction !== userHouse && !canModerate) return null;
-                                                    return <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>;
+                                                    // גם כאן כדאי להוסיף הגנת סגל ליתר ביטחון
+                                                    if (f.staff_only_create && !canModerate) return null;
+                                                    return (
+                                                        <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
+                                                    );
                                                 })}
                                             </optgroup>
                                         )}
