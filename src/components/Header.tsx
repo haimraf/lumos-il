@@ -507,20 +507,7 @@ export default function Header() {
                         </Link>
                     ) : (
                         <>
-                            <button
-                                onClick={() => {
-                                    if (isMuted) triggerAudioPlay();
-                                    toggleMute();
-                                }}
-                                className="flex items-center gap-6 text-2xl font-cinzel font-black text-white/50 hover:text-amber-500 transition-all uppercase tracking-[0.1em] py-4 w-full justify-center"
-                            >
-                                {isMuted
-                                    ? <VolumeX size={20} className="text-amber-500/40" />
-                                    : <Volume2 size={20} className="text-amber-500 animate-pulse" />
-                                }
-                                {isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
-                            </button>
-                            <Link href="/dashboard?tab=settings" onClick={() => setIsOpen(false)} className="flex items-center gap-4 text-xl font-cinzel font-bold text-white/40 hover:text-white transition-all uppercase justify-center mb-6">
+                                <Link href="/dashboard?tab=settings" onClick={() => setIsOpen(false)} className="flex items-center gap-4 text-xl font-cinzel font-bold text-white/40 hover:text-white transition-all uppercase justify-center mb-6">
                                 <Settings size={18} className="text-amber-500/50" /> הגדרות חשבון
                             </Link>
 

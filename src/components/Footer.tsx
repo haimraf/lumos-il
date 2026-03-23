@@ -6,14 +6,21 @@ import { usePathname } from "next/navigation";
 import {
     Sparkles, Shield, Feather, Map,
     ScrollText, Zap, ArrowUp, Users, Library, BookOpen,
-    MessageSquare, Castle, Wand2, HelpCircle, Swords
+    MessageSquare, Castle, Wand2, HelpCircle, Swords, Volume2, VolumeX
 } from "lucide-react";
+import { useUIState } from "@/context/UIContext";
+import { triggerAudioPlay } from "@/utils/audioTrigger";
 
 export default function Footer() {
     const pathname = usePathname();
+    const { isMuted, toggleMute } = useUIState();
     if (pathname === "/") return null;
 
     const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+    const handleMusicToggle = () => {
+        if (isMuted) triggerAudioPlay();
+        toggleMute();
+    };
 
     return (
         <footer className="relative mt-32 border-t border-amber-500/20 bg-[#02040f] pt-24 pb-12 overflow-hidden" dir="rtl">
@@ -106,14 +113,30 @@ export default function Footer() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={scrollToTop}
-                        className="group flex items-center justify-center w-11 h-11 bg-white/4 border border-white/8 rounded-full hover:bg-amber-500/15 hover:border-amber-500/40 transition-all duration-300 shrink-0"
-                        title="Ascendio!"
-                        aria-label="חזרה למעלה"
-                    >
-                        <ArrowUp size={18} className="text-white/25 group-hover:text-amber-400 group-hover:-translate-y-1 transition-all duration-300" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleMusicToggle}
+                            className="group flex items-center gap-2 px-3 py-2 bg-white/4 border border-white/8 rounded-full hover:bg-amber-500/15 hover:border-amber-500/40 transition-all duration-300 shrink-0"
+                            title={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
+                            aria-label={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
+                        >
+                            {isMuted
+                                ? <VolumeX size={15} className="text-white/30 group-hover:text-amber-400 transition-colors" />
+                                : <Volume2 size={15} className="text-amber-400 animate-pulse" />
+                            }
+                            <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-white/25 group-hover:text-amber-400 transition-colors">
+                                {isMuted ? "מוזיקה" : "השתק"}
+                            </span>
+                        </button>
+                        <button
+                            onClick={scrollToTop}
+                            className="group flex items-center justify-center w-11 h-11 bg-white/4 border border-white/8 rounded-full hover:bg-amber-500/15 hover:border-amber-500/40 transition-all duration-300 shrink-0"
+                            title="Ascendio!"
+                            aria-label="חזרה למעלה"
+                        >
+                            <ArrowUp size={18} className="text-white/25 group-hover:text-amber-400 group-hover:-translate-y-1 transition-all duration-300" />
+                        </button>
+                    </div>
                 </div>
             </div>
         </footer>
