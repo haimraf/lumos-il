@@ -47,6 +47,15 @@ export default function NotificationDropdown() {
         setUnreadCount(0);
     };
 
+    const markAsRead = async (id: string) => {
+        await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+        setNotifications(prev => {
+            const updated = prev.map(n => n.id === id ? { ...n, is_read: true } : n);
+            setUnreadCount(updated.filter(n => !n.is_read).length);
+            return updated;
+        });
+    };
+
     // ✨ שימוש ב-useCallback כדי לשמור על הפונקציה יציבה
     const fetchNotifications = useCallback(async (uid: string) => {
         const { data } = await supabase
@@ -148,7 +157,7 @@ export default function NotificationDropdown() {
                                     <div key={n.id} className={`flex items-start gap-2 border-b border-white/[0.03] group ${!n.is_read ? 'bg-amber-500/[0.05]' : ''}`}>
                                         <Link
                                             href={n.target_url}
-                                            onClick={() => setIsOpen(false)}
+                                            onClick={() => { if (!n.is_read) markAsRead(n.id); setIsOpen(false); }}
                                             className="flex items-start gap-3 p-4 flex-1 min-w-0 hover:bg-white/5 transition-colors"
                                         >
                                             <div className="flex-1 min-w-0 text-right">

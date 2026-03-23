@@ -109,25 +109,30 @@ export default function MaraudersMasterMap() {
         // פוסטים אחרונים בפורום
         const { data: posts } = await supabase
             .from("forum_posts")
-            .select("id, created_at, profiles(full_name, house)")
+            .select("id, created_at, user_id, thread_id, threads(id, title), profiles(id, full_name, username, house)")
             .order("created_at", { ascending: false })
             .limit(4);
 
         posts?.forEach((p: any) => {
+            const prof = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+            const thread = Array.isArray(p.threads) ? p.threads[0] : p.threads;
             results.push({
                 id: "post_" + p.id,
                 type: "post",
                 icon: "📜",
-                text: `${p.profiles?.full_name || "קוסמ׳"} כתב׳ בפורום`,
-                house: p.profiles?.house,
+                text: `${prof?.full_name || prof?.username || "קוסמ׳"} כתב׳ בפורום`,
+                profileId: prof?.id || null,
+                house: prof?.house,
                 time: p.created_at,
+                sub: thread?.title || null,
+                threadId: thread?.id || null,
             });
         });
 
         // הצטרפויות חדשות
         const { data: newMembers } = await supabase
             .from("profiles")
-            .select("id, full_name, house, created_at")
+            .select("id, full_name, username, house, created_at")
             .not("house", "is", null)
             .not("house", "eq", "Unsorted")
             .order("created_at", { ascending: false })
@@ -136,9 +141,10 @@ export default function MaraudersMasterMap() {
         newMembers?.forEach((m: any) => {
             results.push({
                 id: "member_" + m.id,
+                profileId: m.id,
                 type: "join",
                 icon: "✨",
-                text: `${m.full_name || "קוסמ׳"} הצטרפ׳ לבית ${HOUSE_NAMES[m.house] || m.house}`,
+                text: `${m.full_name || m.username || "קוסמ׳"} הצטרפ׳ לבית ${HOUSE_NAMES[m.house] || m.house}`,
                 house: m.house,
                 time: m.created_at,
             });
@@ -152,13 +158,15 @@ export default function MaraudersMasterMap() {
             .limit(3);
 
         threads?.forEach((t: any) => {
+            const prof = Array.isArray(t.profiles) ? t.profiles[0] : t.profiles;
             results.push({
                 id: "thread_" + t.id,
                 threadId: t.id,
+                profileId: prof?.id || null,
                 type: "thread",
                 icon: "🔮",
-                text: `${t.profiles?.full_name || "קוסמ׳"} פתח׳ שרשור חדש`,
-                house: t.profiles?.house,
+                text: `${prof?.full_name || prof?.username || "קוסמ׳"} פתח׳ שרשור חדש`,
+                house: prof?.house,
                 time: t.created_at,
                 sub: t.title,
             });
@@ -577,21 +585,25 @@ export default function MaraudersMasterMap() {
                                     <div>
                                         {activity.map(item => {
                                             const color = item.house ? HOUSE_COLORS[item.house] : HOUSE_COLORS.Guest;
-                                            const threadHref = item.type === 'thread' && item.threadId
-                                                ? `/forums/thread/${item.threadId}`
-                                                : null;
+                                            const threadHref = item.threadId ? `/forums/thread/${item.threadId}` : null;
+                                            const firstName = item.text.split(" ")[0];
+                                            const restText = item.text.split(" ").slice(1).join(" ");
                                             return (
                                                 <div key={item.id} className="mm-activity">
                                                     <div className="mm-activity-icon">{item.icon}</div>
                                                     <div className="flex-1 min-w-0">
-                                                        {/* שם + פעולה — לא לחיץ */}
                                                         <div style={{ fontFamily: "'IM Fell English', serif", fontSize: "0.88rem", color: "#2c1304", lineHeight: 1.3 }}>
-                                                            <span style={{ color, fontWeight: "bold" }}>
-                                                                {item.text.split(" ")[0]}{" "}
-                                                            </span>
-                                                            {item.text.split(" ").slice(1).join(" ")}
+                                                            {item.profileId ? (
+                                                                <Link href={`/wizard/${item.profileId}`}
+                                                                    style={{ color, fontWeight: "bold", textDecoration: "none" }}
+                                                                    className="hover:underline">
+                                                                    {firstName}
+                                                                </Link>
+                                                            ) : (
+                                                                <span style={{ color, fontWeight: "bold" }}>{firstName}</span>
+                                                            )}
+                                                            {" "}{restText}
                                                         </div>
-                                                        {/* כותרת אשכול — לחיצה בלבד */}
                                                         {item.sub && (
                                                             threadHref ? (
                                                                 <Link href={threadHref}

@@ -301,7 +301,7 @@ export default function Header() {
 
                                 {/* Mute toggle */}
                                 <button
-                                    onClick={toggleMute}
+                                    onClick={() => { if (isMuted) window.dispatchEvent(new Event('lumos:play')); toggleMute(); }}
                                     title={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
                                     aria-label={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
                                     className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 bg-black/40 hover:bg-white/5 hover:border-amber-500/30 transition-all duration-200"

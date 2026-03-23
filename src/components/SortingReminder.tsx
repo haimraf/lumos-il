@@ -31,10 +31,6 @@ export default function SortingReminder() {
     const isUnsorted = !profile.house || profile.house === 'Unsorted';
     if (!isUnsorted) return null;
 
-    const registeredAt = profile.created_at ? new Date(profile.created_at) : null;
-    if (!registeredAt) return null;
-    const hoursSinceRegistration = (Date.now() - registeredAt.getTime()) / (1000 * 60 * 60);
-    if (hoursSinceRegistration < 24) return null;
 
     return (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-3 bg-amber-950/90 border border-amber-500/30 backdrop-blur-md px-5 py-3 rounded-full shadow-xl">
