@@ -132,7 +132,7 @@ export default function HouseElfHelper() {
     };
 
     return (
-        <div className="fixed bottom-24 md:bottom-6 right-6 z-[10002]" dir="rtl">
+        <div className="hidden md:block fixed bottom-6 right-6 z-[10002]" dir="rtl">
             {/* בועת דיבור - LUMOS IL FINAL FIX V2.0 */}
             {isBubbleVisible && (
                 <div
