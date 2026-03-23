@@ -85,15 +85,7 @@ function timeAgo(dateString: string) {
 }
 
 /* ─── Thread Row ─── */
-function ThreadRow({
-    thread,
-    canModerate,
-    roleColors = {},
-    isNew = false,
-    onPin,
-    onLock,
-    onDelete,
-}: {
+function ThreadRow({ thread, canModerate, roleColors, isNew, onPin, onLock, onDelete }: {
     thread: Thread;
     canModerate?: boolean;
     roleColors?: Record<string, string>;
@@ -102,6 +94,7 @@ function ThreadRow({
     onLock?: (t: Thread) => void;
     onDelete?: (t: Thread) => void;
 }) {
+    const router = useRouter();
     const houseConf = thread.profiles?.house ? HOUSE_CONFIG[thread.profiles.house] : null;
     const grp = thread.profiles?.user_groups as { name: string; color: string } | null;
     const nameColor = grp?.color || getRoleColor(thread.profiles?.role, thread.profiles?.house, roleColors);
@@ -121,8 +114,12 @@ function ThreadRow({
                 <div className="absolute right-0 top-0 bottom-0 w-[3px] bg-amber-500/60 pointer-events-none rounded-r" />
             )}
 
-            {/* main: icon + info — clickable link */}
-            <Link href={`/forums/thread/${thread.id}`} className="thread-col-main min-w-0">
+            {/* main: icon + info — clickable via div onClick to avoid nested links */}
+            <div 
+                className="thread-col-main min-w-0"
+                onClick={() => router.push(`/forums/thread/${thread.id}`)}
+                style={{ cursor: 'pointer' }}
+            >
                 <div
                     className="thread-icon"
                     style={{
@@ -146,7 +143,7 @@ function ThreadRow({
                                 style={houseConf ? { color: houseConf.color } : {}} />
                     }
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <div className="thread-title-row">
                         {prefixConf && (
                             <span
@@ -189,13 +186,16 @@ function ThreadRow({
                         <span className="sm:hidden text-white/20">· {thread.reply_count || 0} תגובות</span>
                     </div>
                 </div>
-            </Link>
+            </div>
 
             {/* replies */}
-            <Link href={`/forums/thread/${thread.id}`} className="thread-col-stat">
+            <div 
+                onClick={() => router.push(`/forums/thread/${thread.id}`)}
+                className="thread-col-stat cursor-pointer"
+            >
                 <span className="thread-stat-num">{thread.reply_count || 0}</span>
                 <span className="thread-stat-label">תגובות</span>
-            </Link>
+            </div>
 
             {/* views */}
             <div className="thread-col-views">
