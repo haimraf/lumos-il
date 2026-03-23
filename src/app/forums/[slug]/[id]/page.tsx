@@ -256,22 +256,45 @@ export default function ThreadViewPage() {
             // Select only columns that definitely exist in profiles — omit 'username' which may not exist
             const { data: postsData, error: postsError } = await supabase
                 .from('forum_posts')
-                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, user_groups(name, color)), post_reactions(spell_type, user_id, profiles(full_name, avatar_url, house, role, user_groups(name, color)))`)
+                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, user_groups(name, color)), post_reactions(spell_type, user_id)`)
                 .eq('thread_id', id)
                 .order('created_at', { ascending: true });
 
+            let finalPosts = postsData || [];
             if (postsError) {
                 console.error('[ThreadView] posts query failed:', postsError.message);
                 // Try minimal fallback select
                 const { data: fallbackPosts } = await supabase
                     .from('forum_posts')
-                    .select('*, profiles(house, full_name, avatar_url, role, user_groups(name, color)), post_reactions(spell_type, user_id, profiles(full_name, avatar_url, house, role, user_groups(name, color)))')
+                    .select('*, profiles(house, full_name, avatar_url, role, user_groups(name, color)), post_reactions(spell_type, user_id)')
                     .eq('thread_id', id)
                     .order('created_at', { ascending: true });
-                setPosts((fallbackPosts as any) || []);
-            } else {
-                setPosts((postsData as any) || []);
+                finalPosts = fallbackPosts || [];
             }
+            
+            // Manual join for post_reactions.profiles to bypass strict FK issues in Supabase
+            const reactorIds = new Set<string>();
+            finalPosts.forEach((p:any) => {
+                if (p.post_reactions) p.post_reactions.forEach((r:any) => reactorIds.add(r.user_id));
+            });
+            
+            if (reactorIds.size > 0) {
+                const { data: rpData } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, username, avatar_url, house, role, user_groups(name, color)')
+                    .in('id', Array.from(reactorIds));
+                    
+                if (rpData) {
+                    const profileMap = Object.fromEntries(rpData.map(p => [p.id, p]));
+                    finalPosts.forEach((p:any) => {
+                        if (p.post_reactions) {
+                            p.post_reactions.forEach((r:any) => { r.profiles = profileMap[r.user_id]; });
+                        }
+                    });
+                }
+            }
+
+            setPosts((finalPosts as any) || []);
         } catch (e) { console.error('[ThreadView] fetchData error:', e); }
         finally { setIsLoading(false); }
     }, [id, supabase, router]);
@@ -292,6 +315,27 @@ export default function ThreadViewPage() {
             });
         return () => { supabase.removeChannel(channel); };
     }, [id, currentUser, supabase]);
+
+    /* ── Live Thread Posts (WebSockets) ── */
+    useEffect(() => {
+        if (!id) return;
+        const postsChannel = supabase.channel(`live-posts-${id}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'forum_posts', filter: `thread_id=eq.${id}` }, (payload) => {
+                // If the insert is NOT from the current user (optimistic UI handles it immediately), fetch silently
+                if (payload.new.user_id !== currentUser?.id) {
+                    fetchData(false);
+                }
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'forum_posts', filter: `thread_id=eq.${id}` }, () => {
+                fetchData(false);
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'forum_posts', filter: `thread_id=eq.${id}` }, () => {
+                fetchData(false);
+            })
+            .subscribe();
+            
+        return () => { supabase.removeChannel(postsChannel); };
+    }, [id, currentUser, supabase, fetchData]);
 
     /* ── Cooldown ticker ── */
     useEffect(() => {
@@ -410,6 +454,8 @@ export default function ThreadViewPage() {
                     spell_type: spellType,
                     profiles: { 
                         full_name: userProfile?.full_name || 'אתה',
+                        username: userProfile?.username,
+                        avatar_url: userProfile?.avatar_url,
                         house: userProfile?.house,
                         role: userProfile?.role,
                         user_groups: userProfile?.user_groups
@@ -1021,19 +1067,23 @@ export default function ThreadViewPage() {
                                                         
                                                         {/* Hover list of reactors */}
                                                         {count > 0 && (
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/reactor:flex flex-col gap-1 p-2 rounded-xl bg-black/90 backdrop-blur-xl border border-white/10 shadow-2xl z-[100] min-w-[120px] max-w-[200px] animate-in slide-in-from-bottom-2 fade-in zoom-in-95 pointer-events-auto">
-                                                                <span className="text-[10px] text-white/40 pb-1 border-b border-white/10 mb-1 px-1 font-bold">{spell.name}:</span>
-                                                                <div className="max-h-[140px] overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1">
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/reactor:flex flex-col gap-2 p-3 rounded-2xl bg-[#070b14]/95 backdrop-blur-xl border border-white/10 shadow-[0_15px_40px_rgba(0,0,0,0.8)] z-[100] min-w-[140px] max-w-[220px] animate-in slide-in-from-bottom-2 fade-in zoom-in-95 pointer-events-auto">
+                                                                <span className="text-[10px] text-white/50 pb-1.5 border-b border-white/5 px-1 font-bold text-center tracking-widest">{spell.name}</span>
+                                                                <div className="max-h-[140px] overflow-y-auto custom-scrollbar flex flex-col gap-1.5 pr-1">
                                                                     {spellReactions.map((r: any, idx: number) => {
-                                                                        const pColor = r.profiles?.user_groups?.color || getRoleColor(r.profiles?.role, r.profiles?.house, roleColors);
+                                                                        const prof = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+                                                                        const pColor = prof?.user_groups?.color || getRoleColor(prof?.role, prof?.house, roleColors);
                                                                         return (
-                                                                            <span 
+                                                                            <div
                                                                                 key={idx} 
-                                                                                style={{ color: pColor || '#e2e8f0' }}
-                                                                                className="text-xs truncate font-cinzel font-bold px-1.5 py-0.5"
+                                                                                style={{ color: pColor || '#e2e8f0', backgroundColor: pColor ? `${pColor}15` : 'rgba(255,255,255,0.05)' }}
+                                                                                className="flex items-center gap-2 px-2 py-1.5 rounded-full shadow-inner border border-transparent hover:border-white/10 transition-colors w-full"
                                                                             >
-                                                                                {r.profiles?.full_name || 'קוסם'}
-                                                                            </span>
+                                                                                <Avatar avatarUrl={prof?.avatar_url} house={prof?.house} className="w-5 h-5 shrink-0 text-[8px]" />
+                                                                                <span className="text-xs truncate font-cinzel font-bold text-right flex-1">
+                                                                                    {prof?.full_name || prof?.username || 'קוסם'}
+                                                                                </span>
+                                                                            </div>
                                                                         );
                                                                     })}
                                                                 </div>

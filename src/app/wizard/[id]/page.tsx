@@ -443,7 +443,7 @@ export default function WizardProfilePage() {
             {/* ══ BANNER / COVER ══ */}
             <div
                 ref={bannerRef}
-                className="relative h-52 md:h-64 overflow-hidden"
+                className="relative h-40 md:h-64 overflow-hidden rounded-b-[2rem] md:rounded-b-[3rem] shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-0"
             >
                 {/* Cover image or house gradient */}
                 {coverUrl ? (
@@ -531,8 +531,15 @@ export default function WizardProfilePage() {
             {/* ══ PROFILE HEADER ══ */}
             <div className="relative max-w-5xl mx-auto px-4" style={{ zIndex: 10 }}>
 
+                {/* Magical Context Watermark */}
+                {house && (
+                    <div className="absolute top-20 left-1/2 -translate-x-1/2 text-[45vw] md:text-[25vw] opacity-[0.03] pointer-events-none select-none blur-[2px] z-[-1]">
+                        {house.emoji}
+                    </div>
+                )}
+
                 {/* Avatar row */}
-                <div className="relative -mt-14 md:-mt-16 mb-6 flex items-end justify-between" style={{ position: 'relative', zIndex: 20 }}>
+                <div className="relative -mt-12 md:-mt-16 mb-4 md:mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6" style={{ position: 'relative', zIndex: 20 }}>
                     <div className="slide-up">
                         {/* Avatar wrapper */}
                         <div className="avatar-wrapper relative cursor-pointer group"
@@ -574,8 +581,8 @@ export default function WizardProfilePage() {
                         </div>
                     </div>
 
-                    {/* Right side: stats + friend button */}
-                    <div className="flex flex-col items-end gap-3 pb-2 slide-up delay-2">
+                    {/* Right side: stats + action buttons */}
+                    <div className="flex flex-col items-start md:items-end gap-4 pb-2 slide-up delay-2 w-full md:w-auto">
                         {/* Action buttons (other users only) */}
                         {currentUser && !isOwnProfile && (
                             <div className="flex items-center gap-2">
@@ -645,10 +652,13 @@ export default function WizardProfilePage() {
                 </div>
 
                 {/* Name + badges */}
-                <div className="slide-up delay-1 mb-6">
+                <div className="slide-up delay-1 mb-8">
                     <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <h1 className="font-cinzel text-2xl md:text-3xl font-black"
-                            style={{ color: grp?.color || getRoleColor(profile.role, profile.house, roleColors) }}>
+                        <h1 className="font-cinzel text-3xl md:text-5xl font-black tracking-tight"
+                            style={{ 
+                                color: grp?.color || getRoleColor(profile.role, profile.house, roleColors),
+                                textShadow: `0 0 30px ${grp?.color || getRoleColor(profile.role, profile.house, roleColors)}40`
+                            }}>
                             {profile.full_name || "קוסם אנונימי"}
                         </h1>
                         <span style={{
@@ -759,8 +769,12 @@ export default function WizardProfilePage() {
 
                         {/* Traits */}
                         {traits && (
-                            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-4">
-                                <h3 className="font-cinzel text-xs font-black text-white/40 uppercase tracking-widest flex items-center gap-2">
+                            <div className="relative rounded-3xl border border-white/[0.08] bg-[#0a0f1a]/80 backdrop-blur-xl p-6 md:p-7 shadow-[0_20px_40px_rgba(0,0,0,0.6)] overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-amber-500/20 transition-all duration-1000" />
+                                <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/10 rounded-full blur-[40px] pointer-events-none" />
+                                
+                                <div className="relative z-10 space-y-5">
+                                    <h3 className="font-cinzel text-xs font-black text-white/50 uppercase tracking-widest flex items-center gap-2 mb-2">
                                     <Sparkles size={12} className="text-amber-500" /> תכונות קסומות
                                 </h3>
                                 {TRAITS.map(t => (
@@ -784,13 +798,15 @@ export default function WizardProfilePage() {
                                         </div>
                                     </div>
                                 ))}
+                                </div>
                             </div>
                         )}
 
                         {/* Wand */}
                         {profile.wand_type && (
-                            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                                <h3 className="font-cinzel text-xs font-black text-white/40 uppercase tracking-widest flex items-center gap-2 mb-3">
+                            <div className="relative rounded-3xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors p-6 shadow-xl overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-amber-900/10 pointer-events-none" />
+                                <h3 className="relative z-10 font-cinzel text-xs font-black text-white/50 uppercase tracking-widest flex items-center gap-2 mb-3">
                                     <Wand2 size={12} className="text-amber-500/60" /> השרביט
                                 </h3>
                                 <p className="font-crimson italic text-white/60 text-sm leading-relaxed pr-3 border-r border-amber-500/20">

@@ -41,7 +41,7 @@ export default function MagicPresence() {
         const guestId =
             localStorage.getItem("presence_id") ||
             (() => {
-                const id = "guest_" + Math.random().toString(36).slice(2);
+                const id = crypto.randomUUID();
                 localStorage.setItem("presence_id", id);
                 return id;
             })();
