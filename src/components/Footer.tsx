@@ -23,6 +23,36 @@ export default function Footer() {
     };
 
     return (
+        <>
+        {/* ── Mobile FAB (floating action bar) ── */}
+        <div className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-[490] flex items-center gap-2 px-3 py-2 rounded-full bg-[#070d1a]/90 backdrop-blur-xl border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
+            <button
+                onClick={handleMusicToggle}
+                aria-label={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all active:scale-95"
+                style={isMuted ? {} : { background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}
+            >
+                {isMuted
+                    ? <VolumeX size={16} className="text-white/40" />
+                    : <Volume2 size={16} className="text-amber-400 animate-pulse" />
+                }
+                <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-white/35">
+                    {isMuted ? "מוזיקה" : "השתק"}
+                </span>
+            </button>
+
+            <div className="w-px h-4 bg-white/10" />
+
+            <button
+                onClick={scrollToTop}
+                aria-label="חזרה למעלה"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white/35 hover:text-amber-400 transition-all active:scale-95"
+            >
+                <ArrowUp size={16} />
+                <span className="font-cinzel text-[9px] font-black uppercase tracking-widest">למעלה</span>
+            </button>
+        </div>
+
         <footer className="relative mt-32 border-t border-amber-500/20 bg-[#02040f] pt-24 pb-12 overflow-hidden" dir="rtl">
 
             {/* הילת רקע */}
@@ -113,7 +143,8 @@ export default function Footer() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {/* Desktop only — same buttons */}
+                    <div className="hidden md:flex items-center gap-2">
                         <button
                             onClick={handleMusicToggle}
                             className="group flex items-center gap-2 px-3 py-2 bg-white/4 border border-white/8 rounded-full hover:bg-amber-500/15 hover:border-amber-500/40 transition-all duration-300 shrink-0"
@@ -140,6 +171,7 @@ export default function Footer() {
                 </div>
             </div>
         </footer>
+        </>
     );
 }
 
