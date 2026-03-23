@@ -434,7 +434,6 @@ export default function WizardProfilePage() {
             <div
                 ref={bannerRef}
                 className="relative h-52 md:h-64 overflow-hidden"
-                style={{ position: 'relative', zIndex: 1 }}
             >
                 {/* Cover image or house gradient */}
                 {coverUrl ? (
@@ -520,7 +519,7 @@ export default function WizardProfilePage() {
 
 
             {/* ══ PROFILE HEADER ══ */}
-            <div className="max-w-5xl mx-auto px-4">
+            <div className="relative max-w-5xl mx-auto px-4" style={{ zIndex: 10 }}>
 
                 {/* Avatar row */}
                 <div className="relative -mt-14 md:-mt-16 mb-6 flex items-end justify-between" style={{ position: 'relative', zIndex: 20 }}>
