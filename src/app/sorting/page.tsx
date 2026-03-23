@@ -205,6 +205,7 @@ export default function SortingPage() {
   const { session, refreshProfile, isLoading: authLoading } = useAuth();
   const userId = session?.user?.id;
 
+  const [wizardName, setWizardName] = useState("");
   const [typewriterText, setTypewriterText] = useState("");
   const [typewriterIdx, setTypewriterIdx] = useState(0);
   const [isAnswering, setIsAnswering] = useState(false);
@@ -376,10 +377,37 @@ export default function SortingPage() {
           <p className="text-white/30 text-base font-crimson italic mt-4">"{secondaryHouse?.secondaryFlavor}"</p>
         </div>
 
-        <button onClick={() => router.push('/dashboard')}
-          className="group relative px-16 py-6 rounded-full bg-white text-black font-cinzel font-black text-xl hover:scale-105 transition-all shadow-2xl flex items-center gap-4">
-          לחדר המועדון <Wand2 className="group-hover:rotate-45 transition-transform" />
-        </button>
+        {/* Name input for new wizards */}
+        <div className="w-full max-w-md space-y-4">
+            <div className="text-center">
+                <p className="font-cinzel text-[10px] text-amber-500/50 uppercase tracking-[0.4em] mb-2">שלב אחרון</p>
+                <h3 className="font-cinzel text-xl text-white/80">באיזה שם יכירו אותך בטירה?</h3>
+            </div>
+            <input
+                type="text"
+                value={wizardName}
+                onChange={(e) => setWizardName(e.target.value)}
+                placeholder="הקלד/י את שמך..."
+                maxLength={30}
+                dir="rtl"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-center text-white text-lg font-cinzel outline-none focus:border-amber-500/50 transition-all placeholder:text-white/20"
+            />
+            <button
+                onClick={async () => {
+                    const name = wizardName.trim();
+                    if (!name) return;
+                    if (userId) {
+                        await supabase.from('profiles').update({ full_name: name }).eq('id', userId);
+                        refreshProfile();
+                    }
+                    router.push('/dashboard');
+                }}
+                disabled={!wizardName.trim()}
+                className="group relative w-full px-16 py-6 rounded-full bg-white text-black font-cinzel font-black text-xl hover:scale-105 transition-all shadow-2xl flex items-center justify-center gap-4 disabled:opacity-30 disabled:hover:scale-100"
+            >
+                לחדר המועדון <Wand2 className="group-hover:rotate-45 transition-transform" />
+            </button>
+        </div>
       </div>
     </main>
   );
