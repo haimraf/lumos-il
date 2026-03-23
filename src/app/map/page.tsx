@@ -58,7 +58,7 @@ export default function MaraudersMasterMap() {
         const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
         const { data } = await supabase
             .from("online_users")
-            .select("id, user_name, location_label, house")
+            .select("id, user_name, location_label, house, presence_type")
             .gte("last_seen", cutoff)
             .order("last_seen", { ascending: false });
 
@@ -81,8 +81,8 @@ export default function MaraudersMasterMap() {
         const top = Object.entries(houseCounts).sort(([, a], [, b]) => b - a)[0];
         if (top) setTopHouse(top[0]);
 
-        // Enrich members with group color
-        const members = (data || []).filter((u: any) => !String(u.id).startsWith("guest_")).slice(0, 15);
+        // Enrich members with group color (only real members)
+        const members = (data || []).filter((u: any) => u.presence_type === "member").slice(0, 15);
         const memberIds = members.map((u: any) => u.id).filter(Boolean);
         let grpMap: Record<string, { color: string | null; name: string | null }> = {};
         if (memberIds.length > 0) {
