@@ -14,7 +14,8 @@
       "Bash(find /c/projects/lumos-il.co.il/src -type f \\\\\\(-name *auth* -o -name *login* -o -name *signup* \\\\\\))",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(find src/components -name *ort* -o -name *Hat* -o -name *Sorting*)"
     ]
   }
 }
