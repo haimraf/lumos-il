@@ -1,0 +1,9 @@
+[
+  {
+    "id": "welcome-system",
+    "title": "מערכת לומוס",
+    "message": "ברוכים הבאים ללומוס! הודעות דחופות יופיעו כאן.",
+    "type": "system",
+    "isGlobal": false
+  }
+]

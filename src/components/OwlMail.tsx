@@ -5,7 +5,7 @@ import { X, AlertTriangle, Megaphone, Ghost, Trophy, Coins, Snowflake } from "lu
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
-type ToastType = "success" | "magic" | "error" | "info";
+type ToastType = "success" | "magic" | "error" | "info" | "system";
 
 interface Toast {
     id: string;
@@ -72,6 +72,35 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
         }, isGlobal ? 8000 : 5000);
     }, [playMagicSound]);
 
+    // ✅ טעינת הודעות מערכת מקובץ חיצוני
+    useEffect(() => {
+        const checkSystemMessages = async () => {
+            try {
+                const res = await fetch('/system_messages.json');
+                if (!res.ok) return;
+                const messages = await res.json();
+                
+                // נבדוק מה כבר הוצג בעבר (בסשן הנוכחי)
+                const shownIds = JSON.parse(sessionStorage.getItem('owl_shown_system_messages') || '[]');
+                
+                messages.forEach((msg: any) => {
+                    if (!shownIds.includes(msg.id)) {
+                        sendOwl(msg.title || "הודעת מערכת", msg.message, "system", msg.isGlobal);
+                        shownIds.push(msg.id);
+                    }
+                });
+                
+                sessionStorage.setItem('owl_shown_system_messages', JSON.stringify(shownIds));
+            } catch (e) {
+                console.error("Failed to load system messages:", e);
+            }
+        };
+
+        checkSystemMessages();
+        const interval = setInterval(checkSystemMessages, 60000); // בדיקה כל דקה
+        return () => clearInterval(interval);
+    }, [sendOwl]);
+
     useEffect(() => {
         if (!session?.user?.id) return;
         const userId = session.user.id;
@@ -79,6 +108,9 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
         const channel = supabase.channel(`user-notifications-owl-${userId}`)
             .on('broadcast', { event: 'ministry_announcement' }, (payload) => {
                 sendOwl(payload.payload.from || "משרד הקסמים", payload.payload.message, "magic", true);
+            })
+            .on('broadcast', { event: 'system_message' }, (payload) => {
+                sendOwl(payload.payload.title || "מערכת לומוס", payload.payload.message, "system", true);
             })
             .on('postgres_changes', {
                 event: 'UPDATE',
@@ -131,6 +163,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
                         className={`pointer-events-auto relative w-80 md:w-96 rounded-3xl p-5 shadow-2xl flex items-start gap-4 border-l-4 transition-all duration-500 animate-in slide-in-from-left-10 backdrop-blur-2xl
                             ${toast.isGlobal
                                 ? "border-amber-400 bg-[#0c1222]/95 ring-2 ring-amber-500/50"
+                                : toast.type === "system" ? "border-blue-400 bg-[#0a0f1d]/95 ring-1 ring-blue-500/20"
                                 : toast.type === "error" ? "border-red-500 bg-red-950/90"
                                     : toast.type === "success" ? "border-emerald-500 bg-emerald-950/90"
                                         : toast.type === "magic" ? "border-amber-500 bg-[#0c1222]/95"
@@ -140,6 +173,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
                         {/* ✅ אייקון קולינג רום */}
                         <div className="shrink-0 mt-1">
                             {toast.isGlobal ? <Megaphone className="text-amber-400 animate-bounce" size={24} /> :
+                                toast.type === "system" ? <div className="p-2 bg-blue-500/10 rounded-lg"><Megaphone className="text-blue-400" size={20} /></div> :
                                 toast.type === "error" && toast.title.includes("השתקה")
                                     ? <Snowflake className="text-blue-400 animate-pulse" size={24} /> :
                                     toast.type === "error" ? <AlertTriangle className="text-red-400 animate-pulse" size={24} /> :
@@ -150,7 +184,10 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
                         </div>
 
                         <div className="flex-1 space-y-1 text-right font-assistant">
-                            <h4 className={`font-cinzel font-black text-[10px] uppercase tracking-widest ${toast.type === "error" ? "text-red-300" : "text-amber-500"
+                            <h4 className={`font-cinzel font-black text-[10px] uppercase tracking-widest ${
+                                toast.type === "error" ? "text-red-300" : 
+                                toast.type === "system" ? "text-blue-300" :
+                                "text-amber-500"
                                 }`}>
                                 {toast.title}
                             </h4>

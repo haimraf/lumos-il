@@ -285,47 +285,96 @@ export default function ForumsPage() {
 
     const handleCreateGlobalThread = async (e: React.FormEvent) => {
         e.preventDefault();
+
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session || !selectedForumId) return;
+        
+        // 1. מניעת כשל שקט - אם אין סשן, נודיע לקוסם
+        if (!session) {
+            alert("עליך להיות מחובר כדי לשלוח ינשוף ולפתוח דיון.");
+            return;
+        }
+        
+        if (!selectedForumId) {
+            alert("אנא בחר פורום מהרשימה.");
+            return;
+        }
+
         setIsSubmitting(true);
 
-        const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
-        const forum = forums.find(f => f.id === selectedForumId);
-        if (!forum) { setIsSubmitting(false); return; }
-        
-        // Basic permissions
-        if (forum.house_restriction && profile?.house !== forum.house_restriction && !canModerate) {
-            setIsSubmitting(false); alert("אין לך גישה לפרסם בפורום בית זה."); return; 
+        try {
+            const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
+            const forum = forums.find(f => f.id === selectedForumId);
+            
+            if (!forum) { 
+                setIsSubmitting(false); 
+                console.error("❌ Forum not found in state:", selectedForumId);
+                return; 
+            }
+            
+            // בדיקת הרשאות לפורומים מיוחדים
+            if (forum.house_restriction && profile?.house !== forum.house_restriction && !canModerate) {
+                setIsSubmitting(false); 
+                alert("אין לך גישה לפרסם בפורום בית זה."); 
+                return; 
+            }
+            if (forum.min_year && (profile?.year || 1) < forum.min_year && !canModerate) {
+                setIsSubmitting(false); 
+                alert(`פורום זה דורש שנת לימוד ${forum.min_year} לפחות.`); 
+                return; 
+            }
+            
+            // נוודא שיש גם כותרת וגם תוכן תקין
+            if (!newThreadTitle.trim() || !newThreadContent.replace(/<[^>]*>?/gm, '').trim()) {
+                setIsSubmitting(false); 
+                alert("הודעה או כותרת ריקה אינן מורשות."); 
+                return;
+            }
+
+            const contentStr = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px; margin-left:6px; background:${PREFIX_CONFIG[newThreadPrefix].bg}; color:${PREFIX_CONFIG[newThreadPrefix].text}; border:1px solid ${PREFIX_CONFIG[newThreadPrefix].border};">${newThreadPrefix}</span> ${newThreadContent}`;
+
+            // 2. יצירת האשכול עם כל העמודות המעודכנות
+            const { data: threadData, error: threadError } = await supabase.from('threads').insert({
+                forum_id: selectedForumId,
+                title: newThreadTitle.trim(),
+                author_id: session.user.id, // <--- תוקן ל-author_id
+                last_post_at: new Date().toISOString(),
+                last_activity_at: new Date().toISOString(), // <--- הוסף למניעת שגיאות
+                prefix: newThreadPrefix, // <--- נשמר עכשיו גם ברמת הדאטה-בייס
+                is_pinned: canModerate ? newThreadPinned : false,
+                is_locked: canModerate ? newThreadLocked : false
+            }).select('id').single();
+
+            if (threadError || !threadData) { 
+                setIsSubmitting(false); 
+                console.error("❌ Supabase Thread Insert Error:", threadError);
+                alert(`שגיאה ביצירת נושא: ${threadError?.message || 'שגיאה לא ידועה בדאטה-בייס'}`); 
+                return; 
+            }
+
+            // 3. יצירת הודעת הפתיחה (הפוסט הראשון)
+            const { error: postError } = await supabase.from('forum_posts').insert({
+                thread_id: threadData.id,
+                user_id: session.user.id, // <--- נשמר user_id כי ככה זה בטבלת forum_posts
+                content: contentStr
+            });
+
+            if (postError) {
+                setIsSubmitting(false); 
+                console.error("❌ Supabase Post Insert Error:", postError);
+                alert(`הנושא נוצר, אך כתיבת ההודעה נכשלה: ${postError.message}`);
+                return;
+            }
+
+            // 4. הכל עבר בהצלחה! מעבירים את המשתמש לאשכול החדש
+            setIsSubmitting(false);
+            setIsNewThreadOpen(false);
+            window.location.href = `/forums/thread/${threadData.id}`;
+            
+        } catch (err) {
+            setIsSubmitting(false);
+            console.error("❌ Unexpected execution error:", err);
+            alert("אירעה שגיאה בלתי צפויה בשליחת הינשוף.");
         }
-        if (forum.min_year && (profile?.year || 1) < forum.min_year && !canModerate) {
-            setIsSubmitting(false); alert(`פורום זה דורש שנת לימוד ${forum.min_year} לפחות.`); return; 
-        }
-        if (!newThreadContent.replace(/<[^>]*>?/gm, '').trim()) {
-            setIsSubmitting(false); alert("הודעה ריקה אינה מורשית."); return;
-        }
-
-        const contentStr = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px; margin-left:6px; background:${PREFIX_CONFIG[newThreadPrefix].bg}; color:${PREFIX_CONFIG[newThreadPrefix].text}; border:1px solid ${PREFIX_CONFIG[newThreadPrefix].border};">${newThreadPrefix}</span> ${newThreadContent}`;
-
-        const { data, error } = await supabase.from('threads').insert({
-            forum_id: selectedForumId,
-            title: newThreadTitle,
-            user_id: session.user.id,
-            last_post_at: new Date().toISOString(),
-            is_pinned: canModerate ? newThreadPinned : false,
-            is_locked: canModerate ? newThreadLocked : false
-        }).select('id').single();
-
-        if (error || !data) { setIsSubmitting(false); alert('שגיאה ביצירת נושא'); return; }
-
-        await supabase.from('forum_posts').insert({
-            thread_id: data.id,
-            user_id: session.user.id,
-            content: contentStr
-        });
-
-        setIsSubmitting(false);
-        setIsNewThreadOpen(false);
-        window.location.href = `/forums/thread/${data.id}`;
     };
 
     useEffect(() => {
@@ -744,140 +793,148 @@ export default function ForumsPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateGlobalThread} className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
-                            {/* Forum Selection */}
-                            <div className="space-y-2.5">
-                                <label htmlFor="forum-select" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
-                                    <Home size={11} aria-hidden="true" /> בחירת פורום יעד
-                                </label>
-                                <select
-                                    id="forum-select"
-                                    required
-                                    autoFocus
-                                    value={selectedForumId}
-                                    onChange={(e) => setSelectedForumId(e.target.value)}
-                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-base font-bold text-white focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.06] transition-all cursor-pointer appearance-none hover:border-white/20 active:scale-[0.99]"
-                                    style={{ 
-                                        backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f59e0b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`, 
-                                        backgroundRepeat: 'no-repeat', 
-                                        backgroundPosition: 'left 1.25rem center', 
-                                        backgroundSize: '0.8rem auto',
-                                        boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)'
-                                    }}
-                                >
-                                    <option value="" disabled className="bg-[#0c0f18] text-white/40">בחר פורום מתוך הרשימה...</option>
-                                    <optgroup label="פורומים כלליים" className="bg-[#0c0f18] text-amber-500">
-                                        {publicForums.map(f => (
-                                            <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
-                                        ))}
-                                    </optgroup>
-                                    {(canModerate || houseForums.some(f => f.house_restriction === userHouse)) && (
-                                        <optgroup label="פורומי בתים" className="bg-[#0c0f18] text-blue-400">
-                                            {houseForums.map(f => {
-                                                if (f.house_restriction !== userHouse && !canModerate) return null;
-                                                return <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>;
-                                            })}
+                        <form onSubmit={handleCreateGlobalThread} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                                {/* Forum Selection */}
+                                <div className="space-y-2.5">
+                                    <label htmlFor="forum-select" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                                        <Home size={11} aria-hidden="true" /> בחירת פורום יעד
+                                    </label>
+                                    <select
+                                        id="forum-select"
+                                        required
+                                        autoFocus
+                                        value={selectedForumId}
+                                        onChange={(e) => setSelectedForumId(e.target.value)}
+                                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-base font-bold text-white focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.06] transition-all cursor-pointer appearance-none hover:border-white/20 active:scale-[0.99]"
+                                        style={{ 
+                                            backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f59e0b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`, 
+                                            backgroundRepeat: 'no-repeat', 
+                                            backgroundPosition: 'left 1.25rem center', 
+                                            backgroundSize: '0.8rem auto',
+                                            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)'
+                                        }}
+                                    >
+                                        <option value="" disabled className="bg-[#0c0f18] text-white/40">בחר פורום מתוך הרשימה...</option>
+                                        <optgroup label="פורומים כלליים" className="bg-[#0c0f18] text-amber-500">
+                                            {publicForums.map(f => (
+                                                <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
+                                            ))}
                                         </optgroup>
-                                    )}
-                                </select>
-                            </div>
+                                        {(canModerate || houseForums.some(f => f.house_restriction === userHouse)) && (
+                                            <optgroup label="פורומי בתים" className="bg-[#0c0f18] text-blue-400">
+                                                {houseForums.map(f => {
+                                                    if (f.house_restriction !== userHouse && !canModerate) return null;
+                                                    return <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>;
+                                                })}
+                                            </optgroup>
+                                        )}
+                                    </select>
+                                </div>
 
-                            {/* prefix */}
-                            <div className="space-y-2.5">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
-                                    <Tag size={11} /> סוג הדיון
-                                </label>
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(PREFIX_CONFIG).map(([opt, conf]) => {
-                                        const isActive = newThreadPrefix === opt;
-                                        return (
-                                            <button
-                                                key={opt} type="button"
-                                                onClick={() => setNewThreadPrefix(opt)}
-                                                className="px-4 py-2 rounded-lg text-xs font-black tracking-wide transition-all"
-                                                style={isActive
-                                                    ? { background: conf.bg, borderColor: conf.border, color: conf.text, border: `1.5px solid ${conf.border}`, boxShadow: `0 0 10px ${conf.border}`, transform: "scale(1.05)" }
-                                                    : { background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)" }
-                                                }
+                                {/* prefix */}
+                                <div className="space-y-2.5">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                                        <Tag size={11} /> סוג הדיון
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {Object.entries(PREFIX_CONFIG).map(([opt, conf]) => {
+                                            const isActive = newThreadPrefix === opt;
+                                            return (
+                                                <button
+                                                    key={opt} type="button"
+                                                    onClick={() => setNewThreadPrefix(opt)}
+                                                    className="px-4 py-2 rounded-lg text-xs font-black tracking-wide transition-all"
+                                                    style={isActive
+                                                        ? { background: conf.bg, borderColor: conf.border, color: conf.text, border: `1.5px solid ${conf.border}`, boxShadow: `0 0 10px ${conf.border}`, transform: "scale(1.05)" }
+                                                        : { background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)" }
+                                                    }
+                                                >
+                                                    {opt}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* title */}
+                                <div className="space-y-2.5">
+                                    <label htmlFor="thread-title" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">כותרת הדיון</label>
+                                    <input
+                                        id="thread-title"
+                                        required
+                                        placeholder="על מה נדבר היום?"
+                                        value={newThreadTitle}
+                                        onChange={(e) => setNewThreadTitle(e.target.value)}
+                                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-lg font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-amber-500/30 focus:bg-white/[0.06] transition-all"
+                                    />
+                                </div>
+
+                                {/* content */}
+                                <div className="space-y-2.5">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">תוכן הפירסום</label>
+                                    <div className="thread-editor rounded-xl overflow-hidden border border-white/[0.06] ql-rtl">
+                                        <ReactQuill theme="snow" value={newThreadContent} onChange={setNewThreadContent} placeholder="כתוב כאן את תוכן הדיון..." />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        {(() => {
+                                            const len = newThreadContent.replace(/<[^>]*>?/gm, '').trim().length;
+                                            return (
+                                                <span 
+                                                    className="text-[10px] font-bold"
+                                                    style={{ color: len >= 20 ? "rgba(52,211,153,0.6)" : len > 0 ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)" }}
+                                                >
+                                                    {len} / 20 תווים מינימום
+                                                    {len >= 20 && " ✓"}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+
+                                {/* Mod options */}
+                                {canModerate && (
+                                    <div className="flex items-center gap-4 pt-2 pb-1 border-t border-white/[0.05]">
+                                        <span className="text-[10px] font-cinzel text-white/20 uppercase tracking-widest">אפשרויות מנחה:</span>
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <div
+                                                onClick={() => setNewThreadPinned(p => !p)}
+                                                className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
+                                                style={{ background: newThreadPinned ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)" }}
                                             >
-                                                {opt}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
+                                                    style={{ right: newThreadPinned ? "2px" : "auto", left: newThreadPinned ? "auto" : "2px" }} />
+                                            </div>
+                                            <Pin size={12} className={newThreadPinned ? "text-amber-400" : "text-white/25"} />
+                                            <span className="font-cinzel text-[10px] text-white/30">עגן שרשור</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <div
+                                                onClick={() => setNewThreadLocked(p => !p)}
+                                                className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
+                                                style={{ background: newThreadLocked ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)" }}
+                                            >
+                                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
+                                                    style={{ right: newThreadLocked ? "2px" : "auto", left: newThreadLocked ? "auto" : "2px" }} />
+                                            </div>
+                                            <Lock size={12} className={newThreadLocked ? "text-red-400" : "text-white/25"} />
+                                            <span className="font-cinzel text-[10px] text-white/30">נעל שרשור</span>
+                                        </label>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* title */}
-                            <div className="space-y-2.5">
-                                <label htmlFor="thread-title" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">כותרת הדיון</label>
-                                <input
-                                    id="thread-title"
-                                    required
-                                    placeholder="על מה נדבר היום?"
-                                    value={newThreadTitle}
-                                    onChange={(e) => setNewThreadTitle(e.target.value)}
-                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-lg font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-amber-500/30 focus:bg-white/[0.06] transition-all"
-                                />
-                            </div>
-
-                            {/* content */}
-                            <div className="space-y-2.5">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">תוכן הפוסט</label>
-                                <div className="thread-editor rounded-xl overflow-hidden border border-white/[0.06] ql-rtl">
-                                    <ReactQuill theme="snow" value={newThreadContent} onChange={setNewThreadContent} placeholder="שתף את הקסם שלך עם הקהילה..." />
-                                </div>
-                                {(() => {
-                                    const len = newThreadContent.replace(/<[^>]*>?/gm, '').trim().length;
-                                    return (
-                                        <span className="text-[10px] font-bold" style={{ color: len >= 20 ? "rgba(52,211,153,0.6)" : len > 0 ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)" }}>
-                                            {len} / 20 תווים מינימום {len >= 20 && " ✓"}
-                                        </span>
-                                    );
-                                })()}
-                            </div>
-
-                            {/* Mod options */}
-                            {canModerate && (
-                                <div className="flex items-center gap-4 pt-2 pb-1 border-t border-white/[0.05]">
-                                    <span className="text-[10px] font-cinzel text-white/20 uppercase tracking-widest">אפשרויות מנחה:</span>
-                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                        <div
-                                            onClick={() => setNewThreadPinned(p => !p)}
-                                            className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
-                                            style={{ background: newThreadPinned ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)" }}
-                                        >
-                                            <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
-                                                style={{ right: newThreadPinned ? "2px" : "auto", left: newThreadPinned ? "auto" : "2px" }} />
-                                        </div>
-                                        <Pin size={12} className={newThreadPinned ? "text-amber-400" : "text-white/25"} />
-                                        <span className="font-cinzel text-[10px] text-white/30">עגן שרשור</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                        <div
-                                            onClick={() => setNewThreadLocked(p => !p)}
-                                            className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
-                                            style={{ background: newThreadLocked ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)" }}
-                                        >
-                                            <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
-                                                style={{ right: newThreadLocked ? "2px" : "auto", left: newThreadLocked ? "auto" : "2px" }} />
-                                        </div>
-                                        <Lock size={12} className={newThreadLocked ? "text-red-400" : "text-white/25"} />
-                                        <span className="font-cinzel text-[10px] text-white/30">נעל שרשור</span>
-                                    </label>
-                                </div>
-                            )}
-
-                            <div className="flex justify-end gap-4 pt-4 mt-2 border-t border-white/[0.05]">
+                            <div className="shrink-0 flex justify-end gap-3 px-8 py-5 border-t border-white/[0.05] bg-white/[0.02]">
                                 <button
                                     type="button"
                                     onClick={() => setIsNewThreadOpen(false)}
-                                    className="px-8 py-3 rounded-xl text-sm font-bold text-white/25 hover:text-white/60 hover:bg-white/[0.04] transition-all"
+                                    className="px-6 py-3 rounded-xl text-sm font-bold text-white/25 hover:text-white/60 hover:bg-white/[0.04] transition-all"
                                 >
                                     ביטול
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting || !selectedForumId || newThreadContent.replace(/<[^>]*>?/gm, '').trim().length < 20}
+                                    disabled={isSubmitting || !selectedForumId || !newThreadTitle.trim() || newThreadContent.replace(/<[^>]*>?/gm, '').trim().length < 20}
                                     className="flex items-center gap-2.5 px-10 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-cinzel font-black text-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-amber-900/20"
                                 >
                                     {isSubmitting ? <div className="w-4 h-4 border-t-2 border-amber-950 rounded-full animate-spin" /> : <><Sparkles size={16} /> שליחת ינשוף</>}

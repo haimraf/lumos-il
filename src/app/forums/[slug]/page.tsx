@@ -400,7 +400,16 @@ export default function ForumThreadsPage() {
         try {
             const { data: threadData, error: tError } = await supabase
                 .from('threads')
-                .insert([{ forum_id: forum.id, author_id: currentUser.id, title: newThreadTitle.trim(), prefix: newThreadPrefix, is_pinned: newThreadPinned, is_locked: newThreadLocked }])
+                .insert([{ 
+                    forum_id: forum.id, 
+                    author_id: currentUser.id, 
+                    title: newThreadTitle.trim(), 
+                    prefix: newThreadPrefix, 
+                    is_pinned: newThreadPinned, 
+                    is_locked: newThreadLocked,
+                    last_post_at: new Date().toISOString(),
+                    last_activity_at: new Date().toISOString()
+                }])
                 .select().single();
             if (tError) throw tError;
 
@@ -740,113 +749,114 @@ export default function ForumThreadsPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateThread} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
-                            {/* prefix */}
-                            <div className="space-y-2.5">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
-                                    <Tag size={11} /> סוג הדיון
-                                </label>
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(PREFIX_CONFIG).map(([opt, conf]) => {
-                                        const isActive = newThreadPrefix === opt;
+                        <form onSubmit={handleCreateThread} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-6 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+                                {/* prefix */}
+                                <div className="space-y-2.5">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                                        <Tag size={11} /> סוג הדיון
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {Object.entries(PREFIX_CONFIG).map(([opt, conf]) => {
+                                            const isActive = newThreadPrefix === opt;
+                                            return (
+                                                <button
+                                                    key={opt} type="button"
+                                                    onClick={() => setNewThreadPrefix(opt)}
+                                                    className="px-4 py-2 rounded-lg text-xs font-black tracking-wide transition-all"
+                                                    style={isActive
+                                                        ? {
+                                                            background: conf.bg,
+                                                            borderColor: conf.border,
+                                                            color: conf.text,
+                                                            border: `1.5px solid ${conf.border}`,
+                                                            boxShadow: `0 0 10px ${conf.border}`,
+                                                            transform: "scale(1.05)",
+                                                        }
+                                                        : {
+                                                            background: "rgba(255,255,255,0.05)",
+                                                            border: "1.5px solid rgba(255,255,255,0.1)",
+                                                            color: "rgba(255,255,255,0.55)",
+                                                        }
+                                                    }
+                                                >
+                                                    {opt}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* title */}
+                                <div className="space-y-2.5">
+                                    <label htmlFor="thread-title" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">כותרת הדיון</label>
+                                    <input
+                                        id="thread-title"
+                                        required
+                                        placeholder="על מה נדבר היום?"
+                                        value={newThreadTitle}
+                                        onChange={(e) => setNewThreadTitle(e.target.value)}
+                                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-lg font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-amber-500/30 focus:bg-white/[0.06] transition-all"
+                                    />
+                                </div>
+
+                                {/* content */}
+                                <div className="space-y-2.5">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">תוכן הפוסט</label>
+                                    <div className="thread-editor rounded-xl overflow-hidden border border-white/[0.06] ql-rtl">
+                                        <ReactQuill theme="snow" value={newThreadContent} onChange={setNewThreadContent} placeholder="שתף את הקסם שלך עם הקהילה..." />
+                                    </div>
+                                    {(() => {
+                                        const len = newThreadContent.replace(/<[^>]*>?/gm, '').trim().length;
                                         return (
-                                            <button
-                                                key={opt} type="button"
-                                                onClick={() => setNewThreadPrefix(opt)}
-                                                className="px-4 py-2 rounded-lg text-xs font-black tracking-wide transition-all"
-                                                style={isActive
-                                                    ? {
-                                                        background: conf.bg,
-                                                        borderColor: conf.border,
-                                                        color: conf.text,
-                                                        border: `1.5px solid ${conf.border}`,
-                                                        boxShadow: `0 0 10px ${conf.border}`,
-                                                        transform: "scale(1.05)",
-                                                    }
-                                                    : {
-                                                        background: "rgba(255,255,255,0.05)",
-                                                        border: "1.5px solid rgba(255,255,255,0.1)",
-                                                        color: "rgba(255,255,255,0.55)",
-                                                    }
-                                                }
+                                            <span
+                                                className="text-[10px] font-bold"
+                                                style={{ color: len >= 20 ? "rgba(52,211,153,0.6)" : len > 0 ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)" }}
                                             >
-                                                {opt}
-                                            </button>
+                                                {len} / 20 תווים מינימום
+                                                {len >= 20 && " ✓"}
+                                            </span>
                                         );
-                                    })}
+                                    })()}
                                 </div>
+
+                                {/* Mod options */}
+                                {canModerate && (
+                                    <div className="flex items-center gap-4 pt-2 pb-1 border-t border-white/[0.05]">
+                                        <span className="text-[10px] font-cinzel text-white/20 uppercase tracking-widest">אפשרויות מנחה:</span>
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <div
+                                                onClick={() => setNewThreadPinned(p => !p)}
+                                                className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
+                                                style={{ background: newThreadPinned ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)" }}
+                                            >
+                                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
+                                                    style={{ right: newThreadPinned ? "2px" : "auto", left: newThreadPinned ? "auto" : "2px" }} />
+                                            </div>
+                                            <Pin size={12} className={newThreadPinned ? "text-amber-400" : "text-white/25"} />
+                                            <span className="font-cinzel text-[10px] text-white/30">עגן שרשור</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <div
+                                                onClick={() => setNewThreadLocked(p => !p)}
+                                                className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
+                                                style={{ background: newThreadLocked ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)" }}
+                                            >
+                                                <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
+                                                    style={{ right: newThreadLocked ? "2px" : "auto", left: newThreadLocked ? "auto" : "2px" }} />
+                                            </div>
+                                            <Lock size={12} className={newThreadLocked ? "text-red-400" : "text-white/25"} />
+                                            <span className="font-cinzel text-[10px] text-white/30">נעל שרשור</span>
+                                        </label>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* title */}
-                            <div className="space-y-2.5">
-                                <label htmlFor="thread-title" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">כותרת הדיון</label>
-                                <input
-                                    id="thread-title"
-                                    required
-                                    autoFocus
-                                    placeholder="על מה נדבר היום?"
-                                    value={newThreadTitle}
-                                    onChange={(e) => setNewThreadTitle(e.target.value)}
-                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-lg font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-amber-500/30 focus:bg-white/[0.06] transition-all"
-                                />
-                            </div>
-
-                            {/* content */}
-                            <div className="space-y-2.5">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">תוכן הפוסט</label>
-                                <div className="thread-editor rounded-xl overflow-hidden border border-white/[0.06] ql-rtl">
-                                    <ReactQuill theme="snow" value={newThreadContent} onChange={setNewThreadContent} placeholder="שתף את הקסם שלך עם הקהילה..." />
-                                </div>
-                                {(() => {
-                                    const len = newThreadContent.replace(/<[^>]*>?/gm, '').trim().length;
-                                    return (
-                                        <span
-                                            className="text-[10px] font-bold"
-                                            style={{ color: len >= 20 ? "rgba(52,211,153,0.6)" : len > 0 ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)" }}
-                                        >
-                                            {len} / 20 תווים מינימום
-                                            {len >= 20 && " ✓"}
-                                        </span>
-                                    );
-                                })()}
-                            </div>
-
-                            {/* Mod options */}
-                            {canModerate && (
-                                <div className="flex items-center gap-4 pt-2 pb-1 border-t border-white/[0.05]">
-                                    <span className="text-[10px] font-cinzel text-white/20 uppercase tracking-widest">אפשרויות מנחה:</span>
-                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                        <div
-                                            onClick={() => setNewThreadPinned(p => !p)}
-                                            className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
-                                            style={{ background: newThreadPinned ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)" }}
-                                        >
-                                            <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
-                                                style={{ right: newThreadPinned ? "2px" : "auto", left: newThreadPinned ? "auto" : "2px" }} />
-                                        </div>
-                                        <Pin size={12} className={newThreadPinned ? "text-amber-400" : "text-white/25"} />
-                                        <span className="font-cinzel text-[10px] text-white/30">עגן שרשור</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer group">
-                                        <div
-                                            onClick={() => setNewThreadLocked(p => !p)}
-                                            className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
-                                            style={{ background: newThreadLocked ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)" }}
-                                        >
-                                            <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
-                                                style={{ right: newThreadLocked ? "2px" : "auto", left: newThreadLocked ? "auto" : "2px" }} />
-                                        </div>
-                                        <Lock size={12} className={newThreadLocked ? "text-red-400" : "text-white/25"} />
-                                        <span className="font-cinzel text-[10px] text-white/30">נעל שרשור</span>
-                                    </label>
-                                </div>
-                            )}
-
-                            <div className="flex justify-end gap-4 pt-2">
+                            <div className="shrink-0 flex justify-end gap-3 px-8 py-5 border-t border-white/[0.05] bg-white/[0.02]">
                                 <button
                                     type="button"
                                     onClick={() => setIsNewThreadOpen(false)}
-                                    className="px-8 py-3 rounded-xl text-sm font-bold text-white/25 hover:text-white/60 hover:bg-white/[0.04] transition-all"
+                                    className="px-6 py-3 rounded-xl text-sm font-bold text-white/25 hover:text-white/60 hover:bg-white/[0.04] transition-all"
                                 >
                                     ביטול
                                 </button>
@@ -862,6 +872,7 @@ export default function ForumThreadsPage() {
                                 </button>
                             </div>
                         </form>
+
                     </div>
                 </div>
             )}
