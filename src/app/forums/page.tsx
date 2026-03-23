@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
-    MessagesSquare, Lock, ChevronLeft, MessageSquare, Home, Hash, Clock, Sparkles, Users, Trophy, Flame, Skull, Bird, Leaf
+    MessagesSquare, Lock, ChevronLeft, MessageSquare, Home, Hash, Clock, Sparkles, Users, Trophy, Flame, Skull, Bird, Leaf, Plus, X, Tag, Pin
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loading: () => <div className="h-40 bg-white/[0.02] border border-white/[0.05] rounded-xl animate-pulse" /> });
+import 'react-quill-new/dist/quill.snow.css';
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
@@ -37,6 +41,13 @@ const HOUSE_THEMES: Record<string, { color: string; bg: string; icon: string; bo
     Ravenclaw:  { color: "#60a5fa", bg: "rgba(37,99,235,0.07)",  border: "rgba(37,99,235,0.25)",  icon: "🦅", glow: "rgba(37,99,235,0.4)",   nameHe: "רייבנקלו",  accent: "#2563eb" },
     Hufflepuff: { color: "#fbbf24", bg: "rgba(217,119,6,0.07)",  border: "rgba(217,119,6,0.25)",  icon: "🦡", glow: "rgba(217,119,6,0.4)",   nameHe: "הפלפאף",   accent: "#d97706" },
     Unknown:    { color: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)", icon: "🧙", glow: "rgba(255,255,255,0.1)", nameHe: "טרם סווג", accent: "#6b7280" },
+};
+
+const PREFIX_CONFIG: Record<string, { text: string; bg: string; border: string }> = {
+    "דיון": { text: "#60a5fa", bg: "rgba(37,99,235,0.1)", border: "rgba(37,99,235,0.3)" },
+    "שאלה": { text: "#f87171", bg: "rgba(220,38,38,0.1)", border: "rgba(220,38,38,0.3)" },
+    "תיאוריה": { text: "#a78bfa", bg: "rgba(139,92,246,0.1)", border: "rgba(139,92,246,0.3)" },
+    "פרסום": { text: "#34d399", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.3)" },
 };
 
 function timeAgo(dateString: string) {
@@ -80,6 +91,17 @@ export default function ForumsPage() {
     const [recentThreads, setRecentThreads] = useState<any[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const [forumStats, setForumStats] = useState<{ totalMembers: number; newestMember: any | null }>({ totalMembers: 0, newestMember: null });
+    
+    // Global Modal State
+    const [isNewThreadOpen, setIsNewThreadOpen] = useState(false);
+    const [newThreadPrefix, setNewThreadPrefix] = useState("דיון");
+    const [newThreadTitle, setNewThreadTitle] = useState("");
+    const [newThreadContent, setNewThreadContent] = useState("");
+    const [selectedForumId, setSelectedForumId] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [newThreadPinned, setNewThreadPinned] = useState(false);
+    const [newThreadLocked, setNewThreadLocked] = useState(false);
+    
     const { sendOwl } = useOwlMail();
     useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
@@ -259,6 +281,63 @@ export default function ForumsPage() {
 
     useEffect(() => { getData(); }, [getData]);
 
+    const canModerate = userRole === 'מייסד' || userRole === 'מנהל ראשי';
+
+    const handleCreateGlobalThread = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || !selectedForumId) return;
+        setIsSubmitting(true);
+
+        const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
+        const forum = forums.find(f => f.id === selectedForumId);
+        if (!forum) { setIsSubmitting(false); return; }
+        
+        // Basic permissions
+        if (forum.house_restriction && profile?.house !== forum.house_restriction && !canModerate) {
+            setIsSubmitting(false); alert("אין לך גישה לפרסם בפורום בית זה."); return; 
+        }
+        if (forum.min_year && (profile?.year || 1) < forum.min_year && !canModerate) {
+            setIsSubmitting(false); alert(`פורום זה דורש שנת לימוד ${forum.min_year} לפחות.`); return; 
+        }
+        if (!newThreadContent.replace(/<[^>]*>?/gm, '').trim()) {
+            setIsSubmitting(false); alert("הודעה ריקה אינה מורשית."); return;
+        }
+
+        const contentStr = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px; margin-left:6px; background:${PREFIX_CONFIG[newThreadPrefix].bg}; color:${PREFIX_CONFIG[newThreadPrefix].text}; border:1px solid ${PREFIX_CONFIG[newThreadPrefix].border};">${newThreadPrefix}</span> ${newThreadContent}`;
+
+        const { data, error } = await supabase.from('threads').insert({
+            forum_id: selectedForumId,
+            title: newThreadTitle,
+            user_id: session.user.id,
+            last_post_at: new Date().toISOString(),
+            is_pinned: canModerate ? newThreadPinned : false,
+            is_locked: canModerate ? newThreadLocked : false
+        }).select('id').single();
+
+        if (error || !data) { setIsSubmitting(false); alert('שגיאה ביצירת נושא'); return; }
+
+        await supabase.from('forum_posts').insert({
+            thread_id: data.id,
+            user_id: session.user.id,
+            content: contentStr
+        });
+
+        setIsSubmitting(false);
+        setIsNewThreadOpen(false);
+        window.location.href = `/forums/thread/${data.id}`;
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && isNewThreadOpen) {
+                setIsNewThreadOpen(false);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isNewThreadOpen]);
+
     if (isLoading) return (
         <div className="min-h-screen bg-[#060910] flex items-center justify-center">
             <Sparkles className="w-10 h-10 text-amber-500/40 animate-pulse" />
@@ -368,19 +447,31 @@ export default function ForumsPage() {
                     color: rgba(255,255,255,0.7);
                     font-size: 13px;
                 }
+                .ql-editor { text-align: right; direction: rtl; min-height: 200px; color: #f1f5f9; }
+                .ql-toolbar { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.1) !important; border-radius: 12px 12px 0 0; }
+                .ql-container { border-color: rgba(255,255,255,0.1) !important; border-radius: 0 0 12px 12px; }
             `}</style>
 
             <div className="forums-grid-bg min-h-screen">
                 <div className="max-w-5xl mx-auto px-4 md:px-6">
 
                     {/* breadcrumb + title */}
-                    <header className="mb-8 pt-2 space-y-3">
-                        <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
-                            <Link href="/" className="hover:text-amber-500 transition-colors flex items-center gap-1.5"><Home size={10} /> הוגוורטס</Link>
-                            <ChevronLeft size={10} />
-                            <span className="text-amber-500/60">היכל הפורומים</span>
-                        </nav>
-                        <h1 className="font-cinzel text-4xl md:text-5xl font-black text-white tracking-tighter">היכל הפורומים</h1>
+                    <header className="mb-8 pt-2 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="space-y-3">
+                            <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
+                                <Link href="/" className="hover:text-amber-500 transition-colors flex items-center gap-1.5"><Home size={10} /> הוגוורטס</Link>
+                                <ChevronLeft size={10} />
+                                <span className="text-amber-500/60">היכל הפורומים</span>
+                            </nav>
+                            <h1 className="font-cinzel text-4xl md:text-5xl font-black text-white tracking-tighter">היכל הפורומים</h1>
+                        </div>
+                        <button
+                            onClick={() => setIsNewThreadOpen(true)}
+                            className="mt-2 md:mt-0 self-start flex items-center gap-2 px-6 py-3 bg-gradient-to-l from-amber-600/30 to-amber-700/10 hover:from-amber-500/40 hover:to-amber-600/20 border border-amber-500/40 hover:border-amber-400 text-amber-500 hover:text-amber-300 rounded-xl font-cinzel font-black transition-all shadow-[0_0_25px_rgba(245,158,11,0.15)] hover:shadow-[0_0_35px_rgba(245,158,11,0.3)] active:scale-95 group"
+                        >
+                            <Plus size={18} className="transition-transform group-hover:rotate-90" />
+                            פתח דיון חדש במערכת
+                        </button>
                     </header>
 
                     {/* stats bar */}
@@ -623,9 +714,179 @@ export default function ForumsPage() {
 
                         </aside>
                     </div>
-
                 </div>
             </div>
+
+            {/* Modal: Global New Thread */}
+            {isNewThreadOpen && (
+                <div 
+                    className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300" 
+                    style={{ paddingTop: '120px' }}
+                    onClick={(e) => e.target === e.currentTarget && setIsNewThreadOpen(false)}
+                >
+                    <div 
+                        role="dialog" 
+                        aria-modal="true" 
+                        aria-labelledby="modal-title"
+                        className="bg-[#0c0f18] border border-white/[0.08] w-full rounded-2xl shadow-2xl overflow-hidden relative flex flex-col" 
+                        dir="rtl" 
+                        style={{ maxWidth: '560px', maxHeight: '90vh' }}
+                    >
+                        <div className="shrink-0 px-6 py-4 border-b border-white/[0.06] bg-white/[0.03] flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                                    <Plus size={18} aria-hidden="true" />
+                                </div>
+                                <h3 id="modal-title" className="font-cinzel font-black text-lg text-white tracking-wide">פתיחת דיון חדש במערכת</h3>
+                            </div>
+                            <button onClick={() => setIsNewThreadOpen(false)} aria-label="סגור חלונית" className="text-white/20 hover:text-white/60 transition-colors p-1.5 hover:bg-white/5 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+                                <X size={22} aria-hidden="true" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateGlobalThread} className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+                            {/* Forum Selection */}
+                            <div className="space-y-2.5">
+                                <label htmlFor="forum-select" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                                    <Home size={11} aria-hidden="true" /> בחירת פורום יעד
+                                </label>
+                                <select
+                                    id="forum-select"
+                                    required
+                                    autoFocus
+                                    value={selectedForumId}
+                                    onChange={(e) => setSelectedForumId(e.target.value)}
+                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-base font-bold text-white focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.06] transition-all cursor-pointer appearance-none hover:border-white/20 active:scale-[0.99]"
+                                    style={{ 
+                                        backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f59e0b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`, 
+                                        backgroundRepeat: 'no-repeat', 
+                                        backgroundPosition: 'left 1.25rem center', 
+                                        backgroundSize: '0.8rem auto',
+                                        boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)'
+                                    }}
+                                >
+                                    <option value="" disabled className="bg-[#0c0f18] text-white/40">בחר פורום מתוך הרשימה...</option>
+                                    <optgroup label="פורומים כלליים" className="bg-[#0c0f18] text-amber-500">
+                                        {publicForums.map(f => (
+                                            <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
+                                        ))}
+                                    </optgroup>
+                                    {(canModerate || houseForums.some(f => f.house_restriction === userHouse)) && (
+                                        <optgroup label="פורומי בתים" className="bg-[#0c0f18] text-blue-400">
+                                            {houseForums.map(f => {
+                                                if (f.house_restriction !== userHouse && !canModerate) return null;
+                                                return <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>;
+                                            })}
+                                        </optgroup>
+                                    )}
+                                </select>
+                            </div>
+
+                            {/* prefix */}
+                            <div className="space-y-2.5">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 flex items-center gap-2">
+                                    <Tag size={11} /> סוג הדיון
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(PREFIX_CONFIG).map(([opt, conf]) => {
+                                        const isActive = newThreadPrefix === opt;
+                                        return (
+                                            <button
+                                                key={opt} type="button"
+                                                onClick={() => setNewThreadPrefix(opt)}
+                                                className="px-4 py-2 rounded-lg text-xs font-black tracking-wide transition-all"
+                                                style={isActive
+                                                    ? { background: conf.bg, borderColor: conf.border, color: conf.text, border: `1.5px solid ${conf.border}`, boxShadow: `0 0 10px ${conf.border}`, transform: "scale(1.05)" }
+                                                    : { background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)" }
+                                                }
+                                            >
+                                                {opt}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* title */}
+                            <div className="space-y-2.5">
+                                <label htmlFor="thread-title" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">כותרת הדיון</label>
+                                <input
+                                    id="thread-title"
+                                    required
+                                    placeholder="על מה נדבר היום?"
+                                    value={newThreadTitle}
+                                    onChange={(e) => setNewThreadTitle(e.target.value)}
+                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-lg font-bold text-white placeholder:text-white/10 focus:outline-none focus:border-amber-500/30 focus:bg-white/[0.06] transition-all"
+                                />
+                            </div>
+
+                            {/* content */}
+                            <div className="space-y-2.5">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">תוכן הפוסט</label>
+                                <div className="thread-editor rounded-xl overflow-hidden border border-white/[0.06] ql-rtl">
+                                    <ReactQuill theme="snow" value={newThreadContent} onChange={setNewThreadContent} placeholder="שתף את הקסם שלך עם הקהילה..." />
+                                </div>
+                                {(() => {
+                                    const len = newThreadContent.replace(/<[^>]*>?/gm, '').trim().length;
+                                    return (
+                                        <span className="text-[10px] font-bold" style={{ color: len >= 20 ? "rgba(52,211,153,0.6)" : len > 0 ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)" }}>
+                                            {len} / 20 תווים מינימום {len >= 20 && " ✓"}
+                                        </span>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Mod options */}
+                            {canModerate && (
+                                <div className="flex items-center gap-4 pt-2 pb-1 border-t border-white/[0.05]">
+                                    <span className="text-[10px] font-cinzel text-white/20 uppercase tracking-widest">אפשרויות מנחה:</span>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div
+                                            onClick={() => setNewThreadPinned(p => !p)}
+                                            className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
+                                            style={{ background: newThreadPinned ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)" }}
+                                        >
+                                            <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
+                                                style={{ right: newThreadPinned ? "2px" : "auto", left: newThreadPinned ? "auto" : "2px" }} />
+                                        </div>
+                                        <Pin size={12} className={newThreadPinned ? "text-amber-400" : "text-white/25"} />
+                                        <span className="font-cinzel text-[10px] text-white/30">עגן שרשור</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div
+                                            onClick={() => setNewThreadLocked(p => !p)}
+                                            className="w-8 h-4 rounded-full relative transition-all cursor-pointer"
+                                            style={{ background: newThreadLocked ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)" }}
+                                        >
+                                            <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200"
+                                                style={{ right: newThreadLocked ? "2px" : "auto", left: newThreadLocked ? "auto" : "2px" }} />
+                                        </div>
+                                        <Lock size={12} className={newThreadLocked ? "text-red-400" : "text-white/25"} />
+                                        <span className="font-cinzel text-[10px] text-white/30">נעל שרשור</span>
+                                    </label>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-4 pt-4 mt-2 border-t border-white/[0.05]">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsNewThreadOpen(false)}
+                                    className="px-8 py-3 rounded-xl text-sm font-bold text-white/25 hover:text-white/60 hover:bg-white/[0.04] transition-all"
+                                >
+                                    ביטול
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || !selectedForumId || newThreadContent.replace(/<[^>]*>?/gm, '').trim().length < 20}
+                                    className="flex items-center gap-2.5 px-10 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-cinzel font-black text-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-amber-900/20"
+                                >
+                                    {isSubmitting ? <div className="w-4 h-4 border-t-2 border-amber-950 rounded-full animate-spin" /> : <><Sparkles size={16} /> שליחת ינשוף</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

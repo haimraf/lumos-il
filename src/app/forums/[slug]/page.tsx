@@ -414,8 +414,10 @@ export default function ForumThreadsPage() {
                 throw pError;
             }
 
-            setNewThreadTitle(""); setNewThreadContent("");
-            setNewThreadPinned(false); setNewThreadLocked(false);
+            setNewThreadTitle(""); 
+            setNewThreadContent("");
+            setNewThreadPinned(false); 
+            setNewThreadLocked(false);
             setIsNewThreadOpen(false);
             fetchThreads();
             router.push(`/forums/thread/${threadData.id}`);
@@ -424,6 +426,16 @@ export default function ForumThreadsPage() {
             sendOwl("שגיאה ביצירת דיון", "משהו השתבש, נסה שוב בעוד רגע.", "error");
         } finally { setIsSubmitting(false); }
     };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && isNewThreadOpen) {
+                setIsNewThreadOpen(false);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isNewThreadOpen]);
 
     if (isLoading) return (
         <div className="min-h-screen bg-[#060910] flex items-center justify-center">
@@ -703,17 +715,28 @@ export default function ForumThreadsPage() {
 
             {/* Modal: New Thread */}
             {isNewThreadOpen && (
-                <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300" style={{ paddingTop: '120px' }}>
-                    <div className="bg-[#0c0f18] border border-white/[0.08] w-full rounded-2xl shadow-2xl overflow-hidden relative flex flex-col" dir="rtl" style={{ maxWidth: '520px', maxHeight: '90vh' }}>
-                        <div className="px-6 py-4 border-b border-white/[0.06] bg-white/[0.03] flex items-center justify-between">
+                <div 
+                    className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300" 
+                    style={{ paddingTop: '120px' }}
+                    onClick={(e) => e.target === e.currentTarget && setIsNewThreadOpen(false)}
+                >
+                    <div 
+                        role="dialog" 
+                        aria-modal="true" 
+                        aria-labelledby="modal-title"
+                        className="bg-[#0c0f18] border border-white/[0.08] w-full rounded-2xl shadow-2xl overflow-hidden relative flex flex-col" 
+                        dir="rtl" 
+                        style={{ maxWidth: '520px', maxHeight: '90vh' }}
+                    >
+                        <div className="shrink-0 px-6 py-4 border-b border-white/[0.06] bg-white/[0.03] flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500 border border-amber-500/20">
-                                    <Plus size={18} />
+                                    <Plus size={18} aria-hidden="true" />
                                 </div>
-                                <h3 className="font-cinzel font-black text-lg text-white tracking-wide">פתיחת דיון חדש</h3>
+                                <h3 id="modal-title" className="font-cinzel font-black text-lg text-white tracking-wide">פתיחת דיון חדש</h3>
                             </div>
-                            <button onClick={() => setIsNewThreadOpen(false)} className="text-white/20 hover:text-white/60 transition-colors p-1.5 hover:bg-white/5 rounded-lg">
-                                <X size={22} />
+                            <button onClick={() => setIsNewThreadOpen(false)} aria-label="סגור חלונית" className="text-white/20 hover:text-white/60 transition-colors p-1.5 hover:bg-white/5 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+                                <X size={22} aria-hidden="true" />
                             </button>
                         </div>
 
@@ -756,9 +779,11 @@ export default function ForumThreadsPage() {
 
                             {/* title */}
                             <div className="space-y-2.5">
-                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">כותרת הדיון</label>
+                                <label htmlFor="thread-title" className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">כותרת הדיון</label>
                                 <input
+                                    id="thread-title"
                                     required
+                                    autoFocus
                                     placeholder="על מה נדבר היום?"
                                     value={newThreadTitle}
                                     onChange={(e) => setNewThreadTitle(e.target.value)}
@@ -769,7 +794,7 @@ export default function ForumThreadsPage() {
                             {/* content */}
                             <div className="space-y-2.5">
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">תוכן הפוסט</label>
-                                <div className="thread-editor rounded-xl overflow-hidden border border-white/[0.06]">
+                                <div className="thread-editor rounded-xl overflow-hidden border border-white/[0.06] ql-rtl">
                                     <ReactQuill theme="snow" value={newThreadContent} onChange={setNewThreadContent} placeholder="שתף את הקסם שלך עם הקהילה..." />
                                 </div>
                                 {(() => {

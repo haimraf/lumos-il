@@ -100,7 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
                 <MagicTicker />
 
-                <main id="main-content" className="flex-1 relative z-10 w-full flex flex-col pt-16 md:pt-20">
+                <main id="main-content" className="flex-1 w-full flex flex-col pt-16 md:pt-20">
                   {children}
                 </main>
 

@@ -28,8 +28,7 @@ const HOUSE_COLORS: Record<string, string> = {
 };
 
 const ZONES = [
-    { key: "באולם הגדול", icon: "🏰", label: "האולם הגדול", path: "/great-hall" },
-    { key: "בפורומים", icon: "📜", label: "פורום הקסמים", path: "/forums" },
+    { key: "ברחבת הכניסה", icon: "🏰", label: "רחבת הכניסה", path: "/home" },
     { key: "בסמטת דיאגון", icon: "🛍️", label: "סמטת דיאגון", path: "/shop" },
     { key: "בנביא היומי", icon: "📰", label: "הנביא היומי", path: "/news" },
     { key: "בחדר המועדון", icon: "⚗️", label: "חדר המועדון", path: "/dashboard" },
@@ -509,89 +508,89 @@ export default function MaraudersMasterMap() {
                         {/* ── Left column: Zones + Who's Online ── */}
                         <div className="flex flex-col gap-6">
 
-                        {/* ── Zones ── */}
-                        <div className="mm-parchment p-6">
-                            <div className="relative z-10">
-                                <div className="mm-section-title flex items-center gap-2">
-                                    <Footprints size={12} /> אזורי הטירה
-                                </div>
-                                <div className="space-y-2.5">
-                                    {ZONES.map(zone => {
-                                        const count = zones[zone.key] || 0;
-                                        const isMapZone = zone.key === "במפת הקונדסאים";
-                                        const displayCount = isMapZone ? totalOnline : count;
-                                        return (
-                                            <Link key={zone.key} href={zone.path}
-                                                className="mm-zone block hover:scale-[1.01] transition-transform">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div className="flex items-center gap-3 min-w-0">
-                                                        <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{zone.icon}</span>
-                                                        <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.8rem", fontWeight: 600, color: "#2c1304" }}>
-                                                            {zone.label}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                        {displayCount > 0 && (
-                                                            <div className="mm-dot w-2 h-2 rounded-full"
-                                                                style={{ background: "#7a1a0a" }} />
-                                                        )}
-                                                        <div className={`mm-zone-count ${displayCount > 0 ? "active" : ""}`}>
-                                                            {displayCount > 0 ? displayCount : "—"}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </Link>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── Who's Online ── */}
-                        <div className="mm-parchment p-6" style={{ flex: 1 }}>
-                            <div className="relative z-10">
-                                <div className="mm-section-title flex items-center gap-2">
-                                    <span>✦</span> מחוברים עכשיו
-                                    <span className="mr-auto font-cinzel text-xs" style={{ color: "#7a5a18" }}>{totalOnline} סה"כ</span>
-                                </div>
-                                {onlineNamedUsers.length === 0 ? (
-                                    <div style={{ textAlign: "center", padding: "12px 0", fontStyle: "italic", color: "#7a5a18", opacity: 0.6, fontFamily: "'IM Fell English', serif", fontSize: "0.85rem" }}>
-                                        הטירה שקטה...
+                            {/* ── Zones ── */}
+                            <div className="mm-parchment p-6">
+                                <div className="relative z-10">
+                                    <div className="mm-section-title flex items-center gap-2">
+                                        <Footprints size={12} /> אזורי הטירה
                                     </div>
-                                ) : (
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
-                                        {onlineNamedUsers.map((u: any) => {
-                                            const color = HOUSE_COLORS[u.house] ?? HOUSE_COLORS.Guest;
-                                            const nameColor = u.group_color || color;
-                                            const houseIcon = ({ Gryffindor: "🦁", Slytherin: "🐍", Ravenclaw: "🦅", Hufflepuff: "🦡" } as Record<string,string>)[u.house] || "🧙";
+                                    <div className="space-y-2.5">
+                                        {ZONES.map(zone => {
+                                            const count = zones[zone.key] || 0;
+                                            const isMapZone = zone.key === "במפת הקונדסאים";
+                                            const displayCount = isMapZone ? totalOnline : count;
                                             return (
-                                                <Link
-                                                    key={u.id}
-                                                    href={`/wizard/${u.id}`}
-                                                    style={{
-                                                        display: "inline-flex",
-                                                        alignItems: "center",
-                                                        gap: "4px",
-                                                        padding: "3px 8px",
-                                                        borderRadius: "8px",
-                                                        fontSize: "0.72rem",
-                                                        fontFamily: "'Cinzel', serif",
-                                                        fontWeight: 700,
-                                                        color: nameColor,
-                                                        background: `${nameColor}18`,
-                                                        border: `1px solid ${nameColor}35`,
-                                                        textDecoration: "none",
-                                                    }}
-                                                >
-                                                    <span>{houseIcon}</span>
-                                                    {u.user_name}
+                                                <Link key={zone.key} href={zone.path}
+                                                    className="mm-zone block hover:scale-[1.01] transition-transform">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{zone.icon}</span>
+                                                            <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.8rem", fontWeight: 600, color: "#2c1304" }}>
+                                                                {zone.label}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            {displayCount > 0 && (
+                                                                <div className="mm-dot w-2 h-2 rounded-full"
+                                                                    style={{ background: "#7a1a0a" }} />
+                                                            )}
+                                                            <div className={`mm-zone-count ${displayCount > 0 ? "active" : ""}`}>
+                                                                {displayCount > 0 ? displayCount : "—"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </Link>
                                             );
                                         })}
                                     </div>
-                                )}
+                                </div>
                             </div>
-                        </div>
+
+                            {/* ── Who's Online ── */}
+                            <div className="mm-parchment p-6" style={{ flex: 1 }}>
+                                <div className="relative z-10">
+                                    <div className="mm-section-title flex items-center gap-2">
+                                        <span>✦</span> מחוברים עכשיו
+                                        <span className="mr-auto font-cinzel text-xs" style={{ color: "#7a5a18" }}>{totalOnline} סה"כ</span>
+                                    </div>
+                                    {onlineNamedUsers.length === 0 ? (
+                                        <div style={{ textAlign: "center", padding: "12px 0", fontStyle: "italic", color: "#7a5a18", opacity: 0.6, fontFamily: "'IM Fell English', serif", fontSize: "0.85rem" }}>
+                                            הטירה שקטה...
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
+                                            {onlineNamedUsers.map((u: any) => {
+                                                const color = HOUSE_COLORS[u.house] ?? HOUSE_COLORS.Guest;
+                                                const nameColor = u.group_color || color;
+                                                const houseIcon = ({ Gryffindor: "🦁", Slytherin: "🐍", Ravenclaw: "🦅", Hufflepuff: "🦡" } as Record<string, string>)[u.house] || "🧙";
+                                                return (
+                                                    <Link
+                                                        key={u.id}
+                                                        href={`/wizard/${u.id}`}
+                                                        style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "4px",
+                                                            padding: "3px 8px",
+                                                            borderRadius: "8px",
+                                                            fontSize: "0.72rem",
+                                                            fontFamily: "'Cinzel', serif",
+                                                            fontWeight: 700,
+                                                            color: nameColor,
+                                                            background: `${nameColor}18`,
+                                                            border: `1px solid ${nameColor}35`,
+                                                            textDecoration: "none",
+                                                        }}
+                                                    >
+                                                        <span>{houseIcon}</span>
+                                                        {u.user_name}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
 
                         </div>{/* end left column */}
 

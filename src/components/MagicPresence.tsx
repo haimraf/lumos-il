@@ -50,7 +50,7 @@ export default function MagicPresence() {
         const presenceType = profile?.id ? "member" : "guest";
 
         const getLocationLabel = () => {
-            if (!pathname || pathname === "/" || pathname.includes("/home") || pathname.includes("/great-hall")) return "באולם הגדול";
+            if (!pathname || pathname === "/" || pathname.includes("/home") || pathname.includes("/great-hall")) return "ברחבת הכניסה";
             if (pathname.includes("/map")) return "במפת הקונדסאים";
             if (pathname.includes("/news")) return "בנביא היומי";
             if (pathname.includes("/profile") || pathname.includes("/dashboard")) return "בחדר המועדון";
