@@ -58,10 +58,10 @@ const HOUSE_CONFIG: Record<string, {
 };
 
 const PREFIX_CONFIG: Record<string, { bg: string; text: string; border: string }> = {
-    "דיון":    { bg: "rgba(59,130,246,0.12)",  text: "#60a5fa", border: "rgba(59,130,246,0.3)"  },
-    "שאלה":   { bg: "rgba(244,63,94,0.12)",   text: "#fb7185", border: "rgba(244,63,94,0.3)"   },
-    "תיאוריה":{ bg: "rgba(139,92,246,0.12)",  text: "#a78bfa", border: "rgba(139,92,246,0.3)"  },
-    "פרסום":  { bg: "rgba(16,185,129,0.12)",  text: "#34d399", border: "rgba(16,185,129,0.3)"  },
+    "דיון": { bg: "rgba(59,130,246,0.12)", text: "#60a5fa", border: "rgba(59,130,246,0.3)" },
+    "שאלה": { bg: "rgba(244,63,94,0.12)", text: "#fb7185", border: "rgba(244,63,94,0.3)" },
+    "תיאוריה": { bg: "rgba(139,92,246,0.12)", text: "#a78bfa", border: "rgba(139,92,246,0.3)" },
+    "פרסום": { bg: "rgba(16,185,129,0.12)", text: "#34d399", border: "rgba(16,185,129,0.3)" },
 };
 
 const SPELLS = [
@@ -197,28 +197,39 @@ export default function ThreadViewPage() {
     const pendingQuotes = useRef<string[]>([]);
     const pendingMentions = useRef<string[]>([]);
 
+    // ✅ רשימת הדרגות שמקבלות גישות ניהול בעמוד האשכול
+    const STAFF_ROLES = ['מייסד', 'ראש הוגוורטס', 'שומר הטירה', 'פרופסור', 'צוות Lumos', 'מנהל', 'מנחה'];
+
     /* ── Auth init — רץ ראשון, מפריד מ-fetchData ── */
     useEffect(() => {
         const initAuth = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setCurrentUser(session.user);
-                const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+                // שליפת user_groups
+                const { data: profile } = await supabase.from('profiles').select('*, user_groups(name)').eq('id', session.user.id).single();
                 setUserProfile(profile);
-                setUserRole(profile?.role || null);
+
+                const groupData = profile?.user_groups;
+                const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
+                setUserRole(roleName || null);
+
                 const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", session.user.id);
                 if (blocks) setBlockedUserIds(blocks.map((b: any) => b.blocked_id));
             }
         };
         initAuth();
 
-        // גם מאזין לשינויים (incognito, token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
                 setCurrentUser(session.user);
-                const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+                const { data: profile } = await supabase.from('profiles').select('*, user_groups(name)').eq('id', session.user.id).single();
                 setUserProfile(profile);
-                setUserRole(profile?.role || null);
+
+                const groupData = profile?.user_groups;
+                const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
+                setUserRole(roleName || null);
+
                 const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", session.user.id);
                 if (blocks) setBlockedUserIds(blocks.map((b: any) => b.blocked_id));
             } else {
@@ -242,7 +253,7 @@ export default function ThreadViewPage() {
             setThread(threadData);
 
             // Increment views bypassing RLS using an RPC function
-            supabase.rpc('increment_thread_views', { thread_id: id }).then(() => {});
+            supabase.rpc('increment_thread_views', { thread_id: id }).then(() => { });
 
             // Mark as read in localStorage
             if (typeof window !== 'undefined') {
@@ -271,24 +282,24 @@ export default function ThreadViewPage() {
                     .order('created_at', { ascending: true });
                 finalPosts = fallbackPosts || [];
             }
-            
+
             // Manual join for post_reactions.profiles to bypass strict FK issues in Supabase
             const reactorIds = new Set<string>();
-            finalPosts.forEach((p:any) => {
-                if (p.post_reactions) p.post_reactions.forEach((r:any) => reactorIds.add(r.user_id));
+            finalPosts.forEach((p: any) => {
+                if (p.post_reactions) p.post_reactions.forEach((r: any) => reactorIds.add(r.user_id));
             });
-            
+
             if (reactorIds.size > 0) {
                 const { data: rpData } = await supabase
                     .from('profiles')
                     .select('id, full_name, username, avatar_url, house, role, user_groups(name, color)')
                     .in('id', Array.from(reactorIds));
-                    
+
                 if (rpData) {
                     const profileMap = Object.fromEntries(rpData.map(p => [p.id, p]));
-                    finalPosts.forEach((p:any) => {
+                    finalPosts.forEach((p: any) => {
                         if (p.post_reactions) {
-                            p.post_reactions.forEach((r:any) => { r.profiles = profileMap[r.user_id]; });
+                            p.post_reactions.forEach((r: any) => { r.profiles = profileMap[r.user_id]; });
                         }
                     });
                 }
@@ -333,7 +344,7 @@ export default function ThreadViewPage() {
                 fetchData(false);
             })
             .subscribe();
-            
+
         return () => { supabase.removeChannel(postsChannel); };
     }, [id, currentUser, supabase, fetchData]);
 
@@ -449,10 +460,10 @@ export default function ThreadViewPage() {
             if (p.id !== postId) return p;
             let newReactions = (p.post_reactions || []).filter((r: any) => r.user_id !== currentUser.id);
             if (!isRemoving) {
-                newReactions.push({ 
-                    user_id: currentUser.id, 
+                newReactions.push({
+                    user_id: currentUser.id,
                     spell_type: spellType,
-                    profiles: { 
+                    profiles: {
                         full_name: userProfile?.full_name || 'אתה',
                         username: userProfile?.username,
                         avatar_url: userProfile?.avatar_url,
@@ -469,7 +480,7 @@ export default function ThreadViewPage() {
             await supabase.from('post_reactions').delete().eq('post_id', postId).eq('user_id', currentUser.id);
             if (!isRemoving) {
                 await supabase.from('post_reactions').insert({ post_id: postId, user_id: currentUser.id, spell_type: spellType });
-                
+
                 // התראה לבעל ההודעה אלא אם זה הוא עצמו
                 if (post.user_id !== currentUser.id) {
                     const spellObj = SPELLS.find(s => s.type === spellType);
@@ -510,7 +521,7 @@ export default function ThreadViewPage() {
 
         // Cooldown check
         const lastPost = posts[posts.length - 1];
-        if (lastPost?.user_id === currentUser.id && userRole !== 'מנהל') {
+        if (lastPost?.user_id === currentUser.id && !STAFF_ROLES.includes(userRole || '')) {
             const elapsed = Date.now() - new Date(lastPost.created_at).getTime();
             if (elapsed < COOLDOWN_MS) {
                 const remaining = COOLDOWN_MS - elapsed;
@@ -541,7 +552,7 @@ export default function ThreadViewPage() {
                     const name = p?.profiles?.full_name || p?.profiles?.username;
                     return name && (stripped.includes(`@${name}`) || stripped.includes(name));
                 });
-                
+
                 const activeQuotes = pendingQuotes.current.filter(uid => {
                     const p = posts.find(x => x.user_id === uid);
                     const name = p?.profiles?.full_name || p?.profiles?.username;
@@ -804,7 +815,7 @@ export default function ThreadViewPage() {
                         </span>
 
                         {/* ── Mod controls ── */}
-                        {(userRole === 'מנהל' || userRole === 'מנחה') && thread && (
+                        {STAFF_ROLES.includes(userRole || '') && thread && (
                             <div className="flex items-center gap-1.5 mr-auto">
                                 <button
                                     onClick={async () => {
@@ -854,13 +865,13 @@ export default function ThreadViewPage() {
                             {isPensieve && (
                                 <div className="flex flex-col items-center justify-center p-8 mb-6 rounded-3xl border border-blue-500/30 bg-blue-500/10 relative overflow-hidden backdrop-blur-md shadow-[0_0_50px_rgba(59,130,246,0.15)]">
                                     <div className="absolute inset-0 bg-blue-400/5 blur-3xl animate-[pulse_4s_ease-in-out_infinite]" />
-                                    
+
                                     <h3 className="font-cinzel text-xl md:text-2xl text-blue-300 mx-auto tracking-widest uppercase font-black mb-3 relative z-10 drop-shadow-[0_0_10px_rgba(147,197,253,0.8)]">
                                         ✨ זיכרון מהגיגית ✨
                                     </h3>
                                     <p className="font-crimson text-blue-200/80 text-center max-w-lg text-base md:text-lg relative z-10 leading-relaxed italic">
-                                        אשכול זה ישן ונחתם לנצח כזיכרון בתוך הגיגית של הוגוורטס. 
-                                        <br/> הטקסטים כאן צפים בזמן, לא ניתן להגיב עליהם, אך ניתן לעיין בהם בשקט.
+                                        אשכול זה ישן ונחתם לנצח כזיכרון בתוך הגיגית של הוגוורטס.
+                                        <br /> הטקסטים כאן צפים בזמן, לא ניתן להגיב עליהם, אך ניתן לעיין בהם בשקט.
                                     </p>
                                 </div>
                             )}
@@ -1052,19 +1063,19 @@ export default function ThreadViewPage() {
                                                 const spellReactions = (post.post_reactions || []).filter((r: any) => r.spell_type === spell.type);
                                                 const count = spellReactions.length;
                                                 const hasCast = spellReactions.some((r: any) => r.user_id === currentUser?.id);
-                                                
+
                                                 if (count === 0 && !hasCast) return null;
 
                                                 return (
                                                     <div key={spell.type} className="relative group/reactor">
-                                                        <button 
+                                                        <button
                                                             type="button"
                                                             onClick={(e) => { e.preventDefault(); handleCastSpell(post.id, spell.type); }}
                                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all border ${hasCast ? `bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]` : 'bg-white/[0.02] border-white/[0.05] text-white/40 hover:bg-white/[0.08]'}`}
                                                         >
                                                             <span className="text-sm">{spell.icon}</span> <span>{count}</span>
                                                         </button>
-                                                        
+
                                                         {/* Hover list of reactors */}
                                                         {count > 0 && (
                                                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/reactor:flex flex-col gap-2 p-3 rounded-2xl bg-[#070b14]/95 backdrop-blur-xl border border-white/10 shadow-[0_15px_40px_rgba(0,0,0,0.8)] z-[100] min-w-[140px] max-w-[220px] animate-in slide-in-from-bottom-2 fade-in zoom-in-95 pointer-events-auto">
@@ -1075,7 +1086,7 @@ export default function ThreadViewPage() {
                                                                         const pColor = prof?.user_groups?.color || getRoleColor(prof?.role, prof?.house, roleColors);
                                                                         return (
                                                                             <div
-                                                                                key={idx} 
+                                                                                key={idx}
                                                                                 style={{ color: pColor || '#e2e8f0', backgroundColor: pColor ? `${pColor}15` : 'rgba(255,255,255,0.05)' }}
                                                                                 className="flex items-center gap-2 px-2 py-1.5 rounded-full shadow-inner border border-transparent hover:border-white/10 transition-colors w-full"
                                                                             >
@@ -1092,7 +1103,7 @@ export default function ThreadViewPage() {
                                                     </div>
                                                 )
                                             })}
-                                            
+
                                             {currentUser && !isPensieveMode && (
                                                 <div className="relative group/spells ml-2 pb-1">
                                                     <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-white/[0.03] border border-white/[0.06] text-white/50 hover:bg-white/[0.1] hover:text-white/90 hover:border-white/20 transition-all shadow-sm">
@@ -1198,8 +1209,8 @@ export default function ThreadViewPage() {
                                     key={r}
                                     onClick={() => setReportReason(r)}
                                     className={`w-full text-right px-4 py-3 rounded-xl border text-sm transition-all ${reportReason === r
-                                            ? 'bg-red-900/40 border-red-600/60 text-red-200'
-                                            : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
+                                        ? 'bg-red-900/40 border-red-600/60 text-red-200'
+                                        : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
                                         }`}
                                 >
                                     {r}

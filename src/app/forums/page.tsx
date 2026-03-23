@@ -169,9 +169,19 @@ export default function ForumsPage() {
             const { data: { session } } = await supabase.auth.getSession();
 
             if (session?.user) {
-                const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
+                // הוספנו את user_groups(name) לשליפה
+                const { data: profile } = await supabase.from('profiles')
+                    .select('house, role, year, user_groups(name)')
+                    .eq('id', session.user.id)
+                    .single();
+
                 setUserHouse(profile?.house || null);
-                setUserRole(profile?.role || null);
+
+                // חילוץ שם הדרגה מתוך הטבלה המקושרת (או נפילה אחורה ל-role הרגיל)
+                const groupData = profile?.user_groups;
+                const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
+
+                setUserRole(roleName || null);
                 setUserYear(profile?.year || 1);
             } else {
                 setUserYear(0);
@@ -226,13 +236,21 @@ export default function ForumsPage() {
                     const lastEntry = forumLastPostMap[f.id];
                     const lastPost = lastEntry?.post;
                     const lastThread = lastEntry?.thread;
-                    const lastPosterProfile = lastPost ? (Array.isArray(lastPost.profiles) ? lastPost.profiles[0] : lastPost.profiles) : null;
+                    const lastPosterProfileRaw = lastPost ? (Array.isArray(lastPost.profiles) ? lastPost.profiles[0] : lastPost.profiles) : null;
+                    const lastPosterProfile = lastPosterProfileRaw ? {
+                        ...lastPosterProfileRaw,
+                        user_groups: Array.isArray(lastPosterProfileRaw.user_groups) ? lastPosterProfileRaw.user_groups[0] : lastPosterProfileRaw.user_groups
+                    } : null;
 
                     const sortedThreads = [...(f.threads || [])].sort((a: any, b: any) =>
                         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                     );
                     const fallbackThread = sortedThreads[0];
-                    const fallbackProfile = fallbackThread ? (Array.isArray(fallbackThread.profiles) ? fallbackThread.profiles[0] : fallbackThread.profiles) : null;
+                    const fallbackProfileRaw = fallbackThread ? (Array.isArray(fallbackThread.profiles) ? fallbackThread.profiles[0] : fallbackThread.profiles) : null;
+                    const fallbackProfile = fallbackProfileRaw ? {
+                        ...fallbackProfileRaw,
+                        user_groups: Array.isArray(fallbackProfileRaw.user_groups) ? fallbackProfileRaw.user_groups[0] : fallbackProfileRaw.user_groups
+                    } : null;
 
                     const displayThread = lastThread || fallbackThread;
                     const displayAt = lastPost?.created_at || fallbackThread?.created_at;
@@ -251,7 +269,7 @@ export default function ForumsPage() {
                             author_house: displayProfile?.house || "Unknown",
                             author_role: displayProfile?.role || null,
                             author_id: displayUserId,
-                            author_group_color: displayProfile?.user_groups?.color || null,
+                            author_group_color: (displayProfile?.user_groups as any)?.color || null,
                         } : null
                     };
                 });
@@ -286,7 +304,9 @@ export default function ForumsPage() {
 
     useEffect(() => { getData(); }, [getData]);
 
-    const canModerate = userRole === 'מייסד' || userRole === 'מנהל ראשי';
+    // רשימת הדרגות מהטבלה שלך
+    const STAFF_ROLES = ['מייסד', 'ראש הוגוורטס', 'שומר הטירה', 'פרופסור', 'צוות Lumos'];
+    const canModerate = userRole ? STAFF_ROLES.includes(userRole) : false;
 
     const handleCreateGlobalThread = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -307,16 +327,23 @@ export default function ForumsPage() {
         setIsSubmitting(true);
 
         try {
-            const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
+            const { data: profile } = await supabase.from('profiles')
+                .select('house, role, year, user_groups(name)')
+                .eq('id', session.user.id)
+                .single();
+
             const forum = forums.find(f => f.id === selectedForumId);
 
-            // בדיקת אבטחה: האם זה פורום לצוות בלבד והמשתמש אינו מנהל?
-            if (forum?.staff_only_create && !canModerate) {
+            // בדיקה עדכנית לדרגה מתוך הדאטה-בייס כדי למנוע מעקפים
+            const groupData = profile?.user_groups;
+            const fetchedRoleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
+            const isServerMod = fetchedRoleName ? STAFF_ROLES.includes(fetchedRoleName) : false;
+
+            if (forum?.staff_only_create && !isServerMod) {
                 setIsSubmitting(false);
                 alert("עצרו! פורום זה מיועד להודעות רשמיות של משרד הקסמים בלבד. רק חברי צוות הנהלת הטירה יכולים לפתוח כאן דיונים.");
                 return;
             }
-
             // בדיקת הגבלת צוות
             if (forum?.staff_only_create && !canModerate) {
                 setIsSubmitting(false);
@@ -581,6 +608,7 @@ export default function ForumsPage() {
                                                 userRole={userRole}
                                                 userHouse={userHouse}
                                                 roleColors={roleColors}
+                                                canModerate={canModerate}
                                             />
                                         );
                                     })}
@@ -595,6 +623,7 @@ export default function ForumsPage() {
                                             userRole={userRole}
                                             userHouse={userHouse}
                                             roleColors={roleColors}
+                                            canModerate={canModerate}
                                         />
                                     )}
                                 </>
@@ -811,8 +840,7 @@ export default function ForumsPage() {
             {/* Modal: Global New Thread */}
             {isNewThreadOpen && (
                 <div
-                    className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300"
-                    style={{ paddingTop: '120px' }}
+                    className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300"
                     onClick={(e) => e.target === e.currentTarget && setIsNewThreadOpen(false)}
                 >
                     <div
@@ -861,22 +889,53 @@ export default function ForumsPage() {
 
                                         <optgroup label="פורומים כלליים" className="bg-[#0c0f18] text-amber-500">
                                             {publicForums.map(f => {
-                                                // התיקון: שימוש בסוגריים מסולסלים + return
+                                                // מסתירים לגמרי פורומים של צוות
                                                 if (f.staff_only_create && !canModerate) return null;
+
+                                                // בודקים אם חסרה שנת לימוד
+                                                const isYearLocked = !!(f.min_year && userYear < f.min_year && !canModerate);
+
                                                 return (
-                                                    <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
+                                                    <option
+                                                        key={f.id}
+                                                        value={f.id}
+                                                        disabled={isYearLocked}
+                                                        className="bg-[#0c0f18]"
+                                                        style={{ color: isYearLocked ? "rgba(255,255,255,0.3)" : "white" }}
+                                                    >
+                                                        💬 {f.name} {isYearLocked ? `(דרושה שנה ${f.min_year})` : ''}
+                                                    </option>
                                                 );
                                             })}
                                         </optgroup>
 
                                         {(canModerate || houseForums.some(f => f.house_restriction === userHouse)) && (
-                                            <optgroup label="פורומי בתים" className="bg-[#0c0f18] text-blue-400">
+                                            <optgroup label="מועדוני הבתים" className="bg-[#0c0f18] text-white/40">
                                                 {houseForums.map(f => {
+                                                    // מסתירים לגמרי פורומים של בתים אחרים או צוות
                                                     if (f.house_restriction !== userHouse && !canModerate) return null;
-                                                    // גם כאן כדאי להוסיף הגנת סגל ליתר ביטחון
                                                     if (f.staff_only_create && !canModerate) return null;
+
+                                                    // בודקים אם חסרה שנת לימוד גם בפורומי הבתים
+                                                    const isYearLocked = !!(f.min_year && userYear < f.min_year && !canModerate);
+
+                                                    // משיכת עיצוב הבית (צבע ואימוג'י)
+                                                    const houseTheme = f.house_restriction ? HOUSE_THEMES[f.house_restriction] : null;
+
                                                     return (
-                                                        <option key={f.id} value={f.id} className="text-white bg-[#0c0f18]">↳ {f.name}</option>
+                                                        <option
+                                                            key={f.id}
+                                                            value={f.id}
+                                                            disabled={isYearLocked}
+                                                            className="bg-[#0c0f18]"
+                                                            style={{
+                                                                color: isYearLocked
+                                                                    ? "rgba(255,255,255,0.3)"
+                                                                    : (houseTheme ? houseTheme.color : "white")
+                                                            }}
+                                                        >
+                                                            {houseTheme?.icon || "🏰"} {f.name} {isYearLocked ? `(דרושה שנה ${f.min_year})` : ''}
+                                                        </option>
                                                     );
                                                 })}
                                             </optgroup>
@@ -976,18 +1035,18 @@ export default function ForumsPage() {
                                 )}
                             </div>
 
-                            <div className="shrink-0 flex justify-end gap-3 px-8 py-5 border-t border-white/[0.05] bg-white/[0.02]">
+                            <div className="shrink-0 flex justify-end gap-3 px-8 py-4 border-t border-white/[0.05] bg-white/[0.02]">
                                 <button
                                     type="button"
                                     onClick={() => setIsNewThreadOpen(false)}
-                                    className="px-6 py-3 rounded-xl text-sm font-bold text-white/25 hover:text-white/60 hover:bg-white/[0.04] transition-all"
+                                    className="px-6 py-2.5 rounded-xl text-sm font-bold text-white/25 hover:text-white/60 hover:bg-white/[0.04] transition-all"
                                 >
                                     ביטול
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={isSubmitting || !selectedForumId || !newThreadTitle.trim() || newThreadContent.replace(/<[^>]*>?/gm, '').trim().length < 20}
-                                    className="flex items-center gap-2.5 px-10 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-cinzel font-black text-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-amber-900/20"
+                                    className="flex items-center gap-2.5 px-10 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-amber-950 font-cinzel font-black text-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-amber-900/20"
                                 >
                                     {isSubmitting ? <div className="w-4 h-4 border-t-2 border-amber-950 rounded-full animate-spin" /> : <><Sparkles size={16} /> שליחת ינשוף</>}
                                 </button>
@@ -1000,10 +1059,10 @@ export default function ForumsPage() {
     );
 }
 
-function ForumSection({ title, accentColor, forums, userYear, userRole, userHouse, roleColors }: {
+function ForumSection({ title, accentColor, forums, userYear, userRole, userHouse, roleColors, canModerate }: {
     title: string; accentColor: string;
     forums: Forum[]; userYear: number; userRole: string | null; userHouse: string | null;
-    roleColors: Record<string, string>;
+    roleColors: Record<string, string>; canModerate: boolean;
 }) {
     if (!forums.length) return null;
     return (
@@ -1033,16 +1092,19 @@ function ForumSection({ title, accentColor, forums, userYear, userRole, userHous
                     userRole={userRole}
                     userHouse={userHouse}
                     roleColors={roleColors}
+                    canModerate={canModerate} // <--- מעבירים הלאה
                 />
             ))}
         </div>
     );
 }
 
-function ForumRow({ forum, userYear, userRole, userHouse, roleColors }: any) {
+function ForumRow({ forum, userYear, userRole, userHouse, roleColors, canModerate }: any) {
     const router = useRouter();
-    const isLocked = !!(forum.house_restriction && forum.house_restriction !== userHouse && userRole !== 'מנהל') ||
-        !!(forum.min_year && userYear < forum.min_year && userRole !== 'מנהל');
+
+    // התיקון הקריטי: משתמשים ב-canModerate במקום במחרוזת 'מנהל'
+    const isLocked = !!(forum.house_restriction && forum.house_restriction !== userHouse && !canModerate) ||
+        !!(forum.min_year && userYear < forum.min_year && !canModerate);
 
     const theme = forum.house_restriction ? HOUSE_THEMES[forum.house_restriction] : null;
     const lastPosterColor = forum.last_thread?.author_group_color || getRoleColor(forum.last_thread?.author_role, forum.last_thread?.author_house, roleColors);
