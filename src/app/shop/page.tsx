@@ -171,8 +171,8 @@ function ShopContent() {
                 </div>
 
                 {/* Hero */}
-                <div className="text-center mb-20">
-                    <div className="inline-block mb-5 px-4 py-1.5 rounded-full border border-amber-500/20 bg-amber-500/5 text-amber-500/60 font-cinzel text-[10px] tracking-[0.4em] uppercase">
+                <div className="text-center mb-8 md:mb-20 mt-4 md:mt-0">
+                    <div className="inline-block mb-3 md:mb-5 px-4 py-1.5 rounded-full border border-amber-500/20 bg-amber-500/5 text-amber-500/60 font-cinzel text-[10px] tracking-[0.4em] uppercase">
                         London, Charing Cross Road
                     </div>
                     <h1 className="font-cinzel text-4xl sm:text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-500 to-amber-900 mb-5 tracking-tighter">
@@ -185,7 +185,7 @@ function ShopContent() {
                 </div>
 
                 {/* ✅ קטגוריות — עם מספר פריטים */}
-                <div className="flex overflow-x-auto gap-3 mb-14 pb-3 scrollbar-hide">
+                <div className="flex flex-wrap justify-center gap-3 mb-8 md:mb-14 pb-3 w-full">
                     {CATEGORIES.map((cat) => {
                         const Icon = cat.icon;
                         const isActive = activeCategory === cat.id;
@@ -197,8 +197,7 @@ function ShopContent() {
                             <button
                                 key={cat.id}
                                 onClick={() => setActiveCategory(cat.id)}
-                                style={{ flexShrink: 0 }}
-                                className={`flex items-center gap-2.5 px-5 py-3.5 rounded-2xl font-cinzel text-[10px] uppercase tracking-widest transition-all duration-300 border whitespace-nowrap ${isActive
+                                className={`flex items-center gap-2.5 px-4 py-2.5 md:px-5 md:py-3.5 rounded-2xl font-cinzel text-[10px] uppercase tracking-widest transition-all duration-300 border ${isActive
                                     ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
                                     : 'bg-white/4 border-white/6 text-white/35 hover:text-white/60 hover:border-white/15'
                                     }`}

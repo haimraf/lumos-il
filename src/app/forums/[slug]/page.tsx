@@ -435,7 +435,9 @@ export default function ForumThreadsPage() {
     const sortedThreads = [...threads].sort((a, b) => {
         if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
         if (sortBy === "replies") return (b.reply_count || 0) - (a.reply_count || 0);
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        const aTime = new Date(a.last_post_at || a.created_at).getTime();
+        const bTime = new Date(b.last_post_at || b.created_at).getTime();
+        return bTime - aTime;
     });
 
     return (

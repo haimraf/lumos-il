@@ -88,6 +88,38 @@ body {
   padding: 0;
   position: relative;
   overscroll-behavior-x: none;
+  /* ✨ Magic Default Cursor */
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='20' font-size='20'>✨</text></svg>") 12 12, auto;
+}
+
+/* 🪄 Magic Hover Cursor */
+a, button, [role="button"], input[type="submit"], input[type="button"], label, select {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='20' font-size='20'>🪄</text></svg>") 0 0, pointer !important;
+}
+
+/* 👁️ Accessibility: Global Focus Ring */
+*:focus-visible {
+  outline: 2px solid rgba(245, 158, 11, 0.7); /* Amber-500 */
+  outline-offset: 3px;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+/* 📜 Global Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 5px;
+  border: 2px solid #020617;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.6);
 }
 
 /* FIX: מניעת overflow בכל האלמנטים */

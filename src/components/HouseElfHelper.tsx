@@ -166,7 +166,20 @@ export default function HouseElfHelper() {
                 </div>
             )}
             {/* דמות דובי */}
-            <div className="relative w-16 h-16 md:w-28 md:h-28 cursor-pointer group" onClick={toggleBubble}>
+            <div 
+                className="relative w-16 h-16 md:w-28 md:h-28 cursor-pointer group focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-500 rounded-full" 
+                onClick={toggleBubble}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleBubble();
+                    }
+                }}
+                aria-label="עזרה מדובי גמד הבית"
+                aria-expanded={isBubbleVisible}
+            >
                 <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-1000 animate-pulse
                         ${isFree ? 'bg-green-500/50 scale-150' : 'bg-amber-500/20 group-hover:bg-amber-500/40'}`} />
 

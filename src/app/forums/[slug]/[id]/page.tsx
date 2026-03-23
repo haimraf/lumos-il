@@ -457,6 +457,34 @@ export default function ThreadViewPage() {
 
     return (
         <div className="min-h-screen bg-[#060910] text-white font-assistant" dir="rtl">
+            {/* SEO JSON-LD for DiscussionForumPosting */}
+            {thread && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{
+                        __html: JSON.stringify({
+                            "@context": "https://schema.org",
+                            "@type": "DiscussionForumPosting",
+                            "mainEntityOfPage": {
+                                "@type": "WebPage",
+                                "@id": typeof window !== 'undefined' ? window.location.href : ""
+                            },
+                            "headline": thread.title,
+                            "datePublished": thread.created_at,
+                            "author": {
+                                "@type": "Person",
+                                "name": posts[0]?.profiles?.full_name || "קוסם"
+                            },
+                            "commentCount": posts.length > 0 ? posts.length - 1 : 0,
+                            "interactionStatistic": {
+                                "@type": "InteractionCounter",
+                                "interactionType": "https://schema.org/CommentAction",
+                                "userInteractionCount": posts.length > 0 ? posts.length - 1 : 0
+                            }
+                        })
+                    }}
+                />
+            )}
             <style>{`
                 /* ── Quill editor base ── */
                 .reply-editor .ql-editor {

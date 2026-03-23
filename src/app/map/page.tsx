@@ -28,13 +28,12 @@ const HOUSE_COLORS: Record<string, string> = {
 };
 
 const ZONES = [
-    { key: "באולם הגדול", icon: "🏰", label: "האולם הגדול", path: "/home" },
+    { key: "באולם הגדול", icon: "🏰", label: "האולם הגדול", path: "/great-hall" },
     { key: "בפורומים", icon: "📜", label: "פורום הקסמים", path: "/forums" },
     { key: "בסמטת דיאגון", icon: "🛍️", label: "סמטת דיאגון", path: "/shop" },
     { key: "בנביא היומי", icon: "📰", label: "הנביא היומי", path: "/news" },
     { key: "בחדר המועדון", icon: "⚗️", label: "חדר המועדון", path: "/dashboard" },
-    { key: "במפת הקונדסאים", icon: "🗺️", label: "מפת הקונדסאים", path: "/map" },
-    { key: "במסדרונות", icon: "🕯️", label: "המסדרונות", path: "/" },
+    { key: "במסדרונות", icon: "🕯️", label: "המסדרונות", path: "/forums" },
 ];
 
 function timeAgo(dateString: string) {
