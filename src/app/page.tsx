@@ -81,8 +81,16 @@ export default function Home() {
     setAuthMessage(null);
     if (isLoginMode) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setAuthMessage({ type: 'error', text: "הלחש נכשל: " + error.message });
-      else window.location.href = '/home';
+      if (error) { setAuthMessage({ type: 'error', text: "הלחש נכשל: " + error.message }); }
+      else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: prof } = await supabase.from('profiles').select('house').eq('id', user.id).single();
+          window.location.href = (!prof?.house || prof.house === 'Unsorted') ? '/sorting' : '/home';
+        } else {
+          window.location.href = '/home';
+        }
+      }
     } else {
       if (password.length < 6) {
         setAuthMessage({ type: 'error', text: "סיסמת הקסם חייבת להכיל לפחות 6 תווים." });

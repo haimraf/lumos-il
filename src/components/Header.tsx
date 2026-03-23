@@ -12,6 +12,7 @@ import {
     User, ChevronDown, Shield, BookOpen, Loader2
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
+import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { useAuth } from "@/context/AuthContext";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -301,7 +302,7 @@ export default function Header() {
 
                                 {/* Mute toggle */}
                                 <button
-                                    onClick={() => { if (isMuted) window.dispatchEvent(new Event('lumos:play')); toggleMute(); }}
+                                    onClick={() => { if (isMuted) triggerAudioPlay(); toggleMute(); }}
                                     title={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
                                     aria-label={isMuted ? "הפעל מוזיקה" : "השתק מוזיקה"}
                                     className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 bg-black/40 hover:bg-white/5 hover:border-amber-500/30 transition-all duration-200"
@@ -508,7 +509,7 @@ export default function Header() {
                         <>
                             <button
                                 onClick={() => {
-                                    if (isMuted) window.dispatchEvent(new Event('lumos:play'));
+                                    if (isMuted) triggerAudioPlay();
                                     toggleMute();
                                 }}
                                 className="flex items-center gap-6 text-2xl font-cinzel font-black text-white/50 hover:text-amber-500 transition-all uppercase tracking-[0.1em] py-4 w-full justify-center"

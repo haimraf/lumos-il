@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useUIState } from "@/context/UIContext";
+import { registerAudioPlay } from "@/utils/audioTrigger";
 
 /**
  * LUMOS IL - MAGICAL SOUNDSCAPE V2.6
@@ -63,15 +64,13 @@ export default function BackgroundMusic() {
     };
   }, [isMuted, isInitialized, fadeVolume]);
 
-  // Allow gesture-synchronous play trigger from mobile buttons
+  // Register direct play callback — avoids custom event / iOS user-gesture issues
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const handleForcePlay = () => {
+    registerAudioPlay(() => {
       audio.play().then(() => fadeVolume(0.25)).catch(() => {});
-    };
-    window.addEventListener('lumos:play', handleForcePlay);
-    return () => window.removeEventListener('lumos:play', handleForcePlay);
+    });
   }, [fadeVolume]);
 
   // השהיה כשהטאב ברקע, חידוש כשחוזרים
