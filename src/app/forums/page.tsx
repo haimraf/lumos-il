@@ -19,6 +19,7 @@ interface Forum {
     name: string;
     description: string;
     slug: string;
+    category_id: string | null; // <--- הוסף את השורה הזו!
     house_restriction: string | null;
     min_year: number | null;
     thread_count?: number;
@@ -37,10 +38,10 @@ interface Forum {
 
 const HOUSE_THEMES: Record<string, { color: string; bg: string; icon: string; border: string; glow: string; nameHe: string; accent: string }> = {
     Gryffindor: { color: "#f87171", bg: "rgba(220,38,38,0.07)", border: "rgba(220,38,38,0.25)", icon: "🦁", glow: "rgba(220,38,38,0.4)", nameHe: "גריפינדור", accent: "#dc2626" },
-    Slytherin:  { color: "#34d399", bg: "rgba(5,150,105,0.07)",  border: "rgba(5,150,105,0.25)",  icon: "🐍", glow: "rgba(5,150,105,0.4)",   nameHe: "סלית'רין",  accent: "#059669" },
-    Ravenclaw:  { color: "#60a5fa", bg: "rgba(37,99,235,0.07)",  border: "rgba(37,99,235,0.25)",  icon: "🦅", glow: "rgba(37,99,235,0.4)",   nameHe: "רייבנקלו",  accent: "#2563eb" },
-    Hufflepuff: { color: "#fbbf24", bg: "rgba(217,119,6,0.07)",  border: "rgba(217,119,6,0.25)",  icon: "🦡", glow: "rgba(217,119,6,0.4)",   nameHe: "הפלפאף",   accent: "#d97706" },
-    Unknown:    { color: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)", icon: "🧙", glow: "rgba(255,255,255,0.1)", nameHe: "טרם סווג", accent: "#6b7280" },
+    Slytherin: { color: "#34d399", bg: "rgba(5,150,105,0.07)", border: "rgba(5,150,105,0.25)", icon: "🐍", glow: "rgba(5,150,105,0.4)", nameHe: "סלית'רין", accent: "#059669" },
+    Ravenclaw: { color: "#60a5fa", bg: "rgba(37,99,235,0.07)", border: "rgba(37,99,235,0.25)", icon: "🦅", glow: "rgba(37,99,235,0.4)", nameHe: "רייבנקלו", accent: "#2563eb" },
+    Hufflepuff: { color: "#fbbf24", bg: "rgba(217,119,6,0.07)", border: "rgba(217,119,6,0.25)", icon: "🦡", glow: "rgba(217,119,6,0.4)", nameHe: "הפלפאף", accent: "#d97706" },
+    Unknown: { color: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)", icon: "🧙", glow: "rgba(255,255,255,0.1)", nameHe: "טרם סווג", accent: "#6b7280" },
 };
 
 const PREFIX_CONFIG: Record<string, { text: string; bg: string; border: string }> = {
@@ -61,6 +62,12 @@ function timeAgo(dateString: string) {
     return date.toLocaleDateString("he-IL");
 }
 
+interface Category {
+    id: string;
+    name: string;
+    display_order: number;
+}
+
 interface UserGroup {
     id: number;
     name: string;
@@ -69,10 +76,10 @@ interface UserGroup {
 }
 
 const HOUSE_POINTS_META: Record<string, { icon: any; color: string; glow: string; nameHe: string }> = {
-    Gryffindor: { icon: Flame,  color: "#ef4444", glow: "rgba(239,68,68,0.4)",   nameHe: "גריפינדור" },
-    Slytherin:  { icon: Skull,  color: "#34d399", glow: "rgba(52,211,153,0.4)",  nameHe: "סליתרין"   },
-    Ravenclaw:  { icon: Bird,   color: "#60a5fa", glow: "rgba(96,165,250,0.4)",  nameHe: "רייבנקלו"  },
-    Hufflepuff: { icon: Leaf,   color: "#fbbf24", glow: "rgba(251,191,36,0.4)",  nameHe: "הפלפאף"    },
+    Gryffindor: { icon: Flame, color: "#ef4444", glow: "rgba(239,68,68,0.4)", nameHe: "גריפינדור" },
+    Slytherin: { icon: Skull, color: "#34d399", glow: "rgba(52,211,153,0.4)", nameHe: "סליתרין" },
+    Ravenclaw: { icon: Bird, color: "#60a5fa", glow: "rgba(96,165,250,0.4)", nameHe: "רייבנקלו" },
+    Hufflepuff: { icon: Leaf, color: "#fbbf24", glow: "rgba(251,191,36,0.4)", nameHe: "הפלפאף" },
 };
 const HOUSE_ORDER = ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"] as const;
 
@@ -91,7 +98,8 @@ export default function ForumsPage() {
     const [recentThreads, setRecentThreads] = useState<any[]>([]);
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const [forumStats, setForumStats] = useState<{ totalMembers: number; newestMember: any | null }>({ totalMembers: 0, newestMember: null });
-    
+    const [categories, setCategories] = useState<Category[]>([]);
+
     // Global Modal State
     const [isNewThreadOpen, setIsNewThreadOpen] = useState(false);
     const [newThreadPrefix, setNewThreadPrefix] = useState("דיון");
@@ -101,7 +109,7 @@ export default function ForumsPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newThreadPinned, setNewThreadPinned] = useState(false);
     const [newThreadLocked, setNewThreadLocked] = useState(false);
-    
+
     const { sendOwl } = useOwlMail();
     useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
@@ -158,10 +166,9 @@ export default function ForumsPage() {
     const getData = useCallback(async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            console.log('[forums] session:', session?.user?.id ?? 'guest');
+
             if (session?.user) {
-                const { data: profile, error: profileError } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
-                console.log('[forums] profile:', profile, 'error:', profileError);
+                const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
                 setUserHouse(profile?.house || null);
                 setUserRole(profile?.role || null);
                 setUserYear(profile?.year || 1);
@@ -169,15 +176,21 @@ export default function ForumsPage() {
                 setUserYear(0);
             }
 
+            // --- תוספת: שליפת קטגוריות ---
+            const { data: catsData } = await supabase
+                .from('forum_categories')
+                .select('*')
+                .order('display_order', { ascending: true });
+
+            if (catsData) setCategories(catsData);
+
+            // --- עדכון: הוספנו category_id לשאילתה ---
             const { data: forumsData, error: forumsError } = await supabase
                 .from('forums')
-                .select(`*, threads(id, title, created_at, forum_posts(id), profiles(id, full_name, username, house, role, user_groups(name, color)))`)
+                .select(`*, category_id, threads(id, title, created_at, forum_posts(id), profiles(id, full_name, username, house, role, user_groups(name, color)))`)
                 .order('created_at', { ascending: true });
 
-            console.log('[forums] forumsData:', forumsData, 'error:', forumsError);
-
             if (forumsData) {
-                // Fetch last post per forum in one batch query
                 const allThreadIds = forumsData.flatMap((f: any) => (f.threads || []).map((t: any) => t.id));
                 const forumLastPostMap: Record<string, { post: any; thread: any }> = {};
                 let rawPosts: any[] = [];
@@ -192,7 +205,6 @@ export default function ForumsPage() {
 
                     rawPosts = rawPostsData || [];
 
-                    // Build a thread_id -> forum mapping
                     const threadForumMap: Record<string, { thread: any; forumId: string }> = {};
                     for (const f of forumsData) {
                         for (const t of f.threads || []) {
@@ -213,18 +225,13 @@ export default function ForumsPage() {
                     const lastEntry = forumLastPostMap[f.id];
                     const lastPost = lastEntry?.post;
                     const lastThread = lastEntry?.thread;
-                    const lastPosterProfile = lastPost
-                        ? (Array.isArray(lastPost.profiles) ? lastPost.profiles[0] : lastPost.profiles)
-                        : null;
+                    const lastPosterProfile = lastPost ? (Array.isArray(lastPost.profiles) ? lastPost.profiles[0] : lastPost.profiles) : null;
 
-                    // Fallback: last created thread + its author
                     const sortedThreads = [...(f.threads || [])].sort((a: any, b: any) =>
                         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                     );
                     const fallbackThread = sortedThreads[0];
-                    const fallbackProfile = fallbackThread
-                        ? (Array.isArray(fallbackThread.profiles) ? fallbackThread.profiles[0] : fallbackThread.profiles)
-                        : null;
+                    const fallbackProfile = fallbackThread ? (Array.isArray(fallbackThread.profiles) ? fallbackThread.profiles[0] : fallbackThread.profiles) : null;
 
                     const displayThread = lastThread || fallbackThread;
                     const displayAt = lastPost?.created_at || fallbackThread?.created_at;
@@ -249,7 +256,6 @@ export default function ForumsPage() {
                 });
                 setForums(formattedForums);
 
-                // Build thread lookup for recent activity widget
                 const threadMap: Record<string, { id: string; title: string; forumName: string; forumSlug: string }> = {};
                 const allThreadsFlat: any[] = [];
                 for (const f of forumsData) {
@@ -260,11 +266,9 @@ export default function ForumsPage() {
                     }
                 }
 
-                // Recent threads (sorted by created_at)
                 allThreadsFlat.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                 setRecentThreads(allThreadsFlat.slice(0, 8));
 
-                // Recent posts (replies) — from the batch query above
                 const enrichedPosts = rawPosts.slice(0, 8).map((p: any) => ({
                     ...p,
                     threadInfo: threadMap[p.thread_id] || null,
@@ -287,13 +291,13 @@ export default function ForumsPage() {
         e.preventDefault();
 
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         // 1. מניעת כשל שקט - אם אין סשן, נודיע לקוסם
         if (!session) {
             alert("עליך להיות מחובר כדי לשלוח ינשוף ולפתוח דיון.");
             return;
         }
-        
+
         if (!selectedForumId) {
             alert("אנא בחר פורום מהרשימה.");
             return;
@@ -304,29 +308,29 @@ export default function ForumsPage() {
         try {
             const { data: profile } = await supabase.from('profiles').select('house, role, year').eq('id', session.user.id).single();
             const forum = forums.find(f => f.id === selectedForumId);
-            
-            if (!forum) { 
-                setIsSubmitting(false); 
+
+            if (!forum) {
+                setIsSubmitting(false);
                 console.error("❌ Forum not found in state:", selectedForumId);
-                return; 
+                return;
             }
-            
+
             // בדיקת הרשאות לפורומים מיוחדים
             if (forum.house_restriction && profile?.house !== forum.house_restriction && !canModerate) {
-                setIsSubmitting(false); 
-                alert("אין לך גישה לפרסם בפורום בית זה."); 
-                return; 
+                setIsSubmitting(false);
+                alert("אין לך גישה לפרסם בפורום בית זה.");
+                return;
             }
             if (forum.min_year && (profile?.year || 1) < forum.min_year && !canModerate) {
-                setIsSubmitting(false); 
-                alert(`פורום זה דורש שנת לימוד ${forum.min_year} לפחות.`); 
-                return; 
+                setIsSubmitting(false);
+                alert(`פורום זה דורש שנת לימוד ${forum.min_year} לפחות.`);
+                return;
             }
-            
+
             // נוודא שיש גם כותרת וגם תוכן תקין
             if (!newThreadTitle.trim() || !newThreadContent.replace(/<[^>]*>?/gm, '').trim()) {
-                setIsSubmitting(false); 
-                alert("הודעה או כותרת ריקה אינן מורשות."); 
+                setIsSubmitting(false);
+                alert("הודעה או כותרת ריקה אינן מורשות.");
                 return;
             }
 
@@ -344,11 +348,11 @@ export default function ForumsPage() {
                 is_locked: canModerate ? newThreadLocked : false
             }).select('id').single();
 
-            if (threadError || !threadData) { 
-                setIsSubmitting(false); 
+            if (threadError || !threadData) {
+                setIsSubmitting(false);
                 console.error("❌ Supabase Thread Insert Error:", threadError);
-                alert(`שגיאה ביצירת נושא: ${threadError?.message || 'שגיאה לא ידועה בדאטה-בייס'}`); 
-                return; 
+                alert(`שגיאה ביצירת נושא: ${threadError?.message || 'שגיאה לא ידועה בדאטה-בייס'}`);
+                return;
             }
 
             // 3. יצירת הודעת הפתיחה (הפוסט הראשון)
@@ -359,7 +363,7 @@ export default function ForumsPage() {
             });
 
             if (postError) {
-                setIsSubmitting(false); 
+                setIsSubmitting(false);
                 console.error("❌ Supabase Post Insert Error:", postError);
                 alert(`הנושא נוצר, אך כתיבת ההודעה נכשלה: ${postError.message}`);
                 return;
@@ -369,7 +373,7 @@ export default function ForumsPage() {
             setIsSubmitting(false);
             setIsNewThreadOpen(false);
             window.location.href = `/forums/thread/${threadData.id}`;
-            
+
         } catch (err) {
             setIsSubmitting(false);
             console.error("❌ Unexpected execution error:", err);
@@ -544,26 +548,49 @@ export default function ForumsPage() {
                     {/* ── Main layout: forums + sidebar ── */}
                     <div className="flex gap-6 items-start">
 
-                        {/* Main column — forum lists */}
-                        <div className="flex-1 min-w-0 space-y-6">
-                            <ForumSection
-                                title="פורומים כלליים"
-                                accentColor="#f59e0b"
-                                forums={publicForums}
-                                userYear={userYear}
-                                userRole={userRole}
-                                userHouse={userHouse}
-                                roleColors={roleColors}
-                            />
-                            <ForumSection
-                                title="חדרי המועדון והבתים"
-                                accentColor="rgba(255,255,255,0.3)"
-                                forums={houseForums}
-                                userYear={userYear}
-                                userRole={userRole}
-                                userHouse={userHouse}
-                                roleColors={roleColors}
-                            />
+                        {/* Main column — dynamic categories */}
+                        <div className="flex-1 min-w-0 space-y-8">
+                            {categories.length > 0 ? (
+                                <>
+                                    {categories.map((category) => {
+                                        const categoryForums = forums.filter(f => f.category_id === category.id);
+                                        if (categoryForums.length === 0) return null;
+
+                                        return (
+                                            <ForumSection
+                                                key={category.id}
+                                                title={category.name}
+                                                accentColor={category.name.includes('בתים') ? "#fbbf24" : "#f59e0b"}
+                                                forums={categoryForums}
+                                                userYear={userYear}
+                                                userRole={userRole}
+                                                userHouse={userHouse}
+                                                roleColors={roleColors}
+                                            />
+                                        );
+                                    })}
+
+                                    {/* גיבוי: מציג פורומים שאיכשהו נשארו בלי קטגוריה כדי שלא ייעלמו */}
+                                    {forums.filter(f => !f.category_id).length > 0 && (
+                                        <ForumSection
+                                            title="פורומים נוספים"
+                                            accentColor="#6b7280"
+                                            forums={forums.filter(f => !f.category_id)}
+                                            userYear={userYear}
+                                            userRole={userRole}
+                                            userHouse={userHouse}
+                                            roleColors={roleColors}
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                /* מוצג בזמן טעינה או אם יש תקלה בשליפת קטגוריות */
+                                <div className="space-y-4">
+                                    {[1, 2, 3].map(i => (
+                                        <div key={i} className="h-32 bg-white/5 rounded-2xl animate-pulse border border-white/5" />
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Sidebar — sticky on desktop, stacks below on mobile */}
@@ -768,17 +795,17 @@ export default function ForumsPage() {
 
             {/* Modal: Global New Thread */}
             {isNewThreadOpen && (
-                <div 
-                    className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300" 
+                <div
+                    className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/90 backdrop-blur-xl p-4 animate-in fade-in duration-300"
                     style={{ paddingTop: '120px' }}
                     onClick={(e) => e.target === e.currentTarget && setIsNewThreadOpen(false)}
                 >
-                    <div 
-                        role="dialog" 
-                        aria-modal="true" 
+                    <div
+                        role="dialog"
+                        aria-modal="true"
                         aria-labelledby="modal-title"
-                        className="bg-[#0c0f18] border border-white/[0.08] w-full rounded-2xl shadow-2xl overflow-hidden relative flex flex-col" 
-                        dir="rtl" 
+                        className="bg-[#0c0f18] border border-white/[0.08] w-full rounded-2xl shadow-2xl overflow-hidden relative flex flex-col"
+                        dir="rtl"
                         style={{ maxWidth: '560px', maxHeight: '90vh' }}
                     >
                         <div className="shrink-0 px-6 py-4 border-b border-white/[0.06] bg-white/[0.03] flex items-center justify-between">
@@ -807,10 +834,10 @@ export default function ForumsPage() {
                                         value={selectedForumId}
                                         onChange={(e) => setSelectedForumId(e.target.value)}
                                         className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-5 py-4 text-base font-bold text-white focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.06] transition-all cursor-pointer appearance-none hover:border-white/20 active:scale-[0.99]"
-                                        style={{ 
-                                            backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f59e0b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`, 
-                                            backgroundRepeat: 'no-repeat', 
-                                            backgroundPosition: 'left 1.25rem center', 
+                                        style={{
+                                            backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23f59e0b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")`,
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundPosition: 'left 1.25rem center',
                                             backgroundSize: '0.8rem auto',
                                             boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)'
                                         }}
@@ -880,7 +907,7 @@ export default function ForumsPage() {
                                         {(() => {
                                             const len = newThreadContent.replace(/<[^>]*>?/gm, '').trim().length;
                                             return (
-                                                <span 
+                                                <span
                                                     className="text-[10px] font-bold"
                                                     style={{ color: len >= 20 ? "rgba(52,211,153,0.6)" : len > 0 ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)" }}
                                                 >
@@ -1013,9 +1040,8 @@ function ForumRow({ forum, userYear, userRole, userHouse, roleColors }: any) {
                     }
                 </div>
                 <div className="min-w-0">
-                    <div className={`font-cinzel font-black text-base leading-tight truncate mb-1 ${
-                        isLocked ? "text-white/20" : theme ? "" : "text-white/85"
-                    }`} style={theme && !isLocked ? { color: theme.color } : {}}>
+                    <div className={`font-cinzel font-black text-base leading-tight truncate mb-1 ${isLocked ? "text-white/20" : theme ? "" : "text-white/85"
+                        }`} style={theme && !isLocked ? { color: theme.color } : {}}>
                         {forum.name}
                     </div>
                     <div className="text-xs text-white/25 truncate leading-snug">
