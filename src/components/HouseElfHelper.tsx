@@ -136,11 +136,11 @@ export default function HouseElfHelper() {
             {/* בועת דיבור - LUMOS IL FINAL FIX V2.0 */}
             {isBubbleVisible && (
                 <div
-                    className={`absolute bottom-24 right-0 w-72 sm:w-80 shrink-0 bg-[#020617]/95 text-[#f8fafc] p-5 rounded-[2.5rem] border-2 backdrop-blur-xl shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 origin-bottom-right
+                    className={`absolute bottom-20 md:bottom-24 right-0 w-56 sm:w-72 md:w-80 shrink-0 bg-[#020617]/95 text-[#f8fafc] p-5 rounded-[2.5rem] border-2 backdrop-blur-xl shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 origin-bottom-right
             ${isFree ? 'border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.4)]'
                             : msgType === 'seasonal' ? 'border-purple-500'
                                 : 'border-amber-700/50'}`}
-                    style={{ minWidth: '280px' }}
+                    style={{ minWidth: '220px' }}
                 >
                     <div className="flex items-center gap-2 mb-3">
                         {msgType === 'free' && <Gift className="text-green-400 animate-bounce" size={14} />}
@@ -154,7 +154,7 @@ export default function HouseElfHelper() {
 
                     <p
                         dir="auto"
-                        className={`font-crimson text-lg md:text-xl leading-relaxed italic text-white/95 whitespace-pre-wrap ${isFree ? 'font-bold uppercase text-green-50' : ''}`}
+                        className={`font-crimson text-sm md:text-xl leading-relaxed italic text-white/95 whitespace-pre-wrap ${isFree ? 'font-bold uppercase text-green-50' : ''}`}
                     >
                         "{displayedText}"
                         <span className="animate-pulse inline-block w-1.5 h-4 bg-amber-500 mx-1 align-middle" />
