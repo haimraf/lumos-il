@@ -86,7 +86,7 @@ export default function MaraudersMasterMap() {
         // Enrich members with group color
         const members = (data || []).filter((u: any) => !String(u.id).startsWith("guest_")).slice(0, 15);
         const memberIds = members.map((u: any) => u.id).filter(Boolean);
-        let grpMap: Record<string, string | null> = {};
+        let grpMap: Record<string, { color: string | null; name: string | null }> = {};
         if (memberIds.length > 0) {
             const { data: profs } = await supabase
                 .from("profiles")
@@ -94,12 +94,16 @@ export default function MaraudersMasterMap() {
                 .in("id", memberIds);
             if (profs) {
                 profs.forEach((p: any) => {
-                    const g = p.user_groups as { color: string } | null;
-                    grpMap[p.id] = g?.color || null;
+                    const g = p.user_groups as { color: string; name: string } | null;
+                    grpMap[p.id] = { color: g?.color || null, name: g?.name || null };
                 });
             }
         }
-        setOnlineNamedUsers(members.map((u: any) => ({ ...u, group_color: grpMap[u.id] || null })));
+        setOnlineNamedUsers(members.map((u: any) => ({
+            ...u,
+            group_color: grpMap[u.id]?.color || null,
+            group_name: grpMap[u.id]?.name || null,
+        })));
     }, [supabase]);
 
     /* ── Fetch recent activity ── */
@@ -559,7 +563,11 @@ export default function MaraudersMasterMap() {
                                                         textDecoration: "none",
                                                     }}
                                                 >
-                                                    <span>{houseIcon}</span>
+                                                    {u.group_name ? (
+                                                        <span style={{ fontSize: "0.6rem", opacity: 0.8 }}>{u.group_name}</span>
+                                                    ) : (
+                                                        <span>{houseIcon}</span>
+                                                    )}
                                                     {u.user_name}
                                                 </Link>
                                             );

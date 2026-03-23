@@ -34,7 +34,7 @@ export default function WhoIsOnline() {
             const members = data.filter((u: any) => !String(u.id).startsWith("guest_"));
 
             const userIds = members.map((u: any) => u.id).filter(Boolean);
-            let groupMap: Record<string, string | null> = {};
+            let groupMap: Record<string, { color: string | null; name: string | null }> = {};
             if (userIds.length > 0) {
                 const { data: profiles } = await supabase
                     .from("profiles")
@@ -42,15 +42,16 @@ export default function WhoIsOnline() {
                     .in("id", userIds);
                 if (profiles) {
                     profiles.forEach((p: any) => {
-                        const g = p.user_groups as { color: string } | null;
-                        groupMap[p.id] = g?.color || null;
+                        const g = p.user_groups as { color: string; name: string } | null;
+                        groupMap[p.id] = { color: g?.color || null, name: g?.name || null };
                     });
                 }
             }
 
             setOnlineUsers(members.slice(0, 15).map((u: any) => ({
                 ...u,
-                group_color: groupMap[u.id] || null,
+                group_color: groupMap[u.id]?.color || null,
+                group_name: groupMap[u.id]?.name || null,
             })));
         };
 
@@ -91,9 +92,13 @@ export default function WhoIsOnline() {
                                         border: `1px solid ${nameColor}28`,
                                         color: nameColor,
                                     }}
-                                    title={houseConf.nameHe}
+                                    title={u.group_name || houseConf.nameHe}
                                 >
-                                    <span className="text-sm leading-none">{houseConf.icon}</span>
+                                    {u.group_name ? (
+                                        <span className="text-[9px] opacity-70 leading-none">{u.group_name}</span>
+                                    ) : (
+                                        <span className="text-sm leading-none">{houseConf.icon}</span>
+                                    )}
                                     {u.user_name}
                                 </Link>
                             );
