@@ -55,10 +55,10 @@ export default function Home() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setIsCheckingSession(false); return; }
       const { data: profile } = await supabase.from('profiles').select('house').eq('id', session.user.id).single();
-      if (profile?.house && profile.house !== 'Unsorted' && profile.house !== 'Unknown') {
-        router.push('/home');
-      } else {
+      if (!profile || !profile.house || profile.house === 'Unsorted' || profile.house === 'Unknown') {
         router.push('/sorting');
+      } else {
+        router.push('/home');
       }
     };
     checkSession();
