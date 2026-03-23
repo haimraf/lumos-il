@@ -49,6 +49,7 @@ export default function MaraudersMasterMap() {
     const [totalOnline, setTotal] = useState(0);
     const [activity, setActivity] = useState<any[]>([]);
     const [steps, setSteps] = useState<any[]>([]);
+    const [guestCount, setGuestCount] = useState(0);
     const [topHouse, setTopHouse] = useState<string>("Guest");
     const [tick, setTick] = useState(0);
     const [onlineNamedUsers, setOnlineNamedUsers] = useState<any[]>([]);
@@ -81,9 +82,13 @@ export default function MaraudersMasterMap() {
         const top = Object.entries(houseCounts).sort(([, a], [, b]) => b - a)[0];
         if (top) setTopHouse(top[0]);
 
-        // Enrich members with group color (only real members)
-        const members = (data || []).filter((u: any) => u.presence_type === "member").slice(0, 15);
-        const memberIds = members.map((u: any) => u.id).filter(Boolean);
+        // Separate members and guests
+        const allMembers = (data || []).filter((u: any) => u.presence_type === "member");
+        const gCount = (data || []).filter((u: any) => u.presence_type === "guest").length;
+        
+        const memberList = allMembers.slice(0, 20);
+        const memberIds = memberList.map((u: any) => u.id).filter(Boolean);
+        
         let grpMap: Record<string, { color: string | null; name: string | null }> = {};
         if (memberIds.length > 0) {
             const { data: profs } = await supabase
@@ -97,11 +102,13 @@ export default function MaraudersMasterMap() {
                 });
             }
         }
-        setOnlineNamedUsers(members.map((u: any) => ({
+
+        setOnlineNamedUsers(memberList.map((u: any) => ({
             ...u,
             group_color: grpMap[u.id]?.color || null,
             group_name: grpMap[u.id]?.name || null,
         })));
+        setGuestCount(gCount);
     }, [supabase]);
 
     /* ── Fetch recent activity ── */
@@ -553,7 +560,7 @@ export default function MaraudersMasterMap() {
                                         <span>✦</span> מחוברים עכשיו
                                         <span className="mr-auto font-cinzel text-xs" style={{ color: "#7a5a18" }}>{totalOnline} סה"כ</span>
                                     </div>
-                                    {onlineNamedUsers.length === 0 ? (
+                                    {onlineNamedUsers.length === 0 && guestCount === 0 ? (
                                         <div style={{ textAlign: "center", padding: "12px 0", fontStyle: "italic", color: "#7a5a18", opacity: 0.6, fontFamily: "'IM Fell English', serif", fontSize: "0.85rem" }}>
                                             הטירה שקטה...
                                         </div>
@@ -587,6 +594,27 @@ export default function MaraudersMasterMap() {
                                                     </Link>
                                                 );
                                             })}
+
+                                            {guestCount > 0 && (
+                                                <div
+                                                    style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        gap: "4px",
+                                                        padding: "3px 8px",
+                                                        borderRadius: "8px",
+                                                        fontSize: "0.72rem",
+                                                        fontFamily: "'Cinzel', serif",
+                                                        fontWeight: 700,
+                                                        color: "rgba(255,255,255,0.3)",
+                                                        background: "rgba(255,255,255,0.03)",
+                                                        border: "1px solid rgba(255,255,255,0.06)",
+                                                    }}
+                                                >
+                                                    <span>🕵️</span>
+                                                    אורחים בטירה: {guestCount}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

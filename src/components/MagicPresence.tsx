@@ -64,7 +64,7 @@ export default function MagicPresence() {
         const updatePresence = async () => {
             const payload = {
                 id: presenceId,
-                user_name: profile?.full_name || profile?.username || "אורח מסתורי",
+                user_name: profile?.full_name || profile?.username || "אורח",
                 house: profile?.house || "Guest",
                 current_path: pathname,
                 location_label: getLocationLabel(),
