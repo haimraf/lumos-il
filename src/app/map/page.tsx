@@ -154,10 +154,10 @@ export default function MaraudersMasterMap() {
             });
         });
 
-        // רכישות
+        // שרשורים חדשים
         const { data: threads } = await supabase
             .from("threads")
-            .select("id, title, created_at, profiles(full_name, house)")
+            .select("id, title, created_at, profiles(id, full_name, username, house)")
             .order("created_at", { ascending: false })
             .limit(3);
 
@@ -176,8 +176,29 @@ export default function MaraudersMasterMap() {
             });
         });
 
-        results.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-        setActivity(results.slice(0, 8));
+        // Enrich with group colors
+        const profileIds = [...new Set(results.map(r => r.profileId).filter(Boolean))];
+        let actGrpMap: Record<string, string | null> = {};
+        if (profileIds.length > 0) {
+            const { data: grpProfs } = await supabase
+                .from("profiles")
+                .select("id, user_groups(color)")
+                .in("id", profileIds);
+            if (grpProfs) {
+                grpProfs.forEach((p: any) => {
+                    const g = p.user_groups as { color: string } | null;
+                    actGrpMap[p.id] = g?.color || null;
+                });
+            }
+        }
+
+        const enriched = results.map(r => ({
+            ...r,
+            group_color: r.profileId ? (actGrpMap[r.profileId] || null) : null,
+        }));
+
+        enriched.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+        setActivity(enriched.slice(0, 8));
     }, [supabase]);
 
     useEffect(() => { fetchZones(); fetchActivity(); }, [fetchZones, fetchActivity]);
@@ -563,11 +584,7 @@ export default function MaraudersMasterMap() {
                                                         textDecoration: "none",
                                                     }}
                                                 >
-                                                    {u.group_name ? (
-                                                        <span style={{ fontSize: "0.6rem", opacity: 0.8 }}>{u.group_name}</span>
-                                                    ) : (
-                                                        <span>{houseIcon}</span>
-                                                    )}
+                                                    <span>{houseIcon}</span>
                                                     {u.user_name}
                                                 </Link>
                                             );
@@ -592,7 +609,7 @@ export default function MaraudersMasterMap() {
                                 ) : (
                                     <div>
                                         {activity.map(item => {
-                                            const color = item.house ? HOUSE_COLORS[item.house] : HOUSE_COLORS.Guest;
+                                            const color = item.group_color || (item.house ? HOUSE_COLORS[item.house] : HOUSE_COLORS.Guest);
                                             const threadHref = item.threadId ? `/forums/thread/${item.threadId}` : null;
                                             const firstName = item.text.split(" ")[0];
                                             const restText = item.text.split(" ").slice(1).join(" ");

@@ -94,11 +94,7 @@ export default function WhoIsOnline() {
                                     }}
                                     title={u.group_name || houseConf.nameHe}
                                 >
-                                    {u.group_name ? (
-                                        <span className="text-[9px] opacity-70 leading-none">{u.group_name}</span>
-                                    ) : (
-                                        <span className="text-sm leading-none">{houseConf.icon}</span>
-                                    )}
+                                    <span className="text-sm leading-none">{houseConf.icon}</span>
                                     {u.user_name}
                                 </Link>
                             );
