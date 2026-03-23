@@ -64,6 +64,13 @@ const PREFIX_CONFIG: Record<string, { bg: string; text: string; border: string }
     "פרסום":  { bg: "rgba(16,185,129,0.12)",  text: "#34d399", border: "rgba(16,185,129,0.3)"  },
 };
 
+const SPELLS = [
+    { type: 'lumos', icon: '💡', name: 'לומוס', color: 'text-yellow-300', bg: 'bg-yellow-400/10', border: 'border-yellow-400/20' },
+    { type: 'amortentia', icon: '💖', name: 'אמורטנציה', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+    { type: 'riddikulus', icon: '😂', name: 'רידיקולוס', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+    { type: 'incendio', icon: '🔥', name: 'אינסנדיו', color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20' }
+];
+
 const COOLDOWN_MS = 30_000;
 
 // Inline style string לblockquote — עוקף את כל CSS specificity של Quill
@@ -163,6 +170,7 @@ export default function ThreadViewPage() {
     const [userProfile, setUserProfile] = useState<any>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+    const [globalOnlineIds, setGlobalOnlineIds] = useState<Set<string>>(new Set());
     const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
     const [reportingPost, setReportingPost] = useState<any>(null);
     const [reportReason, setReportReason] = useState("");
@@ -171,6 +179,19 @@ export default function ThreadViewPage() {
     const cooldownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
     const [roleColors, setRoleColors] = useState<Record<string, string>>({});
     useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
+
+    // ✅ משתמשים המחוברים באתר כולו (לא רק באשכול)
+    const fetchGlobalOnline = useCallback(async () => {
+        const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const { data } = await supabase.from('online_users').select('id').gte('last_seen', cutoff);
+        if (data) setGlobalOnlineIds(new Set(data.map((u: any) => u.id)));
+    }, [supabase]);
+
+    useEffect(() => {
+        fetchGlobalOnline();
+        const interval = setInterval(fetchGlobalOnline, 60_000);
+        return () => clearInterval(interval);
+    }, [fetchGlobalOnline]);
 
     // ✅ useRef לשמירת מי צוטט/תויג — לא תלוי ב-HTML parsing
     const pendingQuotes = useRef<string[]>([]);
@@ -220,8 +241,9 @@ export default function ThreadViewPage() {
             if (threadError || !threadData) { router.push('/forums'); return; }
             setThread(threadData);
 
-            // Increment views (fire-and-forget, race condition acceptable)
-            supabase.from('threads').update({ views: (threadData.views || 0) + 1 }).eq('id', id).then(() => {});
+            // Increment views bypassing RLS using an RPC function
+            supabase.rpc('increment_thread_views', { thread_id: id }).then(() => {});
+
             // Mark as read in localStorage
             if (typeof window !== 'undefined') {
                 localStorage.setItem(`thread_read_${id}`, Date.now().toString());
@@ -234,7 +256,7 @@ export default function ThreadViewPage() {
             // Select only columns that definitely exist in profiles — omit 'username' which may not exist
             const { data: postsData, error: postsError } = await supabase
                 .from('forum_posts')
-                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, user_groups(name, color))`)
+                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, user_groups(name, color)), post_reactions(spell_type, user_id, profiles(full_name, avatar_url, house, role, user_groups(name, color)))`)
                 .eq('thread_id', id)
                 .order('created_at', { ascending: true });
 
@@ -243,7 +265,7 @@ export default function ThreadViewPage() {
                 // Try minimal fallback select
                 const { data: fallbackPosts } = await supabase
                     .from('forum_posts')
-                    .select('*, profiles(house, full_name, avatar_url, role, user_groups(name, color))')
+                    .select('*, profiles(house, full_name, avatar_url, role, user_groups(name, color)), post_reactions(spell_type, user_id, profiles(full_name, avatar_url, house, role, user_groups(name, color)))')
                     .eq('thread_id', id)
                     .order('created_at', { ascending: true });
                 setPosts((fallbackPosts as any) || []);
@@ -367,6 +389,60 @@ export default function ThreadViewPage() {
         setReportingPost(null); setReportReason(""); setIsReporting(false);
     };
 
+    /* ── Magic Reaction Spells ── */
+    const handleCastSpell = async (postId: string, spellType: string) => {
+        if (!currentUser) return;
+
+        const post = posts.find(p => p.id === postId);
+        if (!post) return;
+
+        const reactions = post.post_reactions || [];
+        const userExistingSpell = reactions.find((r: any) => r.user_id === currentUser.id);
+        const isRemoving = userExistingSpell && userExistingSpell.spell_type === spellType;
+
+        // Optimistic UI
+        setPosts(prev => prev.map(p => {
+            if (p.id !== postId) return p;
+            let newReactions = (p.post_reactions || []).filter((r: any) => r.user_id !== currentUser.id);
+            if (!isRemoving) {
+                newReactions.push({ 
+                    user_id: currentUser.id, 
+                    spell_type: spellType,
+                    profiles: { 
+                        full_name: userProfile?.full_name || 'אתה',
+                        house: userProfile?.house,
+                        role: userProfile?.role,
+                        user_groups: userProfile?.user_groups
+                    }
+                });
+            }
+            return { ...p, post_reactions: newReactions };
+        }));
+
+        try {
+            await supabase.from('post_reactions').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+            if (!isRemoving) {
+                await supabase.from('post_reactions').insert({ post_id: postId, user_id: currentUser.id, spell_type: spellType });
+                
+                // התראה לבעל ההודעה אלא אם זה הוא עצמו
+                if (post.user_id !== currentUser.id) {
+                    const spellObj = SPELLS.find(s => s.type === spellType);
+                    const currentThreadId = Array.isArray(id) ? id[0] : id;
+                    await supabase.from('notifications').insert({
+                        user_id: post.user_id,
+                        actor_id: currentUser.id,
+                        type: 'reaction',
+                        target_url: `/forums/thread/${currentThreadId}`,
+                        content: `הטיל/ה ${spellObj?.name || 'לחש'} ${spellObj?.icon || ''} על ההודעה שלך באשכול: ${thread?.title || ''}`,
+                        is_read: false,
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('[Spells] Error casting spell:', err);
+        }
+    };
+
     /* ── Send Notification ── */
     const sendNotification = async (toUserId: string, type: 'quote' | 'mention') => {
         if (!currentUser || toUserId === currentUser.id) return;
@@ -413,10 +489,22 @@ export default function ThreadViewPage() {
             }
 
             if (!error) {
-                // ✅ useRef — לא תלוי ב-HTML שQuill מחזיר
-                const uniqueQuoted = [...new Set(pendingQuotes.current)];
+                // ✅ Clear out mentions of users whose name was deleted from the text
+                const activeMentions = pendingMentions.current.filter(uid => {
+                    const p = posts.find(x => x.user_id === uid);
+                    const name = p?.profiles?.full_name || p?.profiles?.username;
+                    return name && (stripped.includes(`@${name}`) || stripped.includes(name));
+                });
+                
+                const activeQuotes = pendingQuotes.current.filter(uid => {
+                    const p = posts.find(x => x.user_id === uid);
+                    const name = p?.profiles?.full_name || p?.profiles?.username;
+                    return name && stripped.includes(name);
+                });
+
+                const uniqueQuoted = [...new Set(activeQuotes)];
                 const uniqueMentioned = [...new Set(
-                    pendingMentions.current.filter(uid => !uniqueQuoted.includes(uid))
+                    activeMentions.filter(uid => !uniqueQuoted.includes(uid))
                 )];
 
                 // התראה לבעל האשכול על תגובה חדשה
@@ -709,33 +797,61 @@ export default function ThreadViewPage() {
                     </div>
                 </div>
 
-                {/* ── Pinned / Locked banners ── */}
-                {thread?.is_pinned && (
-                    <div className="flex items-center gap-3 px-5 py-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] mb-2">
-                        <Pin size={15} className="text-amber-400 shrink-0" />
-                        <div>
-                            <span className="font-cinzel font-black text-amber-400 text-xs uppercase tracking-widest">שרשור מעוגן</span>
-                            <span className="font-crimson text-amber-400/60 text-sm mr-3 italic">— נעוץ על ידי צוות הטירה לנוחות הקהילה</span>
-                        </div>
-                    </div>
-                )}
-                {thread?.is_locked && (
-                    <div className="flex items-center gap-3 px-5 py-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] mb-2">
-                        <Lock size={15} className="text-red-400 shrink-0" />
-                        <div>
-                            <span className="font-cinzel font-black text-red-400 text-xs uppercase tracking-widest">שרשור נעול</span>
-                            <span className="font-crimson text-red-400/60 text-sm mr-3 italic">— שרשור זה נסגר ואין אפשרות להוסיף תגובות חדשות</span>
-                        </div>
-                    </div>
-                )}
+                {/* ── Pinned / Locked / Pensieve banners ── */}
+                {(() => {
+                    const ageInMs = thread ? Date.now() - new Date(thread.last_activity_at || thread.created_at).getTime() : 0;
+                    const sixMonths = 1000 * 60 * 60 * 24 * 30 * 6;
+                    const isPensieve = thread?.is_locked || ageInMs > sixMonths;
+
+                    return (
+                        <>
+                            {isPensieve && (
+                                <div className="flex flex-col items-center justify-center p-8 mb-6 rounded-3xl border border-blue-500/30 bg-blue-500/10 relative overflow-hidden backdrop-blur-md shadow-[0_0_50px_rgba(59,130,246,0.15)]">
+                                    <div className="absolute inset-0 bg-blue-400/5 blur-3xl animate-[pulse_4s_ease-in-out_infinite]" />
+                                    
+                                    <h3 className="font-cinzel text-xl md:text-2xl text-blue-300 mx-auto tracking-widest uppercase font-black mb-3 relative z-10 drop-shadow-[0_0_10px_rgba(147,197,253,0.8)]">
+                                        ✨ זיכרון מהגיגית ✨
+                                    </h3>
+                                    <p className="font-crimson text-blue-200/80 text-center max-w-lg text-base md:text-lg relative z-10 leading-relaxed italic">
+                                        אשכול זה ישן ונחתם לנצח כזיכרון בתוך הגיגית של הוגוורטס. 
+                                        <br/> הטקסטים כאן צפים בזמן, לא ניתן להגיב עליהם, אך ניתן לעיין בהם בשקט.
+                                    </p>
+                                </div>
+                            )}
+
+                            {thread?.is_pinned && !isPensieve && (
+                                <div className="flex items-center gap-3 px-5 py-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] mb-2">
+                                    <Pin size={15} className="text-amber-400 shrink-0" />
+                                    <div>
+                                        <span className="font-cinzel font-black text-amber-400 text-xs uppercase tracking-widest">שרשור מעוגן</span>
+                                        <span className="font-crimson text-amber-400/60 text-sm mr-3 italic">— נעוץ על ידי צוות הטירה לנוחות הקהילה</span>
+                                    </div>
+                                </div>
+                            )}
+                            {thread?.is_locked && !isPensieve && (
+                                <div className="flex items-center gap-3 px-5 py-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] mb-2">
+                                    <Lock size={15} className="text-red-400 shrink-0" />
+                                    <div>
+                                        <span className="font-cinzel font-black text-red-400 text-xs uppercase tracking-widest">שרשור נעול</span>
+                                        <span className="font-crimson text-red-400/60 text-sm mr-3 italic">— שרשור זה נסגר ואין אפשרות להוסיף תגובות חדשות</span>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    );
+                })()}
 
                 {/* ── Posts ── */}
                 <div className="space-y-5">
                     {posts.map((post, index) => {
                         const isMuted = blockedUserIds.includes(post.user_id);
-                        const isOnline = onlineUserIds.has(post.user_id);
+                        const isOnline = onlineUserIds.has(post.user_id) || globalOnlineIds.has(post.user_id);
                         const config = post.profiles?.house ? HOUSE_CONFIG[post.profiles.house] : null;
                         const isSelf = currentUser?.id === post.user_id;
+
+                        const ageInMs = thread ? Date.now() - new Date(thread.last_activity_at || thread.created_at).getTime() : 0;
+                        const sixMonths = 1000 * 60 * 60 * 24 * 30 * 6;
+                        const isPensieveMode = thread?.is_locked || ageInMs > sixMonths;
 
                         if (isMuted) return (
                             <div key={post.id} className="flex items-center justify-between px-5 py-3 rounded-xl border border-white/[0.04] bg-white/[0.01] text-white/20 text-xs italic">
@@ -752,7 +868,7 @@ export default function ThreadViewPage() {
                         return (
                             <article
                                 key={post.id}
-                                className="group rounded-2xl border border-white/[0.06] overflow-hidden flex flex-col md:flex-row transition-all duration-300 hover:border-white/10"
+                                className={`group rounded-2xl border border-white/[0.06] overflow-hidden flex flex-col md:flex-row transition-all duration-300 hover:border-white/10 ${isPensieveMode ? "opacity-75 grayscale-[25%] hover:opacity-100 hover:grayscale-0" : ""}`}
                                 style={{
                                     background: config
                                         ? `linear-gradient(135deg, ${config.accent}08 0%, rgba(6,9,16,0.8) 60%)`
@@ -849,16 +965,17 @@ export default function ThreadViewPage() {
                                         <div className="flex items-center gap-2">
                                             {currentUser && !isSelf && (
                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    <button onClick={() => handleQuote(post)} className="action-btn">
+                                                    <button onClick={() => handleQuote(post)} className="action-btn" aria-label="צטט משתמש">
                                                         <Reply size={10} /> ציטוט
                                                     </button>
-                                                    <button onClick={() => handleMention(post)} className="action-btn">
+                                                    <button onClick={() => handleMention(post)} className="action-btn" aria-label="תייג משתמש">
                                                         <AtSign size={10} /> תיוג
                                                     </button>
                                                     <button
                                                         onClick={() => handleToggleMute(post.user_id)}
                                                         className="p-1.5 rounded text-white/20 hover:text-white/50 hover:bg-white/[0.04] transition-all"
                                                         title="השתקה"
+                                                        aria-label="השתק משתמש"
                                                     >
                                                         <EyeOff size={12} />
                                                     </button>
@@ -866,6 +983,7 @@ export default function ThreadViewPage() {
                                                         onClick={() => setReportingPost(post)}
                                                         className="p-1.5 rounded text-white/20 hover:text-red-400 hover:bg-red-500/[0.06] transition-all"
                                                         title="דיווח"
+                                                        aria-label="דווח על הודעה"
                                                     >
                                                         <Flag size={12} />
                                                     </button>
@@ -880,6 +998,81 @@ export default function ThreadViewPage() {
                                         </div>
                                     </div>
                                     <PostContent content={post.content} />
+
+                                    {/* ── Reaction Spells (Footer) ── */}
+                                    <div className="mt-5 pt-3 border-t border-white/[0.04] flex items-center justify-between">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {SPELLS.map(spell => {
+                                                const spellReactions = (post.post_reactions || []).filter((r: any) => r.spell_type === spell.type);
+                                                const count = spellReactions.length;
+                                                const hasCast = spellReactions.some((r: any) => r.user_id === currentUser?.id);
+                                                
+                                                if (count === 0 && !hasCast) return null;
+
+                                                return (
+                                                    <div key={spell.type} className="relative group/reactor">
+                                                        <button 
+                                                            type="button"
+                                                            onClick={(e) => { e.preventDefault(); handleCastSpell(post.id, spell.type); }}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all border ${hasCast ? `bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]` : 'bg-white/[0.02] border-white/[0.05] text-white/40 hover:bg-white/[0.08]'}`}
+                                                        >
+                                                            <span className="text-sm">{spell.icon}</span> <span>{count}</span>
+                                                        </button>
+                                                        
+                                                        {/* Hover list of reactors */}
+                                                        {count > 0 && (
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/reactor:flex flex-col gap-1 p-2 rounded-xl bg-black/90 backdrop-blur-xl border border-white/10 shadow-2xl z-[100] min-w-[120px] max-w-[200px] animate-in slide-in-from-bottom-2 fade-in zoom-in-95 pointer-events-auto">
+                                                                <span className="text-[10px] text-white/40 pb-1 border-b border-white/10 mb-1 px-1 font-bold">{spell.name}:</span>
+                                                                <div className="max-h-[140px] overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1">
+                                                                    {spellReactions.map((r: any, idx: number) => {
+                                                                        const pColor = r.profiles?.user_groups?.color || getRoleColor(r.profiles?.role, r.profiles?.house, roleColors);
+                                                                        return (
+                                                                            <span 
+                                                                                key={idx} 
+                                                                                style={{ color: pColor || '#e2e8f0' }}
+                                                                                className="text-xs truncate font-cinzel font-bold px-1.5 py-0.5"
+                                                                            >
+                                                                                {r.profiles?.full_name || 'קוסם'}
+                                                                            </span>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                            
+                                            {currentUser && !isPensieveMode && (
+                                                <div className="relative group/spells ml-2 pb-1">
+                                                    <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-white/[0.03] border border-white/[0.06] text-white/50 hover:bg-white/[0.1] hover:text-white/90 hover:border-white/20 transition-all shadow-sm">
+                                                        <span>+</span> 🪄 לחש
+                                                    </button>
+                                                    <div className="absolute top-0 right-1/2 translate-x-1/2 -mt-[3.5rem] hidden group-hover/spells:block z-[100] pb-4">
+                                                        {/* Facebook-style floating dock */}
+                                                        <div className="flex items-center gap-1 p-1.5 rounded-[2rem] bg-gradient-to-t from-black/90 to-[#0a0d14]/95 backdrop-blur-2xl border border-white/[0.08] shadow-[0_15px_35px_rgba(0,0,0,0.5),auto_auto_30px_rgba(255,255,255,0.02)_inset] animate-in slide-in-from-bottom-3 zoom-in-95 duration-200 origin-bottom">
+                                                            {SPELLS.map(spell => (
+                                                                <div key={spell.type} className="relative group/icon">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.preventDefault(); handleCastSpell(post.id, spell.type); }}
+                                                                        className={`flex items-center justify-center p-2 rounded-full hover:scale-125 hover:-translate-y-1.5 active:scale-90 transition-all duration-300 origin-bottom hover:${spell.bg} hover:border-transparent cursor-pointer`}
+                                                                    >
+                                                                        <span className="text-xl drop-shadow-lg filter group-hover/icon:brightness-110">
+                                                                            {spell.icon}
+                                                                        </span>
+                                                                    </button>
+                                                                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-max px-2 py-0.5 bg-black/90 backdrop-blur-md rounded-full text-[10px] uppercase font-black tracking-wider text-white opacity-0 scale-75 group-hover/icon:opacity-100 group-hover/icon:scale-100 transition-all duration-200 pointer-events-none origin-bottom border border-white/10 shadow-xl">
+                                                                        {spell.name}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </article>
                         );
