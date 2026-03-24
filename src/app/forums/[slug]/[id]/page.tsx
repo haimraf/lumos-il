@@ -129,7 +129,7 @@ const PostContent = memo(function PostContent({ content }: { content: string }) 
     const html = useMemo(() => enrichContent(content), [content]);
     return (
         <div
-            className="post-body flex-1 text-white/80 text-base leading-relaxed break-words"
+            className="post-body flex-1 text-white/80 text-base leading-relaxed break-words whitespace-pre-wrap"
             dangerouslySetInnerHTML={{ __html: html }}
         />
     );
@@ -911,7 +911,7 @@ export default function ThreadViewPage() {
                     {posts.map((post, index) => {
                         // 🛑 סינון רוחות רפאים (Shadowban)
                         if (post.profiles?.is_ghost && post.user_id !== currentUser?.id) {
-                            return null; 
+                            return null;
                         }
 
                         const isMuted = blockedUserIds.includes(post.user_id);
