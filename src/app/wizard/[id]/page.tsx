@@ -10,33 +10,34 @@ import {
     ChevronRight, Wand2, Shield, Star,
     Calendar, MessageSquare, BookOpen, Package, Clock,
     Sparkles, ExternalLink, Mars, Venus, UserPlus, UserMinus,
-    Users, Camera, ImagePlus, Loader2, Move, Check, Swords
+    Users, Camera, ImagePlus, Loader2, Move, Check, Swords, Skull
 } from "lucide-react";
+import { useOwlMail } from "@/components/OwlMail";
 import { getYearFromProfile, getYearTitle, getYearLabel } from "@/lib/yearSystem";
 import { getItemBoostBadges } from "@/lib/inventoryBoosts";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const ANIMALS_MAP: Record<string, { emoji: string; nameHe: string; nameEn: string }> = {
-    stag:      { emoji: "🦌", nameHe: "צבי",       nameEn: "Stag" },
-    otter:     { emoji: "🦦", nameHe: "Otter",      nameEn: "Otter" },
-    wolf:      { emoji: "🐺", nameHe: "זאב",        nameEn: "Wolf" },
-    doe:       { emoji: "🦌", nameHe: "צביה",       nameEn: "Doe" },
-    hare:      { emoji: "🐇", nameHe: "ארנב בר",    nameEn: "Hare" },
-    boar:      { emoji: "🐗", nameHe: "חזיר בר",    nameEn: "Boar" },
-    cat:       { emoji: "🐱", nameHe: "חתול",       nameEn: "Cat" },
-    eagle:     { emoji: "🦅", nameHe: "נשר",        nameEn: "Eagle" },
-    lion:      { emoji: "🦁", nameHe: "אריה",       nameEn: "Lion" },
-    dolphin:   { emoji: "🐬", nameHe: "דולפין",     nameEn: "Dolphin" },
-    fox:       { emoji: "🦊", nameHe: "שועל",       nameEn: "Fox" },
-    owl:       { emoji: "🦉", nameHe: "ינשוף",      nameEn: "Owl" },
-    horse:     { emoji: "🐴", nameHe: "סוס",        nameEn: "Horse" },
-    tiger:     { emoji: "🐯", nameHe: "נמר",        nameEn: "Tiger" },
-    swan:      { emoji: "🦢", nameHe: "ברבור",      nameEn: "Swan" },
-    bear:      { emoji: "🐻", nameHe: "דוב",        nameEn: "Bear" },
-    dragon:    { emoji: "🐉", nameHe: "דרקון",      nameEn: "Dragon" },
-    butterfly: { emoji: "🦋", nameHe: "פרפר",       nameEn: "Butterfly" },
-    phoenix:   { emoji: "🔥", nameHe: "פיניקס",     nameEn: "Phoenix" },
-    serpent:   { emoji: "🐍", nameHe: "נחש",        nameEn: "Serpent" },
+    stag: { emoji: "🦌", nameHe: "צבי", nameEn: "Stag" },
+    otter: { emoji: "🦦", nameHe: "Otter", nameEn: "Otter" },
+    wolf: { emoji: "🐺", nameHe: "זאב", nameEn: "Wolf" },
+    doe: { emoji: "🦌", nameHe: "צביה", nameEn: "Doe" },
+    hare: { emoji: "🐇", nameHe: "ארנב בר", nameEn: "Hare" },
+    boar: { emoji: "🐗", nameHe: "חזיר בר", nameEn: "Boar" },
+    cat: { emoji: "🐱", nameHe: "חתול", nameEn: "Cat" },
+    eagle: { emoji: "🦅", nameHe: "נשר", nameEn: "Eagle" },
+    lion: { emoji: "🦁", nameHe: "אריה", nameEn: "Lion" },
+    dolphin: { emoji: "🐬", nameHe: "דולפין", nameEn: "Dolphin" },
+    fox: { emoji: "🦊", nameHe: "שועל", nameEn: "Fox" },
+    owl: { emoji: "🦉", nameHe: "ינשוף", nameEn: "Owl" },
+    horse: { emoji: "🐴", nameHe: "סוס", nameEn: "Horse" },
+    tiger: { emoji: "🐯", nameHe: "נמר", nameEn: "Tiger" },
+    swan: { emoji: "🦢", nameHe: "ברבור", nameEn: "Swan" },
+    bear: { emoji: "🐻", nameHe: "דוב", nameEn: "Bear" },
+    dragon: { emoji: "🐉", nameHe: "דרקון", nameEn: "Dragon" },
+    butterfly: { emoji: "🦋", nameHe: "פרפר", nameEn: "Butterfly" },
+    phoenix: { emoji: "🔥", nameHe: "פיניקס", nameEn: "Phoenix" },
+    serpent: { emoji: "🐍", nameHe: "נחש", nameEn: "Serpent" },
 };
 
 const HOUSE_CONFIG: Record<string, {
@@ -148,13 +149,25 @@ export default function WizardProfilePage() {
     const [friendshipLoading, setFriendshipLoading] = useState(false);
     const [friends, setFriends] = useState<any[]>([]);
     const [roleColors, setRoleColors] = useState<Record<string, string>>({});
+    const { sendOwl } = useOwlMail();
+    const [userRole, setUserRole] = useState<string | null>(null);
+    const [isOnline, setIsOnline] = useState(false);
     useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
     // Get current user once
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            setCurrentUser(user);
-        });
+        const initAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                setCurrentUser(session.user);
+                // Fetch logged-in user role
+                const { data: p } = await supabase.from('profiles').select('role, user_groups(name)').eq('id', session.user.id).single();
+                const groupData = p?.user_groups;
+                const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : p?.role;
+                setUserRole(roleName || null);
+            }
+        };
+        initAuth();
     }, [supabase]);
 
     // Sync isOwnProfile when both id and currentUser are ready
@@ -289,6 +302,35 @@ export default function WizardProfilePage() {
         setIsFriend(false);
         setFriends(prev => prev.filter(f => f.id !== currentUser.id));
         setFriendshipLoading(false);
+    };
+
+    // הרשאות הנהלה
+    const STAFF_ROLES = ['מייסד', 'ראש הוגוורטס', 'שומר הטירה', 'פרופסור', 'צוות Lumos', 'מנהל', 'מנחה'];
+    const canModerate = currentUser && STAFF_ROLES.includes(userRole || '');
+
+    // פונקציית שליחה לאזקבאן
+    const handleSendToAzkaban = async () => {
+        if (!confirm("🚨 האם אתה בטוח שברצונך לשלוח משתמש זה לאזקבאן ולחסום אותו מהקהילה?")) return;
+
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ role: 'אסיר אזקבאן' })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            sendOwl("קסם בוצע בהצלחה", "המשתמש נשלח לאזקבאן ונשללו ממנו כל הגישות.", "success");
+
+            // רענון קל כדי שהדרגה תתעדכן ויזואלית בעמוד
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+
+        } catch (err: any) {
+            console.error(err);
+            sendOwl("שגיאה", "משהו השתבש בשליחה לאזקבאן.", "error");
+        }
     };
 
     const handleChallengeDuel = async () => {
@@ -538,94 +580,124 @@ export default function WizardProfilePage() {
                     </div>
                 )}
 
-                {/* Avatar row */}
-                <div className="relative -mt-12 md:-mt-16 mb-4 md:mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6" style={{ position: 'relative', zIndex: 20 }}>
-                    <div className="slide-up">
-                        {/* Avatar wrapper */}
-                        <div className="avatar-wrapper relative cursor-pointer group"
+                {/* ══ PROFILE HEADER INFO ══ */}
+                <div className="relative -mt-12 md:-mt-16 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6" style={{ position: 'relative', zIndex: 20 }}>
+
+                    {/* Right Side (Avatar + Name + Badges) */}
+                    <div className="flex flex-col md:flex-row items-center md:items-end gap-5 slide-up w-full md:w-auto text-center md:text-right">
+
+                        {/* Avatar */}
+                        <div className="avatar-wrapper relative cursor-pointer group shrink-0"
                             onClick={() => isOwnProfile && avatarInputRef.current?.click()}>
-                            <input
-                                ref={avatarInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handleAvatarUpload}
-                            />
-                            <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden border-4 border-[#060910] shadow-2xl flex items-center justify-center text-5xl md:text-6xl"
+                            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden border-4 border-[#060910] shadow-2xl flex items-center justify-center text-5xl md:text-6xl"
                                 style={{
                                     background: house?.banner || "rgba(255,255,255,0.05)",
                                     boxShadow: house ? `0 0 30px ${house.glow}, 0 8px 32px rgba(0,0,0,0.8)` : undefined,
                                 }}>
-                                {avatarUrl ? (
-                                    <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                                ) : (
-                                    house?.emoji || "🧙"
-                                )}
+                                {avatarUrl ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" /> : (house?.emoji || "🧙")}
                             </div>
-
-                            {/* Upload overlay (own profile) */}
                             {isOwnProfile && (
                                 <div className="avatar-upload-overlay absolute inset-0 rounded-2xl bg-black/60 flex flex-col items-center justify-center gap-1">
-                                    {uploadingAvatar
-                                        ? <Loader2 size={20} className="text-white animate-spin" />
-                                        : <Camera size={20} className="text-white" />
-                                    }
-                                    <span className="text-white text-[9px] font-cinzel uppercase tracking-wider">
-                                        {uploadingAvatar ? "מעלה..." : "שנה"}
-                                    </span>
+                                    {uploadingAvatar ? <Loader2 size={20} className="text-white animate-spin" /> : <Camera size={20} className="text-white" />}
+                                    <span className="text-white text-[9px] font-cinzel uppercase tracking-wider">{uploadingAvatar ? "מעלה..." : "שנה"}</span>
                                 </div>
                             )}
+                            {isOnline && <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-emerald-400 border-2 border-[#060910] animate-pulse" />}
+                        </div>
 
-                            {/* Online dot */}
-                            <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-emerald-400 border-2 border-[#060910] animate-pulse" />
+                        {/* Name & Badges */}
+                        <div className="flex flex-col gap-2 pt-2 md:pt-0">
+                            <h1 className="font-cinzel text-3xl md:text-4xl font-black tracking-tight"
+                                style={{
+                                    color: grp?.color || getRoleColor(profile.role, profile.house, roleColors),
+                                    textShadow: `0 0 30px ${grp?.color || getRoleColor(profile.role, profile.house, roleColors)}40`
+                                }}>
+                                {profile.full_name || "קוסם אנונימי"}
+                            </h1>
+                            <div className="flex flex-wrap justify-center md:justify-start items-center gap-2">
+                                <span style={{
+                                    fontSize: "10px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                    textTransform: "uppercase", letterSpacing: "0.12em",
+                                    padding: "3px 12px", borderRadius: "999px",
+                                    color: badgeColor, background: `${badgeColor}20`, border: `1px solid ${badgeColor}50`,
+                                }}>
+                                    {badgeLabel}
+                                </span>
+                                {house && (
+                                    <span className={`text-[10px] px-3 py-1 rounded-full border font-black uppercase tracking-widest ${house.badgeBg}`}>
+                                        {house.emoji} {house.name}
+                                    </span>
+                                )}
+                                {profile.duel_badge && (
+                                    <span style={{
+                                        fontSize: "10px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                                        letterSpacing: "0.1em", padding: "3px 12px", borderRadius: "999px",
+                                        color: "#f97316", background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.4)",
+                                        textShadow: "0 0 8px rgba(249,115,22,0.5)",
+                                    }}>
+                                        {profile.duel_badge}
+                                    </span>
+                                )}
+                                <span className="flex items-center gap-1 text-white/30 text-xs mr-1">
+                                    {profile.gender === "female" ? <><Venus size={13} className="text-pink-400" /> מכשפה</> : <><Mars size={13} className="text-blue-400" /> קוסם</>}
+                                </span>
+                            </div>
+
+                            {/* Joining & Year Info */}
+                            <div className="flex flex-wrap justify-center md:justify-start gap-4 text-[11px] text-white/30 font-cinzel mt-1">
+                                {(() => {
+                                    const y = getYearFromProfile(profile);
+                                    return (
+                                        <span className="flex items-center gap-1.5">
+                                            <BookOpen size={11} /> שנה {getYearLabel(y)} — {getYearTitle(y)}
+                                        </span>
+                                    );
+                                })()}
+                                <span className="flex items-center gap-1.5">
+                                    <Calendar size={11} /> הצטרפ׳ {joinDate}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Right side: stats + action buttons */}
-                    <div className="flex flex-col items-start md:items-end gap-4 pb-2 slide-up delay-2 w-full md:w-auto">
+                    {/* Left Side (Actions & Stats) */}
+                    <div className="flex flex-col items-center md:items-end gap-4 w-full md:w-auto slide-up delay-2 mt-2 md:mt-0">
                         {/* Action buttons (other users only) */}
                         {currentUser && !isOwnProfile && (
-                            <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleChallengeDuel}
-                                disabled={duelLoading}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all"
-                                style={{
-                                    background: "rgba(220,38,38,0.12)",
-                                    borderColor: "rgba(220,38,38,0.4)",
-                                    color: "#f87171",
-                                }}
-                            >
-                                {duelLoading ? <Loader2 size={13} className="animate-spin" /> : "⚔️"}
-                                {duelLoading ? "..." : "אתגר"}
-                            </button>
-                            <button
-                                onClick={isFriend ? handleRemoveFriend : handleAddFriend}
-                                disabled={friendshipLoading}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all"
-                                style={isFriend ? {
-                                    background: "rgba(255,255,255,0.04)",
-                                    borderColor: "rgba(255,255,255,0.12)",
-                                    color: "rgba(255,255,255,0.5)",
-                                } : {
-                                    background: house?.accent ? `${house.accent}20` : "rgba(245,158,11,0.15)",
-                                    borderColor: house?.accent ? `${house.accent}50` : "rgba(245,158,11,0.4)",
-                                    color: house?.accent || "#f59e0b",
-                                }}
-                            >
-                                {friendshipLoading
-                                    ? <Loader2 size={13} className="animate-spin" />
-                                    : isFriend
-                                        ? <UserMinus size={13} />
-                                        : <UserPlus size={13} />
-                                }
-                                {friendshipLoading ? "..." : isFriend ? "הסר חבר" : "הוסף חבר"}
-                            </button>
+                            <div className="flex flex-wrap justify-center md:justify-end gap-2 w-full">
+                                {canModerate && profile?.role !== 'מייסד' && (
+                                    <button
+                                        onClick={handleSendToAzkaban}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
+                                        style={{ background: "rgba(153,27,27,0.2)", borderColor: "rgba(185,28,28,0.5)", color: "#fca5a5" }}
+                                    >
+                                        <Skull size={13} /> אזקבאן
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleChallengeDuel} disabled={duelLoading}
+                                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all w-auto"
+                                    style={{ background: "rgba(220,38,38,0.12)", borderColor: "rgba(220,38,38,0.4)", color: "#f87171" }}
+                                >
+                                    {duelLoading ? <Loader2 size={13} className="animate-spin" /> : "⚔️"} {duelLoading ? "..." : "אתגר"}
+                                </button>
+                                <button
+                                    onClick={isFriend ? handleRemoveFriend : handleAddFriend} disabled={friendshipLoading}
+                                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all w-auto"
+                                    style={isFriend
+                                        ? { background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.5)" }
+                                        : { background: house?.accent ? `${house.accent}20` : "rgba(245,158,11,0.15)", borderColor: house?.accent ? `${house.accent}50` : "rgba(245,158,11,0.4)", color: house?.accent || "#f59e0b" }
+                                    }
+                                >
+                                    {friendshipLoading ? <Loader2 size={13} className="animate-spin" /> : isFriend ? <UserMinus size={13} /> : <UserPlus size={13} />}
+                                    {friendshipLoading ? "..." : isFriend ? "הסר" : "הוסף חבר"}
+                                </button>
                             </div>
                         )}
 
                         {/* Stats bar — desktop */}
-                        <div className="hidden md:flex items-center gap-6">
+                        <div className="hidden md:flex items-center gap-6 mt-2">
                             <div className="text-center">
                                 <div className="font-cinzel font-black text-xl text-white">{postCount}</div>
                                 <div className="text-[10px] text-white/30 font-cinzel uppercase tracking-widest">הודעות</div>
@@ -642,100 +714,11 @@ export default function WizardProfilePage() {
                             </div>
                             <div className="w-px h-8 bg-white/10" />
                             <div className="text-center">
-                                <div className="font-cinzel font-black text-xl" style={{ color: house?.accent || "#f8fafc" }}>
-                                    {friends.length}
-                                </div>
+                                <div className="font-cinzel font-black text-xl" style={{ color: house?.accent || "#f8fafc" }}>{friends.length}</div>
                                 <div className="text-[10px] text-white/30 font-cinzel uppercase tracking-widest">חברים</div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Name + badges */}
-                <div className="slide-up delay-1 mb-8">
-                    <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <h1 className="font-cinzel text-3xl md:text-5xl font-black tracking-tight"
-                            style={{ 
-                                color: grp?.color || getRoleColor(profile.role, profile.house, roleColors),
-                                textShadow: `0 0 30px ${grp?.color || getRoleColor(profile.role, profile.house, roleColors)}40`
-                            }}>
-                            {profile.full_name || "קוסם אנונימי"}
-                        </h1>
-                        <span style={{
-                            fontSize: "10px", fontWeight: 900, fontFamily: "'Cinzel', serif",
-                            textTransform: "uppercase", letterSpacing: "0.12em",
-                            padding: "3px 12px", borderRadius: "999px",
-                            color: badgeColor,
-                            background: `${badgeColor}20`,
-                            border: `1px solid ${badgeColor}50`,
-                        }}>
-                            {badgeLabel}
-                        </span>
-                        {house && (
-                            <span className={`text-[10px] px-3 py-1 rounded-full border font-black uppercase tracking-widest ${house.badgeBg}`}>
-                                {house.emoji} {house.name}
-                            </span>
-                        )}
-                        {profile.duel_badge && (
-                            <span style={{
-                                fontSize: "10px", fontWeight: 900, fontFamily: "'Cinzel', serif",
-                                letterSpacing: "0.1em", padding: "3px 12px", borderRadius: "999px",
-                                color: "#f97316",
-                                background: "rgba(249,115,22,0.12)",
-                                border: "1px solid rgba(249,115,22,0.4)",
-                                textShadow: "0 0 8px rgba(249,115,22,0.5)",
-                            }}>
-                                {profile.duel_badge}
-                            </span>
-                        )}
-                        <span className="flex items-center gap-1 text-white/30 text-xs">
-                            {profile.gender === "female"
-                                ? <><Venus size={13} className="text-pink-400" /> מכשפה</>
-                                : <><Mars size={13} className="text-blue-400" /> קוסם</>
-                            }
-                        </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 text-[11px] text-white/30 font-cinzel">
-                        {(() => {
-                            const y = getYearFromProfile(profile);
-                            return (
-                                <span className="flex items-center gap-1.5">
-                                    <BookOpen size={11} /> שנה {getYearLabel(y)} — {getYearTitle(y)}
-                                </span>
-                            );
-                        })()}
-                        <span className="flex items-center gap-1.5">
-                            <Calendar size={11} /> הצטרפ׳ {joinDate}
-                        </span>
-                    </div>
-
-                    {profile.patronus && (
-                        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                            <h3 className="font-cinzel text-xs font-black text-white/40 uppercase tracking-widest flex items-center gap-2 mb-3">
-                                🔮 הפטרונוס
-                            </h3>
-                            <div className="flex items-center gap-3">
-                                <span className="text-3xl">{ANIMALS_MAP[profile.patronus]?.emoji || "🔮"}</span>
-                                <div>
-                                    <p className="font-cinzel font-black text-sm" style={{ color: house?.accent }}>
-                                        {ANIMALS_MAP[profile.patronus]?.nameHe || profile.patronus}
-                                    </p>
-                                    <p className="font-crimson italic text-white/30 text-xs">
-                                        {ANIMALS_MAP[profile.patronus]?.nameEn}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {profile.signature && (
-                        <div className="mt-4 pr-4 border-r-2"
-                            style={{ borderColor: house?.accent || "rgba(255,255,255,0.2)" }}>
-                            <p className="font-crimson italic text-white/50 text-base"
-                                dangerouslySetInnerHTML={{ __html: profile.signature }} />
-                        </div>
-                    )}
                 </div>
 
                 {/* Mobile stats */}
@@ -772,32 +755,32 @@ export default function WizardProfilePage() {
                             <div className="relative rounded-3xl border border-white/[0.08] bg-[#0a0f1a]/80 backdrop-blur-xl p-6 md:p-7 shadow-[0_20px_40px_rgba(0,0,0,0.6)] overflow-hidden group">
                                 <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-amber-500/20 transition-all duration-1000" />
                                 <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/10 rounded-full blur-[40px] pointer-events-none" />
-                                
+
                                 <div className="relative z-10 space-y-5">
                                     <h3 className="font-cinzel text-xs font-black text-white/50 uppercase tracking-widest flex items-center gap-2 mb-2">
-                                    <Sparkles size={12} className="text-amber-500" /> תכונות קסומות
-                                </h3>
-                                {TRAITS.map(t => (
-                                    <div key={t.key} className="space-y-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-cinzel text-white/50 flex items-center gap-1.5">
-                                                {t.icon} {t.name}
-                                            </span>
-                                            <span className="font-cinzel font-black text-sm" style={{ color: t.color }}>
-                                                {traits[t.key] || 0}
-                                            </span>
+                                        <Sparkles size={12} className="text-amber-500" /> תכונות קסומות
+                                    </h3>
+                                    {TRAITS.map(t => (
+                                        <div key={t.key} className="space-y-1.5">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-cinzel text-white/50 flex items-center gap-1.5">
+                                                    {t.icon} {t.name}
+                                                </span>
+                                                <span className="font-cinzel font-black text-sm" style={{ color: t.color }}>
+                                                    {traits[t.key] || 0}
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+                                                <div className="trait-bar h-full rounded-full"
+                                                    style={{
+                                                        width: `${traits[t.key] || 0}%`,
+                                                        background: t.color,
+                                                        boxShadow: `0 0 8px ${t.color}60`,
+                                                        animationDelay: "0.3s",
+                                                    }} />
+                                            </div>
                                         </div>
-                                        <div className="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
-                                            <div className="trait-bar h-full rounded-full"
-                                                style={{
-                                                    width: `${traits[t.key] || 0}%`,
-                                                    background: t.color,
-                                                    boxShadow: `0 0 8px ${t.color}60`,
-                                                    animationDelay: "0.3s",
-                                                }} />
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
                                 </div>
                             </div>
                         )}

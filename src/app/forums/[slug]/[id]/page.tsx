@@ -519,6 +519,11 @@ export default function ThreadViewPage() {
         const stripped = replyContent.replace(/<[^>]+>/g, '').trim();
         if (!stripped || isSubmitting || !currentUser) return;
 
+        // 🛑 בדיקת אזקבאן בתגובות!
+        if (userRole === 'אסיר אזקבאן') {
+            sendOwl("גישה נדחתה", "אסירים מאזקבאן לא יכולים לשלוח ינשופים.", "error");
+            return;
+        }
         // Cooldown check
         const lastPost = posts[posts.length - 1];
         if (lastPost?.user_id === currentUser.id && !STAFF_ROLES.includes(userRole || '')) {

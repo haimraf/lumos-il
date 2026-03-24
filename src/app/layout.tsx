@@ -14,7 +14,7 @@ import MagicPresence from "@/components/MagicPresence";
 import { AuthProvider } from "@/context/AuthContext";
 import CoolingRoomBanner from "@/components/CoolingRoomBanner";
 import SortingReminder from "@/components/SortingReminder";
-
+import AzkabanGuard from "@/components/AzkabanGuard";
 /**
  * LUMOS IL - ROOT LAYOUT V3.1 FIXED
  */
@@ -85,33 +85,39 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <UIProvider>
             <OwlMailProvider>
 
-              {/* 🔥 חשוב – מפעיל את מערכת הנוכחות */}
-              <MagicPresence />
+              {/* 🛑 חומת אזקבאן - חוסמת את כל האתר לטרולים */}
+              <AzkabanGuard>
 
-              {/* מנועי רקע */}
-              <BackgroundMusic />
-              <MagicSpells />
-              <DuelChallenge />
+                {/* 🔥 חשוב – מפעיל את מערכת הנוכחות */}
+                <MagicPresence />
 
-              {/* Header */}
-              <Header />
+                {/* מנועי רקע */}
+                <BackgroundMusic />
+                <MagicSpells />
+                <DuelChallenge />
 
-              <div className="pt-[100px] md:pt-[120px] flex flex-col flex-1 w-full relative">
+                {/* Header */}
+                <Header />
 
-                <MagicTicker />
+                <div className="pt-[100px] md:pt-[120px] flex flex-col flex-1 w-full relative">
 
-                <main id="main-content" className="flex-1 w-full flex flex-col pt-16 md:pt-20">
-                  {children}
-                </main>
+                  <MagicTicker />
 
-              </div>
+                  <main id="main-content" className="flex-1 w-full flex flex-col pt-16 md:pt-20">
+                    {children}
+                  </main>
 
-              {/* Footer + UI */}
-              <Footer />
-              <HouseElfHelper />
-              <CookieBanner />
-              <CoolingRoomBanner />
-              <SortingReminder />
+                </div>
+
+                {/* Footer + UI */}
+                <Footer />
+                <HouseElfHelper />
+                <CookieBanner />
+                <CoolingRoomBanner />
+                <SortingReminder />
+
+              </AzkabanGuard>
+              {/* 🛑 סוף חומת אזקבאן */}
 
             </OwlMailProvider>
           </UIProvider>
