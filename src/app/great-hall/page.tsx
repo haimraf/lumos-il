@@ -34,6 +34,7 @@ type Message = {
         email: string | null;
         signature: string | null;
         avatar_url: string | null;
+        is_ghost: boolean | null;
         user_groups: { name: string; color: string } | null;
     };
 };
@@ -140,7 +141,7 @@ export default function GreatHall() {
 
             const { data } = await supabase
                 .from("messages")
-                .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url, user_groups(name, color))")
+                .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url, is_ghost, user_groups(name, color))")
                 .order("created_at", { ascending: true })
                 .limit(50);
 
@@ -160,7 +161,7 @@ export default function GreatHall() {
                 .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
                     const { data: m } = await supabase
                         .from("messages")
-                        .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url, user_groups(name, color))")
+                        .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url, is_ghost, user_groups(name, color))")
                         .eq("id", payload.new.id).single();
                     if (m && isMounted) setMessages(prev => [...prev, m as any]);
                 })
@@ -473,6 +474,8 @@ export default function GreatHall() {
 
                             {messages.map((msg) => {
                                 const isMe = myId === msg.user_id;
+                                // 👻 הסתרת הודעות של רוחות רפאים (Shadowban)
+                                if (msg.profiles?.is_ghost && !isMe) return null;
                                 const isMuted = blockedUserIds.includes(msg.user_id);
                                 const h = HOUSE_CONFIG[msg.profiles?.house || "Unknown"] || HOUSE_CONFIG["Unknown"];
                                 const msgGrp = msg.profiles?.user_groups as { name: string; color: string } | null;

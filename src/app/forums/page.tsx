@@ -198,7 +198,7 @@ export default function ForumsPage() {
             // --- עדכון: הוספנו category_id לשאילתה ---
             const { data: forumsData, error: forumsError } = await supabase
                 .from('forums')
-                .select(`*, category_id, threads(id, title, created_at, forum_posts(id), profiles(id, full_name, username, house, role, user_groups(name, color)))`)
+                .select(`*, category_id, threads(id, title, created_at, author_id, forum_posts(id), profiles(id, full_name, username, house, role, is_ghost, user_groups(name, color)))`)
                 .order('created_at', { ascending: true });
 
             if (forumsData) {
@@ -209,7 +209,7 @@ export default function ForumsPage() {
                 if (allThreadIds.length > 0) {
                     const { data: rawPostsData } = await supabase
                         .from('forum_posts')
-                        .select('id, created_at, user_id, thread_id, profiles(id, full_name, house, role, user_groups(name, color))')
+                        .select('id, created_at, user_id, thread_id, profiles(id, full_name, house, role, is_ghost, user_groups(name, color))')
                         .in('thread_id', allThreadIds)
                         .order('created_at', { ascending: false })
                         .limit(500);
@@ -226,6 +226,9 @@ export default function ForumsPage() {
                     for (const p of rawPosts) {
                         const mapping = threadForumMap[p.thread_id];
                         if (!mapping) continue;
+                        // 👻 דלוג על הודעות של רוחות רפאים
+                        const pProfile = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+                        if (pProfile?.is_ghost && p.user_id !== session?.user?.id) continue;
                         if (!forumLastPostMap[mapping.forumId]) {
                             forumLastPostMap[mapping.forumId] = { post: p, thread: mapping.thread };
                         }
@@ -285,10 +288,20 @@ export default function ForumsPage() {
                     }
                 }
 
-                allThreadsFlat.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                setRecentThreads(allThreadsFlat.slice(0, 8));
+                // 👻 סינון אשכולות ופוסטים של רוחות רפאים מהסיידבר
+                const visibleThreads = allThreadsFlat.filter((t: any) => {
+                    if (t.author?.is_ghost && t.author_id !== session?.user?.id) return false;
+                    return true;
+                });
+                visibleThreads.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                setRecentThreads(visibleThreads.slice(0, 8));
 
-                const enrichedPosts = rawPosts.slice(0, 8).map((p: any) => ({
+                const visiblePosts = rawPosts.filter((p: any) => {
+                    const poster = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+                    if (poster?.is_ghost && p.user_id !== session?.user?.id) return false;
+                    return true;
+                });
+                const enrichedPosts = visiblePosts.slice(0, 8).map((p: any) => ({
                     ...p,
                     threadInfo: threadMap[p.thread_id] || null,
                     poster: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,

@@ -311,6 +311,7 @@ export default function ForumThreadsPage() {
         if (!slug) return;
         try {
             const { data: { session } } = await supabase.auth.getSession();
+            const myUserId = session?.user?.id || null;
             setCurrentUser(session?.user || null);
 
             const { data: forumData } = await supabase.from('forums').select('*').eq('slug', slug).single();
@@ -339,7 +340,7 @@ export default function ForumThreadsPage() {
 
             const { data: threadsData } = await supabase
                 .from('threads')
-                .select('*, profiles(full_name, house, role, is_online, avatar_url, user_groups(name, color)), forum_posts(count)')
+                .select('*, profiles(full_name, house, role, is_online, avatar_url, is_ghost, user_groups(name, color)), forum_posts(count)')
                 .eq('forum_id', forumData.id)
                 .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
@@ -350,10 +351,13 @@ export default function ForumThreadsPage() {
             if (threadIds.length > 0) {
                 const { data: lastPosts } = await supabase
                     .from('forum_posts')
-                    .select('thread_id, created_at, user_id, profiles(id, full_name, house, role, user_groups(name, color))')
+                    .select('thread_id, created_at, user_id, profiles(id, full_name, house, role, is_ghost, user_groups(name, color))')
                     .in('thread_id', threadIds)
                     .order('created_at', { ascending: false });
                 for (const p of lastPosts || []) {
+                    // 👻 דלוג על הודעות של רוחות רפאים (Shadowban) כ"הודעה אחרונה"
+                    const pProfile = Array.isArray((p as any).profiles) ? (p as any).profiles[0] : (p as any).profiles;
+                    if (pProfile?.is_ghost && p.user_id !== myUserId) continue;
                     if (!lastPostMap[p.thread_id]) lastPostMap[p.thread_id] = p;
                 }
             }
@@ -382,6 +386,10 @@ export default function ForumThreadsPage() {
                     last_post_author_id: lp?.user_id,
                     last_post_profile: lpProfile,
                 };
+            })?.filter((t: any) => {
+                // 👻 הסתרת אשכולות שנפתחו על ידי רוחות רפאים
+                if (t.profiles?.is_ghost && t.author_id !== myUserId) return false;
+                return true;
             });
 
             setThreads(formattedThreads as any || []);

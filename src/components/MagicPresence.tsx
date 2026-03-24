@@ -72,16 +72,19 @@ export default function MagicPresence() {
                 presence_type: presenceType,
             };
 
-            const { error } = await supabase
+            const { error, data, status, statusText } = await supabase
                 .from("online_users")
-                .upsert(payload, { onConflict: "id" });
+                .upsert(payload, { onConflict: "id" })
+                .select();
 
             if (error) {
                 console.error("❌ online_users upsert error:", error);
-                console.log("🔍 upsert error details:", JSON.stringify(error, null, 2));
+                console.log("🔍 Error Code:", error.code);
+                console.log("🔍 Error Detail:", error.details);
+                console.log("🔍 Error Hint:", error.hint);
                 console.log("🔍 payload that failed:", JSON.stringify(payload, null, 2));
             } else if (!cancelled) {
-                console.log("✅ online_users upsert ok:", payload);
+                console.log("✅ online_users upsert ok:", status, statusText);
             }
         };
 

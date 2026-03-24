@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { getMagicFingerprint, hasStickyMarker, plantStickyMarker } from "@/utils/magic-fingerprint";
 import HouseCupLeaderboard from "@/components/HouseCupLeaderboard";
 import {
   Sparkles, Mail, Trophy, Users, Star, ArrowRight, X, Lock,
@@ -35,9 +36,16 @@ export default function Home() {
   const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isPermanentlyBanned, setIsPermanentlyBanned] = useState(false);
 
   const supabase = createClient();
   const { isMuted, toggleMute } = useUIState();
+
+  useEffect(() => {
+    if (hasStickyMarker()) {
+      setIsPermanentlyBanned(true);
+    }
+  }, []);
 
   useEffect(() => {
     const count = window.innerWidth < 768 ? 30 : 80;
@@ -84,23 +92,79 @@ export default function Home() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { setAuthMessage({ type: 'error', text: "הלחש נכשל: " + error.message }); }
       else {
+        const fingerprint = getMagicFingerprint();
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: prof } = await supabase.from('profiles').select('house').eq('id', user.id).single();
+          // Update fingerprint on login
+          await supabase.from('profiles').update({ fingerprint }).eq('id', user.id);
+
+          const { data: prof } = await supabase.from('profiles').select('house, role').eq('id', user.id).single();
+          
+          // Re-check if this specific user was already banned by fingerprint
+          const { data: bannedMatches } = await supabase.from('profiles')
+            .select('id')
+            .eq('fingerprint', fingerprint)
+            .eq('role', 'אסיר אזקבאן')
+            .limit(1);
+          
+          if (bannedMatches && bannedMatches.length > 0) {
+              // This is a known troll!
+              plantStickyMarker('אסיר אזקבאן');
+              setIsPermanentlyBanned(true);
+              setIsLoading(false);
+              return;
+          }
+
           window.location.href = (!prof?.house || prof.house === 'Unsorted') ? '/sorting' : '/home';
         } else {
           window.location.href = '/home';
         }
       }
     } else {
+      if (isPermanentlyBanned) {
+        setAuthMessage({ type: 'error', text: "משרד הקסמים חסם את הגישה שלך לטירה לצמיתות." });
+        setIsLoading(false);
+        return;
+      }
       if (password.length < 6) {
         setAuthMessage({ type: 'error', text: "סיסמת הקסם חייבת להכיל לפחות 6 תווים." });
         setIsLoading(false);
         return;
       }
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      
+      const fingerprint = getMagicFingerprint();
+      
+      // Check if this fingerprint is already associated with a banned user
+      const { data: existingBanned } = await supabase.from('profiles')
+        .select('id')
+        .eq('fingerprint', fingerprint)
+        .eq('role', 'אסיר אזקבאן')
+        .limit(1);
+
+      const isMatchingBanned = existingBanned && existingBanned.length > 0;
+
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+            data: {
+                fingerprint: fingerprint,
+                is_ghost: isMatchingBanned // Auto-ghost if matches banned fingerprint
+            }
+        }
+      });
       if (error) setAuthMessage({ type: 'error', text: error.message });
       else if (data?.user) {
+        // Double down on the profile update to ensure it's locked in
+        await supabase.from('profiles').update({ 
+            fingerprint,
+            is_ghost: isMatchingBanned 
+        }).eq('id', data.user.id);
+        
+        if (isMatchingBanned) {
+            plantStickyMarker('GHOST');
+        }
+        
         setAuthMessage({ type: 'success', text: "מכתב הקבלה נשלח! בדקו את תיבת המייל שלכם." });
         setIsLoginMode(true);
       }
@@ -112,6 +176,21 @@ export default function Home() {
     <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center gap-6">
       <div className="w-16 h-16 border-t-4 border-amber-500 rounded-full animate-spin shadow-[0_0_30px_rgba(245,158,11,0.5)]" />
       <span className="font-cinzel tracking-[0.3em] text-amber-500/50 uppercase text-sm animate-pulse">פותח את שערי הטירה...</span>
+    </div>
+  );
+
+  if (isPermanentlyBanned) return (
+    <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center text-center p-6" dir="rtl">
+        <Lock size={80} className="text-red-900/60 mb-6 animate-pulse" />
+        <h1 className="font-cinzel text-4xl md:text-6xl font-black text-red-600 mb-4 tracking-widest drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+            גישה נדחתה
+        </h1>
+        <p className="font-crimson text-white/50 text-lg md:text-xl max-w-lg leading-relaxed italic border-t border-red-900/30 pt-6">
+            משרד הקסמים חסם את הגישה שלך לטירה לצמיתות עקב הפרה חמורה של חוקי הקסם. כל ניסיון עקיפה ייענה בחסימה מיידית.
+        </p>
+        <div className="mt-12 text-[10px] font-cinzel text-white/20 uppercase tracking-widest">
+            משרד הקסמים — המחלקה לאכיפת חוקי הקסם
+        </div>
     </div>
   );
 

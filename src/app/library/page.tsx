@@ -38,14 +38,16 @@ export default function LibraryPage() {
                         author_id,
                         profiles!author_id (
                             full_name,
-                            avatar_url
+                            avatar_url,
+                            is_ghost
                         )
                     `)
                     .eq('is_published', true)
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
-                setStories(data || []);
+                // 👻 הסתרת סיפורים של רוחות רפאים (לא בודקים משתמש נוכחי — רשימת הסיפורים היא ציבורית)
+                setStories((data || []).filter((s: any) => !s.profiles?.is_ghost));
             } catch (err) {
                 console.error("Lumos Error [Library]:", err);
             } finally {

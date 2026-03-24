@@ -267,7 +267,7 @@ export default function ThreadViewPage() {
             // Select only columns that definitely exist in profiles — omit 'username' which may not exist
             const { data: postsData, error: postsError } = await supabase
                 .from('forum_posts')
-                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, user_groups(name, color)), post_reactions(spell_type, user_id)`)
+                .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, is_ghost, user_groups(name, color)), post_reactions(spell_type, user_id)`)
                 .eq('thread_id', id)
                 .order('created_at', { ascending: true });
 
@@ -569,22 +569,25 @@ export default function ThreadViewPage() {
                     activeMentions.filter(uid => !uniqueQuoted.includes(uid))
                 )];
 
-                // התראה לבעל האשכול על תגובה חדשה
-                if (thread?.author_id && thread.author_id !== currentUser.id) {
-                    await supabase.from('notifications').insert({
-                        user_id: thread.author_id,
-                        actor_id: currentUser.id,
-                        type: 'reply',
-                        target_url: `/forums/thread/${threadId}`,
-                        content: `הגיב/ה לאשכול שלך: ${thread.title || ''}`,
-                        is_read: false,
-                    });
-                }
+                // 👻 רוחות רפאים לא שולחות התראות לאחרים (Shadowban)
+                if (!userProfile?.is_ghost) {
+                    // התראה לבעל האשכול על תגובה חדשה
+                    if (thread?.author_id && thread.author_id !== currentUser.id) {
+                        await supabase.from('notifications').insert({
+                            user_id: thread.author_id,
+                            actor_id: currentUser.id,
+                            type: 'reply',
+                            target_url: `/forums/thread/${threadId}`,
+                            content: `הגיב/ה לאשכול שלך: ${thread.title || ''}`,
+                            is_read: false,
+                        });
+                    }
 
-                await Promise.all([
-                    ...uniqueQuoted.map(uid => sendNotification(uid, 'quote')),
-                    ...uniqueMentioned.map(uid => sendNotification(uid, 'mention')),
-                ]);
+                    await Promise.all([
+                        ...uniqueQuoted.map(uid => sendNotification(uid, 'quote')),
+                        ...uniqueMentioned.map(uid => sendNotification(uid, 'mention')),
+                    ]);
+                }
 
                 // איפוס
                 pendingQuotes.current = [];
@@ -906,6 +909,11 @@ export default function ThreadViewPage() {
                 {/* ── Posts ── */}
                 <div className="space-y-5">
                     {posts.map((post, index) => {
+                        // 🛑 סינון רוחות רפאים (Shadowban)
+                        if (post.profiles?.is_ghost && post.user_id !== currentUser?.id) {
+                            return null; 
+                        }
+
                         const isMuted = blockedUserIds.includes(post.user_id);
                         const isOnline = onlineUserIds.has(post.user_id) || globalOnlineIds.has(post.user_id);
                         const config = post.profiles?.house ? HOUSE_CONFIG[post.profiles.house] : null;

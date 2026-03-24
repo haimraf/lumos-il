@@ -12,9 +12,10 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     active:  { label: "פעיל",       color: "#34d399" },
     cooling: { label: "חדר קירור", color: "#60a5fa" },
     banned:  { label: "מורחק",      color: "#ef4444" },
+    ghost:   { label: "שאדו באן",    color: "#a855f7" },
 };
 
-type ActionType = 'cooling' | 'banned' | null;
+type ActionType = 'cooling' | 'banned' | 'ghost' | null;
 
 export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
     const supabase = createClient();
@@ -31,7 +32,7 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
         setLoading(true);
         const { data } = await supabase
             .from('profiles')
-            .select('id, full_name, email, status, ban_reason, ban_expires_at, house')
+            .select('id, full_name, email, status, ban_reason, ban_expires_at, house, role, is_ghost')
             .or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
             .limit(8);
         setUsers(data || []);
@@ -41,7 +42,11 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
     const openAction = (user: any, type: ActionType) => {
         setActionUser(user);
         setActionType(type);
-        setReason(type === 'cooling' ? "התנהגות שאינה הולמת את רוח הטירה" : "הפרה חמורה של כללי הטירה");
+        let defaultReason = "הפרה של כללי הטירה";
+        if (type === 'cooling') defaultReason = "התנהגות שאינה הולמת את רוח הטירה";
+        if (type === 'banned') defaultReason = "הפרה חמורה של כללי הטירה";
+        if (type === 'ghost') defaultReason = "חשד להספמה או הטרדה";
+        setReason(defaultReason);
         setDays("1");
     };
 
@@ -52,9 +57,20 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
         const daysNum = actionType === 'cooling' ? parseInt(days) || 1 : 0;
         const expiresAt = daysNum > 0 ? new Date(Date.now() + daysNum * 86_400_000).toISOString() : null;
 
+        const updateData: any = { ban_reason: reason, ban_expires_at: expiresAt };
+        
+        if (actionType === 'ghost') {
+            updateData.is_ghost = true;
+        } else {
+            updateData.status = actionType;
+            if (actionType === 'banned') {
+                updateData.role = 'אסיר אזקבאן';
+            }
+        }
+
         const { error } = await supabase
             .from('profiles')
-            .update({ status: actionType, ban_reason: reason, ban_expires_at: expiresAt })
+            .update(updateData)
             .eq('id', actionUser.id);
 
         if (!error) {
@@ -69,7 +85,13 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
     const release = async (userId: string) => {
         const { error } = await supabase
             .from('profiles')
-            .update({ status: 'active', ban_reason: null, ban_expires_at: null })
+            .update({ 
+                status: 'active', 
+                role: 'קוסמ׳', // Default role on release
+                is_ghost: false,
+                ban_reason: null, 
+                ban_expires_at: null 
+            })
             .eq('id', userId);
         if (!error) {
             sendOwl("שוחרר", "המשתמש שוחרר בהצלחה", "success");
@@ -123,6 +145,14 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                     >
                                         {st.label}
                                     </span>
+                                    {u.is_ghost && (
+                                        <span
+                                            className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mr-2"
+                                            style={{ background: `#a855f715`, color: "#a855f7", border: `1px solid #a855f730` }}
+                                        >
+                                            רוח רפאים 👻
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-[10px] text-white/25 mr-4">{u.email}</p>
                                 {u.ban_reason && u.status !== 'active' && (
@@ -151,6 +181,14 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                     title="חדר קירור"
                                 >
                                     <Snowflake size={16} />
+                                </button>
+                                <button
+                                    onClick={() => openAction(u, 'ghost')}
+                                    className="p-2.5 rounded-xl transition-all border"
+                                    style={{ background: "rgba(168,85,247,0.08)", color: "#a855f7", borderColor: "rgba(168,85,247,0.2)" }}
+                                    title="שאדו באן (Ghost)"
+                                >
+                                    <div className="flex items-center justify-center rotate-12">🕯️</div>
                                 </button>
                                 <button
                                     onClick={() => openAction(u, 'banned')}
@@ -223,10 +261,10 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                 fontFamily: "'Cinzel', serif",
                                 fontSize: "1.1rem",
                                 fontWeight: 900,
-                                color: actionType === 'cooling' ? "#60a5fa" : "#ef4444",
+                                color: actionType === 'cooling' ? "#60a5fa" : actionType === 'ghost' ? "#a855f7" : "#ef4444",
                                 marginBottom: "4px",
                             }}>
-                                {actionType === 'cooling' ? "חדר קירור" : "הרחקה קבועה"}
+                                {actionType === 'cooling' ? "חדר קירור" : actionType === 'ghost' ? "שאדו באן (Ghosting)" : "הרחקה קבועה"}
                             </h2>
                             <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>
                                 {actionUser.full_name}
@@ -338,6 +376,8 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                 border: "none",
                                 background: actionType === 'cooling'
                                     ? "linear-gradient(135deg, #1d4ed8, #3b82f6)"
+                                    : actionType === 'ghost'
+                                    ? "linear-gradient(135deg, #7c3aed, #a855f7)"
                                     : "linear-gradient(135deg, #991b1b, #ef4444)",
                                 color: "#fff",
                                 fontFamily: "'Cinzel', serif",
@@ -353,6 +393,8 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                         >
                             {actionType === 'cooling'
                                 ? `שלח לחדר קירור — ${days} ימים`
+                                : actionType === 'ghost'
+                                ? "הפוך לרוח רפאים"
                                 : "הרחק לצמיתות"}
                         </button>
                     </div>

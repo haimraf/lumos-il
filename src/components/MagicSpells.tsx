@@ -62,13 +62,23 @@ export default function MagicSpells() {
 
     // טעינת לחשים מ-DB
     useEffect(() => {
-        supabase.from('spells').select('id, name, terminal_command')
+        supabase.from('spells').select('*').limit(1)
             .then(({ data, error }) => {
+                if (error) console.log("[MagicSpells] Schema check error:", error);
+                else if (data && data.length > 0) console.log("[MagicSpells] Schema sample:", data[0]);
+            });
+
+        supabase.from('spells').select('*')
+            .then(({ data, error, status, statusText }) => {
                 if (error) {
                     console.error("[MagicSpells] DB error:", error);
+                    console.log("[MagicSpells] Error Code:", error.code);
+                    console.log("[MagicSpells] Error Detail:", error.details);
+                    console.log("[MagicSpells] Error Hint:", error.hint);
+                    console.log("[MagicSpells] Status:", status, statusText);
                 } else {
                     allSpellsRef.current = data || [];
-                    console.log("[MagicSpells] spells loaded:", data?.map(s => `${s.name} → "${s.terminal_command}"`));
+                    console.log("[MagicSpells] spells loaded:", data?.length, "spells found");
                 }
             });
     }, [supabase]);

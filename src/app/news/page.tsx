@@ -641,7 +641,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     }
     const { data } = await supabase
       .from("comments")
-      .select("*, profiles(id, full_name, house, role, avatar_url, user_groups(name, color))")
+      .select("*, profiles(id, full_name, house, role, avatar_url, is_ghost, user_groups(name, color))")
       .eq("news_id", newsId)
       .order("created_at", { ascending: true });
     if (data) setComments(data);
@@ -805,6 +805,8 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
           <p className="text-center text-[#5d2a00]/35 text-sm italic py-6">היה הראשון להגיב!</p>
         )}
         {comments.map((c) => {
+          // 👻 הסתרת תגובות של רוחות רפאים (Shadowban)
+          if (c.profiles?.is_ghost && c.user_id !== currentUserId) return null;
           const isMuted = blockedUserIds.includes(c.user_id);
           const house = c.profiles?.house;
           const houseStyle = house ? HOUSE_ACCENT[house] : null;

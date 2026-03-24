@@ -2,15 +2,16 @@
 
 import imageCompression from 'browser-image-compression';
 
+import { getMagicFingerprint, plantStickyMarker } from "@/utils/magic-fingerprint";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
-    ChevronRight, Wand2, Shield, Star,
+    ChevronRight, Wand2, Shield, ShieldAlert, ShieldOff, Star,
     Calendar, MessageSquare, BookOpen, Package, Clock,
-    Sparkles, ExternalLink, Mars, Venus, UserPlus, UserMinus,
-    Users, Camera, ImagePlus, Loader2, Move, Check, Swords, Skull
+    Sparkles, ExternalLink, Mars, Venus, UserPlus, UserMinus, UserX, UserCheck,
+    Users, Camera, ImagePlus, Loader2, Move, Check, Swords, Skull, Ghost, Zap
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { getYearFromProfile, getYearTitle, getYearLabel } from "@/lib/yearSystem";
@@ -160,11 +161,24 @@ export default function WizardProfilePage() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 setCurrentUser(session.user);
-                // Fetch logged-in user role
-                const { data: p } = await supabase.from('profiles').select('role, user_groups(name)').eq('id', session.user.id).single();
+                
+                const { data: p } = await supabase.from('profiles')
+                    .select('role, user_groups(name)')
+                    .eq('id', session.user.id)
+                    .single();
+                
                 const groupData = p?.user_groups;
-                const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : p?.role;
-                setUserRole(roleName || null);
+                const gName = Array.isArray(groupData) ? groupData[0]?.name : (groupData as any)?.name;
+                setUserRole(`${p?.role || ''} ${gName || ''}`);
+                
+                try {
+                    const currentFingerprint = getMagicFingerprint();
+                    if (currentFingerprint) {
+                        await supabase.from('profiles').update({ fingerprint: currentFingerprint }).eq('id', session.user.id);
+                    }
+                } catch (err) {
+                    // Fail silently
+                }
             }
         };
         initAuth();
@@ -304,9 +318,24 @@ export default function WizardProfilePage() {
         setFriendshipLoading(false);
     };
 
-    // הרשאות הנהלה
-    const STAFF_ROLES = ['מייסד', 'ראש הוגוורטס', 'שומר הטירה', 'פרופסור', 'צוות Lumos', 'מנהל', 'מנחה'];
-    const canModerate = currentUser && STAFF_ROLES.includes(userRole || '');
+    // הרשאות הנהלה - בדיקת דרגות פנימיות ודרגות מוצגות
+    const STAFF_KEYWORDS = [
+        'מייסד', 'מייסדת', 'ראש הוגוורטס', 'שומר הטירה', 
+        'פרופסור', 'צוות Lumos', 'מנהל', 'מנחה', 'הנהלה'
+    ];
+
+    const checkIsStaff = (roleText: string) => {
+        if (!roleText) return false;
+        const normalized = roleText.trim().toLowerCase();
+        return STAFF_KEYWORDS.some(keyword => 
+            normalized.includes(keyword.toLowerCase())
+        );
+    };
+
+    // 🛑 התיקון: בודקים נטו את המשתמש המחובר (userRole)!
+    const canModerate = currentUser && checkIsStaff(userRole || '');
+
+    // Removed heavy debug logs for performance
 
     // פונקציית שליחה לאזקבאן
     const handleSendToAzkaban = async () => {
@@ -320,7 +349,8 @@ export default function WizardProfilePage() {
 
             if (error) throw error;
 
-            sendOwl("קסם בוצע בהצלחה", "המשתמש נשלח לאזקבאן ונשללו ממנו כל הגישות.", "success");
+            plantStickyMarker('אסיר אזקבאן');
+            sendOwl("אזקבאן", "המשתמש נשלח לאזקבאן בהצלחה.", "success");
 
             // רענון קל כדי שהדרגה תתעדכן ויזואלית בעמוד
             setTimeout(() => {
@@ -330,6 +360,26 @@ export default function WizardProfilePage() {
         } catch (err: any) {
             console.error(err);
             sendOwl("שגיאה", "משהו השתבש בשליחה לאזקבאן.", "error");
+        }
+    };
+
+    // פונקציית Shadowban
+    const handleShadowBan = async () => {
+        if (!confirm("👻 להפוך משתמש זה לרוח רפאים? (אף אחד לא יראה את ההודעות שלו חוץ ממנו)")) return;
+
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ is_ghost: true })
+                .eq('id', id);
+
+            if (error) throw error;
+            
+            plantStickyMarker('GHOST');
+            sendOwl("רוח רפאים", "המשתמש הפך לרוח רפאים בהצלחה.", "success");
+        } catch (err: any) {
+            console.error(err);
+            sendOwl("שגיאה", "הקסם נכשל.", "error");
         }
     };
 
@@ -663,38 +713,49 @@ export default function WizardProfilePage() {
 
                     {/* Left Side (Actions & Stats) */}
                     <div className="flex flex-col items-center md:items-end gap-4 w-full md:w-auto slide-up delay-2 mt-2 md:mt-0">
-                        {/* Action buttons (other users only) */}
-                        {currentUser && !isOwnProfile && (
-                            <div className="flex flex-wrap justify-center md:justify-end gap-2 w-full">
-                                {canModerate && profile?.role !== 'מייסד' && (
+                        <div className="flex flex-wrap justify-center md:justify-end gap-2 w-full">
+                            {currentUser && !isOwnProfile && (
+                                <>
+                                    {canModerate && profile?.role !== 'מייסד' && (
+                                        <>
+                                            <button
+                                                onClick={handleSendToAzkaban}
+                                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
+                                                style={{ background: "rgba(153,27,27,0.2)", borderColor: "rgba(185,28,28,0.5)", color: "#fca5a5" }}
+                                            >
+                                                <Skull size={13} /> אזקבאן
+                                            </button>
+                                            <button
+                                                onClick={handleShadowBan}
+                                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
+                                                style={{ background: "rgba(59,130,246,0.1)", borderColor: "rgba(96,165,250,0.4)", color: "#93c5fd" }}
+                                                title="Shadowban - הפוך לרואה ואינו נראה"
+                                            >
+                                                <Ghost size={13} /> רוח רפאים
+                                            </button>
+                                        </>
+                                    )}
                                     <button
-                                        onClick={handleSendToAzkaban}
-                                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
-                                        style={{ background: "rgba(153,27,27,0.2)", borderColor: "rgba(185,28,28,0.5)", color: "#fca5a5" }}
+                                        onClick={handleChallengeDuel} disabled={duelLoading}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all w-auto"
+                                        style={{ background: "rgba(220,38,38,0.12)", borderColor: "rgba(220,38,38,0.4)", color: "#f87171" }}
                                     >
-                                        <Skull size={13} /> אזקבאן
+                                        {duelLoading ? <Loader2 size={13} className="animate-spin" /> : "⚔️"} {duelLoading ? "..." : "אתגר"}
                                     </button>
-                                )}
-                                <button
-                                    onClick={handleChallengeDuel} disabled={duelLoading}
-                                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all w-auto"
-                                    style={{ background: "rgba(220,38,38,0.12)", borderColor: "rgba(220,38,38,0.4)", color: "#f87171" }}
-                                >
-                                    {duelLoading ? <Loader2 size={13} className="animate-spin" /> : "⚔️"} {duelLoading ? "..." : "אתגר"}
-                                </button>
-                                <button
-                                    onClick={isFriend ? handleRemoveFriend : handleAddFriend} disabled={friendshipLoading}
-                                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all w-auto"
-                                    style={isFriend
-                                        ? { background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.5)" }
-                                        : { background: house?.accent ? `${house.accent}20` : "rgba(245,158,11,0.15)", borderColor: house?.accent ? `${house.accent}50` : "rgba(245,158,11,0.4)", color: house?.accent || "#f59e0b" }
-                                    }
-                                >
-                                    {friendshipLoading ? <Loader2 size={13} className="animate-spin" /> : isFriend ? <UserMinus size={13} /> : <UserPlus size={13} />}
-                                    {friendshipLoading ? "..." : isFriend ? "הסר" : "הוסף חבר"}
-                                </button>
-                            </div>
-                        )}
+                                    <button
+                                        onClick={isFriend ? handleRemoveFriend : handleAddFriend} disabled={friendshipLoading}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-xs font-black uppercase tracking-widest transition-all w-auto"
+                                        style={isFriend
+                                            ? { background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.5)" }
+                                            : { background: house?.accent ? `${house.accent}20` : "rgba(245,158,11,0.15)", borderColor: house?.accent ? `${house.accent}50` : "rgba(245,158,11,0.4)", color: house?.accent || "#f59e0b" }
+                                        }
+                                    >
+                                        {friendshipLoading ? <Loader2 size={13} className="animate-spin" /> : isFriend ? <UserMinus size={13} /> : <UserPlus size={13} />}
+                                        {friendshipLoading ? "..." : isFriend ? "הסר" : "הוסף חבר"}
+                                    </button>
+                                </>
+                            )}
+                        </div>
 
                         {/* Stats bar — desktop */}
                         <div className="hidden md:flex items-center gap-6 mt-2">
