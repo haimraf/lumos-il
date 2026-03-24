@@ -14,46 +14,77 @@ export default function SortingReminder() {
         setMounted(true);
     }, []);
 
-    // הגנות ראשוניות
-    if (!mounted) return null;
-    if (!profile) return null;
+    if (!mounted || !profile) return null;
     
-    // אם המשתמש כבר בדף המיון או בדף הבית - אל תציג כלום כדי למנוע לופים
-    // הוספתי הגנה למקרה שהם ב-Landing Page לפני התחברות
-    if (pathname === '/sorting' || pathname === '/') return null;
+    // הגנה: לא מציגים בדף המיון, בדף הנחיתה או בדף התחברות
+    const excludedPaths = ['/sorting', '/', '/login', '/register'];
+    if (excludedPaths.includes(pathname)) return null;
 
-    // בדיקה האם המשתמש לא ממוין
     const isUnsorted = !profile.house || profile.house === 'Unsorted';
     if (!isUnsorted) return null;
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 backdrop-blur-md overflow-hidden">
-            <div className="max-w-md w-full mx-4 p-8 bg-[#0f172a] border-2 border-amber-500/50 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.2)] text-center relative">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 backdrop-blur-xl overflow-hidden">
+            
+            {/* אפקט ניצוצות רקע (CSS בלבד) */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="stars-container">
+                    {[...Array(20)].map((_, i) => (
+                        <div key={i} className="star" style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `${Math.random() * 100}%`,
+                            animationDelay: `${Math.random() * 3}s`,
+                            animationDuration: `${2 + Math.random() * 2}s`
+                        }}></div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="max-w-md w-full mx-4 p-10 bg-[#0f172a]/80 border-2 border-amber-500/40 rounded-3xl shadow-[0_0_80px_rgba(245,158,11,0.25)] text-center relative backdrop-blur-md">
                 
-                {/* פס עיצוב עליון */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-1 bg-amber-500 shadow-[0_0_20px_#f59e0b]"></div>
+                {/* עיטור זוהר עליון */}
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent shadow-[0_0_15px_#f59e0b]"></div>
                 
-                <div className="text-6xl mb-6 animate-bounce">🎩</div>
+                <div className="text-7xl mb-8 animate-pulse drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]">🎩</div>
                 
-                <h2 className="font-cinzel text-2xl text-amber-400 mb-4">עצור, קוסם צעיר!</h2>
+                <h2 className="font-cinzel text-3xl text-amber-400 mb-4 tracking-wider">עצור, קוסם!</h2>
                 
-                <p className="font-assistant text-slate-300 mb-8 leading-relaxed">
-                    אי אפשר להמשיך במסדרונות הטירה מבלי להשתייך לבית. 
+                <p className="font-assistant text-lg text-slate-200 mb-10 leading-relaxed">
+                    מסדרונות הטירה אפלוליים ומסוכנים למי שטרם מצא את ביתו.
                     <br />
-                    המצנפת מחכה לקבוע את גורלך...
+                    <span className="text-amber-200/80 italic font-medium">המצנפת מחכה לקבוע את גורלך.</span>
                 </p>
 
                 <Link 
                     href="/sorting" 
-                    className="inline-block w-full font-cinzel text-lg bg-amber-600 text-black py-3 rounded-lg hover:bg-amber-500 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg font-bold"
+                    className="group relative inline-block w-full font-cinzel text-xl bg-amber-600 text-black py-4 rounded-xl hover:bg-amber-500 transition-all shadow-[0_5px_15px_rgba(0,0,0,0.3)] font-bold overflow-hidden"
                 >
-                    למיין אותי עכשיו!
+                    <span className="relative z-10">למיין אותי עכשיו!</span>
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                 </Link>
 
-                <p className="mt-6 text-xs text-slate-500 font-assistant italic">
-                    * ברגע שתתמיין, כל האפשרויות בטירה ייפתחו בפניך
+                <p className="mt-8 text-xs text-slate-500 font-assistant tracking-widest uppercase opacity-60">
+                    — משרד הקסמים מאשר מעבר לממוינים בלבד —
                 </p>
             </div>
+
+            <style jsx>{`
+                .star {
+                    position: absolute;
+                    width: 2px;
+                    height: 2px;
+                    background: #f59e0b;
+                    border-radius: 50%;
+                    opacity: 0;
+                    box-shadow: 0 0 10px #f59e0b, 0 0 20px #f59e0b;
+                    animation: twinkle linear infinite;
+                }
+                @keyframes twinkle {
+                    0% { transform: scale(0); opacity: 0; }
+                    50% { transform: scale(1); opacity: 1; }
+                    100% { transform: scale(0); opacity: 0; }
+                }
+            `}</style>
         </div>
     );
 }
