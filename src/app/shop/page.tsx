@@ -67,8 +67,8 @@ function ItemImage({ src, alt, rarity }: { src?: string; alt: string; rarity: st
 }
 
 function ShopContent() {
-    const supabase = createClient();
-    const { profile, refreshProfile } = useAuth();
+    const [supabase] = useState(() => createClient());
+    const { profile, refreshProfile, session, profileError, isLoading: authLoading } = useAuth();
     const { sendOwl } = useOwlMail();
 
     const [items, setItems] = useState<any[]>([]);
@@ -141,6 +141,47 @@ function ShopContent() {
     const filteredItems = activeCategory === 'all'
         ? items
         : items.filter(item => item.category === activeCategory);
+
+    if (loading || authLoading) {
+        return (
+            <div className="min-h-screen bg-[#020617] flex items-center justify-center">
+                <div className="w-10 h-10 border-t-2 border-amber-500 rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (session && !profile) {
+        return (
+            <div className="min-h-screen bg-[#020617] flex items-center justify-center px-6" dir="rtl">
+                <div className="max-w-md w-full rounded-[2rem] border border-amber-500/20 bg-black/30 p-8 text-center space-y-5 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
+                    <ShoppingBag className="mx-auto text-amber-500" size={42} />
+                    <div>
+                        <h1 className="font-cinzel text-2xl font-black text-white mb-2">החיבור הצליח, אבל הפרופיל עוד לא נטען</h1>
+                        <p className="font-crimson text-white/55 leading-relaxed">
+                            {profileError || "אפשר לנסות לרענן את הפרופיל בלי לנתק את החשבון."}
+                        </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button
+                            onClick={() => refreshProfile()}
+                            className="px-5 py-3 rounded-xl bg-amber-500 text-amber-950 font-cinzel font-black text-sm tracking-widest uppercase"
+                        >
+                            רענון פרופיל
+                        </button>
+                        <button
+                            onClick={async () => {
+                                await supabase.auth.signOut();
+                                window.location.assign("/");
+                            }}
+                            className="px-5 py-3 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20 font-cinzel font-black text-sm tracking-widest uppercase transition-all"
+                        >
+                            ניתוק בטוח
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#020617] text-slate-200 pb-24 font-crimson relative overflow-x-hidden" dir="rtl">

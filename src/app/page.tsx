@@ -23,6 +23,10 @@ import Link from "next/link";
  * ✅ כל הלוגיקה הקיימת שמורה
  */
 
+const LEGACY_BANNED_ROLE = "אסיר אזקבאן";
+
+const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
+
 export default function Home() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -38,7 +42,7 @@ export default function Home() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isPermanentlyBanned, setIsPermanentlyBanned] = useState(false);
 
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const { isMuted, toggleMute } = useUIState();
 
   useEffect(() => {
@@ -61,13 +65,18 @@ export default function Home() {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setIsCheckingSession(false); return; }
-      const { data: profile } = await supabase.from('profiles').select('house').eq('id', session.user.id).single();
-      if (!profile || !profile.house || profile.house === 'Unsorted' || profile.house === 'Unknown') {
-        router.push('/sorting');
-      } else {
-        router.push('/home');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setIsCheckingSession(false); return; }
+        const { data: profile } = await supabase.from('profiles').select('house').eq('id', session.user.id).single();
+        if (!profile || !profile.house || profile.house === 'Unsorted' || profile.house === 'Unknown') {
+          router.push('/sorting');
+        } else {
+          router.push('/home');
+        }
+      } catch (error) {
+        console.error("[Landing] session check failed:", error);
+        setIsCheckingSession(false);
       }
     };
     checkSession();
@@ -89,25 +98,47 @@ export default function Home() {
     setIsLoading(true);
     setAuthMessage(null);
     if (isLoginMode) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { setAuthMessage({ type: 'error', text: "הלחש נכשל: " + error.message }); }
       else {
         const fingerprint = getMagicFingerprint();
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = data.session?.user;
         if (user) {
           // Update fingerprint on login
           await supabase.from('profiles').update({ fingerprint }).eq('id', user.id);
 
-          const { data: prof } = await supabase.from('profiles').select('house, role').eq('id', user.id).single();
+          const { data: prof } = await supabase.from('profiles').select('house, role, status').eq('id', user.id).single();
           
           // Re-check if this specific user was already banned by fingerprint
           const { data: bannedMatches } = await supabase.from('profiles')
-            .select('id')
+            .select('id, role, status')
             .eq('fingerprint', fingerprint)
             .eq('role', 'אסיר אזקבאן')
             .limit(1);
+          const { data: statusBannedMatches } = await supabase.from('profiles')
+            .select('id')
+            .eq('fingerprint', fingerprint)
+            .eq('status', 'banned')
+            .limit(1);
+          const { data: legacyBannedMatches } = await supabase.from('profiles')
+            .select('id')
+            .eq('fingerprint', fingerprint)
+            .eq('role', LEGACY_BANNED_ROLE_HE)
+            .is('status', null)
+            .limit(1);
           
-          if (bannedMatches && bannedMatches.length > 0) {
+          if (
+            prof?.status === 'banned' ||
+            (legacyBannedMatches && legacyBannedMatches.length > 0) ||
+            (statusBannedMatches && statusBannedMatches.length > 0)
+          ) {
+              plantStickyMarker(LEGACY_BANNED_ROLE_HE);
+              setIsPermanentlyBanned(true);
+              setIsLoading(false);
+              return;
+          }
+
+          if (prof?.status === 'banned' || (bannedMatches && bannedMatches.length > 0) || (statusBannedMatches && statusBannedMatches.length > 0)) {
               // This is a known troll!
               plantStickyMarker('אסיר אזקבאן');
               setIsPermanentlyBanned(true);
@@ -115,9 +146,11 @@ export default function Home() {
               return;
           }
 
-          window.location.href = (!prof?.house || prof.house === 'Unsorted') ? '/sorting' : '/home';
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          window.location.assign((!prof?.house || prof.house === 'Unsorted') ? '/sorting' : '/home');
         } else {
-          window.location.href = '/home';
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          window.location.assign('/home');
         }
       }
     } else {
@@ -140,8 +173,21 @@ export default function Home() {
         .eq('fingerprint', fingerprint)
         .eq('role', 'אסיר אזקבאן')
         .limit(1);
+      const { data: existingStatusBanned } = await supabase.from('profiles')
+        .select('id')
+        .eq('fingerprint', fingerprint)
+        .eq('status', 'banned')
+        .limit(1);
+      const { data: existingLegacyBanned } = await supabase.from('profiles')
+        .select('id')
+        .eq('fingerprint', fingerprint)
+        .eq('role', LEGACY_BANNED_ROLE_HE)
+        .is('status', null)
+        .limit(1);
 
-      const isMatchingBanned = existingBanned && existingBanned.length > 0;
+      const isMatchingBanned =
+        (existingLegacyBanned && existingLegacyBanned.length > 0) ||
+        (existingStatusBanned && existingStatusBanned.length > 0);
 
       const { data, error } = await supabase.auth.signUp({ 
         email, 

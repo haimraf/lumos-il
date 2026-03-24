@@ -7,8 +7,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
     Menu, X, Castle, MessageSquare, ScrollText, LogOut, Zap,
-    Volume2, VolumeX, Settings, ChevronLeft, LayoutGrid, ShoppingBag,
-    Flame, Coins, Sparkles, Library, Search, PlusCircle, LogIn,
+    Volume2, VolumeX, Settings, LayoutGrid, ShoppingBag,
+    Flame, Coins, Library, Search, PlusCircle, LogIn,
     User, ChevronDown, Shield, BookOpen, Loader2
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
@@ -78,16 +78,28 @@ export default function Header() {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pathname = usePathname();
     const router = useRouter();
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
     const { isMuted, toggleMute } = useUIState();
 
     // שליפת הפרופיל מהקונטקסט (אם אין פרופיל, סימן שזה אורח)
-    const { profile } = useAuth();
-    const isGuest = !profile;
+    const { profile, session } = useAuth();
+    const isAuthenticated = Boolean(session);
+    const isGuest = !isAuthenticated;
+    const displayProfileId = profile?.id || session?.user?.id || "";
+    const displayName =
+        profile?.full_name ||
+        session?.user?.user_metadata?.full_name ||
+        session?.user?.email?.split("@")[0] ||
+        "Community Member";
+    const displayHouse = profile?.house || "Unknown";
+    const displayGalleons = profile?.galleons?.toLocaleString() || "0";
 
     const [nameColor, setNameColor] = useState<string>("rgba(255,255,255,0.85)");
     useEffect(() => {
-        if (!profile) return;
+        if (!profile) {
+            setNameColor("rgba(255,255,255,0.85)");
+            return;
+        }
         (async () => {
             // אם יש group_id — קח ישירות את צבע הקבוצה
             if ((profile as any).group_id) {
@@ -102,7 +114,7 @@ export default function Header() {
             const map = await getRoleColorFromDB(supabase);
             setNameColor(getRoleColor(profile.role, profile.house, map));
         })();
-    }, [profile?.id, supabase]);
+    }, [profile, supabase]);
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -155,7 +167,7 @@ export default function Header() {
             setLiveLoading(false);
         }, 300);
         return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-    }, [searchQuery]);
+    }, [searchQuery, supabase]);
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -200,7 +212,7 @@ export default function Header() {
 
     const closeLiveResults = () => { setLiveResults([]); setSearchMode(false); setIsOpen(false); };
 
-    const houseTheme = HOUSE_THEMES[profile?.house] || 'border-amber-500/20 text-amber-500';
+    const houseTheme = HOUSE_THEMES[displayHouse] || 'border-amber-500/20 text-amber-500';
     const currentCTA = Object.entries(PAGE_CTA).find(([path]) => pathname.startsWith(path))?.[1];
 
     const navLinks = [
@@ -297,7 +309,7 @@ export default function Header() {
                                 {/* Galleons */}
                                 <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/50 border ${houseTheme} shadow-lg shrink-0`}>
                                     <Coins size={13} className="text-amber-500" />
-                                    <span className="font-cinzel font-black text-white text-[11px]">{profile?.galleons?.toLocaleString() || 0}</span>
+                                    <span className="font-cinzel font-black text-white text-[11px]">{displayGalleons}</span>
                                 </div>
 
                                 {/* Mute toggle */}
@@ -330,7 +342,7 @@ export default function Header() {
                                             <div className="w-full h-full bg-slate-900 flex items-center justify-center text-lg">
                                                 {profile?.avatar_url
                                                     ? <img src={profile.avatar_url} alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"} className="w-full h-full object-cover" />
-                                                    : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
+                                                    : displayHouse === 'Gryffindor' ? "🦁" : displayHouse === 'Slytherin' ? "🐍" : displayHouse === 'Ravenclaw' ? "🦅" : "🦡"
                                                 }
                                             </div>
                                         </div>
@@ -356,13 +368,13 @@ export default function Header() {
                                                     style={{ background: "rgba(255,255,255,0.04)" }}>
                                                     {profile?.avatar_url
                                                         ? <img src={profile.avatar_url} alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"} className="w-full h-full object-cover" />
-                                                        : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
+                                                        : displayHouse === 'Gryffindor' ? "🦁" : displayHouse === 'Slytherin' ? "🐍" : displayHouse === 'Ravenclaw' ? "🦅" : "🦡"
                                                     }
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="font-assistant font-bold text-sm truncate" style={{ color: nameColor }}>{profile?.full_name}</p>
+                                                    <p className="font-assistant font-bold text-sm truncate" style={{ color: nameColor }}>{displayName}</p>
                                                     <p className="font-assistant text-xs text-white/35 mt-0.5">
-                                                        {profile?.house === 'Gryffindor' ? "גריפינדור" : profile?.house === 'Slytherin' ? "סלית'רין" : profile?.house === 'Ravenclaw' ? "רייבנקלו" : "הפלפאף"}
+                                                        {displayHouse === 'Gryffindor' ? "גריפינדור" : displayHouse === 'Slytherin' ? "סלית'רין" : displayHouse === 'Ravenclaw' ? "רייבנקלו" : displayHouse === 'Hufflepuff' ? "הפלפאף" : "לא מוין"}
                                                         {profile?.year ? ` · שנה ${profile.year}` : ""}
                                                     </p>
                                                 </div>
@@ -410,7 +422,7 @@ export default function Header() {
                                             {/* ── ניווט ── */}
                                             <div className="py-1.5">
                                                 {[
-                                                    { href: `/wizard/${profile?.id}`, icon: User, label: "הפרופיל שלי" },
+                                                    { href: `/wizard/${displayProfileId}`, icon: User, label: "הפרופיל שלי" },
                                                     { href: "/dashboard", icon: Castle, label: "הטירה שלי" },
                                                     { href: "/dashboard?tab=settings", icon: Settings, label: "הגדרות" },
                                                     ...(profile?.role === "מנהל" ? [{ href: "/admin-panel", icon: Shield, label: "לוח הבקרה" }] : []),

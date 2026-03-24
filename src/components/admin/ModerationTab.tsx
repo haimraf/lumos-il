@@ -1,102 +1,178 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Search, ShieldAlert, ShieldX, Snowflake, UserCheck, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { ShieldX, Snowflake, UserCheck, Search, ShieldAlert, X } from "lucide-react";
 
 const HOUSE_COLORS: Record<string, string> = {
-    Gryffindor: "#ef4444", Slytherin: "#34d399", Ravenclaw: "#60a5fa", Hufflepuff: "#fbbf24",
+    Gryffindor: "#ef4444",
+    Slytherin: "#34d399",
+    Ravenclaw: "#60a5fa",
+    Hufflepuff: "#fbbf24",
+    Unsorted: "rgba(255,255,255,0.4)",
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    active:  { label: "פעיל",       color: "#34d399" },
+    active: { label: "פעיל", color: "#34d399" },
     cooling: { label: "חדר קירור", color: "#60a5fa" },
-    banned:  { label: "מורחק",      color: "#ef4444" },
-    ghost:   { label: "שאדו באן",    color: "#a855f7" },
+    banned: { label: "מורחק", color: "#ef4444" },
+    ghost: { label: "שאדו באן", color: "#a855f7" },
 };
 
-type ActionType = 'cooling' | 'banned' | 'ghost' | null;
+type ActionType = "cooling" | "banned" | "ghost" | null;
+
+type ModerationUser = {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    status: string | null;
+    ban_reason: string | null;
+    ban_expires_at: string | null;
+    house: string | null;
+    role: string | null;
+    is_ghost: boolean | null;
+};
 
 export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
     const [searchTerm, setSearchTerm] = useState("");
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<ModerationUser[]>([]);
     const [loading, setLoading] = useState(false);
-    const [actionUser, setActionUser] = useState<any | null>(null);
+    const [actionUser, setActionUser] = useState<ModerationUser | null>(null);
     const [actionType, setActionType] = useState<ActionType>(null);
     const [reason, setReason] = useState("");
     const [days, setDays] = useState("1");
 
+    const actionMeta = useMemo(() => {
+        if (actionType === "cooling") {
+            return {
+                title: "חדר קירור",
+                icon: "❄️",
+                color: "#60a5fa",
+                submit: `שלח לחדר קירור ל-${days} ימים`,
+                defaultReason: "התנהגות שאינה הולמת את רוח הטירה",
+            };
+        }
+        if (actionType === "ghost") {
+            return {
+                title: "שאדו באן",
+                icon: "👻",
+                color: "#a855f7",
+                submit: "הפעל שאדו באן",
+                defaultReason: "חשד להספמה או הטרדה",
+            };
+        }
+        if (actionType === "banned") {
+            return {
+                title: "הרחקה קבועה",
+                icon: "🔒",
+                color: "#ef4444",
+                submit: "הרחק לצמיתות",
+                defaultReason: "הפרה חמורה של כללי הטירה",
+            };
+        }
+        return null;
+    }, [actionType, days]);
+
     const searchUsers = async () => {
         if (!searchTerm.trim()) return;
+
         setLoading(true);
-        const { data } = await supabase
-            .from('profiles')
-            .select('id, full_name, email, status, ban_reason, ban_expires_at, house, role, is_ghost')
+        const { data, error } = await supabase
+            .from("profiles")
+            .select("id, full_name, email, status, ban_reason, ban_expires_at, house, role, is_ghost")
             .or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
             .limit(8);
-        setUsers(data || []);
+
+        if (error) {
+            sendOwl("תקלה בחיפוש", "לא הצלחתי להביא את תוצאות החיפוש כרגע.", "error");
+            setUsers([]);
+        } else {
+            setUsers((data || []) as ModerationUser[]);
+        }
+
         setLoading(false);
     };
 
-    const openAction = (user: any, type: ActionType) => {
+    const openAction = (user: ModerationUser, type: ActionType) => {
         setActionUser(user);
         setActionType(type);
-        let defaultReason = "הפרה של כללי הטירה";
-        if (type === 'cooling') defaultReason = "התנהגות שאינה הולמת את רוח הטירה";
-        if (type === 'banned') defaultReason = "הפרה חמורה של כללי הטירה";
-        if (type === 'ghost') defaultReason = "חשד להספמה או הטרדה";
-        setReason(defaultReason);
+        setReason(
+            type === "cooling"
+                ? "התנהגות שאינה הולמת את רוח הטירה"
+                : type === "ghost"
+                    ? "חשד להספמה או הטרדה"
+                    : "הפרה חמורה של כללי הטירה"
+        );
         setDays("1");
     };
 
-    const closeAction = () => { setActionUser(null); setActionType(null); };
+    const closeAction = () => {
+        setActionUser(null);
+        setActionType(null);
+        setReason("");
+        setDays("1");
+    };
 
     const applyAction = async () => {
         if (!actionUser || !actionType) return;
-        const daysNum = actionType === 'cooling' ? parseInt(days) || 1 : 0;
-        const expiresAt = daysNum > 0 ? new Date(Date.now() + daysNum * 86_400_000).toISOString() : null;
 
-        const updateData: any = { ban_reason: reason, ban_expires_at: expiresAt };
-        
-        if (actionType === 'ghost') {
+        const daysNum = actionType === "cooling" ? Math.max(1, parseInt(days, 10) || 1) : 0;
+        const expiresAt = actionType === "cooling"
+            ? new Date(Date.now() + daysNum * 86_400_000).toISOString()
+            : null;
+
+        const updateData: Record<string, unknown> = {
+            ban_reason: reason.trim() || null,
+        };
+
+        if (actionType === "ghost") {
             updateData.is_ghost = true;
+            updateData.ban_expires_at = null;
         } else {
             updateData.status = actionType;
-            if (actionType === 'banned') {
-                updateData.role = 'אסיר אזקבאן';
-            }
+            updateData.is_ghost = false;
+            updateData.ban_expires_at = expiresAt;
         }
 
         const { error } = await supabase
-            .from('profiles')
+            .from("profiles")
             .update(updateData)
-            .eq('id', actionUser.id);
+            .eq("id", actionUser.id);
 
-        if (!error) {
-            sendOwl("הוגוורטס עודכנה", `${actionUser.full_name} — ${STATUS_LABELS[actionType].label}`, "success");
-            closeAction();
-            searchUsers();
-        } else {
-            sendOwl("תקלה בלחש", "לא ניתן היה לעדכן את הסטטוס", "error");
+        if (error) {
+            sendOwl("עדכון נכשל", "לא הצלחתי לעדכן את מצב המשמעת של המשתמש.", "error");
+            return;
         }
+
+        sendOwl("עודכן בהצלחה", `${actionUser.full_name || actionUser.email || "המשתמש"} עודכן.`, "success");
+        closeAction();
+        void searchUsers();
     };
 
-    const release = async (userId: string) => {
-        const { error } = await supabase
-            .from('profiles')
-            .update({ 
-                status: 'active', 
-                role: 'קוסמ׳', // Default role on release
-                is_ghost: false,
-                ban_reason: null, 
-                ban_expires_at: null 
-            })
-            .eq('id', userId);
-        if (!error) {
-            sendOwl("שוחרר", "המשתמש שוחרר בהצלחה", "success");
-            searchUsers();
+    const releaseUser = async (user: ModerationUser) => {
+        const updateData: Record<string, unknown> = {
+            is_ghost: false,
+            ban_reason: null,
+            ban_expires_at: null,
+        };
+
+        if (user.status !== "active") {
+            updateData.status = "active";
         }
+
+        const { error } = await supabase
+            .from("profiles")
+            .update(updateData)
+            .eq("id", user.id);
+
+        if (error) {
+            sendOwl("שחרור נכשל", "לא הצלחתי לשחרר את המשתמש כרגע.", "error");
+            return;
+        }
+
+        sendOwl("שוחרר", `${user.full_name || user.email || "המשתמש"} שוחרר בהצלחה.`, "success");
+        void searchUsers();
     };
 
     return (
@@ -108,27 +184,32 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
             <div className="flex gap-2">
                 <input
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && searchUsers()}
-                    placeholder="חפש קוסם/מכשפה לפי שם או אימייל..."
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    onKeyDown={(event) => event.key === "Enter" && void searchUsers()}
+                    placeholder="חפש קוסם או מכשפה לפי שם או אימייל..."
                     className="flex-1 bg-black/40 border border-white/10 rounded-2xl p-4 outline-none focus:border-red-500/50 transition-all"
                 />
                 <button
-                    onClick={searchUsers}
+                    onClick={() => void searchUsers()}
                     disabled={loading}
-                    className="bg-red-600/20 text-red-500 p-4 rounded-2xl hover:bg-red-600 hover:text-white transition-all border border-red-500/20"
+                    className="bg-red-600/20 text-red-500 p-4 rounded-2xl hover:bg-red-600 hover:text-white transition-all border border-red-500/20 disabled:opacity-50"
                 >
                     <Search size={20} />
                 </button>
             </div>
 
             <div className="space-y-3">
-                {users.map(u => {
-                    const st = STATUS_LABELS[u.status] || STATUS_LABELS.active;
-                    const houseColor = HOUSE_COLORS[u.house] || "rgba(255,255,255,0.3)";
+                {users.map((user) => {
+                    const statusMeta =
+                        user.is_ghost && user.status === "active"
+                            ? STATUS_LABELS.ghost
+                            : STATUS_LABELS[user.status || "active"] || STATUS_LABELS.active;
+                    const houseColor = HOUSE_COLORS[user.house || "Unsorted"] || "rgba(255,255,255,0.3)";
+                    const canRelease = user.status !== "active" || Boolean(user.is_ghost);
+
                     return (
                         <div
-                            key={u.id}
+                            key={user.id}
                             className="p-5 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
                             style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
                         >
@@ -138,62 +219,88 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                         className="w-2 h-2 rounded-full"
                                         style={{ background: houseColor, boxShadow: `0 0 6px ${houseColor}` }}
                                     />
-                                    <span className="font-cinzel font-black text-base text-white">{u.full_name}</span>
+                                    <span className="font-cinzel font-black text-base text-white">
+                                        {user.full_name || "ללא שם"}
+                                    </span>
                                     <span
                                         className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
-                                        style={{ background: `${st.color}15`, color: st.color, border: `1px solid ${st.color}30` }}
+                                        style={{
+                                            background: `${statusMeta.color}15`,
+                                            color: statusMeta.color,
+                                            border: `1px solid ${statusMeta.color}30`,
+                                        }}
                                     >
-                                        {st.label}
+                                        {statusMeta.label}
                                     </span>
-                                    {u.is_ghost && (
+                                    {user.is_ghost && (
                                         <span
-                                            className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mr-2"
-                                            style={{ background: `#a855f715`, color: "#a855f7", border: `1px solid #a855f730` }}
+                                            className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full"
+                                            style={{
+                                                background: "#a855f715",
+                                                color: "#a855f7",
+                                                border: "1px solid #a855f730",
+                                            }}
                                         >
-                                            רוח רפאים 👻
+                                            Ghost
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-[10px] text-white/25 mr-4">{u.email}</p>
-                                {u.ban_reason && u.status !== 'active' && (
+                                <p className="text-[10px] text-white/25 mr-4">{user.email}</p>
+                                {user.ban_reason && (user.status !== "active" || user.is_ghost) && (
                                     <p className="text-[10px] text-white/40 italic mr-4 mt-1">
-                                        סיבה: {u.ban_reason}
-                                        {u.ban_expires_at && ` | עד ${new Date(u.ban_expires_at).toLocaleDateString("he-IL")}`}
+                                        סיבה: {user.ban_reason}
+                                        {user.ban_expires_at && ` | עד ${new Date(user.ban_expires_at).toLocaleDateString("he-IL")}`}
                                     </p>
                                 )}
                             </div>
 
                             <div className="flex gap-2 shrink-0">
-                                {u.status !== 'active' && (
+                                {canRelease && (
                                     <button
-                                        onClick={() => release(u.id)}
+                                        onClick={() => void releaseUser(user)}
                                         className="p-2.5 rounded-xl transition-all border text-xs font-cinzel font-black"
-                                        style={{ background: "rgba(52,211,153,0.08)", color: "#34d399", borderColor: "rgba(52,211,153,0.2)" }}
+                                        style={{
+                                            background: "rgba(52,211,153,0.08)",
+                                            color: "#34d399",
+                                            borderColor: "rgba(52,211,153,0.2)",
+                                        }}
                                         title="שחרר חסימה"
                                     >
                                         <UserCheck size={16} />
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => openAction(u, 'cooling')}
+                                    onClick={() => openAction(user, "cooling")}
                                     className="p-2.5 rounded-xl transition-all border"
-                                    style={{ background: "rgba(96,165,250,0.08)", color: "#60a5fa", borderColor: "rgba(96,165,250,0.2)" }}
+                                    style={{
+                                        background: "rgba(96,165,250,0.08)",
+                                        color: "#60a5fa",
+                                        borderColor: "rgba(96,165,250,0.2)",
+                                    }}
                                     title="חדר קירור"
                                 >
                                     <Snowflake size={16} />
                                 </button>
                                 <button
-                                    onClick={() => openAction(u, 'ghost')}
+                                    onClick={() => openAction(user, "ghost")}
                                     className="p-2.5 rounded-xl transition-all border"
-                                    style={{ background: "rgba(168,85,247,0.08)", color: "#a855f7", borderColor: "rgba(168,85,247,0.2)" }}
-                                    title="שאדו באן (Ghost)"
+                                    style={{
+                                        background: "rgba(168,85,247,0.08)",
+                                        color: "#a855f7",
+                                        borderColor: "rgba(168,85,247,0.2)",
+                                    }}
+                                    title="שאדו באן"
                                 >
-                                    <div className="flex items-center justify-center rotate-12">🕯️</div>
+                                    👻
                                 </button>
                                 <button
-                                    onClick={() => openAction(u, 'banned')}
+                                    onClick={() => openAction(user, "banned")}
                                     className="p-2.5 rounded-xl transition-all border"
-                                    style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", borderColor: "rgba(239,68,68,0.2)" }}
+                                    style={{
+                                        background: "rgba(239,68,68,0.08)",
+                                        color: "#ef4444",
+                                        borderColor: "rgba(239,68,68,0.2)",
+                                    }}
                                     title="הרחקה קבועה"
                                 >
                                     <ShieldX size={16} />
@@ -204,8 +311,7 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                 })}
             </div>
 
-            {/* ── Action modal ── */}
-            {actionUser && actionType && (
+            {actionUser && actionType && actionMeta && (
                 <div
                     style={{
                         position: "fixed",
@@ -218,7 +324,7 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                         justifyContent: "center",
                         padding: "24px",
                     }}
-                    onClick={(e) => e.target === e.currentTarget && closeAction()}
+                    onClick={(event) => event.target === event.currentTarget && closeAction()}
                 >
                     <div
                         dir="rtl"
@@ -233,7 +339,6 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                             position: "relative",
                         }}
                     >
-                        {/* Close */}
                         <button
                             onClick={closeAction}
                             style={{
@@ -252,44 +357,44 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                             <X size={16} />
                         </button>
 
-                        {/* Header */}
                         <div style={{ marginBottom: "28px" }}>
-                            <div style={{ fontSize: "28px", marginBottom: "12px" }}>
-                                {actionType === 'cooling' ? "❄️" : "🔒"}
-                            </div>
-                            <h2 style={{
-                                fontFamily: "'Cinzel', serif",
-                                fontSize: "1.1rem",
-                                fontWeight: 900,
-                                color: actionType === 'cooling' ? "#60a5fa" : actionType === 'ghost' ? "#a855f7" : "#ef4444",
-                                marginBottom: "4px",
-                            }}>
-                                {actionType === 'cooling' ? "חדר קירור" : actionType === 'ghost' ? "שאדו באן (Ghosting)" : "הרחקה קבועה"}
+                            <div style={{ fontSize: "28px", marginBottom: "12px" }}>{actionMeta.icon}</div>
+                            <h2
+                                style={{
+                                    fontFamily: "'Cinzel', serif",
+                                    fontSize: "1.1rem",
+                                    fontWeight: 900,
+                                    color: actionMeta.color,
+                                    marginBottom: "4px",
+                                }}
+                            >
+                                {actionMeta.title}
                             </h2>
                             <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>
-                                {actionUser.full_name}
+                                {actionUser.full_name || actionUser.email}
                             </p>
                         </div>
 
-                        {/* Reason */}
                         <div style={{ marginBottom: "16px" }}>
-                            <label style={{
-                                display: "block",
-                                fontFamily: "'Cinzel', serif",
-                                fontSize: "9px",
-                                fontWeight: 900,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.15em",
-                                color: "rgba(255,255,255,0.35)",
-                                marginBottom: "8px",
-                            }}>
-                                סיבת ההרחקה
+                            <label
+                                style={{
+                                    display: "block",
+                                    fontFamily: "'Cinzel', serif",
+                                    fontSize: "9px",
+                                    fontWeight: 900,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.15em",
+                                    color: "rgba(255,255,255,0.35)",
+                                    marginBottom: "8px",
+                                }}
+                            >
+                                סיבת הפעולה
                             </label>
                             <textarea
                                 value={reason}
-                                onChange={e => setReason(e.target.value)}
+                                onChange={(event) => setReason(event.target.value)}
                                 rows={3}
-                                placeholder="תאר את הסיבה להרחקה..."
+                                placeholder={actionMeta.defaultReason}
                                 style={{
                                     width: "100%",
                                     background: "rgba(255,255,255,0.04)",
@@ -307,32 +412,33 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                             />
                         </div>
 
-                        {/* Days (cooling only) */}
-                        {actionType === 'cooling' && (
+                        {actionType === "cooling" && (
                             <div style={{ marginBottom: "24px" }}>
-                                <label style={{
-                                    display: "block",
-                                    fontFamily: "'Cinzel', serif",
-                                    fontSize: "9px",
-                                    fontWeight: 900,
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.15em",
-                                    color: "rgba(255,255,255,0.35)",
-                                    marginBottom: "8px",
-                                }}>
-                                    משך (ימים)
+                                <label
+                                    style={{
+                                        display: "block",
+                                        fontFamily: "'Cinzel', serif",
+                                        fontSize: "9px",
+                                        fontWeight: 900,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.15em",
+                                        color: "rgba(255,255,255,0.35)",
+                                        marginBottom: "8px",
+                                    }}
+                                >
+                                    משך בימים
                                 </label>
                                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                                    {["1", "3", "7", "14", "30"].map(d => (
+                                    {["1", "3", "7", "14", "30"].map((value) => (
                                         <button
-                                            key={d}
-                                            onClick={() => setDays(d)}
+                                            key={value}
+                                            onClick={() => setDays(value)}
                                             style={{
                                                 padding: "6px 16px",
                                                 borderRadius: "10px",
-                                                border: `1px solid ${days === d ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.08)"}`,
-                                                background: days === d ? "rgba(96,165,250,0.15)" : "rgba(255,255,255,0.03)",
-                                                color: days === d ? "#60a5fa" : "rgba(255,255,255,0.4)",
+                                                border: `1px solid ${days === value ? "rgba(96,165,250,0.5)" : "rgba(255,255,255,0.08)"}`,
+                                                background: days === value ? "rgba(96,165,250,0.15)" : "rgba(255,255,255,0.03)",
+                                                color: days === value ? "#60a5fa" : "rgba(255,255,255,0.4)",
                                                 fontFamily: "'Cinzel', serif",
                                                 fontWeight: 700,
                                                 fontSize: "12px",
@@ -340,7 +446,7 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                                 transition: "all 0.2s",
                                             }}
                                         >
-                                            {d}י
+                                            {value}י
                                         </button>
                                     ))}
                                     <input
@@ -348,7 +454,7 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                         min="1"
                                         max="365"
                                         value={days}
-                                        onChange={e => setDays(e.target.value)}
+                                        onChange={(event) => setDays(event.target.value)}
                                         style={{
                                             width: "64px",
                                             padding: "6px 10px",
@@ -366,19 +472,19 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                             </div>
                         )}
 
-                        {/* Confirm */}
                         <button
-                            onClick={applyAction}
+                            onClick={() => void applyAction()}
                             style={{
                                 width: "100%",
                                 padding: "14px",
                                 borderRadius: "14px",
                                 border: "none",
-                                background: actionType === 'cooling'
-                                    ? "linear-gradient(135deg, #1d4ed8, #3b82f6)"
-                                    : actionType === 'ghost'
-                                    ? "linear-gradient(135deg, #7c3aed, #a855f7)"
-                                    : "linear-gradient(135deg, #991b1b, #ef4444)",
+                                background:
+                                    actionType === "cooling"
+                                        ? "linear-gradient(135deg, #1d4ed8, #3b82f6)"
+                                        : actionType === "ghost"
+                                            ? "linear-gradient(135deg, #7c3aed, #a855f7)"
+                                            : "linear-gradient(135deg, #991b1b, #ef4444)",
                                 color: "#fff",
                                 fontFamily: "'Cinzel', serif",
                                 fontWeight: 900,
@@ -386,16 +492,15 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                                 textTransform: "uppercase",
                                 letterSpacing: "0.1em",
                                 cursor: "pointer",
-                                boxShadow: actionType === 'cooling'
-                                    ? "0 0 30px rgba(59,130,246,0.3)"
-                                    : "0 0 30px rgba(239,68,68,0.3)",
+                                boxShadow:
+                                    actionType === "cooling"
+                                        ? "0 0 30px rgba(59,130,246,0.3)"
+                                        : actionType === "ghost"
+                                            ? "0 0 30px rgba(168,85,247,0.3)"
+                                            : "0 0 30px rgba(239,68,68,0.3)",
                             }}
                         >
-                            {actionType === 'cooling'
-                                ? `שלח לחדר קירור — ${days} ימים`
-                                : actionType === 'ghost'
-                                ? "הפוך לרוח רפאים"
-                                : "הרחק לצמיתות"}
+                            {actionMeta.submit}
                         </button>
                     </div>
                 </div>

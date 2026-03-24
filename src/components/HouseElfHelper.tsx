@@ -59,7 +59,7 @@ export default function HouseElfHelper() {
     const autoHideRef = useRef<NodeJS.Timeout | null>(null);
 
     const currentHour = new Date().getHours();
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     useEffect(() => {
         let isMounted = true;

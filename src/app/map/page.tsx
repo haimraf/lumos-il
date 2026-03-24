@@ -35,6 +35,41 @@ const ZONES = [
     { key: "במסדרונות", icon: "🕯️", label: "המסדרונות", path: "/forums" },
 ];
 
+const ZONE_LABEL_BY_PATH: Record<string, string> = {
+    "/home": "\u05e8\u05d7\u05d1\u05ea \u05d4\u05db\u05e0\u05d9\u05e1\u05d4",
+    "/shop": "\u05e1\u05de\u05d8\u05ea \u05d3\u05d9\u05d0\u05d2\u05d5\u05df",
+    "/news": "\u05d4\u05e0\u05d1\u05d9\u05d0 \u05d4\u05d9\u05d5\u05de\u05d9",
+    "/dashboard": "\u05d7\u05d3\u05e8 \u05d4\u05de\u05d5\u05e2\u05d3\u05d5\u05df",
+    "/forums": "\u05d4\u05de\u05e1\u05d3\u05e8\u05d5\u05e0\u05d5\u05ea",
+    "/map": "\u05de\u05e4\u05ea \u05d4\u05e7\u05d5\u05e1\u05de\u05d9\u05dd",
+};
+
+const ZONE_KEY_BY_PATH: Record<string, string> = {
+    "/home": "\u05d1\u05e8\u05d7\u05d1\u05ea \u05d4\u05db\u05e0\u05d9\u05e1\u05d4",
+    "/shop": "\u05d1\u05e1\u05de\u05d8\u05ea \u05d3\u05d9\u05d0\u05d2\u05d5\u05df",
+    "/news": "\u05d1\u05e0\u05d1\u05d9\u05d0 \u05d4\u05d9\u05d5\u05de\u05d9",
+    "/dashboard": "\u05d1\u05d7\u05d3\u05e8 \u05d4\u05de\u05d5\u05e2\u05d3\u05d5\u05df",
+    "/forums": "\u05d1\u05de\u05e1\u05d3\u05e8\u05d5\u05e0\u05d5\u05ea",
+    "/map": "\u05d1\u05de\u05e4\u05ea \u05d4\u05e7\u05d5\u05e1\u05de\u05d9\u05dd",
+};
+
+function normalizeZoneLabel(label: string | null | undefined) {
+    if (!label) return ZONE_KEY_BY_PATH["/forums"];
+    const cleaned = label.trim();
+
+    const byValue = Object.values(ZONE_KEY_BY_PATH).find((zoneLabel) => zoneLabel === cleaned);
+    if (byValue) return byValue;
+
+    if (cleaned.includes("כניסה")) return ZONE_KEY_BY_PATH["/home"];
+    if (cleaned.includes("דיאגון")) return ZONE_KEY_BY_PATH["/shop"];
+    if (cleaned.includes("נביא")) return ZONE_KEY_BY_PATH["/news"];
+    if (cleaned.includes("מועדון")) return ZONE_KEY_BY_PATH["/dashboard"];
+    if (cleaned.includes("מפת")) return ZONE_KEY_BY_PATH["/map"];
+    if (cleaned.includes("מסדר")) return ZONE_KEY_BY_PATH["/forums"];
+
+    return ZONE_KEY_BY_PATH["/forums"];
+}
+
 function timeAgo(dateString: string) {
     const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
     if (diff < 60) return "ממש עכשיו";
@@ -70,7 +105,8 @@ export default function MaraudersMasterMap() {
 
         data.forEach((u: any) => {
             const loc = u.location_label || "במסדרונות";
-            counts[loc] = (counts[loc] || 0) + 1;
+            const normalizedLoc = normalizeZoneLabel(u.location_label);
+            counts[normalizedLoc] = (counts[normalizedLoc] || 0) + 1;
             if (u.house && u.house !== "Guest") {
                 houseCounts[u.house] = (houseCounts[u.house] || 0) + 1;
             }
@@ -118,7 +154,7 @@ export default function MaraudersMasterMap() {
         // פוסטים אחרונים בפורום
         const { data: posts } = await supabase
             .from("forum_posts")
-            .select("id, created_at, user_id, thread_id, threads(id, title), profiles(id, full_name, username, house)")
+            .select("id, created_at, user_id, thread_id, threads(id, title), profiles(id, full_name, house)")
             .order("created_at", { ascending: false })
             .limit(4);
 
@@ -141,7 +177,7 @@ export default function MaraudersMasterMap() {
         // הצטרפויות חדשות
         const { data: newMembers } = await supabase
             .from("profiles")
-            .select("id, full_name, username, house, created_at")
+            .select("id, full_name, house, created_at")
             .not("house", "is", null)
             .not("house", "eq", "Unsorted")
             .order("created_at", { ascending: false })
@@ -162,7 +198,7 @@ export default function MaraudersMasterMap() {
         // שרשורים חדשים
         const { data: threads } = await supabase
             .from("threads")
-            .select("id, title, created_at, profiles(id, full_name, username, house)")
+            .select("id, title, created_at, profiles(id, full_name, house)")
             .order("created_at", { ascending: false })
             .limit(3);
 
@@ -523,9 +559,11 @@ export default function MaraudersMasterMap() {
                                     </div>
                                     <div className="space-y-2.5">
                                         {ZONES.map(zone => {
-                                            const count = zones[zone.key] || 0;
+                                            const zoneKey = ZONE_KEY_BY_PATH[zone.path] || zone.key;
+                                            const count = zones[zoneKey] || 0;
                                             const isMapZone = zone.key === "במפת הקונדסאים";
-                                            const displayCount = isMapZone ? totalOnline : count;
+                                            const isMapZoneByPath = zone.path === "/map";
+                                            const displayCount = isMapZoneByPath ? totalOnline : count;
                                             return (
                                                 <Link key={zone.key} href={zone.path}
                                                     className="mm-zone block hover:scale-[1.01] transition-transform">
@@ -533,7 +571,7 @@ export default function MaraudersMasterMap() {
                                                         <div className="flex items-center gap-3 min-w-0">
                                                             <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{zone.icon}</span>
                                                             <div style={{ fontFamily: "'Cinzel', serif", fontSize: "0.8rem", fontWeight: 600, color: "#2c1304" }}>
-                                                                {zone.label}
+                                                                {ZONE_LABEL_BY_PATH[zone.path] || zone.label}
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 shrink-0">
@@ -590,7 +628,7 @@ export default function MaraudersMasterMap() {
                                                         }}
                                                     >
                                                         <span>{houseIcon}</span>
-                                                        {u.user_name}
+                                                        {typeof u.user_name === "string" && !u.user_name.includes("׳") ? u.user_name : "\u05d0\u05d5\u05e8\u05d7"}
                                                     </Link>
                                                 );
                                             })}

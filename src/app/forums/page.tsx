@@ -83,12 +83,16 @@ const HOUSE_POINTS_META: Record<string, { icon: any; color: string; glow: string
     Hufflepuff: { icon: Leaf, color: "#fbbf24", glow: "rgba(251,191,36,0.4)", nameHe: "הפלפאף" },
 };
 const HOUSE_ORDER = ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"] as const;
+const LEGACY_BANNED_ROLE = "׳׳¡׳™׳¨ ׳׳–׳§׳‘׳׳";
+
+const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
 
 export default function ForumsPage() {
     const [supabase] = useState(() => createClient());
     const [forums, setForums] = useState<Forum[]>([]);
     const [userHouse, setUserHouse] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [userStatus, setUserStatus] = useState<string | null>(null);
     const [userYear, setUserYear] = useState<number>(1);
     const [isLoading, setIsLoading] = useState(true);
     const [onlineCount, setOnlineCount] = useState<number>(0);
@@ -171,19 +175,27 @@ export default function ForumsPage() {
             if (session?.user) {
                 // הוספנו את user_groups(name) לשליפה
                 const { data: profile } = await supabase.from('profiles')
-                    .select('house, role, year, user_groups(name)')
+                    .select('house, role, status, year, user_groups(name)')
                     .eq('id', session.user.id)
                     .single();
 
                 setUserHouse(profile?.house || null);
+                setUserStatus(profile?.status || null);
 
                 // חילוץ שם הדרגה מתוך הטבלה המקושרת (או נפילה אחורה ל-role הרגיל)
                 const groupData = profile?.user_groups;
                 const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
 
-                setUserRole(roleName || null);
+                const normalizedRole = profile?.status === 'active' && profile?.role === LEGACY_BANNED_ROLE_HE
+                    ? null
+                    : roleName;
+
+                setUserRole(normalizedRole || null);
                 setUserYear(profile?.year || 1);
             } else {
+                setUserHouse(null);
+                setUserRole(null);
+                setUserStatus(null);
                 setUserYear(0);
             }
 
@@ -198,7 +210,7 @@ export default function ForumsPage() {
             // --- עדכון: הוספנו category_id לשאילתה ---
             const { data: forumsData, error: forumsError } = await supabase
                 .from('forums')
-                .select(`*, category_id, threads(id, title, created_at, author_id, forum_posts(id), profiles(id, full_name, username, house, role, is_ghost, user_groups(name, color)))`)
+                .select(`*, category_id, threads(id, title, created_at, author_id, forum_posts(id), profiles(id, full_name, house, role, is_ghost, user_groups(name, color)))`)
                 .order('created_at', { ascending: true });
 
             if (forumsData) {
@@ -339,9 +351,31 @@ export default function ForumsPage() {
 
         try {
             const { data: profile } = await supabase.from('profiles')
-                .select('house, role, year, user_groups(name)')
+                .select('house, role, status, year, user_groups(name)')
                 .eq('id', session.user.id)
                 .single();
+
+            const isLegacyRoleBanned = profile?.role === LEGACY_BANNED_ROLE_HE && !profile?.status;
+
+            if (profile?.status === 'active' && profile?.role === LEGACY_BANNED_ROLE_HE) {
+                profile.role = null;
+            }
+
+            if (profile?.status === 'banned' || isLegacyRoleBanned) {
+                setIsSubmitting(false);
+                alert("הגישה חסומה כרגע לשליחת הודעות בקהילה.");
+                return;
+            }
+
+            if (profile?.status === 'banned') {
+                setIsSubmitting(false);
+                alert("׳׳×׳” ׳›׳׳•׳ ׳‘׳׳–׳§׳‘׳׳ ׳•׳׳™׳ ׳׳ ׳’׳™׳©׳” ׳׳”׳˜׳™׳ ׳›׳©׳₪׳™׳ ׳׳• ׳׳©׳׳•׳— ׳™׳ ׳©׳•׳₪׳™׳ ׳‘׳§׳”׳™׳׳”.");
+                return;
+            }
+
+            if (profile?.status === 'active' && profile?.role === LEGACY_BANNED_ROLE) {
+                profile.role = null;
+            }
 
             // 🛑 בדיקת אזקבאן חמורה!
             if (profile?.role === 'אסיר אזקבאן') {

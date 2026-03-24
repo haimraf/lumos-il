@@ -6,7 +6,6 @@ import { OwlMailProvider } from "@/components/OwlMail";
 import MagicSpells from "@/components/MagicSpells";
 import DuelChallenge from "@/components/DuelChallenge";
 import CookieBanner from "@/components/CookieBanner";
-import MagicTicker from "@/components/MagicTicker";
 import HouseElfHelper from "@/components/HouseElfHelper";
 import BackgroundMusic from "@/components/BackgroundMusic";
 import { UIProvider } from "@/context/UIContext";
@@ -100,9 +99,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Header />
 
                 <div className="pt-[100px] md:pt-[120px] flex flex-col flex-1 w-full relative">
-
-                  <MagicTicker />
-
                   <main id="main-content" className="flex-1 w-full flex flex-col pt-16 md:pt-20">
                     {children}
                   </main>

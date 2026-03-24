@@ -156,9 +156,9 @@ const HOUSE_THEMES: Record<string, any> = {
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const { sendOwl } = useOwlMail();
-  const { profile, session, refreshProfile, isLoading: authLoading } = useAuth();
+  const { profile, session, refreshProfile, isLoading: authLoading, profileError } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'settings' | 'notifications' | 'inventory' | 'spells'>('overview');
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -305,7 +305,44 @@ function DashboardContent() {
     setNotifications([]);
   };
 
-  if (authLoading || !profile) return <div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>;
+  if (authLoading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>;
+
+  if (!session) {
+    return <div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>;
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center px-6" dir="rtl">
+        <div className="max-w-md w-full rounded-[2rem] border border-amber-500/20 bg-black/30 p-8 text-center space-y-5 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
+          <Wand2 className="mx-auto text-amber-500" size={42} />
+          <div>
+            <h1 className="font-cinzel text-2xl font-black text-white mb-2">החיבור הצליח, אבל הפרופיל עוד לא נטען</h1>
+            <p className="font-crimson text-white/55 leading-relaxed">
+              {profileError || "אפשר לנסות רענון של הפרופיל בלי לנתק את החשבון."}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => refreshProfile()}
+              className="px-5 py-3 rounded-xl bg-amber-500 text-amber-950 font-cinzel font-black text-sm tracking-widest uppercase"
+            >
+              רענון פרופיל
+            </button>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/");
+              }}
+              className="px-5 py-3 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20 font-cinzel font-black text-sm tracking-widest uppercase transition-all"
+            >
+              ניתוק בטוח
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const theme = HOUSE_THEMES[profile?.house] || HOUSE_THEMES['Gryffindor'];
   const inventory = getInventory();

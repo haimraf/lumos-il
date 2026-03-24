@@ -10,6 +10,7 @@ import {
     Volume2, VolumeX
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
+import { useAuth } from "@/context/AuthContext";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { getRoleColor, getRoleDisplay, getRoleColorFromDB } from "@/lib/roleColor";
 import { useOwlMail } from "@/components/OwlMail";
@@ -49,8 +50,10 @@ const HOUSE_CONFIG: Record<string, { label: string; color: string; bg: string; b
 
 
 export default function GreatHall() {
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
+    const { session, profile: authProfile, isLoading: authLoading } = useAuth();
     const { sendOwl } = useOwlMail();
+    const sessionUser = session?.user ?? null;
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [myId, setMyId] = useState<string | null>(null);
@@ -120,20 +123,30 @@ export default function GreatHall() {
         const channel = supabase.channel("great_hall_v2");
 
         const setup = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session || !isMounted) return;
+            if (authLoading) return;
+            if (!sessionUser || !isMounted) {
+                setMyId(null);
+                setMyName("׳§׳•׳¡׳/׳×");
+                setMessages([]);
+                setBlockedUserIds([]);
+                setIsLoading(false);
+                return;
+            }
 
-            const userId = session.user.id;
+            const userId = sessionUser.id;
             setMyId(userId);
 
-            const extractedName = session.user.email ? session.user.email.split("@")[0] : "קוסם/ת";
-            setMyName(extractedName);
+            const extractedName = sessionUser.email ? sessionUser.email.split("@")[0] : "קוסם/ת";
+            const resolvedName = authProfile?.full_name || extractedName;
+            setMyName(resolvedName);
+
+            try {
 
             const { data: profileCheck } = await supabase
                 .from("profiles").select("full_name, role, house, group_id, user_groups(name, color)").eq("id", userId).single();
 
             if (!profileCheck?.full_name || profileCheck.full_name === "Wizard") {
-                await supabase.from("profiles").update({ full_name: extractedName }).eq("id", userId);
+                await supabase.from("profiles").update({ full_name: resolvedName }).eq("id", userId);
             }
 
             const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", userId);
@@ -171,7 +184,7 @@ export default function GreatHall() {
                         const pcGrp = (Array.isArray(rawGrp) ? rawGrp[0] : rawGrp) as { name: string; color: string } | null;
                         await channel.track({
                             user_id: userId,
-                            name: profileCheck?.full_name || extractedName,
+                            name: profileCheck?.full_name || resolvedName,
                             role: profileCheck?.role || "תלמיד׳",
                             house: profileCheck?.house || "Unknown",
                             group_id: (profileCheck as any)?.group_id || null,
@@ -180,11 +193,20 @@ export default function GreatHall() {
                         });
                     }
                 });
+            } catch (error) {
+                console.error("[GreatHall] setup failed:", error);
+                if (isMounted) {
+                    setMessages([]);
+                    setBlockedUserIds([]);
+                }
+            } finally {
+                if (isMounted) setIsLoading(false);
+            }
         };
 
-        setup();
+        void setup();
         return () => { isMounted = false; supabase.removeChannel(channel); };
-    }, [supabase]);
+    }, [authLoading, authProfile?.full_name, sessionUser, supabase]);
 
     const onEmojiClick = (emojiObject: any) => {
         setNewMessage(prev => prev + emojiObject.emoji);

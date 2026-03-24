@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Bird, Coins, Flame, Leaf, Newspaper, Skull, Star, Trophy } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Coins, Trophy, Flame, Skull, Bird, Leaf, Newspaper, Star } from "lucide-react";
-import Link from "next/link";
 
 const HOUSE_META: Record<string, { label: string; short: string; color: string; glow: string; icon: any }> = {
     Gryffindor: { label: "גריפינדור", short: "GRY", color: "#ef4444", glow: "rgba(239,68,68,0.6)", icon: Flame },
-    Slytherin: { label: "סליתרין", short: "SLY", color: "#34d399", glow: "rgba(52,211,153,0.6)", icon: Skull },
+    Slytherin: { label: "סלית'רין", short: "SLY", color: "#34d399", glow: "rgba(52,211,153,0.6)", icon: Skull },
     Ravenclaw: { label: "רייבנקלו", short: "RAV", color: "#60a5fa", glow: "rgba(96,165,250,0.6)", icon: Bird },
     Hufflepuff: { label: "הפלפאף", short: "HUF", color: "#fbbf24", glow: "rgba(251,191,36,0.6)", icon: Leaf },
 };
@@ -16,72 +16,114 @@ const HOUSE_META: Record<string, { label: string; short: string; color: string; 
 const HOUSE_ORDER = ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"] as const;
 
 export default function MagicTicker() {
-    const supabase = createClient();
     const { profile } = useAuth();
-    const tickerRef = useRef<HTMLDivElement>(null);
-    const animRef = useRef<number | null>(null);
-    const posRef = useRef(0);
-
+    const [supabase] = useState(() => createClient());
     const [houses, setHouses] = useState<Record<string, number>>({
-        Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0,
+        Gryffindor: 0,
+        Slytherin: 0,
+        Ravenclaw: 0,
+        Hufflepuff: 0,
     });
-    const [tickerItems, setTickerItems] = useState<{ id: string; title: string }[]>([]);
+    const [tickerItems, setTickerItems] = useState<{ id: string; title: string; href: string }[]>([]);
     const [tickerReady, setTickerReady] = useState(false);
 
     const fetchTickerData = useCallback(async () => {
         const [{ data: profiles }, { data: news }, { data: recentDuels }] = await Promise.all([
             supabase.from("profiles").select("house, points_contributed"),
             supabase.from("news").select("id, title").order("created_at", { ascending: false }).limit(5),
-            supabase.from("duels")
-                .select(`winner_id, challenger_id, opponent_id,
+            supabase
+                .from("duels")
+                .select(`
+                    id,
+                    winner_id,
+                    challenger_id,
+                    opponent_id,
                     winner:profiles!duels_winner_id_fkey(full_name),
                     challenger:profiles!duels_challenger_id_fkey(full_name),
-                    opponent:profiles!duels_opponent_id_fkey(full_name)`)
+                    opponent:profiles!duels_opponent_id_fkey(full_name)
+                `)
                 .eq("status", "finished")
                 .order("finished_at", { ascending: false })
                 .limit(3),
         ]);
 
-        const points: Record<string, number> = { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 };
-        profiles?.forEach((p: any) => {
-            if (p.house && points[p.house] !== undefined) points[p.house] += p.points_contributed || 0;
+        const nextPoints: Record<string, number> = {
+            Gryffindor: 0,
+            Slytherin: 0,
+            Ravenclaw: 0,
+            Hufflepuff: 0,
+        };
+
+        profiles?.forEach((entry: any) => {
+            if (entry.house && nextPoints[entry.house] !== undefined) {
+                nextPoints[entry.house] += entry.points_contributed || 0;
+            }
         });
-        setHouses(points);
+        setHouses(nextPoints);
 
-        const items: { id: string; title: string }[] = (news || []).map((n: any) => ({ id: n.id, title: n.title }));
+        const nextItems: { id: string; title: string; href: string }[] = (news || []).map((article: any) => ({
+            id: article.id,
+            title: article.title,
+            href: `/news?article=${article.id}`,
+        }));
 
-        recentDuels?.forEach((d: any) => {
-            const winnerName = (d.winner as any)?.full_name;
-            const loserName = d.winner_id === d.challenger_id
-                ? (d.opponent as any)?.full_name
-                : (d.challenger as any)?.full_name;
+        recentDuels?.forEach((duel: any) => {
+            const winnerName = (duel.winner as any)?.full_name;
+            const loserName =
+                duel.winner_id === duel.challenger_id
+                    ? (duel.opponent as any)?.full_name
+                    : (duel.challenger as any)?.full_name;
+
             if (winnerName && loserName) {
-                items.push({ id: `duel-${d.winner_id}`, title: `⚔️ ${winnerName} ניצח את ${loserName} בדו-קרב!` });
+                nextItems.push({
+                    id: `duel-${duel.id}`,
+                    title: `${winnerName} ניצח את ${loserName} בדו-קרב!`,
+                    href: "/arena",
+                });
             }
         });
 
-        setTickerItems(items);
+        setTickerItems(nextItems);
         setTickerReady(true);
     }, [supabase]);
 
     useEffect(() => {
-        fetchTickerData();
-        const channel = supabase
-            .channel("ticker_live")
-            .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, fetchTickerData)
+        void fetchTickerData();
+
+        const profilesChannel = supabase
+            .channel("ticker-profiles")
+            .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+                void fetchTickerData();
+            })
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
-    }, [supabase, fetchTickerData]);
 
-    // Smooth CSS animation for scrolling ticker
+        const newsChannel = supabase
+            .channel("ticker-news")
+            .on("postgres_changes", { event: "*", schema: "public", table: "news" }, () => {
+                void fetchTickerData();
+            })
+            .subscribe();
 
-    // Leading house
-    const leadingHouse = HOUSE_ORDER.reduce((a, b) => houses[a] >= houses[b] ? a : b);
+        const duelsChannel = supabase
+            .channel("ticker-duels")
+            .on("postgres_changes", { event: "*", schema: "public", table: "duels" }, () => {
+                void fetchTickerData();
+            })
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(profilesChannel);
+            void supabase.removeChannel(newsChannel);
+            void supabase.removeChannel(duelsChannel);
+        };
+    }, [fetchTickerData, supabase]);
+
+    const leadingHouse = HOUSE_ORDER.reduce((currentLeader, currentHouse) =>
+        houses[currentLeader] >= houses[currentHouse] ? currentLeader : currentHouse
+    );
     const leadingMeta = HOUSE_META[leadingHouse];
     const LeadingIcon = leadingMeta.icon;
-
     const galleons = profile?.galleons ?? 0;
-    const userHouse = profile?.house ? HOUSE_META[profile.house] : null;
 
     return (
         <div
@@ -90,8 +132,6 @@ export default function MagicTicker() {
             dir="rtl"
         >
             <div className="w-full max-w-7xl mx-auto flex items-center gap-2 md:gap-4 px-3 md:px-6">
-
-                {/* ── Left: Galleons + trophy ── */}
                 <div className="flex items-center gap-2 shrink-0">
                     <div
                         className="flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-1 md:py-1.5 rounded-xl"
@@ -100,17 +140,21 @@ export default function MagicTicker() {
                             border: "1px solid rgba(245,158,11,0.3)",
                         }}
                     >
-                        <Coins
-                            size={15}
-                            style={{ color: "#fbbf24", filter: "drop-shadow(0 0 6px rgba(245,158,11,0.7))" }}
-                        />
-                        <span
-                            className="font-cinzel font-black text-sm md:text-base tabular-nums"
-                            style={{ color: "#fbbf24" }}
-                        >
+                        <Coins size={15} style={{ color: "#fbbf24", filter: "drop-shadow(0 0 6px rgba(245,158,11,0.7))" }} />
+                        <span className="font-cinzel font-black text-sm md:text-base tabular-nums" style={{ color: "#fbbf24" }}>
                             {galleons.toLocaleString()}
                         </span>
                     </div>
+                    <Link href="/house-cup" className="group p-1" aria-label={`מוביל גביע הבתים: ${leadingMeta.label}`}>
+                        <LeadingIcon
+                            size={20}
+                            className="transition-transform group-hover:scale-110"
+                            style={{
+                                color: leadingMeta.color,
+                                filter: `drop-shadow(0 0 10px ${leadingMeta.glow})`,
+                            }}
+                        />
+                    </Link>
                     <Link href="/house-cup" className="group p-1">
                         <Trophy
                             size={20}
@@ -123,13 +167,11 @@ export default function MagicTicker() {
                     </Link>
                 </div>
 
-                {/* ── Center: House scores ── */}
                 <div className="hidden md:flex items-center gap-5 shrink-0">
-                    {HOUSE_ORDER.map(house => {
+                    {HOUSE_ORDER.map((house) => {
                         const meta = HOUSE_META[house];
                         const Icon = meta.icon;
                         const isLeading = house === leadingHouse;
-                        const isMyHouse = profile?.house === house;
                         return (
                             <div
                                 key={house}
@@ -150,11 +192,7 @@ export default function MagicTicker() {
                                     >
                                         {meta.short}
                                         {isLeading && (
-                                            <Star
-                                                size={7}
-                                                className="inline mr-0.5 mb-0.5"
-                                                style={{ fill: meta.color, color: meta.color }}
-                                            />
+                                            <Star size={7} className="inline mr-0.5 mb-0.5" style={{ fill: meta.color, color: meta.color }} />
                                         )}
                                     </span>
                                     <span
@@ -174,7 +212,6 @@ export default function MagicTicker() {
                     })}
                 </div>
 
-                {/* ── Right: Scrolling news ticker ── */}
                 <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
                     <div
                         className="hidden sm:flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-lg"
@@ -189,7 +226,6 @@ export default function MagicTicker() {
                         </span>
                     </div>
 
-                    {/* Ticker track */}
                     <div className="flex-1 min-w-0 overflow-hidden relative" style={{ maskImage: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)" }}>
                         {tickerReady && tickerItems.length > 0 ? (
                             <div
@@ -199,21 +235,19 @@ export default function MagicTicker() {
                                     animation: "ticker-scroll-rtl 45s linear infinite",
                                 }}
                             >
-                                {/* Duplicate for seamless loop */}
-                                {[...tickerItems, ...tickerItems].map((n, i) => (
-                                    <span key={`${n.id}-${i}`} className="flex items-center">
-                                        <Link
-                                            href={n.id.startsWith("duel-") ? "#" : `/news?article=${n.id}`}
-                                            className="hover:text-amber-400 transition-colors cursor-pointer whitespace-nowrap"
-                                        >
-                                            {n.title}
+                                {[...tickerItems, ...tickerItems].map((item, index) => (
+                                    <span key={`${item.id}-${index}`} className="flex items-center">
+                                        <Link href={item.href} className="hover:text-amber-400 transition-colors cursor-pointer whitespace-nowrap">
+                                            {item.title}
                                         </Link>
                                         <span className="mx-3 text-amber-600/40 shrink-0">✦</span>
                                     </span>
                                 ))}
                             </div>
                         ) : (
-                            <span className="text-xs text-white/20 italic font-crimson whitespace-nowrap flex items-center h-full">הנביא היומי בדרך...</span>
+                            <span className="text-xs text-white/20 italic font-crimson whitespace-nowrap flex items-center h-full">
+                                הנביא היומי בדרך...
+                            </span>
                         )}
                     </div>
                 </div>
@@ -221,8 +255,8 @@ export default function MagicTicker() {
 
             <style>{`
                 @keyframes ticker-scroll-rtl {
-                    0%   { transform: translateX(0); }
-                    100% { transform: translateX(50%); } /* מזיז ימינה בדיוק חצי מהרוחב ללופ מושלם */
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(50%); }
                 }
             `}</style>
         </div>

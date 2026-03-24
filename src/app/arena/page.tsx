@@ -31,7 +31,7 @@ export default function ArenaPage() {
     const router = useRouter();
     const { profile } = useAuth();
     const { sendOwl } = useOwlMail();
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [recentDuels, setRecentDuels] = useState<any[]>([]);

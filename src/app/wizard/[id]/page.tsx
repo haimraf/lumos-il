@@ -339,7 +339,32 @@ export default function WizardProfilePage() {
 
     // פונקציית שליחה לאזקבאן
     const handleSendToAzkaban = async () => {
+        const modernBanReason = "\u05d4\u05e8\u05d7\u05e7\u05d4 \u05d9\u05d6\u05d5\u05de\u05d4 \u05e2\"\u05d9 \u05d4\u05d4\u05e0\u05d4\u05dc\u05d4";
         if (!confirm("🚨 האם אתה בטוח שברצונך לשלוח משתמש זה לאזקבאן ולחסום אותו מהקהילה?")) return;
+
+        try {
+            const { error: modernBanError } = await supabase
+                .from('profiles')
+                .update({
+                    status: 'banned',
+                    ban_reason: modernBanReason,
+                    ban_expires_at: null,
+                    is_ghost: false,
+                })
+                .eq('id', id);
+
+            if (modernBanError) throw modernBanError;
+
+            sendOwl("׳׳–׳§׳‘׳׳", "׳”׳׳©׳×׳׳© ׳ ׳©׳׳— ׳׳׳–׳§׳‘׳׳ ׳‘׳”׳¦׳׳—׳”.", "success");
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+            return;
+        } catch (err: any) {
+            console.error(err);
+            sendOwl("׳©׳’׳™׳׳”", "׳׳©׳”׳• ׳”׳©׳×׳‘׳© ׳‘׳©׳׳™׳—׳” ׳׳׳–׳§׳‘׳׳.", "error");
+            return;
+        }
 
         try {
             const { error } = await supabase
@@ -348,6 +373,16 @@ export default function WizardProfilePage() {
                 .eq('id', id);
 
             if (error) throw error;
+
+            await supabase
+                .from('profiles')
+                .update({
+                    status: 'banned',
+                    ban_reason: "׳”׳¨׳—׳§׳” ׳™׳–׳•׳׳” ׳¢\"׳™ ׳”׳ ׳”׳׳”",
+                    ban_expires_at: null,
+                    is_ghost: false,
+                })
+                .eq('id', id);
 
             plantStickyMarker('אסיר אזקבאן');
             sendOwl("אזקבאן", "המשתמש נשלח לאזקבאן בהצלחה.", "success");
@@ -366,6 +401,22 @@ export default function WizardProfilePage() {
     // פונקציית Shadowban
     const handleShadowBan = async () => {
         if (!confirm("👻 להפוך משתמש זה לרוח רפאים? (אף אחד לא יראה את ההודעות שלו חוץ ממנו)")) return;
+
+        try {
+            const { error: modernGhostError } = await supabase
+                .from('profiles')
+                .update({ is_ghost: true })
+                .eq('id', id);
+
+            if (modernGhostError) throw modernGhostError;
+
+            sendOwl("׳¨׳•׳— ׳¨׳₪׳׳™׳", "׳”׳׳©׳×׳׳© ׳”׳₪׳ ׳׳¨׳•׳— ׳¨׳₪׳׳™׳ ׳‘׳”׳¦׳׳—׳”.", "success");
+            return;
+        } catch (err: any) {
+            console.error(err);
+            sendOwl("׳©׳’׳™׳׳”", "׳”׳§׳¡׳ ׳ ׳›׳©׳.", "error");
+            return;
+        }
 
         try {
             const { error } = await supabase

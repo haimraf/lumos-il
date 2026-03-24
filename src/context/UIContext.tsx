@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from "@/context/AuthContext";
 
 interface UIContextType {
@@ -21,13 +21,9 @@ function formatDate(iso: string) {
 }
 
 export function UIProvider({ children }: { children: ReactNode }) {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isSiteLocked, setIsSiteLocked] = useState(false);
-  const [banReason, setBanReason] = useState<string | null>(null);
-  const [banExpiresAt, setBanExpiresAt] = useState<string | null>(null);
-  const [banType, setBanType] = useState<'banned' | 'cooling' | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('lumos_isMuted');
@@ -35,32 +31,32 @@ export function UIProvider({ children }: { children: ReactNode }) {
     setIsInitialized(true);
   }, []);
 
+  const isCoolingExpired = Boolean(
+    profile?.status === 'cooling' &&
+    profile.ban_expires_at &&
+    new Date(profile.ban_expires_at).getTime() <= Date.now()
+  );
+
   useEffect(() => {
-    if (profile?.status === 'banned') {
-      setIsSiteLocked(true);
-      setBanType('banned');
-      setBanReason(profile.ban_reason || "הפרת כללי הטירה");
-      setBanExpiresAt(null);
-    } else if (profile?.status === 'cooling') {
-      // בדוק אם תם תוקף חדר הקירור
-      if (profile.ban_expires_at && new Date(profile.ban_expires_at) < new Date()) {
-        setIsSiteLocked(false);
-        setBanType(null);
-        setBanReason(null);
-        setBanExpiresAt(null);
-      } else {
-        setIsSiteLocked(true);
-        setBanType('cooling');
-        setBanReason(profile.ban_reason || "התנהגות שאינה הולמת");
-        setBanExpiresAt(profile.ban_expires_at || null);
-      }
-    } else {
-      setIsSiteLocked(false);
-      setBanType(null);
-      setBanReason(null);
-      setBanExpiresAt(null);
+    if (isCoolingExpired) {
+      void refreshProfile();
     }
-  }, [profile]);
+  }, [isCoolingExpired, refreshProfile]);
+
+  const banType: 'banned' | 'cooling' | null =
+    profile?.status === 'banned'
+      ? 'banned'
+      : profile?.status === 'cooling' && !isCoolingExpired
+        ? 'cooling'
+        : null;
+  const isSiteLocked = banType !== null;
+  const banReason =
+    banType === 'banned'
+      ? profile?.ban_reason || "׳”׳₪׳¨׳× ׳›׳׳׳™ ׳”׳˜׳™׳¨׳”"
+      : banType === 'cooling'
+        ? profile?.ban_reason || "׳”׳×׳ ׳”׳’׳•׳× ׳©׳׳™׳ ׳” ׳”׳•׳׳׳×"
+        : null;
+  const banExpiresAt = banType === 'cooling' ? profile?.ban_expires_at || null : null;
 
   const toggleMute = () => {
     setIsMuted(prev => {
@@ -94,7 +90,6 @@ export function UIProvider({ children }: { children: ReactNode }) {
             zIndex: 99999,
           }}
         >
-          {/* Ambient glow */}
           <div style={{
             position: "absolute",
             top: "20%",
@@ -109,7 +104,6 @@ export function UIProvider({ children }: { children: ReactNode }) {
             pointerEvents: "none",
           }} />
 
-          {/* Icon */}
           <div style={{
             width: "120px",
             height: "120px",
@@ -123,10 +117,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
             fontSize: "56px",
             marginBottom: "32px",
           }}>
-            {isCooling ? "❄️" : "🔒"}
+            {isCooling ? "ג„ן¸" : "נ”’"}
           </div>
 
-          {/* Title */}
           <h1 style={{
             fontFamily: "'Cinzel', serif",
             fontSize: "clamp(1.8rem, 5vw, 3rem)",
@@ -137,7 +130,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
             marginBottom: "12px",
             textShadow: `0 0 40px ${isCooling ? "rgba(96,165,250,0.4)" : "rgba(239,68,68,0.4)"}`,
           }}>
-            {isCooling ? "חדר הקירור" : "גורשת מהטירה"}
+            {isCooling ? "׳—׳“׳¨ ׳”׳§׳™׳¨׳•׳¨" : "׳’׳•׳¨׳©׳× ׳׳”׳˜׳™׳¨׳”"}
           </h1>
 
           <p style={{
@@ -149,11 +142,10 @@ export function UIProvider({ children }: { children: ReactNode }) {
             marginBottom: "32px",
           }}>
             {isCooling
-              ? "\"צינון זמני הוצא על ידי מועצת הטירה. ניתן לחזור לאחר תום התקופה.\""
-              : "\"צו הרחקה רשמי הוצא על ידי משרד הקסמים בעקבות התנהגות שאינה הולמת.\""}
+              ? "\"׳¦׳™׳ ׳•׳ ׳–׳׳ ׳™ ׳”׳•׳¦׳ ׳¢׳ ׳™׳“׳™ ׳׳•׳¢׳¦׳× ׳”׳˜׳™׳¨׳”. ׳ ׳™׳×׳ ׳׳—׳–׳•׳¨ ׳׳׳—׳¨ ׳×׳•׳ ׳”׳×׳§׳•׳₪׳”.\""
+              : "\"׳¦׳• ׳”׳¨׳—׳§׳” ׳¨׳©׳׳™ ׳”׳•׳¦׳ ׳¢׳ ׳™׳“׳™ ׳׳©׳¨׳“ ׳”׳§׳¡׳׳™׳ ׳‘׳¢׳§׳‘׳•׳× ׳”׳×׳ ׳”׳’׳•׳× ׳©׳׳™׳ ׳” ׳”׳•׳׳׳×.\""}
           </p>
 
-          {/* Reason card */}
           <div style={{
             background: isCooling ? "rgba(59,130,246,0.06)" : "rgba(220,38,38,0.06)",
             border: `1px solid ${isCooling ? "rgba(59,130,246,0.2)" : "rgba(220,38,38,0.2)"}`,
@@ -172,14 +164,13 @@ export function UIProvider({ children }: { children: ReactNode }) {
               color: isCooling ? "rgba(96,165,250,0.6)" : "rgba(239,68,68,0.6)",
               marginBottom: "8px",
             }}>
-              סיבת ההרחקה
+              ׳¡׳™׳‘׳× ׳”׳”׳¨׳—׳§׳”
             </p>
             <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.95rem", lineHeight: 1.5 }}>
               {banReason}
             </p>
           </div>
 
-          {/* Expiry / Permanent */}
           <div style={{
             background: "rgba(255,255,255,0.03)",
             border: "1px solid rgba(255,255,255,0.07)",
@@ -195,9 +186,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
           }}>
             {isCooling && banExpiresAt ? (
               <>
-                <span style={{ fontSize: "14px" }}>🕐</span>
+                <span style={{ fontSize: "14px" }}>נ•</span>
                 <div>
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", fontFamily: "'Cinzel', serif", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "2px" }}>שחרור בתאריך</p>
+                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", fontFamily: "'Cinzel', serif", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "2px" }}>׳©׳—׳¨׳•׳¨ ׳‘׳×׳׳¨׳™׳</p>
                   <p style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, color: "#60a5fa", fontSize: "0.9rem" }}>
                     {formatDate(banExpiresAt)}
                   </p>
@@ -205,18 +196,17 @@ export function UIProvider({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <span style={{ fontSize: "14px" }}>♾️</span>
+                <span style={{ fontSize: "14px" }}>ג™¾ן¸</span>
                 <div>
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", fontFamily: "'Cinzel', serif", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "2px" }}>סוג ההרחקה</p>
+                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", fontFamily: "'Cinzel', serif", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "2px" }}>׳¡׳•׳’ ׳”׳”׳¨׳—׳§׳”</p>
                   <p style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, color: "#ef4444", fontSize: "0.9rem" }}>
-                    הרחקה קבועה
+                    ׳”׳¨׳—׳§׳” ׳§׳‘׳•׳¢׳”
                   </p>
                 </div>
               </>
             )}
           </div>
 
-          {/* Appeal button */}
           <button
             onClick={() => window.location.href = 'mailto:support@lumos-il.co.il'}
             style={{
@@ -235,7 +225,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
             onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
             onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.2)")}
           >
-            ערעור למשרד הקסמים
+            ׳¢׳¨׳¢׳•׳¨ ׳׳׳©׳¨׳“ ׳”׳§׳¡׳׳™׳
           </button>
         </div>
       ) : (

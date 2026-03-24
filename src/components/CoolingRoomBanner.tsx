@@ -13,8 +13,8 @@ const RESTRICTED_AREAS = [
 ];
 
 export default function CoolingRoomBanner() {
-    const { profile } = useAuth();
-    const supabase = createClient();
+    const { profile, refreshProfile } = useAuth();
+    const [supabase] = useState(() => createClient());
     const [expiresAt, setExpiresAt] = useState<Date | null>(null);
     const [banReason, setBanReason] = useState<string>("");
     const [timeLeft, setTimeLeft] = useState<string>("");
@@ -28,19 +28,31 @@ export default function CoolingRoomBanner() {
                 setExpiresAt(expiry);
                 setBanReason(profile.ban_reason || "הפרת כללי הטירה");
                 setVisible(true);
+            } else {
+                setVisible(false);
+                setExpiresAt(null);
+                setTimeLeft("");
+                void refreshProfile();
             }
         } else {
             setVisible(false);
             setExpiresAt(null);
+            setTimeLeft("");
         }
-    }, [profile]);
+    }, [profile, refreshProfile]);
 
     useEffect(() => {
         if (!expiresAt) return;
 
         const update = () => {
             const diff = expiresAt.getTime() - Date.now();
-            if (diff <= 0) { setVisible(false); setTimeLeft(""); return; }
+            if (diff <= 0) {
+                setVisible(false);
+                setExpiresAt(null);
+                setTimeLeft("");
+                void refreshProfile();
+                return;
+            }
 
             const hours = Math.floor(diff / 3600000);
             const minutes = Math.floor((diff % 3600000) / 60000);
@@ -55,7 +67,7 @@ export default function CoolingRoomBanner() {
         update();
         const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
-    }, [expiresAt]);
+    }, [expiresAt, refreshProfile]);
 
     useEffect(() => {
         if (!profile?.id) return;
@@ -66,18 +78,26 @@ export default function CoolingRoomBanner() {
                 filter: `id=eq.${profile.id}`
             }, (payload) => {
                 if (payload.new.status === 'cooling' && payload.new.ban_expires_at) {
-                    setExpiresAt(new Date(payload.new.ban_expires_at));
+                    const expiry = new Date(payload.new.ban_expires_at);
+                    setExpiresAt(expiry);
                     setBanReason(payload.new.ban_reason || "הפרת כללי הטירה");
                     setVisible(true);
-                } else if (payload.new.status === 'active') {
+                    if (expiry <= new Date()) {
+                        setVisible(false);
+                        setExpiresAt(null);
+                        setTimeLeft("");
+                        void refreshProfile();
+                    }
+                } else {
                     setVisible(false);
                     setExpiresAt(null);
+                    setTimeLeft("");
                 }
             })
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [profile?.id, supabase]);
+    }, [profile?.id, refreshProfile, supabase]);
 
     return (
         <AnimatePresence>

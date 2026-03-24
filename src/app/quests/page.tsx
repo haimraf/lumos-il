@@ -32,9 +32,9 @@ const HOUSE_COLORS: Record<string, string> = {
 };
 
 export default function QuestsPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const { sendOwl } = useOwlMail();
-  const { profile, refreshProfile, isLoading: authLoading } = useAuth();
+  const { profile, refreshProfile, isLoading: authLoading, session, profileError } = useAuth();
 
   const [currentTrivia, setCurrentTrivia] = useState<any>(null);
   const [nifflerLoading, setNifflerLoading] = useState(false);
@@ -136,6 +136,30 @@ export default function QuestsPage() {
 
   if (authLoading) return <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center gap-4"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div><p className="font-cinzel text-amber-500 tracking-widest animate-pulse">רוקח שיקוי...</p></div>;
   
+  if (session && !profile) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center px-6" dir="rtl">
+        <div className="max-w-md w-full rounded-[2rem] border border-amber-500/20 bg-black/30 p-8 text-center space-y-5 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
+          <Gift className="mx-auto text-amber-500" size={42} />
+          <div>
+            <h1 className="font-cinzel text-2xl font-black text-white mb-2">החיבור הצליח, אבל הפרופיל עוד לא נטען</h1>
+            <p className="font-crimson text-white/55 leading-relaxed">
+              {profileError || "אפשר לנסות לרענן את הפרופיל בלי לנתק את החשבון."}
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <button
+              onClick={() => refreshProfile()}
+              className="px-5 py-3 rounded-xl bg-amber-500 text-amber-950 font-cinzel font-black text-sm tracking-widest uppercase"
+            >
+              רענון פרופיל
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const hColor = (profile?.house && HOUSE_COLORS[profile.house]) ? HOUSE_COLORS[profile.house] : 'text-amber-400';
   const trophyClass = hColor.split(' ')[0] || 'text-amber-400';
 

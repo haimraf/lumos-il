@@ -52,9 +52,9 @@ function generateWandData() {
 
 export default function OllivandersPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const { sendOwl } = useOwlMail();
-  const { profile, isLoading: authLoading, refreshProfile } = useAuth();
+  const { profile, session, profileError, isLoading: authLoading, refreshProfile } = useAuth();
 
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [revealedWand, setRevealedWand] = useState<any>(null);
@@ -87,6 +87,39 @@ export default function OllivandersPage() {
   };
 
   if (authLoading || (isPurchasing && !revealedWand)) return <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center gap-4 bg-[#020617]"><div className="w-12 h-12 border-t-2 border-amber-500 rounded-full animate-spin"></div><p className="font-cinzel text-amber-500 tracking-widest animate-pulse">רוקח שיקוי...</p></div>;
+
+  if (session && !profile) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center px-6" dir="rtl">
+        <div className="max-w-md w-full rounded-[2rem] border border-amber-500/20 bg-black/30 p-8 text-center space-y-5 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
+          <Wand2 className="mx-auto text-amber-500" size={42} />
+          <div>
+            <h1 className="font-cinzel text-2xl font-black text-white mb-2">החיבור הצליח, אבל הפרופיל עוד לא נטען</h1>
+            <p className="font-crimson text-white/55 leading-relaxed">
+              {profileError || "אפשר לנסות לרענן את הפרופיל בלי לנתק את החשבון."}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => refreshProfile()}
+              className="px-5 py-3 rounded-xl bg-amber-500 text-amber-950 font-cinzel font-black text-sm tracking-widest uppercase"
+            >
+              רענון פרופיל
+            </button>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/");
+              }}
+              className="px-5 py-3 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20 font-cinzel font-black text-sm tracking-widest uppercase transition-all"
+            >
+              ניתוק בטוח
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const wandData = profile?.wand_type || null;
   const currentWand = revealedWand || (wandData ? {

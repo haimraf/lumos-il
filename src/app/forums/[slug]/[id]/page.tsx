@@ -72,6 +72,7 @@ const SPELLS = [
 ];
 
 const COOLDOWN_MS = 30_000;
+const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
 
 // Inline style string לblockquote — עוקף את כל CSS specificity של Quill
 const BLOCKQUOTE_STYLE = [
@@ -212,7 +213,8 @@ export default function ThreadViewPage() {
 
                 const groupData = profile?.user_groups;
                 const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
-                setUserRole(roleName || null);
+                const normalizedRole = profile?.status === "active" && profile?.role === "׳׳¡׳™׳¨ ׳׳–׳§׳‘׳׳" ? null : roleName;
+                setUserRole((profile?.status === "active" && profile?.role === LEGACY_BANNED_ROLE_HE ? null : roleName) || normalizedRole || null);
 
                 const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", session.user.id);
                 if (blocks) setBlockedUserIds(blocks.map((b: any) => b.blocked_id));
@@ -228,7 +230,8 @@ export default function ThreadViewPage() {
 
                 const groupData = profile?.user_groups;
                 const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
-                setUserRole(roleName || null);
+                const normalizedRole = profile?.status === "active" && profile?.role === "׳׳¡׳™׳¨ ׳׳–׳§׳‘׳׳" ? null : roleName;
+                setUserRole((profile?.status === "active" && profile?.role === LEGACY_BANNED_ROLE_HE ? null : roleName) || normalizedRole || null);
 
                 const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", session.user.id);
                 if (blocks) setBlockedUserIds(blocks.map((b: any) => b.blocked_id));
@@ -292,7 +295,7 @@ export default function ThreadViewPage() {
             if (reactorIds.size > 0) {
                 const { data: rpData } = await supabase
                     .from('profiles')
-                    .select('id, full_name, username, avatar_url, house, role, user_groups(name, color)')
+                    .select('id, full_name, avatar_url, house, role, user_groups(name, color)')
                     .in('id', Array.from(reactorIds));
 
                 if (rpData) {
@@ -518,6 +521,20 @@ export default function ThreadViewPage() {
     const handleReply = async () => {
         const stripped = replyContent.replace(/<[^>]+>/g, '').trim();
         if (!stripped || isSubmitting || !currentUser) return;
+        const isLegacyRoleBanned = userProfile?.role === LEGACY_BANNED_ROLE_HE && !userProfile?.status;
+        if (userProfile?.status === 'active' && userProfile?.role === LEGACY_BANNED_ROLE_HE) {
+            userProfile.role = null;
+        }
+
+        if (userProfile?.status === 'banned' || isLegacyRoleBanned) {
+            sendOwl("גישה נדחתה", "כרגע אין לך אפשרות לשלוח הודעות בפורום.", "error");
+            return;
+        }
+
+        if (userProfile?.status === 'banned') {
+            sendOwl("׳’׳™׳©׳” ׳ ׳“׳—׳×׳”", "׳׳¡׳™׳¨׳™׳ ׳׳׳–׳§׳‘׳׳ ׳׳ ׳™׳›׳•׳׳™׳ ׳׳©׳׳•׳— ׳™׳ ׳©׳•׳₪׳™׳.", "error");
+            return;
+        }
 
         // 🛑 בדיקת אזקבאן בתגובות!
         if (userRole === 'אסיר אזקבאן') {

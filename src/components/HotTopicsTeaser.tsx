@@ -98,8 +98,8 @@ export default function HotTopicsTeaser() {
                 const selectQuery = `
                     id, title, created_at,
                     forums ( name, slug ),
-                    profiles!threads_author_id_fkey ( full_name, username, house, avatar_url, user_groups(name, color) ),
-                    forum_posts ( id, created_at, content, profiles ( id, full_name, username, avatar_url, house, user_groups(name, color) ) )
+                    profiles!threads_author_id_fkey ( full_name, house, avatar_url, user_groups(name, color) ),
+                    forum_posts ( id, created_at, content, profiles ( id, full_name, avatar_url, house, user_groups(name, color) ) )
                 `;
 
                 const { data, error } = await supabase
