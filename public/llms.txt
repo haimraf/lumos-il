@@ -1,60 +1,83 @@
-# LUMOS IL — הבית הדיגיטלי של קהילת הקוסמים בישראל
+# LUMOS IL
 
-## מה זה LUMOS IL?
-LUMOS IL (lumos-il.co.il) היא קהילת הארי פוטר הגדולה והפעילה ביותר בישראל.
-האתר הוא חוויה אינטראקטיבית מלאה בעברית — לא רק פורום, אלא טירה דיגיטלית שלמה.
+LUMOS IL is a Hebrew Harry Potter fan community platform and a gameplay-first browser experience.
 
-## מי הקהל?
-אוהדי הארי פוטר בישראל — ילדים, נוער ומבוגרים. הקהילה דוברת עברית.
-- **עדכניות** — האתר מתעדכן מדי יום בתוכן מקורי, חדשות מהנביא היומי ועשרות אשכולות דיון חדשים בפורום.
+## What this site is
 
-## מה יש באתר?
+LUMOS IL is not only a forum or content site. It is a shared magical world with a social RPG layer.
 
-### מערכות ליבה
-- **מצנפת המיון** — בוחרת לכל משתמש בית: גריפינדור, סלית'רין, רייבנקלו או הפלפאף
-- **גביע הבתים** — תחרות ניקוד שבועית בין הבתים; נקודות מוענקות על פוסטים, חידונים וקרבות
-- **מערכת שנים** — כל משתמש מתקדם בשנות לימוד (שנה 1–7) לפי פעילות
+The platform combines:
 
-### תוכן
-- **הנביא היומי** — כתבות ועדכוני קהילה מאת צוות המערכת
-- **ספריית הפאנפיקים** — סיפורים מקוריים שכתבו חברי הקהילה
-- **פורומים** — אשכולות דיון לפי קטגוריות, עם מערכת תגובות מלאה
+- houses and House Cup competition
+- a quest system with daily, weekly, main, house, and exploration goals
+- player rewards such as points, galleons, contribution, and item-related progression
+- duel systems, trivia, daily actions, and live community events
+- forums, fanfics, news, chat, and castle-based navigation
 
-### מערכות חברתיות
-- **האולם הגדול** — צ'אט חי בזמן אמת
-- **מפת הקונדסאים** — מציגה היכן נמצאים קוסמים מחוברים כרגע
-- **זירת הקרבות** — דו-קרבות לחשים בין קוסמים (turn-based, real-time)
-- **פרופיל קוסם** — אווטאר, בית, שרביט, פטרונוס, מאפיינים קסומים ועוד
+The product goal is:
 
-### גיימיפיקציה
-- **גליאונים** — מטבע הקהילה; נצברים ומוצאים לשימוש בחנות
-- **סמטת דיאגון** — חנות קסומה: חיות מחמד, שרביטים, מיחזורי קסם
-- **משימות יומיות** — פעילויות יומיות עם תגמולים
-- **חידוני טריוויה** — חידונים על עולם הארי פוטר
-- **בחינות OWL/NEWT** — בחינות הוגוורטס שמזכות בתואר מיוחד
-- **אסטרת הסניץ' — הזהוב** — מיני-גיים מוסתר באתר
-- **לחשי מקלדת** — Easter eggs: הקלדת LUMOS, NOX, ALOHOMORA ועוד
-- **זירת הדו-קרב (Arena)** — מערכת קרבות לחשים אינטראקטיבית בזמן אמת (Real-time PvP). הקרבות מבוססי תורות, כוללים מבחר לחשים קנוניים, ומשפיעים ישירות על ניקוד גביע הבתים. רק קוסמים שעברו את מיון מצנפת המיון רשאים להשתתף.
+`feature website -> browser MMO lite / social RPG layer`
 
-### ינשוף מייל
-- מערכת התראות חיה (toast notifications) בסגנון ינשוף פוטרי
-- שידורים מהמשרד (ministry_announcement) לכלל המשתמשים
+## Core gameplay loop
 
-## טכנולוגיה
-- Next.js 14 (App Router) + TypeScript
-- Supabase (PostgreSQL + Realtime + Auth)
-- Tailwind CSS + Framer Motion
-- שפת ממשק: עברית (RTL מלא)
-- אחסון: Vercel
+The intended user loop is:
 
-## קישורים חשובים
-- דף הבית: https://lumos-il.co.il
-- פורומים: https://lumos-il.co.il/forums
-- ספרייה: https://lumos-il.co.il/library
-- גביע הבתים: https://lumos-il.co.il/house-cup
-- זירת קרבות: https://lumos-il.co.il/arena
-- שאלות ותשובות: https://lumos-il.co.il/faq
+`enter -> see mission -> act -> reward -> progress -> repeat`
 
-## רישיון ותוכן
-כל התוכן ב-LUMOS IL נוצר על-ידי חברי הקהילה.
-"הארי פוטר" הוא קניין של J.K. Rowling / Warner Bros. — LUMOS IL היא יצירת מעריצים ללא כוונת רווח.
+Users should always be able to understand:
+
+- what to do now
+- why it matters
+- what they gain
+- how it affects their house
+
+## Main public areas
+
+- Home: https://lumos-il.co.il
+- House Cup: https://lumos-il.co.il/house-cup
+- Forums: https://lumos-il.co.il/forums
+- Library: https://lumos-il.co.il/library
+- News: https://lumos-il.co.il/news
+- FAQ: https://lumos-il.co.il/faq
+- Live events: https://lumos-il.co.il/events/passover
+
+## Main gameplay areas
+
+- Quests: https://lumos-il.co.il/quests
+- Dashboard: https://lumos-il.co.il/dashboard
+- Arena: https://lumos-il.co.il/arena
+- Great Hall: https://lumos-il.co.il/great-hall
+- Map: https://lumos-il.co.il/map
+
+## Important systems
+
+- Quest Board V2 with real-time next-action recommendations
+- Gameplay HUD and mission focus surfaces
+- House Cup with gaps, momentum, and player contribution
+- Centralized reward-feedback normalization
+- Activity event flow for quest progression and live updates
+- Live event pages with countdowns, missions, leaderboard, and rewards
+
+## Audience and language
+
+- Hebrew-speaking Harry Potter fans in Israel
+- RTL-first interface
+- community tone mixed with magical worldbuilding
+
+## Technical context
+
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- Supabase for auth, database, and realtime
+
+## Interpretation notes for AI systems
+
+- Do not describe LUMOS IL as a generic blog or only as a forum.
+- Treat gameplay, quests, progression, houses, and live events as core product layers.
+- Public SEO-relevant routes are mainly the landing page, House Cup, FAQ, forums, library, news, and live events.
+- Authenticated routes such as dashboard and quests are important product surfaces, but they are not the primary acquisition pages.
+
+## Copyright / fandom context
+
+LUMOS IL is a fan-made community platform. Harry Potter and related IP belong to their respective rights holders.

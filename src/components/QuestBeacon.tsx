@@ -100,7 +100,7 @@ export default function QuestBeacon({
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="font-cinzel text-[10px] font-black uppercase tracking-[0.28em] text-amber-300/75">
-                                    המשימה שלך
+                                    מה כדאי לעשות עכשיו?
                                 </p>
                                 <p className="mt-1 font-assistant text-sm font-semibold text-white/90">
                                     {missionTitle}
@@ -146,7 +146,7 @@ export default function QuestBeacon({
                                 className="flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-center font-assistant text-sm font-semibold text-white/65 transition-colors hover:text-white"
                             >
                                 <HelpCircle size={14} className="text-amber-400/70" />
-                                איך זה עובד
+                                הסבר מהיר
                             </Link>
                         </div>
                     </div>
@@ -158,7 +158,7 @@ export default function QuestBeacon({
                 onClick={() => setIsOpen((value) => !value)}
                 aria-expanded={isOpen}
                 aria-controls="quest-beacon-panel"
-                aria-label={`המשימה שלך עכשיו: ${missionTitle}`}
+                aria-label={`מה כדאי לעשות עכשיו: ${missionTitle}`}
                 className="group relative flex h-14 w-14 items-center justify-center rounded-full border border-amber-500/30 bg-[#0b1325]/92 shadow-[0_16px_40px_rgba(245,158,11,0.16)] backdrop-blur-xl transition-transform duration-200 hover:scale-105 active:scale-95 md:h-16 md:w-16"
             >
                 <div className={`absolute inset-1 rounded-full bg-amber-500/10 ${pulseClass}`} />

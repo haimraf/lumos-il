@@ -14,6 +14,7 @@ import 'react-quill-new/dist/quill.snow.css';
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { getHouseIcon, getHouseLabel, getHousePalette, getHouseReadableColor, resolveHouseId, withAlpha } from "@/lib/houses";
 
 interface Forum {
     id: string;
@@ -39,10 +40,10 @@ interface Forum {
 }
 
 const HOUSE_THEMES: Record<string, { color: string; bg: string; icon: string; border: string; glow: string; nameHe: string; accent: string }> = {
-    Gryffindor: { color: "#f87171", bg: "rgba(220,38,38,0.07)", border: "rgba(220,38,38,0.25)", icon: "🦁", glow: "rgba(220,38,38,0.4)", nameHe: "גריפינדור", accent: "#dc2626" },
-    Slytherin: { color: "#34d399", bg: "rgba(5,150,105,0.07)", border: "rgba(5,150,105,0.25)", icon: "🐍", glow: "rgba(5,150,105,0.4)", nameHe: "סלית'רין", accent: "#059669" },
-    Ravenclaw: { color: "#60a5fa", bg: "rgba(37,99,235,0.07)", border: "rgba(37,99,235,0.25)", icon: "🦅", glow: "rgba(37,99,235,0.4)", nameHe: "רייבנקלו", accent: "#2563eb" },
-    Hufflepuff: { color: "#fbbf24", bg: "rgba(217,119,6,0.07)", border: "rgba(217,119,6,0.25)", icon: "🦡", glow: "rgba(217,119,6,0.4)", nameHe: "הפלפאף", accent: "#d97706" },
+    Gryffindor: { color: "#D3A625", bg: withAlpha("#740001", 0.12), border: withAlpha("#D3A625", 0.28), icon: "🦁", glow: withAlpha("#D3A625", 0.26), nameHe: "גריפינדור", accent: "#740001" },
+    Slytherin: { color: "#D2D2D2", bg: withAlpha("#1A472A", 0.12), border: withAlpha("#D2D2D2", 0.22), icon: "🐍", glow: withAlpha("#D2D2D2", 0.2), nameHe: "סלית'רין", accent: "#1A472A" },
+    Ravenclaw: { color: "#D8B98E", bg: withAlpha("#0E1A40", 0.16), border: withAlpha("#D8B98E", 0.24), icon: "🦅", glow: withAlpha("#D8B98E", 0.22), nameHe: "רייבנקלו", accent: "#0E1A40" },
+    Hufflepuff: { color: "#EEB939", bg: withAlpha("#27251F", 0.18), border: withAlpha("#EEB939", 0.28), icon: "🦡", glow: withAlpha("#EEB939", 0.24), nameHe: "הפלפאף", accent: "#27251F" },
     Unknown: { color: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)", icon: "🧙", glow: "rgba(255,255,255,0.1)", nameHe: "טרם סווג", accent: "#6b7280" },
 };
 
@@ -78,10 +79,10 @@ interface UserGroup {
 }
 
 const HOUSE_POINTS_META: Record<string, { icon: any; color: string; glow: string; nameHe: string }> = {
-    Gryffindor: { icon: Flame, color: "#ef4444", glow: "rgba(239,68,68,0.4)", nameHe: "גריפינדור" },
-    Slytherin: { icon: Skull, color: "#34d399", glow: "rgba(52,211,153,0.4)", nameHe: "סליתרין" },
-    Ravenclaw: { icon: Bird, color: "#60a5fa", glow: "rgba(96,165,250,0.4)", nameHe: "רייבנקלו" },
-    Hufflepuff: { icon: Leaf, color: "#fbbf24", glow: "rgba(251,191,36,0.4)", nameHe: "הפלפאף" },
+    Gryffindor: { icon: Flame, color: "#D3A625", glow: withAlpha("#D3A625", 0.35), nameHe: "גריפינדור" },
+    Slytherin: { icon: Skull, color: "#D2D2D2", glow: withAlpha("#D2D2D2", 0.28), nameHe: "סלית'רין" },
+    Ravenclaw: { icon: Bird, color: "#D8B98E", glow: withAlpha("#D8B98E", 0.3), nameHe: "רייבנקלו" },
+    Hufflepuff: { icon: Leaf, color: "#EEB939", glow: withAlpha("#EEB939", 0.32), nameHe: "הפלפאף" },
 };
 const HOUSE_ORDER = ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"] as const;
 const LEGACY_BANNED_ROLE = "אסיר אזקבאן";
@@ -841,13 +842,17 @@ export default function ForumsPage() {
                                     </div>
                                     {groups.length > 0 ? (
                                         <div className="grid grid-cols-2 gap-1">
-                                            {groups.map(g => (
-                                                <div key={g.id} className="flex items-center gap-1.5 px-2 py-1 rounded-md"
-                                                    style={{ background: `${g.color}10`, border: `1px solid ${g.color}22` }}>
-                                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: g.color, boxShadow: `0 0 4px ${g.color}80` }} />
-                                                    <span className="font-cinzel text-[9px] font-black truncate" style={{ color: g.color }}>{g.name}</span>
-                                                </div>
-                                            ))}
+                                            {groups.map(g => {
+                                                const officialHouseColor = resolveHouseId(g.name) ? getHouseReadableColor(g.name) : null;
+                                                const swatchColor = officialHouseColor || g.color;
+                                                return (
+                                                    <div key={g.id} className="flex items-center gap-1.5 px-2 py-1 rounded-md"
+                                                        style={{ background: withAlpha(swatchColor, 0.1), border: `1px solid ${withAlpha(swatchColor, 0.22)}` }}>
+                                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: swatchColor, boxShadow: `0 0 4px ${withAlpha(swatchColor, 0.6)}` }} />
+                                                        <span className="font-cinzel text-[9px] font-black truncate" style={{ color: swatchColor }}>{g.name}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <div className="text-[10px] text-white/20 italic text-center py-3">טוען...</div>
@@ -880,8 +885,8 @@ export default function ForumsPage() {
                                                     <span className="text-[10px] text-white/30 shrink-0">חבר חדש</span>
                                                     <Link href={`/wizard/${forumStats.newestMember.id}`}
                                                         className="text-[10px] font-bold truncate hover:underline"
-                                                        style={{ color: HOUSE_THEMES[forumStats.newestMember.house || "Unknown"]?.color || "rgba(255,255,255,0.5)" }}>
-                                                        {HOUSE_THEMES[forumStats.newestMember.house || "Unknown"]?.icon} {forumStats.newestMember.full_name}
+                                                        style={{ color: getHouseReadableColor(forumStats.newestMember.house) || "rgba(255,255,255,0.5)" }}>
+                                                        {(getHouseIcon(forumStats.newestMember.house) || "✨")} {forumStats.newestMember.full_name}
                                                     </Link>
                                                 </div>
                                             </>

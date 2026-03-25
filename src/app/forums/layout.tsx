@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "פורום הארי פוטר",
-  description: "פורום הארי פוטר הגדול בישראל — דיונים, תיאוריות, פאנפיקים, קנון ועוד. הצטרף לקהילת הקוסמים הישראלית.",
+  description: "הפורומים של LUMOS IL הם לב הקהילה הקסומה: דיונים, תיאוריות, משימות קהילתיות, תגובות, פאנפיקים ושיח חי בעברית.",
   keywords: [
     "פורום הארי פוטר", "פורום", "אשכולות", "דיונים", "הארי פוטר",
     "קהילת הארי פוטר", "הוגוורטס", "תיאוריות הארי פוטר",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: "פורום הארי פוטר | LUMOS IL",
-    description: "פורום הארי פוטר הגדול בישראל — דיונים, תיאוריות, פאנפיקים וקנון. הצטרף לקהילה.",
+    description: "דיונים, תיאוריות, משימות קהילתיות ופאנפיקים בפורומים של LUMOS IL.",
     url: "https://lumos-il.co.il/forums",
     siteName: "LUMOS IL",
     type: "website",

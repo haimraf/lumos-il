@@ -21,17 +21,17 @@ function timeAgo(dateString: string) {
 }
 
 const HOUSE_COLORS: Record<string, { text: string; bg: string; border: string; glow: string }> = {
-    Gryffindor: { text: "text-red-400", bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.25)", glow: "rgba(220,38,38,0.15)" },
-    Slytherin: { text: "text-emerald-400", bg: "rgba(5,150,105,0.08)", border: "rgba(5,150,105,0.25)", glow: "rgba(5,150,105,0.15)" },
-    Ravenclaw: { text: "text-blue-400", bg: "rgba(37,99,235,0.08)", border: "rgba(37,99,235,0.25)", glow: "rgba(37,99,235,0.15)" },
-    Hufflepuff: { text: "text-amber-400", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.25)", glow: "rgba(251,191,36,0.15)" },
+    Gryffindor: { text: "text-[#D3A625]", bg: "rgba(116,0,1,0.10)", border: "rgba(211,166,37,0.30)", glow: "rgba(211,166,37,0.18)" },
+    Slytherin: { text: "text-[#d2d2d2]", bg: "rgba(26,71,42,0.10)", border: "rgba(93,93,93,0.30)", glow: "rgba(93,93,93,0.18)" },
+    Ravenclaw: { text: "text-[#D8B98E]", bg: "rgba(14,26,64,0.14)", border: "rgba(148,107,45,0.34)", glow: "rgba(148,107,45,0.18)" },
+    Hufflepuff: { text: "text-[#EEB939]", bg: "rgba(39,37,31,0.12)", border: "rgba(238,185,57,0.30)", glow: "rgba(238,185,57,0.18)" },
 };
 
 const HOUSE_HEX: Record<string, string> = {
-    Gryffindor: '#f87171',
-    Slytherin: '#34d399',
-    Ravenclaw: '#60a5fa',
-    Hufflepuff: '#fbbf24',
+    Gryffindor: '#D3A625',
+    Slytherin: '#D2D2D2',
+    Ravenclaw: '#D8B98E',
+    Hufflepuff: '#EEB939',
 };
 
 type Topic = {

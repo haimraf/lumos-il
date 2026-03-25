@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getHouseReadableColor } from "@/lib/houses";
 
 type GroupColorRow = {
     name: string | null;
@@ -51,13 +52,7 @@ export function getRoleColor(
     const namedRoleColor = getNamedRoleColor(role, roleColors);
     if (namedRoleColor) return namedRoleColor;
 
-    const houseColors: Record<string, string> = {
-        Gryffindor: "#ef4444",
-        Slytherin:  "#10b981",
-        Ravenclaw:  "#60a5fa",
-        Hufflepuff: "#f59e0b",
-    };
-    return houseColors[house || ""] || "rgba(255,255,255,0.7)";
+    return getHouseReadableColor(house);
 }
 
 export function getRoleDisplay(

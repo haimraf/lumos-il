@@ -43,6 +43,7 @@ import {
   type LiveEventSettings,
 } from "@/lib/liveEvent";
 import { useReducedMotion } from "framer-motion";
+import { getHouseIcon, getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
 
 type LiveEventExperienceProps = {
   initialEventConfig?: LiveEventSettings | null;
@@ -143,10 +144,10 @@ const ACCENT_TONES: Record<string, AccentTone> = {
 const DEFAULT_END = "2026-04-15T23:59:59Z";
 const EVENT_LEADERBOARD_COPY = {
   title: "\u05D8\u05D1\u05DC\u05EA \u05D4\u05DE\u05D5\u05D1\u05D9\u05DC\u05D9\u05DD \u05E2\u05DB\u05E9\u05D9\u05D5",
-  explainer: "\u05D6\u05D0\u05EA \u05D0\u05D5\u05EA\u05D4 \u05D4\u05D8\u05D1\u05DC\u05D4 \u05E9\u05DC\u05E4\u05D9\u05D4 \u05D4\u05DE\u05E2\u05E8\u05DB\u05EA \u05DE\u05D6\u05D4\u05D4 \u05D0\u05EA \u05DE\u05E7\u05D5\u05DD 1, 2, 3 \u05D5\u05D4\u05DC\u05D0\u05D4 \u05D1\u05D6\u05DE\u05DF \u05D7\u05DC\u05D5\u05E7\u05EA \u05D4\u05E4\u05E8\u05E1\u05D9\u05DD.",
+  explainer: "כאן יופיעו המצטיינים של מסדר החירות. הדירוג בשעון החול הזה יקבע מי יזכה בפרסים הגדולים בסוף החג.",
   participants: "\u05DE\u05E9\u05EA\u05EA\u05E4\u05D9\u05DD \u05E2\u05DD \u05E0\u05D9\u05E7\u05D5\u05D3",
-  upcomingEmpty: "\u05D4\u05D8\u05D1\u05DC\u05D4 \u05EA\u05EA\u05DE\u05DC\u05D0 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA \u05D1\u05E8\u05D2\u05E2 \u05E9\u05D4\u05D0\u05D9\u05D5\u05D5\u05E0\u05D8 \u05D9\u05D9\u05E4\u05EA\u05D7 \u05D5\u05D9\u05EA\u05D7\u05D9\u05DC\u05D5 \u05DC\u05D4\u05D9\u05E6\u05D1\u05E8 \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA.",
-  liveEmpty: "\u05E2\u05D3\u05D9\u05D9\u05DF \u05D0\u05D9\u05DF \u05E9\u05D7\u05E7\u05E0\u05D9\u05DD \u05E2\u05DD \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA \u05D0\u05D9\u05D5\u05D5\u05E0\u05D8. \u05D1\u05E8\u05D2\u05E2 \u05E9\u05D4\u05E7\u05E1\u05DD \u05D9\u05D6\u05D5\u05D6, \u05D4\u05E9\u05DE\u05D5\u05EA \u05D9\u05D5\u05E4\u05D9\u05E2\u05D5 \u05DB\u05D0\u05DF.",
+  upcomingEmpty: "הפסגה עדיין מחכה לגיבור או לגיבורה הראשונים. ברגע שהאיוונט ייפתח ויתחילו להיצבר נקודות, הטבלה תתמלא כאן.",
+  liveEmpty: "הפסגה עדיין ממתינה למשתתפים הראשונים. ברגע שתושלם המשימה הראשונה, הדירוג יתחיל להופיע כאן.",
   guest: "\u05E7\u05D5\u05E1\u05DD/\u05EA",
   leadingNow: "\u05DE\u05D5\u05D1\u05D9\u05DC/\u05D4 \u05D0\u05EA \u05D4\u05D0\u05D9\u05D5\u05D5\u05E0\u05D8 \u05DB\u05E8\u05D2\u05E2.",
   points: "\u05E0\u05E7\u05D5\u05D3\u05D5\u05EA",
@@ -154,11 +155,11 @@ const EVENT_LEADERBOARD_COPY = {
   yourPoints: "\u05D4\u05E0\u05D9\u05E7\u05D5\u05D3 \u05E9\u05DC\u05DA",
   yourPlace: "\u05D4\u05DE\u05E7\u05D5\u05DD \u05E9\u05DC\u05DA",
   leaderTitle: "\u05DE\u05D9 \u05DE\u05D5\u05D1\u05D9\u05DC \u05DB\u05E8\u05D2\u05E2",
-  noLeader: "\u05E2\u05D3\u05D9\u05D9\u05DF \u05D0\u05D9\u05DF \u05DE\u05D5\u05D1\u05D9\u05DC \u05DB\u05D9 \u05D4\u05D8\u05D1\u05DC\u05D4 \u05E8\u05D9\u05E7\u05D4.",
-  tieBreak: "\u05D0\u05DD \u05D9\u05E9 \u05E9\u05D5\u05D5\u05D9\u05D5\u05DF \u05D1\u05E0\u05E7\u05D5\u05D3\u05D5\u05EA, \u05D4\u05DE\u05E2\u05E8\u05DB\u05EA \u05E9\u05D5\u05D1\u05E8\u05EA \u05D0\u05D5\u05EA\u05D5 \u05DC\u05E4\u05D9 \u05EA\u05D0\u05E8\u05D9\u05DA \u05D4\u05E8\u05E9\u05DE\u05D4 \u05DE\u05D5\u05E7\u05D3\u05DD \u05D9\u05D5\u05EA\u05E8.",
+  noLeader: "הפסגה עדיין מחכה לגיבור או לגיבורה הראשונים.",
+  tieBreak: "טיפ: במקרה של שוויון בנקודות, הקוסם או המכשפה שהצטרפו לקהילה מוקדם יותר יקבלו את היתרון.",
   rankedNowPrefix: "\u05D0\u05EA/\u05D4 \u05DB\u05E8\u05D2\u05E2 \u05D1\u05DE\u05E7\u05D5\u05DD ",
   noTopTenYet: "\u05E6\u05D1\u05E8\u05EA \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA, \u05D0\u05D1\u05DC \u05E2\u05D3\u05D9\u05D9\u05DF \u05DC\u05D0 \u05E0\u05DB\u05E0\u05E1\u05EA \u05DC\u05D8\u05D5\u05E4 10.",
-  noPersonalRank: "\u05E2\u05D3\u05D9\u05D9\u05DF \u05DC\u05D0 \u05E6\u05D1\u05E8\u05EA \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA, \u05D0\u05D6 \u05E2\u05D3\u05D9\u05D9\u05DF \u05D0\u05D9\u05DF \u05D3\u05D9\u05E8\u05D5\u05D2 \u05D0\u05D9\u05E9\u05D9.",
+  noPersonalRank: "המסע שלך טרם התחיל. ברגע שתשלים את המשימה הראשונה שלך, הדירוג יופיע כאן.",
 };
 
 function useCountdown(target: string) {
@@ -204,6 +205,34 @@ function formatEventDate(value: string) {
   });
 }
 
+function getEventHouseStyles(house: string | null | undefined) {
+  const palette = getHousePalette(house);
+  if (!palette) {
+    return {
+      label: house || "-",
+      icon: "✨",
+      nameColor: "#f8e7a1",
+      borderColor: "rgba(255,255,255,0.12)",
+      background: "rgba(255,255,255,0.08)",
+      badgeBackground: "rgba(255,255,255,0.05)",
+      badgeText: "rgba(255,255,255,0.72)",
+      glow: "rgba(255,255,255,0.12)",
+    };
+  }
+
+  const readableColor = palette.id === "Hufflepuff" ? palette.secondary : palette.secondary;
+  return {
+    label: getHouseLabel(house) || palette.label,
+    icon: getHouseIcon(house) || palette.icon,
+    nameColor: readableColor,
+    borderColor: withAlpha(palette.secondary, 0.35),
+    background: `linear-gradient(135deg, ${withAlpha(palette.primary, 0.18)}, ${withAlpha(palette.secondary, 0.12)})`,
+    badgeBackground: withAlpha(palette.primary, 0.16),
+    badgeText: palette.id === "Hufflepuff" ? palette.secondary : palette.contrast,
+    glow: withAlpha(palette.secondary, 0.2),
+  };
+}
+
 export function LiveEventExperience({ initialEventConfig = null }: LiveEventExperienceProps) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -232,11 +261,13 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   const eventTagline = liveEvent.tagline || (eventPhase === "upcoming" ? "מתחיל בקרוב" : "איוונט חי, חכם ומתעדכן");
   const eventDescription = liveEvent.description || (
     eventPhase === "upcoming"
-      ? "דף איוונט ייעודי, טיימר דינמי, משימות ופרסים מההגדרות החיות. הניקוד יתחיל להיספר אוטומטית בזמן הפתיחה."
-      : "דף איוונט ייעודי, טיימר דינמי, משימות ופרסים מההגדרות החיות, וניקוד אישי שמסונכרן עם הפעילות שלכם ברחבי הטירה."
+      ? "איוונט קהילתי עם שעון חול קסום, משימות, טבלת מובילים ופרסים שייפתחו ברגע שהאירוע יתחיל."
+      : "איוונט קהילתי חי עם משימות, ניקוד אישי, טבלת מובילים ופרסים שמסתנכרנים עם הפעילות שלכם ברחבי הטירה."
   );
   const supportForumHref = liveEvent.support_forum_href || "/forums/feedback-and-suggestions";
   const leadingWizard = leaderboard[0] || null;
+  const userHouseStyles = getEventHouseStyles(userProfile?.house);
+  const leadingWizardHouseStyles = getEventHouseStyles(leadingWizard?.house);
   const statusText = eventPhase === "upcoming" ? "פתיחת השערים בעוד:" : "סגירת השערים בעוד:";
   const progressValue = Math.min(100, Math.max(0, (eventPoints / 500) * 100));
   const countdownSummary = `${statusText} ${countdown.days} ימים, ${countdown.hours} שעות, ${countdown.minutes} דקות ו-${countdown.seconds} שניות.`;
@@ -539,11 +570,21 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                   נקודות איוונט
                 </div>
               </div>
-              <div className="rounded-3xl bg-white/[0.08] p-6 border border-white/10 text-center transition-transform hover:scale-105">
-                <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-blue-500">
-                  {userProfile?.house || "-"}
+              <div
+                className="rounded-3xl p-6 border text-center transition-transform hover:scale-105"
+                style={{
+                  background: userHouseStyles.background,
+                  borderColor: userHouseStyles.borderColor,
+                  boxShadow: `0 0 24px ${userHouseStyles.glow}`,
+                }}
+              >
+                <div
+                  className="text-4xl font-black"
+                  style={{ color: userHouseStyles.nameColor }}
+                >
+                  {userHouseStyles.icon} {userHouseStyles.label}
                 </div>
-                <div className="text-[11px] text-blue-100/50 uppercase tracking-widest mt-2 font-bold">
+                <div className="text-[11px] uppercase tracking-widest mt-2 font-bold" style={{ color: withAlpha(userHouseStyles.nameColor, 0.7) }}>
                   בית המייצג
                 </div>
               </div>
@@ -644,7 +685,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
 
               <p className="text-base text-white/[0.78]">
                 {isUpcoming
-                  ? "הדף כבר מוכן, אבל צבירת הנקודות תתחיל אוטומטית רק בזמן הפתיחה."
+                  ? "שערי הטירה ייפתחו בקרוב. שעון החול הקסום יתחיל לספור את נקודות האיוונט ברגע שהספירה לאחור תסתיים."
                   : "כל פעולה נתמכת ברחבי הטירה נספרת לניקוד האיוונט בזמן שהוא חי."}
               </p>
             </div>
@@ -682,6 +723,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                 {leaderboard.map((profile, index) => {
                   const rewardForRank = rewards.find((reward) => reward.rank === index + 1);
                   const profilePoints = getProfileLiveEventPoints(profile);
+                  const profileHouseStyles = getEventHouseStyles(profile.house);
 
                   return (
                     <li
@@ -704,8 +746,15 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate font-cinzel text-lg font-black text-white">{profile.full_name || EVENT_LEADERBOARD_COPY.guest}</p>
                           {profile.house && (
-                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/60">
-                              {profile.house}
+                            <span
+                              className="rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em]"
+                              style={{
+                                borderColor: profileHouseStyles.borderColor,
+                                background: profileHouseStyles.badgeBackground,
+                                color: profileHouseStyles.badgeText,
+                              }}
+                            >
+                              {profileHouseStyles.icon} {profileHouseStyles.label}
                             </span>
                           )}
                           {rewardForRank?.title && (
@@ -750,11 +799,18 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
               </div>
             </div>
 
-            <div className="rounded-[2.5rem] border border-sky-400/20 bg-sky-500/10 p-7">
-              <h3 className="font-cinzel text-sm font-black uppercase tracking-[0.22em] text-sky-200">{EVENT_LEADERBOARD_COPY.leaderTitle}</h3>
+            <div
+              className="rounded-[2.5rem] border p-7"
+              style={{
+                borderColor: leadingWizardHouseStyles.borderColor,
+                background: leadingWizard ? leadingWizardHouseStyles.background : "rgba(14,165,233,0.10)",
+                boxShadow: leadingWizard ? `0 0 24px ${leadingWizardHouseStyles.glow}` : "none",
+              }}
+            >
+              <h3 className="font-cinzel text-sm font-black uppercase tracking-[0.22em]" style={{ color: leadingWizard ? leadingWizardHouseStyles.nameColor : "#bae6fd" }}>{EVENT_LEADERBOARD_COPY.leaderTitle}</h3>
               <p className="mt-4 text-lg leading-relaxed text-white/[0.84]">
                 {leadingWizard
-                  ? `${leadingWizard.full_name || EVENT_LEADERBOARD_COPY.guest} במקום ראשון עם ${getProfileLiveEventPoints(leadingWizard)} נקודות.`
+                  ? `${leadingWizard.full_name || EVENT_LEADERBOARD_COPY.guest} ${leadingWizardHouseStyles.label ? `מ-${leadingWizardHouseStyles.label}` : ""} במקום ראשון עם ${getProfileLiveEventPoints(leadingWizard)} נקודות.`
                   : EVENT_LEADERBOARD_COPY.noLeader}
               </p>
               <p className="mt-4 text-sm leading-relaxed text-white/[0.72]">

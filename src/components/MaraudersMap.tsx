@@ -6,6 +6,7 @@ import { Footprints, ChevronLeft, Compass } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { getRoleColorFromDB } from "@/lib/roleColor";
+import { getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
 
 const HOUSE_COLORS: Record<string, string> = {
     Gryffindor: "#dc2626",
@@ -65,7 +66,9 @@ export default function MaraudersRadar() {
         return () => clearInterval(interval);
     }, [supabase]);
 
-    const houseColor = profile?.house ? (HOUSE_COLORS[profile.house] ?? HOUSE_COLORS.Guest) : HOUSE_COLORS.Guest;
+    const ownHousePalette = getHousePalette(profile?.house);
+    const houseColor = ownHousePalette?.secondary || (profile?.house ? (HOUSE_COLORS[profile.house] ?? HOUSE_COLORS.Guest) : HOUSE_COLORS.Guest);
+    const houseLabel = getHouseLabel(profile?.house) || profile?.house || "ללא מיון";
 
     return (
         <>
@@ -276,12 +279,12 @@ export default function MaraudersRadar() {
                                     style={{
                                         color: houseColor,
                                         borderColor: houseColor,
-                                        background: `${houseColor}18`,
+                                        background: withAlpha(houseColor, 0.1),
                                         marginTop: "4px",
                                         display: "inline-flex",
                                     }}
                                 >
-                                    {profile.house}
+                                    {houseLabel}
                                 </span>
                             ) : (
                                 <div style={{ fontStyle: "italic", fontSize: "0.8rem", color: "#7a5a18", marginTop: "4px" }}>ללא מיון</div>
@@ -294,9 +297,9 @@ export default function MaraudersRadar() {
                         <div style={{ marginBottom: "14px" }}>
                             <div className="radar-stat-label" style={{ marginBottom: "6px" }}>נצפו לאחרונה</div>
                             {recentUsers.map((u, i) => {
-                                const color = HOUSE_COLORS[u.house] ?? HOUSE_COLORS.Guest;
+                                const color = getHousePalette(u.house)?.secondary || HOUSE_COLORS[u.house] || HOUSE_COLORS.Guest;
                                 const badgeColor = u.group_color || color;
-                                const badgeLabel = u.group_name || u.house || "Guest";
+                                const badgeLabel = u.group_name || getHouseLabel(u.house) || u.house || "Guest";
                                 return (
                                     <div key={i} className="radar-user-row">
                                         <div

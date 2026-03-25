@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { Compass, Footprints, Flame } from "lucide-react";
+import { getHouseIcon, getHouseLabel, getHouseReadableColor, withAlpha, HOUSE_IDS } from "@/lib/houses";
 
 /**
  * LUMOS IL — מפת הקונדסאים V2
@@ -20,11 +21,11 @@ const HOUSE_NAMES: Record<string, string> = {
 };
 
 const HOUSE_COLORS: Record<string, string> = {
-    Gryffindor: "#dc2626",
-    Slytherin: "#059669",
-    Ravenclaw: "#2563eb",
-    Hufflepuff: "#d97706",
-    Guest: "#8b6914",
+    Gryffindor: "#D3A625",
+    Slytherin: "#D2D2D2",
+    Ravenclaw: "#D8B98E",
+    Hufflepuff: "#EEB939",
+    Guest: "rgba(255,255,255,0.7)",
 };
 
 type ActivityItem = {
@@ -285,7 +286,7 @@ export default function MaraudersMasterMap() {
             const activeUser = current.length > 0
                 ? current[Math.floor(Math.random() * current.length)]
                 : null;
-            const house = activeUser?.house || Object.keys(HOUSE_COLORS).filter(h => h !== "Guest")[Math.floor(Math.random() * 4)];
+            const house = activeUser?.house || HOUSE_IDS[Math.floor(Math.random() * HOUSE_IDS.length)];
 
             const angle = Math.random() * 360;
             const startX = Math.random() * 75 + 5;
@@ -505,7 +506,7 @@ export default function MaraudersMasterMap() {
                 {/* Footsteps */}
                 <div style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none" }}>
                     {steps.map(s => {
-                        const color = HOUSE_COLORS[s.house] || HOUSE_COLORS.Guest;
+                        const color = getHouseReadableColor(s.house) || HOUSE_COLORS.Guest;
                         const rotDeg = s.angle + (s.isLeft ? -15 : 15);
                         return (
                             <div key={s.id} className="mm-step"
@@ -559,8 +560,8 @@ export default function MaraudersMasterMap() {
                                     <span>🗺️ האזור הפעיל ביותר: <strong>{topZone[0]}</strong> ({topZone[1]} קוסמים)</span>
                                 )}
                                 {topHouse !== "Guest" && (
-                                    <span style={{ color: HOUSE_COLORS[topHouse] }}>
-                                        ✦ הבית הפעיל: <strong>{topHouse}</strong>
+                                    <span style={{ color: getHouseReadableColor(topHouse) }}>
+                                        ✦ הבית הפעיל: <strong>{getHouseLabel(topHouse) || topHouse}</strong>
                                     </span>
                                 )}
                             </div>
@@ -627,9 +628,9 @@ export default function MaraudersMasterMap() {
                                     ) : (
                                         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
                                             {onlineNamedUsers.map((u: any) => {
-                                                const color = HOUSE_COLORS[u.house] ?? HOUSE_COLORS.Guest;
+                                                const color = getHouseReadableColor(u.house) || HOUSE_COLORS.Guest;
                                                 const nameColor = u.group_color || color;
-                                                const houseIcon = ({ Gryffindor: "🦁", Slytherin: "🐍", Ravenclaw: "🦅", Hufflepuff: "🦡" } as Record<string, string>)[u.house] || "🧙";
+                                                const houseIcon = getHouseIcon(u.house) || "✨";
                                                 return (
                                                     <Link
                                                         key={u.id}
@@ -644,8 +645,8 @@ export default function MaraudersMasterMap() {
                                                             fontFamily: "'Cinzel', serif",
                                                             fontWeight: 700,
                                                             color: nameColor,
-                                                            background: `${nameColor}18`,
-                                                            border: `1px solid ${nameColor}35`,
+                                                            background: withAlpha(nameColor, 0.12),
+                                                            border: `1px solid ${withAlpha(nameColor, 0.24)}`,
                                                             textDecoration: "none",
                                                         }}
                                                     >
@@ -695,7 +696,7 @@ export default function MaraudersMasterMap() {
                                 ) : (
                                     <div>
                                         {activity.map(item => {
-                                            const color = item.group_color || (item.house ? HOUSE_COLORS[item.house] : HOUSE_COLORS.Guest);
+                                            const color = item.group_color || (item.house ? getHouseReadableColor(item.house) : HOUSE_COLORS.Guest);
                                             const threadHref = item.threadId ? `/forums/thread/${item.threadId}` : null;
                                             return (
                                                 <div key={item.id} className="mm-activity">

@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
     : getLiveEventLabel(eventConfig);
   const tagline = eventConfig.tagline?.trim() || "איוונט חי, חכם ומתעדכן";
   const description = eventConfig.description?.trim()
-    || `${eventLabel} ב-LUMOS IL עם משימות דינמיות, ניקוד אישי וביתי, טיימר חי ופרסים לקהילה.`;
+    || `${eventLabel} ב-LUMOS IL עם משימות איוונט, ניקוד אישי, טבלת מובילים חיה, טיימר קסום ופרסים לקהילה.`;
   const title = `${eventLabel} | ${tagline} | LUMOS IL`;
   const canonicalPath = getLiveEventHref(eventConfig);
   const canonicalUrl = `https://lumos-il.co.il${canonicalPath}`;
@@ -29,6 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
+    keywords: [eventLabel, "איוונט הארי פוטר", "איוונט קהילתי", "נקודות איוונט", "טבלת מובילים", "LUMOS IL"],
     alternates: {
       canonical: canonicalUrl,
     },

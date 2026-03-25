@@ -221,9 +221,8 @@ type QuickRoute = {
 
 function dailyCapHint(dailyPointsEarned: number) {
   const remaining = Math.max(0, 50 - dailyPointsEarned);
-  if (remaining === 0) return "תקרת הנקודות נסגרה להיום, אבל עדיין אפשר לקדם גליאונים ונוכחות.";
-  if (remaining <= 10) return `נשארו רק עוד ${remaining} נק' עד תקרת היום.`;
-  return `עדיין פתוחות לך ${remaining} נק' במסע היומי.`;
+  if (remaining === 0) return "מכסת הנקודות של היום נסגרה, אבל עדיין פתוחים גליאונים, התקדמות סיפור ונוכחות ברחבי הטירה.";
+  return `צברת ${dailyPointsEarned}/50. פתוחות בפניך עוד ${remaining} נקודות למסע של היום!`;
 }
 
 function DashboardContent() {
@@ -1065,27 +1064,27 @@ function MissionFocusStrip({
     {
       href: "/quests",
       label: "לוח המשימות",
-      meta: `${activeQuestCount} פתוחות`,
+      meta: `${activeQuestCount} פתוחות.`,
       icon: ScrollText,
       highlight: true,
     },
     {
       href: "/dashboard?tab=notifications",
       label: "ינשופים",
-      meta: unreadNotifications > 0 ? `${unreadNotifications} חדשים` : "תיבה שקטה",
+      meta: unreadNotifications > 0 ? `${unreadNotifications} חדשים.` : "תיבה שקטה.",
       icon: Bell,
       highlight: unreadNotifications > 0,
     },
     {
       href: "/arena",
       label: "הזירה",
-      meta: "דו-קרב אחד יכול להפוך את המומנטום",
+      meta: "דו-קרב אחד יכול להפוך את המומנטום!",
       icon: Swords,
     },
     {
       href: "/map",
       label: "המפה",
-      meta: "חזרה מהירה למסלולי חקירה",
+      meta: "חזרה מהירה למסלולי החקירה.",
       icon: Home,
     },
   ];
@@ -1100,11 +1099,11 @@ function MissionFocusStrip({
           <div className="order-2 text-right md:order-1">
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] font-cinzel font-black uppercase tracking-[0.24em] text-amber-200">
               <Zap size={12} />
-              Mission Focus
+              במוקד
             </div>
-            <h3 className="font-cinzel text-2xl font-black text-white md:text-3xl">מה הצעד הכי נכון שלך עכשיו</h3>
+            <h3 className="font-cinzel text-2xl font-black text-white md:text-3xl">מה כדאי לעשות עכשיו?</h3>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-white/60">
-              שכבת ההמשך של הלוח הזה מושכת את ההמלצות החיות ממערכת המשימות, כדי שלא תצטרך לנחש מאיפה להתחיל.
+              המערכת מושכת את ההמלצות החמות ביותר, כדי שלא תצטרך לנחש מאיפה להתחיל.
             </p>
           </div>
 
@@ -1163,7 +1162,7 @@ function MissionFocusStrip({
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 font-cinzel text-xs font-black uppercase tracking-[0.24em] text-amber-950 transition-all hover:scale-[1.02]"
               >
                 <MissionActionGlyph href={primaryAction.href} size={14} />
-                לצאת למשימה
+                לצעד הבא
               </Link>
               <Link
                 href="/quests"
@@ -1177,7 +1176,7 @@ function MissionFocusStrip({
             <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/15 p-4">
               <div className="mb-3 text-right">
                 <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">קיצורי דרך חכמים</div>
-                <div className="mt-1 text-sm text-white/60">כניסות מהירות כדי שלא תצטרך לחפש את המסך הבא.</div>
+                <div className="mt-1 text-sm text-white/60">גישה מהירה ליעדים הבאים שלך.</div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {quickRoutes.map((route) => (
@@ -1192,11 +1191,11 @@ function MissionFocusStrip({
               <div className="flex items-center justify-between gap-3">
                 <div className="text-left">
                   <div className="font-cinzel text-xl font-black text-white">{dailyPointsEarned}/50</div>
-                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/25">Daily Points</div>
+                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/25">מכסת נקודות יומית</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">תקרת היום</div>
-                  <div className="mt-1 text-sm text-white/65">כמה נקודות כבר נסגרו במסע היומי שלך</div>
+                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">כמה נקודות כבר נסגרו במסע היומי שלך?</div>
+                  <div className="mt-1 text-sm text-white/65">המסע היומי עדיין פתוח, וכל נקודה שנסגרת דוחפת את הלוח קדימה.</div>
                 </div>
               </div>
               <div className="mt-4 h-2 rounded-full bg-white/[0.06] overflow-hidden">
@@ -1216,10 +1215,10 @@ function MissionFocusStrip({
 
             <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="text-left text-xs font-cinzel uppercase tracking-[0.24em] text-white/25">Follow-ups</div>
+                <div className="text-left text-xs font-cinzel uppercase tracking-[0.24em] text-white/25">צעדי המשך</div>
                 <div className="text-right">
-                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">אם נשאר לך עוד רגע</div>
-                  <div className="mt-1 text-sm text-white/65">עוד שני צעדים קלים לשמירת רצף</div>
+                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">מסלולים פתוחים</div>
+                  <div className="mt-1 text-sm text-white/65">המשימות הארוכות יותר מחכות שתדחוף אותן קדימה.</div>
                 </div>
               </div>
 

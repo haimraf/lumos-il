@@ -44,7 +44,7 @@ const landingStructuredData = {
       name: "LUMOS IL",
       url: "https://lumos-il.co.il",
       inLanguage: "he-IL",
-      description: "קהילת הארי פוטר הישראלית עם בתים, גביע הבתים, פורומים, ספרייה, זירה ומשימות.",
+      description: "קהילת הארי פוטר הישראלית עם לוח משימות, בתים, גביע הבתים, איוונטים, פורומים, ספריית פאנפיקים וזירת דו-קרב.",
       potentialAction: {
         "@type": "SearchAction",
         target: "https://lumos-il.co.il/search?q={search_term_string}",

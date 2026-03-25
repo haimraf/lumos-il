@@ -1,33 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Activity, Crown, Shield, Sparkles, Trophy, Zap } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-
-type HouseId = "Gryffindor" | "Slytherin" | "Ravenclaw" | "Hufflepuff";
+import { HOUSE_IDS, getHouseLabel, getHouseVisualTheme, resolveHouseId, withAlpha, type HouseId, type HouseVisualTheme } from "@/lib/houses";
 
 type ProfileRow = {
-  house: HouseId | null;
+  house: string | null;
   points_contributed: number | null;
   full_name: string | null;
 };
 
 type ActivityRow = {
-  actor_house: HouseId | null;
+  actor_house: string | null;
   created_at: string | null;
-};
-
-type HouseMeta = {
-  id: HouseId;
-  label: string;
-  accent: string;
-  glow: string;
-  border: string;
-  surface: string;
-  pill: string;
-  line: string;
 };
 
 type HouseChampion = {
@@ -35,52 +23,17 @@ type HouseChampion = {
   points: number;
 };
 
-function isHouseId(value: string | null | undefined): value is HouseId {
-  return value === "Gryffindor" || value === "Slytherin" || value === "Ravenclaw" || value === "Hufflepuff";
-}
+type HouseCardMeta = {
+  id: HouseId;
+  label: string;
+  theme: HouseVisualTheme;
+};
 
-const HOUSE_META: HouseMeta[] = [
-  {
-    id: "Gryffindor",
-    label: "גריפינדור",
-    accent: "text-red-300",
-    glow: "shadow-[0_0_35px_rgba(248,113,113,0.18)]",
-    border: "border-red-400/25",
-    surface: "from-red-500/14 via-red-500/6 to-transparent",
-    pill: "border-red-400/25 bg-red-500/10 text-red-100",
-    line: "from-red-400 via-red-300 to-amber-200",
-  },
-  {
-    id: "Slytherin",
-    label: "סלית'רין",
-    accent: "text-emerald-300",
-    glow: "shadow-[0_0_35px_rgba(52,211,153,0.18)]",
-    border: "border-emerald-400/25",
-    surface: "from-emerald-500/14 via-emerald-500/6 to-transparent",
-    pill: "border-emerald-400/25 bg-emerald-500/10 text-emerald-100",
-    line: "from-emerald-400 via-emerald-300 to-cyan-200",
-  },
-  {
-    id: "Ravenclaw",
-    label: "רייבנקלו",
-    accent: "text-blue-300",
-    glow: "shadow-[0_0_35px_rgba(96,165,250,0.18)]",
-    border: "border-blue-400/25",
-    surface: "from-blue-500/14 via-blue-500/6 to-transparent",
-    pill: "border-blue-400/25 bg-blue-500/10 text-blue-100",
-    line: "from-blue-400 via-sky-300 to-cyan-200",
-  },
-  {
-    id: "Hufflepuff",
-    label: "הפלפאף",
-    accent: "text-amber-300",
-    glow: "shadow-[0_0_35px_rgba(251,191,36,0.18)]",
-    border: "border-amber-400/25",
-    surface: "from-amber-500/14 via-amber-500/6 to-transparent",
-    pill: "border-amber-400/25 bg-amber-500/10 text-amber-100",
-    line: "from-amber-400 via-yellow-300 to-orange-200",
-  },
-];
+const HOUSE_META: HouseCardMeta[] = HOUSE_IDS.map((houseId) => ({
+  id: houseId,
+  label: getHouseLabel(houseId) || houseId,
+  theme: getHouseVisualTheme(houseId)!,
+}));
 
 const EMPTY_POINTS: Record<HouseId, number> = {
   Gryffindor: 0,
@@ -97,9 +50,9 @@ const EMPTY_CHAMPIONS: Record<HouseId, HouseChampion> = {
 };
 
 function momentumCopy(value: number) {
-  if (value >= 8) return "רותח";
+  if (value >= 8) return "לוהט";
   if (value >= 4) return "מתחמם";
-  if (value >= 1) return "נע";
+  if (value >= 1) return "בתנועה";
   return "שקט";
 }
 
@@ -118,11 +71,11 @@ function liveNarration(args: {
   }
 
   if (args.leaderGap <= 25 && args.runnerLabel) {
-    return `המירוץ רותח: רק ${args.leaderGap} נקודות מפרידות בין ${args.leaderLabel} ל-${args.runnerLabel}.`;
+    return `המרוץ צמוד במיוחד: רק ${args.leaderGap} נקודות מפרידות בין ${args.leaderLabel} ל-${args.runnerLabel}.`;
   }
 
   if (args.surgingMomentum >= 5 && args.surgingLabel !== args.leaderLabel) {
-    return `${args.surgingLabel} מגיעה חם מאחור עם ${args.surgingMomentum} פעולות פעילות ביממה האחרונה.`;
+    return `${args.surgingLabel} מתחממת מאחור עם ${args.surgingMomentum} פעולות פעילות ביממה האחרונה.`;
   }
 
   if (args.biggestGainLabel && args.biggestGainValue > 0) {
@@ -130,7 +83,7 @@ function liveNarration(args: {
   }
 
   if (args.runnerLabel) {
-    return `${args.leaderLabel} שומרת כרגע על יתרון של ${args.leaderGap} נקודות על ${args.runnerLabel}.`;
+    return `${args.leaderLabel} מחזיקה כרגע ביתרון של ${args.leaderGap} נקודות על ${args.runnerLabel}.`;
   }
 
   return `${args.leaderLabel} מחזיקה כרגע במושכות המירוץ.`;
@@ -174,11 +127,13 @@ export default function HouseCupLeaderboard() {
       const nextChampions: Record<HouseId, HouseChampion> = { ...EMPTY_CHAMPIONS };
 
       (profiles as ProfileRow[] | null)?.forEach((row) => {
-        if (!isHouseId(row.house)) return;
-        nextPoints[row.house] += row.points_contributed || 0;
+        const houseId = resolveHouseId(row.house);
+        if (!houseId) return;
 
-        if ((row.points_contributed || 0) > nextChampions[row.house].points) {
-          nextChampions[row.house] = {
+        nextPoints[houseId] += row.points_contributed || 0;
+
+        if ((row.points_contributed || 0) > nextChampions[houseId].points) {
+          nextChampions[houseId] = {
             name: row.full_name || "חבר קהילה",
             points: row.points_contributed || 0,
           };
@@ -186,8 +141,9 @@ export default function HouseCupLeaderboard() {
       });
 
       (activity as ActivityRow[] | null)?.forEach((row) => {
-        if (!isHouseId(row.actor_house)) return;
-        nextMomentum[row.actor_house] += 1;
+        const houseId = resolveHouseId(row.actor_house);
+        if (!houseId) return;
+        nextMomentum[houseId] += 1;
       });
 
       const sortedByPoints = [...HOUSE_META].sort((a, b) => nextPoints[b.id] - nextPoints[a.id]);
@@ -222,11 +178,9 @@ export default function HouseCupLeaderboard() {
           surgingLabel: surgingHouse.label,
           surgingMomentum: nextMomentum[surgingHouse.id],
           leaderChanged,
-          biggestGainLabel: biggestGainHouse
-            ? HOUSE_META.find((house) => house.id === biggestGainHouse)?.label
-            : undefined,
+          biggestGainLabel: biggestGainHouse ? HOUSE_META.find((house) => house.id === biggestGainHouse)?.label : undefined,
           biggestGainValue,
-        }),
+        })
       );
 
       if (biggestGainHouse && biggestGainValue > 0) {
@@ -263,22 +217,27 @@ export default function HouseCupLeaderboard() {
     };
   }, [supabase]);
 
-  const rankedHouses = [...HOUSE_META]
-    .map((house) => ({
-      ...house,
-      points: housePoints[house.id] || 0,
-      momentum: houseMomentum[house.id] || 0,
-      champion: houseChampions[house.id],
-    }))
-    .sort((a, b) => b.points - a.points);
+  const rankedHouses = useMemo(() => (
+    [...HOUSE_META]
+      .map((house) => ({
+        ...house,
+        points: housePoints[house.id] || 0,
+        momentum: houseMomentum[house.id] || 0,
+        champion: houseChampions[house.id],
+      }))
+      .sort((a, b) => b.points - a.points)
+  ), [houseChampions, houseMomentum, housePoints]);
 
   const leader = rankedHouses[0];
   const runnerUp = rankedHouses[1];
   const leaderGap = Math.max(0, leader.points - (runnerUp?.points || 0));
   const highestMomentum = Math.max(...rankedHouses.map((house) => house.momentum), 1);
   const maxPoints = Math.max(...rankedHouses.map((house) => house.points), 100);
-  const ownHouse = rankedHouses.find((house) => house.id === profile?.house);
-  const ownShare = ownHouse && ownHouse.points > 0 ? Math.round(((profile?.points_contributed || 0) / ownHouse.points) * 100) : 0;
+  const ownHouseId = resolveHouseId(profile?.house);
+  const ownHouse = rankedHouses.find((house) => house.id === ownHouseId);
+  const ownShare = ownHouse && ownHouse.points > 0
+    ? Math.round(((profile?.points_contributed || 0) / ownHouse.points) * 100)
+    : 0;
   const topMomentumHouse = [...rankedHouses].sort((a, b) => b.momentum - a.momentum)[0];
 
   return (
@@ -287,11 +246,11 @@ export default function HouseCupLeaderboard() {
         <div className="mb-6 grid gap-4 lg:grid-cols-[1.3fr_0.9fr]">
           <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5 md:p-6">
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[10px] font-cinzel font-black uppercase tracking-[0.24em] text-amber-100">
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 font-cinzel text-[10px] font-black uppercase tracking-[0.24em] text-amber-100">
                 <Trophy size={12} className="text-amber-300" />
                 גביע הבתים
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-cinzel font-black uppercase tracking-[0.22em] text-emerald-100">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 font-cinzel text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">
                 <Activity size={12} className="text-emerald-300" />
                 {lastRefreshLabel}
               </span>
@@ -302,21 +261,17 @@ export default function HouseCupLeaderboard() {
             </h2>
 
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/60">
-              הבית המוביל כרגע הוא <span className={leader.accent}>{leader.label}</span>, אבל כל דו-קרב, תגובה,
-              קריאה או משימה יכולה להפוך את המאזן מחדש.
+              הבית המוביל כרגע הוא <span style={{ color: leader.theme.text }}>{leader.label}</span>, אבל כל דו-קרב, תגובה,
+              קריאה או משימה יכולים להפוך את המאזן מחדש.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <SummaryChip label="פער לפסגה" value={`${leaderGap} נק׳`} tone="amber" />
-              <SummaryChip
-                label="בית חם"
-                value={`${topMomentumHouse.label} • ${topMomentumHouse.momentum} פעולות`}
-                tone="emerald"
-              />
+              <SummaryChip label="פער לפסגה" value={`${leaderGap} נק׳`} color="#fbbf24" />
+              <SummaryChip label="מומנטום חם" value={`${topMomentumHouse.label} · ${topMomentumHouse.momentum} פעולות`} color="#6ee7b7" />
               <SummaryChip
                 label="תרומתך"
-                value={profile?.house ? `${profile?.points_contributed || 0} נק׳ • ${ownShare}% מהבית` : "התחבר/י כדי לראות השפעה"}
-                tone="blue"
+                value={ownHouseId ? `${profile?.points_contributed || 0} נק׳ · ${ownShare}% מהבית` : "התחבר/י כדי לראות השפעה"}
+                color="#93c5fd"
               />
             </div>
           </div>
@@ -324,11 +279,11 @@ export default function HouseCupLeaderboard() {
           <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5 md:p-6">
             <p className="font-cinzel text-[10px] uppercase tracking-[0.24em] text-white/35">שורת המירוץ</p>
             <div className="mt-4 space-y-4">
-              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4">
+              <div className="rounded-2xl border p-4" style={{ borderColor: leader.theme.badgeBorder, background: leader.theme.surfaceStrong }}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-cinzel text-xs font-black text-amber-100">מוביל נוכחי</p>
-                    <p className={`mt-1 font-cinzel text-xl font-black ${leader.accent}`}>{leader.label}</p>
+                    <p className="font-cinzel text-xs font-black" style={{ color: withAlpha(leader.theme.text, 0.92) }}>מוביל נוכחי</p>
+                    <p className="mt-1 font-cinzel text-xl font-black" style={{ color: leader.theme.text }}>{leader.label}</p>
                   </div>
                   <Crown className="text-amber-300" size={24} />
                 </div>
@@ -349,7 +304,7 @@ export default function HouseCupLeaderboard() {
 
               <Link
                 href="/house-cup"
-                className="inline-flex items-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-3 text-sm font-cinzel font-black uppercase tracking-[0.18em] text-cyan-100 transition-all hover:border-cyan-300/40 hover:bg-cyan-500/15"
+                className="inline-flex items-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-3 font-cinzel text-sm font-black uppercase tracking-[0.18em] text-cyan-100 transition-all hover:border-cyan-300/40 hover:bg-cyan-500/15"
               >
                 להיכל הגביע
                 <Sparkles size={14} />
@@ -363,30 +318,41 @@ export default function HouseCupLeaderboard() {
             const gapToLeader = Math.max(0, leader.points - house.points);
             const progressWidth = Math.max(10, Math.round((house.points / maxPoints) * 100));
             const momentumWidth = Math.max(8, Math.round((house.momentum / highestMomentum) * 100));
-            const isOwnHouse = profile?.house === house.id;
+            const isOwnHouse = ownHouseId === house.id;
             const isLeading = house.id === leader.id;
             const isHighlighted = highlightHouse === house.id;
 
             return (
               <article
                 key={house.id}
-                className={`relative overflow-hidden rounded-[2rem] border bg-black/20 p-5 transition-all duration-500 ${house.border} ${house.glow} ${isHighlighted ? "scale-[1.02]" : ""}`}
+                className={`relative overflow-hidden rounded-[2rem] border bg-black/20 p-5 transition-all duration-500 ${isHighlighted ? "scale-[1.02]" : ""}`}
+                style={{
+                  borderColor: isHighlighted ? house.theme.border : house.theme.mutedBorder,
+                  boxShadow: isHighlighted ? house.theme.shadow : `0 0 22px ${house.theme.softGlow}`,
+                }}
               >
-                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${house.surface}`} />
+                <div className="pointer-events-none absolute inset-0" style={{ background: house.theme.surface }} />
                 <div className="relative">
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-cinzel font-black uppercase tracking-[0.18em] ${house.pill}`}>
+                        <span
+                          className="rounded-full border px-2.5 py-1 font-cinzel text-[10px] font-black uppercase tracking-[0.18em]"
+                          style={{
+                            color: house.theme.badgeText,
+                            background: house.theme.badgeBackground,
+                            borderColor: house.theme.badgeBorder,
+                          }}
+                        >
                           מקום {index + 1}
                         </span>
                         {isOwnHouse && (
-                          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-cinzel font-black uppercase tracking-[0.18em] text-white/75">
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-cinzel text-[10px] font-black uppercase tracking-[0.18em] text-white/75">
                             הבית שלך
                           </span>
                         )}
                       </div>
-                      <h3 className={`mt-3 font-cinzel text-2xl font-black ${house.accent}`}>{house.label}</h3>
+                      <h3 className="mt-3 font-cinzel text-2xl font-black" style={{ color: house.theme.text }}>{house.label}</h3>
                     </div>
                     {isLeading ? <Crown className="text-amber-300" size={22} /> : <Shield className="text-white/25" size={20} />}
                   </div>
@@ -404,12 +370,12 @@ export default function HouseCupLeaderboard() {
                     <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
                       <div
                         role="progressbar"
-                        aria-label={`מרחק ההובלה של ${house.label}`}
+                        aria-label={`מרחק מהובלה של ${house.label}`}
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={progressWidth}
-                        className={`h-full rounded-full bg-gradient-to-r ${house.line}`}
-                        style={{ width: `${progressWidth}%` }}
+                        className="h-full rounded-full"
+                        style={{ width: `${progressWidth}%`, background: `linear-gradient(to left, ${house.theme.progressStart}, ${house.theme.progressEnd})` }}
                       />
                     </div>
                   </div>
@@ -417,7 +383,7 @@ export default function HouseCupLeaderboard() {
                   <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                     <div className="mb-2 flex items-center justify-between text-[11px] font-bold">
                       <span className="text-white/55">מומנטום</span>
-                      <span className={house.accent}>{momentumCopy(house.momentum)}</span>
+                      <span style={{ color: house.theme.text }}>{momentumCopy(house.momentum)}</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-white/10">
                       <div
@@ -426,8 +392,8 @@ export default function HouseCupLeaderboard() {
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={momentumWidth}
-                        className={`h-full rounded-full bg-gradient-to-r ${house.line}`}
-                        style={{ width: `${momentumWidth}%` }}
+                        className="h-full rounded-full"
+                        style={{ width: `${momentumWidth}%`, background: `linear-gradient(to left, ${house.theme.progressStart}, ${house.theme.progressEnd})` }}
                       />
                     </div>
                     <p className="mt-2 text-xs text-white/45">{house.momentum} פעולות פעילות נרשמו לבית הזה ביממה האחרונה.</p>
@@ -440,7 +406,9 @@ export default function HouseCupLeaderboard() {
                     </div>
                     <div className="text-left">
                       <p className="text-white/35">תרומה מובילה</p>
-                      <p className={`mt-1 font-cinzel font-black ${house.accent}`}>{house.champion.points.toLocaleString()} נק׳</p>
+                      <p className="mt-1 font-cinzel font-black" style={{ color: house.theme.text }}>
+                        {house.champion.points.toLocaleString()} נק׳
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -453,23 +421,15 @@ export default function HouseCupLeaderboard() {
   );
 }
 
-function SummaryChip({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "amber" | "emerald" | "blue";
-}) {
-  const tones: Record<"amber" | "emerald" | "blue", string> = {
-    amber: "border-amber-400/20 bg-amber-500/10 text-amber-100",
-    emerald: "border-emerald-400/20 bg-emerald-500/10 text-emerald-100",
-    blue: "border-blue-400/20 bg-blue-500/10 text-blue-100",
-  };
-
+function SummaryChip({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className={`rounded-2xl border px-3 py-2 ${tones[tone]}`}>
+    <div
+      className="rounded-2xl border px-3 py-2"
+      style={{
+        borderColor: withAlpha(color, 0.22),
+        background: withAlpha(color, 0.08),
+      }}
+    >
       <p className="font-cinzel text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{label}</p>
       <p className="mt-1 text-sm font-bold leading-relaxed text-white">{value}</p>
     </div>

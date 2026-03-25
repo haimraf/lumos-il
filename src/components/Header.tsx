@@ -15,18 +15,12 @@ import { useUIState } from "@/context/UIContext";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { useAuth } from "@/context/AuthContext";
 import { getNamedRoleColor, getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
+import { getHouseIcon, getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import MagicTicker from "@/components/MagicTicker";
 import QuestBeacon from "@/components/QuestBeacon";
 import { computeQuestProgress, fetchQuestActivitySummary } from "@/lib/gameplay/questProgress";
 import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
-
-const HOUSE_THEMES: Record<string, string> = {
-    Gryffindor: 'shadow-red-500/20 border-red-500/30 text-red-500',
-    Slytherin: 'shadow-emerald-500/20 border-emerald-500/30 text-emerald-500',
-    Ravenclaw: 'shadow-blue-500/20 border-blue-500/30 text-blue-400',
-    Hufflepuff: 'shadow-amber-500/20 border-amber-500/30 text-amber-500'
-};
 
 const PAGE_CTA: Record<string, { label: string; href: string }> = {
     '/library': { label: 'כתוב יצירה', href: '/library/create' },
@@ -117,6 +111,9 @@ export default function Header() {
                         ? "הפלאפאף"
                         : "לא מוין";
     const displayGalleons = profile?.galleons?.toLocaleString() || "0";
+    const officialDisplayHouseLabel = getHouseLabel(displayHouse) || null;
+    const displayHousePalette = getHousePalette(displayHouse);
+    const displayHouseIcon = getHouseIcon(displayHouse) || "✨";
     const profileGroupId =
         typeof profile?.group_id === "string" || typeof profile?.group_id === "number"
             ? profile.group_id
@@ -147,7 +144,9 @@ export default function Header() {
                     .eq("id", profileGroupId)
                     .single();
                 const groupMeta = data as { name?: string | null; color?: string | null } | null;
+                const officialGroupPalette = getHousePalette(groupMeta?.name);
                 setDisplayGroupName(groupMeta?.name ?? null);
+                if (officialGroupPalette) { setNameColor(officialGroupPalette.readable); return; }
                 if (groupMeta?.color) { setNameColor(groupMeta.color); return; }
             } else {
                 setDisplayGroupName(null);
@@ -378,7 +377,11 @@ export default function Header() {
 
     const closeLiveResults = () => { setLiveResults([]); setSearchMode(false); setIsOpen(false); };
 
-    const houseTheme = HOUSE_THEMES[displayHouse] || 'border-amber-500/20 text-amber-500';
+    const houseFrameStyle = {
+        borderColor: withAlpha(displayHousePalette?.secondary || "#D3A625", 0.45),
+        color: displayHousePalette?.primary || "#D3A625",
+        boxShadow: `0 0 22px ${withAlpha(displayHousePalette?.primary || "#D3A625", 0.18)}`,
+    };
     const currentCTA = Object.entries(PAGE_CTA).find(([path]) => pathname.startsWith(path))?.[1];
     const missionHref = nextAction?.href || "/quests";
     const missionTitle = nextActionLoading
@@ -386,6 +389,7 @@ export default function Header() {
         : nextAction?.title || "פתח/י את לוח המשימות";
     const missionHint = nextAction?.gainLabel || "התקדמות, תגמול והשפעה על הבית במקום אחד";
     const navLinks = [
+        { name: "רחבת הכניסה", href: "/home", icon: Sparkles },
         { name: "הטירה", href: "/dashboard", icon: Castle },
         { name: "מסדרונות", href: "/forums", icon: LayoutGrid },
         { name: "האולם הגדול", href: "/great-hall", icon: MessageSquare },
@@ -478,7 +482,7 @@ export default function Header() {
                         ) : (
                             <>
                                 {/* Galleons */}
-                                <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/50 border ${houseTheme} shadow-lg shrink-0`}>
+                                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/50 border shadow-lg shrink-0" style={houseFrameStyle}>
                                     <Coins size={13} className="text-amber-500" />
                                     <span className="font-cinzel font-black text-white text-[11px]">{displayGalleons}</span>
                                 </div>
@@ -509,7 +513,7 @@ export default function Header() {
                                         className="flex items-center gap-1.5 group"
                                         aria-label="תפריט משתמש"
                                     >
-                                        <div className={`w-9 h-9 rounded-full border-2 ${houseTheme} overflow-hidden shadow-2xl transition-transform group-hover:scale-105`}>
+                                        <div className="w-9 h-9 rounded-full border-2 overflow-hidden shadow-2xl transition-transform group-hover:scale-105" style={houseFrameStyle}>
                                                 <div className="w-full h-full bg-slate-900 flex items-center justify-center text-lg">
                                                     {profile?.avatar_url
                                                     ? (
@@ -543,8 +547,8 @@ export default function Header() {
 
                                             {/* ── User info ── */}
                                             <div className="px-5 py-4 border-b border-white/[0.07] flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-full border ${houseTheme} overflow-hidden shrink-0 flex items-center justify-center text-lg`}
-                                                    style={{ background: "rgba(255,255,255,0.04)" }}>
+                                                <div className="w-10 h-10 rounded-full border overflow-hidden shrink-0 flex items-center justify-center text-lg"
+                                                    style={{ ...houseFrameStyle, background: "rgba(255,255,255,0.04)" }}>
                                                     {profile?.avatar_url
                                                         ? (
                                                             <Image

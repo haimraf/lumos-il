@@ -3,11 +3,11 @@ import { SITE_FAQ } from "@/data/site-features-faq";
 
 export const metadata: Metadata = {
     title: "שאלות ותשובות",
-    description: "כל מה שצריך לדעת על LUMOS IL — שאלות ותשובות על מערכות הקהילה: מיון בתים, גביע הבתים, זירת הקרבות, ספרייה, חנות ועוד.",
-    keywords: ["שאלות ותשובות", "FAQ", "עזרה", "הארי פוטר", "lumos IL", "מדריך"],
+    description: "שאלות ותשובות על LUMOS IL: מערכת הקווסטים, מה כדאי לעשות עכשיו, גביע הבתים, האיוונטים, זירת הדו-קרב, הספרייה, הפורומים ועוד.",
+    keywords: ["שאלות ותשובות", "FAQ", "עזרה", "מערכת הקווסטים", "מה כדאי לעשות עכשיו", "הארי פוטר", "lumos IL", "מדריך"],
     openGraph: {
         title: "שאלות ותשובות | LUMOS IL",
-        description: "כל מה שצריך לדעת על מערכות LUMOS IL.",
+        description: "מדריך השאלות והתשובות של LUMOS IL על קווסטים, גביע הבתים, איוונטים, ספרייה, פורומים ועוד.",
         url: "https://lumos-il.co.il/faq",
         siteName: "LUMOS IL",
         type: "website",
@@ -21,7 +21,7 @@ export default function FAQLayout({ children }: { children: React.ReactNode }) {
         "@type": "FAQPage",
         "name": "שאלות ותשובות — LUMOS IL",
         "url": "https://lumos-il.co.il/faq",
-        "inLanguage": "he",
+            "inLanguage": "he-IL",
         "mainEntity": SITE_FAQ.map((item) => ({
             "@type": "Question",
             "name": item.q,

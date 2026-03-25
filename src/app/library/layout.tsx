@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "ספריית הפאנפיקים",
-    description: "ספריית הפאנפיקים של LUMOS IL — קראו וכתבו סיפורי הרחבה לעולם הארי פוטר בעברית. מאות סיפורים מקוריים מקהילת הקוסמים הישראלית.",
-    keywords: ["פאנפיק", "ספרייה", "סיפורים", "הארי פוטר", "כתיבה יצירתית", "lumos IL", "עברית"],
+    description: "ספריית הפאנפיקים של LUMOS IL מחברת בין קריאה, כתיבה והצבעה כחלק מהעולם הקסום של הקהילה הישראלית.",
+    keywords: ["פאנפיק", "ספרייה", "סיפורים", "הארי פוטר", "כתיבה יצירתית", "משימות קריאה", "lumos IL", "עברית"],
     openGraph: {
         title: "ספריית הפאנפיקים | LUMOS IL",
-        description: "קראו וכתבו פאנפיקים בעברית — סיפורי הרחבה לעולם הארי פוטר.",
+        description: "קראו, כתבו והצביעו לפאנפיקים בעברית מתוך עולם הקהילה של LUMOS IL.",
         url: "https://lumos-il.co.il/library",
         siteName: "LUMOS IL",
         type: "website",

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity, ArrowLeft, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getHouseSecondaryColor } from "@/lib/houses";
 
 type PulseEvent = {
   id: string;
@@ -17,13 +18,6 @@ type PulseEvent = {
   description: string | null;
   target_url: string | null;
   created_at: string;
-};
-
-const HOUSE_COLORS: Record<string, string> = {
-  Gryffindor: "text-red-400",
-  Slytherin: "text-emerald-400",
-  Ravenclaw: "text-blue-400",
-  Hufflepuff: "text-amber-400",
 };
 
 function timeAgo(dateString: string) {
@@ -121,8 +115,7 @@ export default function CastlePulseTeaser() {
           </div>
         ) : (
           events.map((event) => {
-            const actorColor = event.actor_group_color || (event.actor_house ? undefined : "text-white/80");
-            const actorClass = !actorColor && event.actor_house ? HOUSE_COLORS[event.actor_house] || "text-white" : "";
+            const actorColor = event.actor_group_color || (event.actor_house ? getHouseSecondaryColor(event.actor_house) : "rgba(255,255,255,0.8)");
             const href = event.target_url || "/map";
 
             return (
@@ -142,7 +135,7 @@ export default function CastlePulseTeaser() {
 
                 <div className="space-y-3">
                   <div className="text-sm leading-relaxed text-white/80 font-crimson">
-                    <span className={`font-black ${actorClass}`} style={actorColor ? { color: actorColor } : undefined}>
+                    <span className="font-black" style={{ color: actorColor }}>
                       {event.actor_name}
                     </span>
                     {" • "}

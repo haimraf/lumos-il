@@ -556,7 +556,7 @@ export default function QuestsPage() {
         actorId: profile.id,
         actorName: profile.full_name,
         eventType: "quest_reward_claimed",
-        title: "קצבה יומית",
+        title: "קצבה ממשרד הקסמים",
         subtitle: "קיבלת 5 גליאונים מהקצבה היומית",
         icon: "💰",
       });
@@ -619,7 +619,7 @@ export default function QuestsPage() {
           actorId: profile.id,
           actorName: profile.full_name,
           eventType: "quest_trivia_completed",
-          title: "מבחן לחשים",
+          title: "מבחן הלחשים היומי",
           subtitle: "ענית נכון על מבחן הלחשים היומי",
           icon: "📘",
         });
@@ -675,7 +675,7 @@ export default function QuestsPage() {
         actorId: profile.id,
         actorName: profile.full_name,
         eventType: "quest_niffler_found",
-        title: "ציד הניפלר",
+        title: "מרדף הניפלר",
         subtitle: `תפסת את הניפלר וקיבלת ${data.amount} ${rewardTypeLabel}`,
         icon: "🦦",
       });
@@ -730,7 +730,7 @@ export default function QuestsPage() {
         actorId: profile.id,
         actorName: profile.full_name,
         eventType: "quest_snitch_caught",
-        title: "אימון קווידיץ'",
+        title: "מרדף אחרי הסניץ'",
         subtitle: "תפסת את הסניץ' הזהוב",
         icon: "⚡",
       });
@@ -873,7 +873,7 @@ export default function QuestsPage() {
 
         <div className="mb-16 text-center">
           <h1 className="mb-4 font-cinzel text-4xl font-black text-white drop-shadow-2xl sm:text-6xl md:text-8xl">לוח <span className="text-amber-500 italic">המשימות</span></h1>
-          <p className="font-crimson text-2xl italic uppercase tracking-widest text-white/40">העבודה הקשה היא הדרך היחידה לתהילה</p>
+          <p className="font-crimson text-2xl italic uppercase tracking-widest text-white/40">העבודה הקשה היא הדרך היחידה לתהילה.</p>
         </div>
 
         {lastFeedback && (
@@ -898,14 +898,14 @@ export default function QuestsPage() {
           <div className="relative grid gap-5 lg:grid-cols-[1.35fr_0.95fr]">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.24em] text-amber-100"><Sparkles size={12} className="text-amber-300" />מה כדאי לעשות עכשיו</span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.24em] text-amber-100"><Sparkles size={12} className="text-amber-300" />מה כדאי לעשות עכשיו?</span>
                 {primaryUrgency && <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.22em] ${primaryUrgency.className}`}><primaryUrgency.Icon size={12} />{primaryUrgency.label}</span>}
               </div>
 
               {primaryAction ? (
                 <>
                   <div>
-                    <p className="text-[11px] font-cinzel uppercase tracking-[0.25em] text-white/35">Mission Focus</p>
+                    <p className="text-[11px] font-cinzel uppercase tracking-[0.25em] text-white/35">במוקד</p>
                     <h2 className="mt-2 max-w-3xl font-cinzel text-3xl font-black text-white md:text-4xl">{primaryAction.title}</h2>
                     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70 md:text-base">{primaryAction.reason}</p>
                   </div>
@@ -917,10 +917,10 @@ export default function QuestsPage() {
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Link href={primaryAction.href} className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-400 px-6 py-3 text-sm font-black font-cinzel uppercase tracking-[0.18em] text-[#1f1405] shadow-[0_12px_32px_rgba(251,191,36,0.28)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(251,191,36,0.34)]">
-                      להמשיך עכשיו
+                      לצעד הבא
                       <ChevronRight size={16} className="transition-transform group-hover:-translate-x-1" />
                     </Link>
-                    <p className="text-sm text-white/55">{remainingDailyTasks > 0 ? `נשארו עוד ${remainingDailyTasks} פעולות יומיות שאפשר לסגור לפני שהיום נגמר.` : "היומיות סגורות. עכשיו אפשר לדחוף את המשימות הארוכות יותר."}</p>
+                    <p className="text-sm text-white/55">{remainingDailyTasks > 0 ? `משימות שכדאי לסגור בקרוב: נשארו עוד ${remainingDailyTasks} פעולות יומיות להיום.` : "המשימות היומיות הושלמו. זה הזמן לדחוף קדימה את המשימות הארוכות יותר."}</p>
                   </div>
                 </>
               ) : (
@@ -936,7 +936,7 @@ export default function QuestsPage() {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="font-cinzel text-[10px] uppercase tracking-[0.24em] text-white/35">צעדי המשך</p>
-                  <h3 className="mt-1 font-cinzel text-lg font-black text-white">עוד מסלולים שפתוחים עכשיו</h3>
+                  <h3 className="mt-1 font-cinzel text-lg font-black text-white">מסלולים פתוחים</h3>
                 </div>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.2em] text-white/45">{secondaryActions.length > 0 ? `${secondaryActions.length} פתוחים` : "פוקוס יחיד"}</span>
               </div>
@@ -971,8 +971,8 @@ export default function QuestsPage() {
           <section className="mb-10 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 md:p-6">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="font-cinzel text-[11px] uppercase tracking-[0.25em] text-white/35">Quest Board V2</p>
-                <h2 className="mt-1 font-cinzel text-2xl font-black text-white">מסלולים פתוחים ומדד התקדמות</h2>
+                <p className="font-cinzel text-[11px] uppercase tracking-[0.25em] text-white/35">סטטוס המשימות</p>
+                <h2 className="mt-1 font-cinzel text-2xl font-black text-white">לוח המשימות</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-white/55">פעילים {activeQuestsCount}</span>
@@ -1026,21 +1026,21 @@ export default function QuestsPage() {
         <section className="mb-6">
           <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="font-cinzel text-[11px] uppercase tracking-[0.24em] text-white/35">Daily Actions</p>
-              <h2 className="mt-1 font-cinzel text-2xl font-black text-white">משימות יומיות עם פידבק חזק יותר</h2>
+              <p className="font-cinzel text-[11px] uppercase tracking-[0.24em] text-white/35">פידבק פעולות יומיות</p>
+              <h2 className="mt-1 font-cinzel text-2xl font-black text-white">המשימות היומיות של היום</h2>
             </div>
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.2em] text-white/50">{remainingDailyTasks > 0 ? `נשארו ${remainingDailyTasks}` : "היומיות נסגרו"}</span>
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             <QuestCard
-              title="קצבה יומית"
-              desc="משרד הקסמים מאשר דמי כיס כדי לפתוח את היום עם קצת מומנטום."
+              title="קצבה ממשרד הקסמים"
+              desc="הינשוף הגיע עם דמי כיס קטנים להמשך הלימודים."
               reward="5 גליאונים"
               icon={<Coins className="text-amber-500" size={32} />}
               completed={isAllowanceDone}
               justCompleted={justCompletedQuestIds.includes("daily_allowance")}
-              statusHint={isAllowanceDone ? "הקופה של היום כבר נאספה." : "איסוף מהיר שמכניס תזוזה מיידית ללוח."}
+              statusHint={isAllowanceDone ? "הקופה של היום כבר נאספה." : "משרד הקסמים אישר דמי כיס כדי לפתוח את היום עם מומנטום."}
               onAction={handleDailyCollect}
               btnText="לאסוף קצבה"
               color="amber"
@@ -1052,8 +1052,8 @@ export default function QuestsPage() {
                 <span className={`rounded-full border px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-tighter ${triviaJustCompleted ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>{triviaJustCompleted ? "הושלם עכשיו" : "מבחן יומי"}</span>
               </div>
               <div className="relative mb-4">
-                <h3 className="mb-3 font-cinzel text-xl font-bold text-white">מבחן לחשים</h3>
-                <p className="text-sm leading-relaxed text-white/55">{isTriviaDone ? "היום כבר נבדקת. מחר יחכה לך מבחן חדש." : "שאלה אחת נכונה סוגרת עוד משימה יומית ומכניסה נקודות מידיות."}</p>
+                <h3 className="mb-3 font-cinzel text-xl font-bold text-white">מבחן הלחשים היומי</h3>
+                <p className="text-sm leading-relaxed text-white/55">{isTriviaDone ? "היום כבר נבחנת. מחר יחכה לך אתגר חדש." : "המרצה מצפה לתשובה מדויקת אחת לפחות כדי לסגור את היעד היומי."}</p>
               </div>
               {isTriviaDone ? (
                 <div className="relative mt-auto flex flex-1 flex-col justify-end">
@@ -1075,26 +1075,26 @@ export default function QuestsPage() {
             </div>
 
             <QuestCard
-              title="ציד הניפלר"
-              desc="ניפלר שוב ברח עם שלל נוצץ. לתפוס אותו זו משימה מהירה עם בוסט טוב."
+              title="מרדף הניפלר"
+              desc="ניפלר ברח עם שלל נוצץ. משימה מהירה עם בוסט מעולה."
               reward="7 נקודות / גליאונים"
               icon={<Search className="text-emerald-500" size={32} />}
               completed={isNifflerDone}
               justCompleted={justCompletedQuestIds.includes("daily_niffler_hunt")}
-              statusHint={isNifflerDone ? "הניפלר של היום כבר נתפס." : "משימה קצרה עם סיכוי לתגמול מיידי."}
+              statusHint={isNifflerDone ? "הניפלר של היום כבר נתפס." : "משימה מהירה עם בוסט טוב כדי לדחוף את הלוח קדימה."}
               onAction={handleNifflerHunt}
               btnText={nifflerLoading ? "מחפש..." : "לצאת לציד"}
               color="emerald"
             />
 
             <QuestCard
-              title="אימון קווידיץ'"
-              desc="הסניץ' שוב בשטח. תפיסה מהירה תדחוף את תרומת הבית קדימה."
+              title="מרדף אחרי הסניץ'"
+              desc="הסניץ' שוב בשטח. תפיסה מהירה דוחפת את הבית קדימה."
               reward="15 נקודות"
               icon={<Zap className="text-violet-400" size={32} />}
               completed={isSnitchDone}
               justCompleted={justCompletedQuestIds.includes("daily_snitch_run")}
-              statusHint={isSnitchDone ? "הסניץ' של היום כבר נתפס." : "אימון חד וקצר שנותן תחושת הישג מיידית."}
+              statusHint={isSnitchDone ? "הסניץ' של היום כבר נתפס." : "תפיסה מהירה אחת יכולה לתת דחיפה חדה לבית שלך."}
               onAction={handleSnitchCatch}
               btnText={snitchLoading ? "מזנק..." : "לתפוס סניץ'"}
               color="violet"

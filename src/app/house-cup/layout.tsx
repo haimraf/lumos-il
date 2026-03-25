@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
     title: "גביע הבתים",
-    description: "תחרות גביע הבתים של LUMOS IL — עקבו אחר הניקוד של גריפינדור, סלית'רין, רייבנקלו והפלפאף. ענו על חידונים וצברו נקודות לבית שלכם.",
-    keywords: ["גביע הבתים", "גריפינדור", "סלית'רין", "רייבנקלו", "הפלפאף", "נקודות", "חידון", "lumos IL"],
+    description: "גביע הבתים של LUMOS IL מציג מירוץ חי בין הבתים עם פערים, מומנטום, תרומה אישית ועדכונים שוטפים מתוך עולם הקהילה.",
+    keywords: ["גביע הבתים", "גריפינדור", "סלית'רין", "רייבנקלו", "הפלפאף", "נקודות", "מומנטום", "תרומה לבית", "lumos IL"],
     openGraph: {
         title: "גביע הבתים | LUMOS IL",
-        description: "עקבו אחר הניקוד, ענו על חידונים וצברו נקודות לבית שלכם.",
+        description: "עקבו אחר מירוץ גביע הבתים החי, בדקו פערים, מומנטום ותרומת שחקנים לבית שלהם.",
         url: "https://lumos-il.co.il/house-cup",
         siteName: "LUMOS IL",
         type: "website",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     twitter: {
         card: "summary_large_image",
         title: "גביע הבתים | LUMOS IL",
-        description: "עקבו אחר הניקוד, ענו על חידונים וצברו נקודות לבית שלכם.",
+        description: "מירוץ גביע הבתים החי של LUMOS IL עם פערים, מומנטום ותרומת שחקנים.",
     },
 };
 

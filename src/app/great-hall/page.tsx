@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import EmojiPicker, { Theme } from "emoji-picker-react";
@@ -13,6 +13,7 @@ import { useUIState } from "@/context/UIContext";
 import { useAuth } from "@/context/AuthContext";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { getRoleColor, getRoleDisplay, getRoleColorFromDB } from "@/lib/roleColor";
+import { getHouseIcon, getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
 import { useOwlMail } from "@/components/OwlMail";
 
 /**
@@ -47,6 +48,111 @@ const HOUSE_CONFIG: Record<string, { label: string; color: string; bg: string; b
     Hufflepuff: { label: "הפלפאף", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30", icon: "🦡", gradientFrom: "from-amber-900/20" },
     Unknown: { label: "טרם סווג", color: "text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/20", icon: "✨", gradientFrom: "from-slate-900/20" },
 };
+
+const MESSAGE_URL_REGEX = /\b((?:https?:\/\/|www\.)[^\s<]+)/gi;
+const EMOTICON_REGEX = /(<3|:-D|:D|:-\)|:\)|:-\(|:\(|;-\)|;\))/g;
+
+const EMOTICON_MAP: Record<string, { emoji: string; label: string }> = {
+    "<3": { emoji: "❤️", label: "לב" },
+    ":D": { emoji: "😄", label: "חיוך גדול" },
+    ":-D": { emoji: "😄", label: "חיוך גדול" },
+    ":)": { emoji: "🙂", label: "חיוך" },
+    ":-)": { emoji: "🙂", label: "חיוך" },
+    ":(": { emoji: "🙁", label: "פנים עצובות" },
+    ":-(": { emoji: "🙁", label: "פנים עצובות" },
+    ";)": { emoji: "😉", label: "קריצה" },
+    ";-)": { emoji: "😉", label: "קריצה" },
+};
+
+function splitTrailingUrlPunctuation(rawUrl: string) {
+    let cleanUrl = rawUrl;
+    let trailing = "";
+
+    while (/[),.!?;:]$/.test(cleanUrl)) {
+        trailing = cleanUrl.slice(-1) + trailing;
+        cleanUrl = cleanUrl.slice(0, -1);
+    }
+
+    return { cleanUrl, trailing };
+}
+
+function toExternalHref(url: string) {
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+function renderRichMessage(content: string): ReactNode[] {
+    const nodes: ReactNode[] = [];
+    let key = 0;
+
+    const pushPlainText = (text: string) => {
+        let cursor = 0;
+
+        for (const match of text.matchAll(EMOTICON_REGEX)) {
+            const index = match.index ?? 0;
+            if (index > cursor) {
+                const chunk = text.slice(cursor, index);
+                const lines = chunk.split("\n");
+                lines.forEach((line, lineIndex) => {
+                    if (line) nodes.push(<Fragment key={`text-${key++}`}>{line}</Fragment>);
+                    if (lineIndex < lines.length - 1) nodes.push(<br key={`br-${key++}`} />);
+                });
+            }
+
+            const emoticon = EMOTICON_MAP[match[0]];
+            if (emoticon) {
+                nodes.push(
+                    <span key={`emoji-${key++}`} role="img" aria-label={emoticon.label}>
+                        {emoticon.emoji}
+                    </span>,
+                );
+            }
+
+            cursor = index + match[0].length;
+        }
+
+        if (cursor < text.length) {
+            const chunk = text.slice(cursor);
+            const lines = chunk.split("\n");
+            lines.forEach((line, lineIndex) => {
+                if (line) nodes.push(<Fragment key={`text-${key++}`}>{line}</Fragment>);
+                if (lineIndex < lines.length - 1) nodes.push(<br key={`br-${key++}`} />);
+            });
+        }
+    };
+
+    let lastIndex = 0;
+    for (const match of content.matchAll(MESSAGE_URL_REGEX)) {
+        const index = match.index ?? 0;
+        const rawUrl = match[0];
+
+        if (index > lastIndex) {
+            pushPlainText(content.slice(lastIndex, index));
+        }
+
+        const { cleanUrl, trailing } = splitTrailingUrlPunctuation(rawUrl);
+        nodes.push(
+            <Fragment key={`link-wrap-${key++}`}>
+                <a
+                    href={toExternalHref(cleanUrl)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="break-all font-semibold text-amber-300 underline decoration-amber-500/40 underline-offset-4 transition-colors hover:text-amber-200"
+                >
+                    {cleanUrl}
+                </a>
+                {trailing ? <Fragment>{trailing}</Fragment> : null}
+            </Fragment>,
+        );
+
+        lastIndex = index + rawUrl.length;
+    }
+
+    if (lastIndex < content.length) {
+        pushPlainText(content.slice(lastIndex));
+    }
+
+    return nodes.length > 0 ? nodes : [content];
+}
 
 
 export default function GreatHall() {
@@ -582,8 +688,8 @@ export default function GreatHall() {
                                                         : undefined
                                                     }
                                                 >
-                                                    <p className="text-white text-base md:text-lg font-assistant leading-relaxed break-words select-text">
-                                                        {msg.content}
+                                                    <p className="text-white text-base md:text-lg font-assistant leading-relaxed break-words whitespace-pre-wrap select-text">
+                                                        {renderRichMessage(msg.content)}
                                                     </p>
 
                                                     {/* Signature area */}

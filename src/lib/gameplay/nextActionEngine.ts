@@ -56,18 +56,18 @@ function buildReason(quest: ComputedQuest, capReached: boolean): string {
   }
 
   if (quest.type === "daily") {
-    return `יעד יומי פעיל (${toProgressLabel(quest)}) שכדאי לסגור עכשיו כדי לא לאבד התקדמות יומית.`;
+    return `יעד יומי פעיל (${toProgressLabel(quest)}). כדאי לסגור אותו עכשיו כדי לא לאבד את ההתקדמות היומית.`;
   }
 
   if (quest.type === "weekly") {
-    return `יעד שבועי בבנייה (${toProgressLabel(quest)}), פעולה עכשיו תקטין לחץ לסוף השבוע.`;
+    return `יעד שבועי בהתקדמות (${toProgressLabel(quest)}). ביצוע פעולה עכשיו יוריד ממך עומס לקראת סוף השבוע.`;
   }
 
   if (quest.type === "main") {
-    return `משימת מסע ראשית (${toProgressLabel(quest)}) שמקדמת מעמד ארוך-טווח בעולם הטירה.`;
+    return `משימת מסע ראשית (${toProgressLabel(quest)}). כל צעד כאן מקדם את המעמד ארוך-הטווח שלך בעולם הטירה.`;
   }
 
-  return `פעילות חקירה זמינה (${toProgressLabel(quest)}) שמחזקת נוכחות והשפעה בעולם.`;
+  return `פעילות חקירה זמינה (${toProgressLabel(quest)}). היא מחזקת את הנוכחות וההשפעה שלך בעולם.`;
 }
 
 function toRecommendation(quest: ComputedQuest, capReached: boolean): NextActionRecommendation {
