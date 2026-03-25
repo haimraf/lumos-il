@@ -9,7 +9,7 @@ import {
     Menu, X, Castle, MessageSquare, ScrollText, LogOut, Zap,
     Volume2, VolumeX, Settings, LayoutGrid, ShoppingBag,
     Flame, Coins, Library, Search, PlusCircle, LogIn,
-    User, ChevronDown, Shield, BookOpen, Loader2
+    User, ChevronDown, Shield, BookOpen, Loader2, Sparkles, HelpCircle
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
@@ -17,6 +17,8 @@ import { useAuth } from "@/context/AuthContext";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import MagicTicker from "@/components/MagicTicker";
+import { computeQuestProgress, fetchQuestActivitySummary } from "@/lib/gameplay/questProgress";
+import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 
 const HOUSE_THEMES: Record<string, string> = {
     Gryffindor: 'shadow-red-500/20 border-red-500/30 text-red-500',
@@ -30,7 +32,16 @@ const PAGE_CTA: Record<string, { label: string; href: string }> = {
     '/forums': { label: 'צור אשכול', href: '/forums/create' },
 };
 
+const QUESTS_FAQ_LINK = "/faq";
+
 type LiveResult = { id: string; title: string; type: 'story' | 'news' | 'thread'; href: string };
+type StorySearchRow = { id: string; title: string };
+type NewsSearchRow = { id: string; title: string };
+type ThreadSearchRow = {
+    id: string;
+    title: string;
+    forums: { slug: string | null } | { slug: string | null }[] | null;
+};
 
 const TYPE_META = {
     story:  { label: 'סיפור',  icon: BookOpen,     color: '#818cf8' },
@@ -71,6 +82,8 @@ export default function Header() {
     const [searchQuery, setSearchQuery] = useState("");
     const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
     const avatarMenuRef = useRef<HTMLDivElement>(null);
+    const [nextAction, setNextAction] = useState<NextActionRecommendation | null>(null);
+    const [nextActionLoading, setNextActionLoading] = useState(false);
 
     // Live search
     const [liveResults, setLiveResults] = useState<LiveResult[]>([]);
@@ -93,20 +106,29 @@ export default function Header() {
         "Community Member";
     const displayHouse = profile?.house || "Unknown";
     const displayGalleons = profile?.galleons?.toLocaleString() || "0";
+    const profileGroupId = typeof profile?.group_id === "string" ? profile.group_id : null;
+    const profilePointsContributed = typeof profile?.points_contributed === "number" ? profile.points_contributed : 0;
+    const profileDailyPointsEarned = typeof profile?.daily_points_earned === "number" ? profile.daily_points_earned : 0;
+    const profileLastRewardDate = typeof profile?.last_reward_date === "string" ? profile.last_reward_date : null;
+    const profileLastTriviaDate = typeof profile?.last_trivia_date === "string" ? profile.last_trivia_date : null;
+    const profileLastNifflerDate = typeof profile?.last_niffler_date === "string" ? profile.last_niffler_date : null;
+    const profileLastSnitchDate = typeof profile?.last_snitch_date === "string" ? profile.last_snitch_date : null;
 
     const [nameColor, setNameColor] = useState<string>("rgba(255,255,255,0.85)");
     useEffect(() => {
         if (!profile) {
-            setNameColor("rgba(255,255,255,0.85)");
+            queueMicrotask(() => {
+                setNameColor("rgba(255,255,255,0.85)");
+            });
             return;
         }
         (async () => {
             // אם יש group_id — קח ישירות את צבע הקבוצה
-            if ((profile as any).group_id) {
+            if (profileGroupId) {
                 const { data } = await supabase
                     .from("user_groups")
                     .select("color")
-                    .eq("id", (profile as any).group_id)
+                    .eq("id", profileGroupId)
                     .single();
                 if (data?.color) { setNameColor(data.color); return; }
             }
@@ -114,7 +136,98 @@ export default function Header() {
             const map = await getRoleColorFromDB(supabase);
             setNameColor(getRoleColor(profile.role, profile.house, map));
         })();
-    }, [profile, supabase]);
+    }, [profile, profileGroupId, supabase]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !displayProfileId) {
+            queueMicrotask(() => {
+                setNextAction(null);
+                setNextActionLoading(false);
+            });
+            return;
+        }
+
+        let isMounted = true;
+
+        const loadNextAction = async () => {
+            setNextActionLoading(true);
+
+            const activity = await fetchQuestActivitySummary(supabase, displayProfileId);
+            const questProgress = computeQuestProgress({
+                id: displayProfileId,
+                house: displayHouse,
+                points_contributed: profilePointsContributed,
+                daily_points_earned: profileDailyPointsEarned,
+                last_reward_date: profileLastRewardDate,
+                last_trivia_date: profileLastTriviaDate,
+                last_niffler_date: profileLastNifflerDate,
+                last_snitch_date: profileLastSnitchDate,
+            }, activity);
+            const recommendations = computeNextActions({
+                profile: {
+                    daily_points_earned: profileDailyPointsEarned,
+                    house: displayHouse,
+                },
+                questProgress,
+            });
+
+            if (!isMounted) return;
+
+            setNextAction(recommendations[0] ?? null);
+            setNextActionLoading(false);
+        };
+
+        void loadNextAction();
+
+        const activityChannel = supabase
+            .channel(`header-quest-activity-${displayProfileId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "activity_events",
+                    filter: `actor_id=eq.${displayProfileId}`,
+                },
+                () => {
+                    void loadNextAction();
+                }
+            )
+            .subscribe();
+
+        const profileChannel = supabase
+            .channel(`header-quest-profile-${displayProfileId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "profiles",
+                    filter: `id=eq.${displayProfileId}`,
+                },
+                () => {
+                    void loadNextAction();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            isMounted = false;
+            void supabase.removeChannel(activityChannel);
+            void supabase.removeChannel(profileChannel);
+        };
+    }, [
+        displayHouse,
+        displayProfileId,
+        isAuthenticated,
+        profileDailyPointsEarned,
+        profileLastNifflerDate,
+        profileLastRewardDate,
+        profileLastSnitchDate,
+        profileLastTriviaDate,
+        profilePointsContributed,
+        supabase,
+    ]);
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -144,15 +257,28 @@ export default function Header() {
     }, [pathname]);
 
     useEffect(() => {
-        if (!searchMode) { setSearchQuery(""); setLiveResults([]); }
+        if (!searchMode) {
+            queueMicrotask(() => {
+                setSearchQuery("");
+                setLiveResults([]);
+            });
+        }
     }, [searchMode]);
 
     // Debounced live search
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         const q = searchQuery.trim();
-        if (q.length < 2) { setLiveResults([]); setLiveLoading(false); return; }
-        setLiveLoading(true);
+        if (q.length < 2) {
+            queueMicrotask(() => {
+                setLiveResults([]);
+                setLiveLoading(false);
+            });
+            return;
+        }
+        queueMicrotask(() => {
+            setLiveLoading(true);
+        });
         debounceRef.current = setTimeout(async () => {
             const found: LiveResult[] = [];
             const [{ data: stories }, { data: news }, { data: threads }] = await Promise.all([
@@ -160,9 +286,17 @@ export default function Header() {
                 supabase.from('news').select('id, title').ilike('title', `%${q}%`).limit(3),
                 supabase.from('threads').select('id, title, forums(slug)').ilike('title', `%${q}%`).limit(3),
             ]);
-            (stories || []).forEach(s => found.push({ id: s.id, title: s.title, type: 'story', href: `/library/${s.id}` }));
-            (news || []).forEach(n => found.push({ id: n.id, title: n.title, type: 'news', href: `/news?article=${n.id}` }));
-            (threads || []).forEach((t: any) => found.push({ id: t.id, title: t.title, type: 'thread', href: `/forums/${t.forums?.slug}/${t.id}` }));
+            ((stories as StorySearchRow[] | null) || []).forEach((story) => {
+                found.push({ id: story.id, title: story.title, type: 'story', href: `/library/${story.id}` });
+            });
+            ((news as NewsSearchRow[] | null) || []).forEach((article) => {
+                found.push({ id: article.id, title: article.title, type: 'news', href: `/news?article=${article.id}` });
+            });
+            ((threads as ThreadSearchRow[] | null) || []).forEach((thread) => {
+                const forumMeta = Array.isArray(thread.forums) ? thread.forums[0] : thread.forums;
+                if (!forumMeta?.slug) return;
+                found.push({ id: thread.id, title: thread.title, type: 'thread', href: `/forums/${forumMeta.slug}/${thread.id}` });
+            });
             setLiveResults(found);
             setLiveLoading(false);
         }, 300);
@@ -214,7 +348,11 @@ export default function Header() {
 
     const houseTheme = HOUSE_THEMES[displayHouse] || 'border-amber-500/20 text-amber-500';
     const currentCTA = Object.entries(PAGE_CTA).find(([path]) => pathname.startsWith(path))?.[1];
-
+    const missionHref = nextAction?.href || "/quests";
+    const missionTitle = nextActionLoading
+        ? "מגבש את הצעד הבא שלך"
+        : nextAction?.title || "פתח/י את לוח המשימות";
+    const missionHint = nextAction?.gainLabel || "התקדמות, תגמול והשפעה על הבית במקום אחד";
     const navLinks = [
         { name: "הטירה", href: "/dashboard", icon: Castle },
         { name: "מסדרונות", href: "/forums", icon: LayoutGrid },
@@ -295,6 +433,7 @@ export default function Header() {
                                 ))}
                             </nav>
                         )}
+
                     </div>
 
                     {/* ══ צד ימין: [Galleons] [🔔] [Avatar▼] [☰] ══ */}
@@ -339,9 +478,17 @@ export default function Header() {
                                         aria-label="תפריט משתמש"
                                     >
                                         <div className={`w-9 h-9 rounded-full border-2 ${houseTheme} overflow-hidden shadow-2xl transition-transform group-hover:scale-105`}>
-                                            <div className="w-full h-full bg-slate-900 flex items-center justify-center text-lg">
-                                                {profile?.avatar_url
-                                                    ? <img src={profile.avatar_url} alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"} className="w-full h-full object-cover" />
+                                                <div className="w-full h-full bg-slate-900 flex items-center justify-center text-lg">
+                                                    {profile?.avatar_url
+                                                    ? (
+                                                        <Image
+                                                            src={profile.avatar_url}
+                                                            alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"}
+                                                            width={36}
+                                                            height={36}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    )
                                                     : displayHouse === 'Gryffindor' ? "🦁" : displayHouse === 'Slytherin' ? "🐍" : displayHouse === 'Ravenclaw' ? "🦅" : "🦡"
                                                 }
                                             </div>
@@ -367,7 +514,15 @@ export default function Header() {
                                                 <div className={`w-10 h-10 rounded-full border ${houseTheme} overflow-hidden shrink-0 flex items-center justify-center text-lg`}
                                                     style={{ background: "rgba(255,255,255,0.04)" }}>
                                                     {profile?.avatar_url
-                                                        ? <img src={profile.avatar_url} alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"} className="w-full h-full object-cover" />
+                                                        ? (
+                                                            <Image
+                                                                src={profile.avatar_url}
+                                                                alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"}
+                                                                width={40}
+                                                                height={40}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        )
                                                         : displayHouse === 'Gryffindor' ? "🦁" : displayHouse === 'Slytherin' ? "🐍" : displayHouse === 'Ravenclaw' ? "🦅" : "🦡"
                                                     }
                                                 </div>
@@ -379,6 +534,48 @@ export default function Header() {
                                                     </p>
                                                 </div>
                                             </div>
+
+                                            {!isGuest && (
+                                                <div className="px-3 py-3 border-b border-white/[0.07]">
+                                                    <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.06] p-3 shadow-[0_0_24px_rgba(245,158,11,0.06)]">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="min-w-0">
+                                                                <p className="font-cinzel text-[9px] font-black uppercase tracking-[0.3em] text-amber-300/70">
+                                                                    מה כדאי לעשות עכשיו
+                                                                </p>
+                                                                <p className="mt-1 truncate font-assistant text-sm font-semibold text-white/85">
+                                                                    {missionTitle}
+                                                                </p>
+                                                                <p className="mt-1 text-xs text-white/45">
+                                                                    {missionHint}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-black/20">
+                                                                <Sparkles size={14} className="text-amber-400" />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="mt-3 grid grid-cols-2 gap-2">
+                                                            <Link
+                                                                href={missionHref}
+                                                                onClick={() => setAvatarMenuOpen(false)}
+                                                                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-center font-assistant text-xs font-bold text-amber-950 transition-colors hover:bg-amber-400"
+                                                            >
+                                                                <Zap size={13} />
+                                                                לצעד הבא
+                                                            </Link>
+                                                            <Link
+                                                                href={QUESTS_FAQ_LINK}
+                                                                onClick={() => setAvatarMenuOpen(false)}
+                                                                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center font-assistant text-xs font-semibold text-white/60 transition-colors hover:text-white"
+                                                            >
+                                                                <HelpCircle size={13} className="text-amber-400/70" />
+                                                                הסבר מהיר
+                                                            </Link>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* ── Search ── */}
                                             <div className="px-3 pt-2.5 pb-1 border-b border-white/[0.07]">
@@ -461,7 +658,12 @@ export default function Header() {
                         </button>
                     </div>
                 </div>
-                {pathname !== '/' && <MagicTicker />}
+                {pathname !== '/' && (
+                    <MagicTicker
+                        nextAction={nextAction}
+                        nextActionLoading={nextActionLoading}
+                    />
+                )}
             </header>
 
             <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl">
@@ -475,6 +677,46 @@ export default function Header() {
                         <Link href={currentCTA.href} onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full justify-center py-4 px-8 mb-4 rounded-2xl bg-amber-500 text-amber-950 font-cinzel font-black text-lg uppercase tracking-widest shadow-[0_0_30px_rgba(245,158,11,0.3)]">
                             <PlusCircle size={22} /> {currentCTA.label}
                         </Link>
+                    )}
+
+                    {!isGuest && (
+                        <div className="w-full mb-5 rounded-3xl border border-amber-500/15 bg-amber-500/[0.06] px-5 py-4 shadow-[0_0_36px_rgba(245,158,11,0.08)]">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="font-cinzel text-[10px] font-black uppercase tracking-[0.3em] text-amber-300/75">
+                                        מה כדאי לעשות עכשיו
+                                    </p>
+                                    <p className="mt-2 font-assistant text-lg font-semibold text-white/90">
+                                        {missionTitle}
+                                    </p>
+                                    <p className="mt-1 text-sm text-white/45">
+                                        {missionHint}
+                                    </p>
+                                </div>
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-500/20 bg-black/25">
+                                    <Sparkles size={18} className="text-amber-400" />
+                                </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-3">
+                                <Link
+                                    href={missionHref}
+                                    onClick={() => setIsOpen(false)}
+                                    className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 font-cinzel text-sm font-black uppercase tracking-[0.18em] text-amber-950 shadow-[0_0_24px_rgba(245,158,11,0.18)]"
+                                >
+                                    <Zap size={16} />
+                                    לצעד הבא
+                                </Link>
+                                <Link
+                                    href={QUESTS_FAQ_LINK}
+                                    onClick={() => setIsOpen(false)}
+                                    className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-cinzel text-sm font-bold uppercase tracking-[0.14em] text-white/60"
+                                >
+                                    <HelpCircle size={16} className="text-amber-400/70" />
+                                    איך זה עובד
+                                </Link>
+                            </div>
+                        </div>
                     )}
 
                     <div className="w-full mb-4">

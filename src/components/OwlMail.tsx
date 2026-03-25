@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { X, AlertTriangle, Megaphone, Ghost, Trophy, Coins, Snowflake } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -19,6 +20,13 @@ interface ToastContextType {
     sendOwl: (title: string, message: string, type?: ToastType, isGlobal?: boolean) => void;
 }
 
+type SystemMessage = {
+    id: string;
+    title?: string;
+    message: string;
+    isGlobal?: boolean;
+};
+
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export const useOwlMail = () => {
@@ -34,6 +42,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
 
     const supabase = createClient();
     const { session } = useAuth();
+    const pathname = usePathname();
 
     // ✅ ניקוי נכון של audio
     useEffect(() => {
@@ -78,12 +87,12 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
             try {
                 const res = await fetch('/system_messages.json');
                 if (!res.ok) return;
-                const messages = await res.json();
+                const messages = await res.json() as SystemMessage[];
                 
                 // נבדוק מה כבר הוצג בעבר (בסשן הנוכחי)
                 const shownIds = JSON.parse(sessionStorage.getItem('owl_shown_system_messages') || '[]');
                 
-                messages.forEach((msg: any) => {
+                messages.forEach((msg) => {
                     if (!shownIds.includes(msg.id)) {
                         sendOwl(msg.title || "הודעת מערכת", msg.message, "system", msg.isGlobal);
                         shownIds.push(msg.id);
@@ -133,8 +142,12 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
 
                 const pointsChanged = payload.new.points_contributed !== payload.old.points_contributed;
                 const moneyChanged = payload.new.galleons !== payload.old.galleons;
+                const onQuestBoard = pathname?.startsWith("/quests");
 
                 if (pointsChanged || moneyChanged) {
+                    if (onQuestBoard) {
+                        return;
+                    }
                     const wasQuiz = lastSent.current?.title.includes("חידון") || lastSent.current?.title.includes("ציון");
 
                     if (wasQuiz) {
@@ -148,7 +161,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [session, sendOwl, supabase]);
+    }, [pathname, session, sendOwl, supabase]);
 
     const removeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
@@ -156,10 +169,18 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
         <ToastContext.Provider value={{ sendOwl }}>
             {children}
 
-            <div className="fixed bottom-6 left-6 z-[9999999] flex flex-col gap-3 pointer-events-none" dir="rtl">
+            <div
+                className="fixed bottom-6 left-6 z-[9999999] flex flex-col gap-3 pointer-events-none"
+                dir="rtl"
+                aria-live="polite"
+                aria-atomic="false"
+                aria-label="התראות מערכת"
+            >
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}
+                        role={toast.type === "error" ? "alert" : "status"}
+                        aria-atomic="true"
                         className={`pointer-events-auto relative w-80 md:w-96 rounded-3xl p-5 shadow-2xl flex items-start gap-4 border-l-4 transition-all duration-500 animate-in slide-in-from-left-10 backdrop-blur-2xl
                             ${toast.isGlobal
                                 ? "border-amber-400 bg-[#0c1222]/95 ring-2 ring-amber-500/50"

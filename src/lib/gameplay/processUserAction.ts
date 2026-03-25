@@ -25,7 +25,7 @@ function normalizeRewardDelta(actionType: ProcessUserActionInput["actionType"], 
     case "daily_allowance":
       return {
         points: 0,
-        galleons: payload.success === true ? 5 : 0,
+        galleons: payload.success === true ? (asNumber(payload.galleons) || 5) : 0,
       };
 
     case "daily_trivia":
@@ -45,7 +45,7 @@ function normalizeRewardDelta(actionType: ProcessUserActionInput["actionType"], 
 
     case "daily_snitch":
       return {
-        points: payload.success === true ? 15 : 0,
+        points: payload.success === true ? (asNumber(payload.points) || 15) : 0,
         galleons: 0,
       };
 

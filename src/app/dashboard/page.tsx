@@ -7,13 +7,21 @@ import Link from "next/link";
 import {
   Coins, Trophy, Wand2, Users, ScrollText, ShoppingBag,
   ChevronLeft, ChevronRight, LogOut, Settings, Mail, Lock, Sparkles, Zap, Home, Bell,
-  Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu, Swords
+  Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu, Swords, type LucideIcon
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import MaraudersMap from "@/components/MaraudersMap";
+import HouseCupLeaderboard from "@/components/HouseCupLeaderboard";
 import { useAuth } from "@/context/AuthContext";
 import MagicTraitsCard from "../../components/MagicTraitsCard";
 import PatronusQuiz from "@/components/PatronusQuiz";
+import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
+import {
+  computeQuestProgress,
+  fetchQuestActivitySummary,
+  type ComputedQuest,
+  type ProfileQuestSnapshot,
+} from "@/lib/gameplay/questProgress";
 import { getYearFromProfile, getYearTitle, getYearLabel, getProgressPercentFromProfile, getNextYearRequirements } from "@/lib/yearSystem";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
@@ -153,6 +161,71 @@ const HOUSE_THEMES: Record<string, any> = {
   }
 };
 
+function isAlmostDoneQuest(quest: Pick<ComputedQuest, "progress" | "target" | "status">) {
+  if (quest.status === "completed" || quest.progress <= 0 || quest.target <= 0) return false;
+  const percent = (quest.progress / quest.target) * 100;
+  return (quest.target - quest.progress) <= 1 || percent >= 80;
+}
+
+function missionUrgencyMeta(urgency: NextActionRecommendation["urgency"]) {
+  if (urgency === "high") {
+    return {
+      label: "דחוף להיום",
+      badge: "border-rose-400/30 bg-rose-500/10 text-rose-100",
+      accent: "text-rose-200",
+    };
+  }
+
+  if (urgency === "medium") {
+    return {
+      label: "חלון טוב להתקדם",
+      badge: "border-amber-400/30 bg-amber-500/10 text-amber-100",
+      accent: "text-amber-200",
+    };
+  }
+
+  return {
+    label: "קצב חופשי",
+    badge: "border-sky-400/30 bg-sky-500/10 text-sky-100",
+    accent: "text-sky-200",
+  };
+}
+
+function questTypeLabel(type: ComputedQuest["type"]) {
+  if (type === "daily") return "יעד יומי";
+  if (type === "weekly") return "קשת שבועית";
+  if (type === "main") return "מסע ראשי";
+  if (type === "house") return "שליחות בית";
+  return "חקירה";
+}
+
+function MissionActionGlyph({ href, size }: { href: string; size: number }) {
+  if (href === "/arena") return <Swords size={size} />;
+  if (href === "/map") return <Home size={size} />;
+  if (href === "/quests") return <Sparkles size={size} />;
+  return <Zap size={size} />;
+}
+
+type MissionTheme = {
+  accentText: string;
+  accent?: string;
+};
+
+type QuickRoute = {
+  href: string;
+  label: string;
+  meta: string;
+  icon: LucideIcon;
+  highlight?: boolean;
+};
+
+function dailyCapHint(dailyPointsEarned: number) {
+  const remaining = Math.max(0, 50 - dailyPointsEarned);
+  if (remaining === 0) return "תקרת הנקודות נסגרה להיום, אבל עדיין אפשר לקדם גליאונים ונוכחות.";
+  if (remaining <= 10) return `נשארו רק עוד ${remaining} נק' עד תקרת היום.`;
+  return `עדיין פתוחות לך ${remaining} נק' במסע היומי.`;
+}
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -171,6 +244,9 @@ function DashboardContent() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [missionActions, setMissionActions] = useState<NextActionRecommendation[]>([]);
+  const [missionQuests, setMissionQuests] = useState<ComputedQuest[]>([]);
+  const [missionLoading, setMissionLoading] = useState(true);
   const hasAnnounced = useRef(false);
   const prevYearRef = useRef<number | null>(null);
   const [roleColors, setRoleColors] = useState<Record<string, string>>({});
@@ -223,6 +299,53 @@ function DashboardContent() {
     if (data) setSpells(data);
   }, [supabase]);
 
+  const loadMissionFocus = useCallback(async () => {
+    if (!profile?.id) {
+      setMissionActions([]);
+      setMissionQuests([]);
+      setMissionLoading(false);
+      return;
+    }
+
+    setMissionLoading(true);
+
+    const profileSnapshot: ProfileQuestSnapshot = {
+      id: profile.id,
+      house: profile.house,
+      points_contributed: profile.points_contributed,
+      daily_points_earned: profile.daily_points_earned,
+      last_reward_date: profile.last_reward_date,
+      last_trivia_date: profile.last_trivia_date,
+      last_niffler_date: profile.last_niffler_date,
+      last_snitch_date: profile.last_snitch_date,
+    };
+
+    try {
+      const activity = await fetchQuestActivitySummary(supabase, profile.id);
+      const questProgress = computeQuestProgress(profileSnapshot, activity);
+
+      setMissionQuests(questProgress.quests);
+      setMissionActions(
+        computeNextActions({
+          profile: profileSnapshot,
+          questProgress,
+        }),
+      );
+    } finally {
+      setMissionLoading(false);
+    }
+  }, [
+    profile?.daily_points_earned,
+    profile?.house,
+    profile?.id,
+    profile?.last_niffler_date,
+    profile?.last_reward_date,
+    profile?.last_snitch_date,
+    profile?.last_trivia_date,
+    profile?.points_contributed,
+    supabase,
+  ]);
+
   useEffect(() => {
     let profileChannel: any;
     if (session?.user?.id) {
@@ -239,6 +362,29 @@ function DashboardContent() {
     }
     return () => { if (profileChannel) supabase.removeChannel(profileChannel); };
   }, [session?.user?.id, profile?.gender, fetchSpells, fetchNotifications, refreshProfile, sendOwl, supabase]);
+
+  useEffect(() => {
+    void loadMissionFocus();
+  }, [loadMissionFocus]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const missionChannel = supabase
+      .channel(`dashboard_mission_focus_${session.user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activity_events', filter: `actor_id=eq.${session.user.id}` },
+        () => {
+          void loadMissionFocus();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(missionChannel);
+    };
+  }, [loadMissionFocus, session?.user?.id, supabase]);
 
   useEffect(() => {
     const tab = searchParams.get('tab') as any;
@@ -348,6 +494,25 @@ function DashboardContent() {
   const theme = HOUSE_THEMES[profile?.house] || HOUSE_THEMES['Gryffindor'];
   const inventory = getInventory();
   const isInventoryEmpty = !inventory.items?.length && !inventory.companions?.length && !inventory.cards?.length;
+  const primaryMission = missionActions[0] ?? null;
+  const secondaryMissions = missionActions.slice(1);
+  const activeMissionQuests = missionQuests.filter((quest) => quest.status === "active");
+  const completedDailyMissions = missionQuests.filter((quest) => quest.type === "daily" && quest.status === "completed").length;
+  const totalDailyMissions = missionQuests.filter((quest) => quest.type === "daily").length;
+  const almostDoneMissions = activeMissionQuests.filter((quest) => isAlmostDoneQuest(quest));
+  const trackedMissionQuests = [...activeMissionQuests]
+    .sort((a, b) => {
+      const aScore = (isAlmostDoneQuest(a) ? 100 : 0) + (a.target > 0 ? (a.progress / a.target) * 100 : 0);
+      const bScore = (isAlmostDoneQuest(b) ? 100 : 0) + (b.target > 0 ? (b.progress / b.target) * 100 : 0);
+      return bScore - aScore;
+    })
+    .slice(0, 3);
+  const dailyPointCap = 50;
+  const dailyPointsEarned = Math.max(0, Math.min(profile?.daily_points_earned || 0, dailyPointCap));
+  const dailyPointsPercent = (dailyPointsEarned / dailyPointCap) * 100;
+  const unreadNotificationsCount = notifications.filter((notification) => !notification.is_read).length;
+  const duelAlertsCount = notifications.filter((notification) => !notification.is_read && (notification.type === "duel_result" || notification.type === "duel_missed")).length;
+  const discussionAlertsCount = notifications.filter((notification) => !notification.is_read && notification.target_url && notification.type !== "duel_result" && notification.type !== "duel_missed").length;
 
   return (
     <>
@@ -446,6 +611,11 @@ function DashboardContent() {
               </nav>
 
               <div className="relative z-10 pt-6 mt-6 border-t border-white/10 space-y-4">
+                {false && <OverviewSectionLead
+                  eyebrow="מירוץ חי"
+                  title="הבית שלך לא רץ לבד"
+                  description="גביע הבתים יושב עכשיו בתוך מסך הכניסה, כדי שהשפעת כל פעולה תורגש גם מחוץ ללוח המשימות."
+                />}
                 {(myGroup || profile?.role) && (() => {
                   const badgeColor = myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors);
                   const badgeLabel = myGroup?.name || profile?.role;
@@ -582,7 +752,26 @@ function DashboardContent() {
                   </div>
                 </section>
 
-                {/* Action Cards */}
+                <MissionFocusStrip
+                  theme={theme}
+                  loading={missionLoading}
+                  primaryAction={primaryMission}
+                  secondaryActions={secondaryMissions}
+                  trackedQuests={trackedMissionQuests}
+                  activeQuestCount={activeMissionQuests.length}
+                  almostDoneCount={almostDoneMissions.length}
+                  completedDailyCount={completedDailyMissions}
+                  totalDailyCount={totalDailyMissions}
+                  dailyPointsEarned={dailyPointsEarned}
+                  dailyPointsPercent={dailyPointsPercent}
+                  unreadNotifications={unreadNotificationsCount}
+                />
+
+                <OverviewSectionLead
+                  eyebrow="שערי כניסה"
+                  title="מסלולים מהירים להמשך הערב בטירה"
+                  description="קיצורים ברורים לאזורים שהכי קל להפוך בהם מומנטום לפעולה."
+                />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   <ActionCard href="/shop" icon={ShoppingBag} title="דיאגון" desc="חנות קסמים" theme={theme} />
                   <ActionCard href="/forums" icon={Users} title="האולם הגדול" desc="שיחות וקהילה" theme={theme} />
@@ -590,6 +779,13 @@ function DashboardContent() {
                 </div>
 
                 {/* 👑 הדרגה שלי */}
+                <OverviewSectionLead
+                  eyebrow="מירוץ חי"
+                  title="הבית שלך לא רץ לבד"
+                  description="גביע הבתים יושב עכשיו בתוך מסך הכניסה, כדי שהשפעת כל פעולה תורגש גם מחוץ ללוח המשימות."
+                />
+                <HouseCupLeaderboard />
+
                 {(myGroup || profile?.role) && (() => {
                   const badgeColor = myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors);
                   const badgeName = myGroup?.name || profile?.role || "";
@@ -661,6 +857,11 @@ function DashboardContent() {
                     </button>
                   )}
                 </div>
+                <NotificationsPulseStrip
+                  unreadCount={unreadNotificationsCount}
+                  duelAlertsCount={duelAlertsCount}
+                  discussionAlertsCount={discussionAlertsCount}
+                />
                 <div className="space-y-4">
                   {notifications.length > 0 ? notifications.map((n) => (
                     <div key={n.id} className={`p-6 md:p-8 rounded-[2rem] border ${!n.is_read ? 'bg-white/[0.03] border-white/10 shadow-xl' : 'bg-transparent border-white/5 opacity-50'} flex flex-col md:flex-row items-center justify-between gap-6 transition-all`}>
@@ -816,6 +1017,444 @@ export default function DashboardPage() {
   );
 }
 
+function MissionFocusStrip({
+  theme,
+  loading,
+  primaryAction,
+  secondaryActions,
+  trackedQuests,
+  activeQuestCount,
+  almostDoneCount,
+  completedDailyCount,
+  totalDailyCount,
+  dailyPointsEarned,
+  dailyPointsPercent,
+  unreadNotifications,
+}: {
+  theme: MissionTheme;
+  loading: boolean;
+  primaryAction: NextActionRecommendation | null;
+  secondaryActions: NextActionRecommendation[];
+  trackedQuests: ComputedQuest[];
+  activeQuestCount: number;
+  almostDoneCount: number;
+  completedDailyCount: number;
+  totalDailyCount: number;
+  dailyPointsEarned: number;
+  dailyPointsPercent: number;
+  unreadNotifications: number;
+}) {
+  if (loading) {
+    return (
+      <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.04] p-6 md:p-8 shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-bl from-white/[0.04] via-transparent to-transparent pointer-events-none" />
+        <div className="relative z-10 space-y-6 animate-pulse">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-24 rounded-full bg-white/10" />
+            <div className="h-3 w-36 rounded-full bg-white/10" />
+          </div>
+          <div className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr]">
+            <div className="rounded-[2rem] border border-white/10 bg-black/20 p-6 space-y-4">
+              <div className="h-4 w-28 rounded-full bg-white/10" />
+              <div className="h-10 w-3/4 rounded-2xl bg-white/10" />
+              <div className="h-4 w-full rounded-full bg-white/10" />
+              <div className="h-4 w-4/5 rounded-full bg-white/10" />
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-[2rem] border border-white/10 bg-black/20 p-6">
+                <div className="h-4 w-24 rounded-full bg-white/10 mb-4" />
+                <div className="h-2 w-full rounded-full bg-white/10" />
+              </div>
+              <div className="rounded-[2rem] border border-white/10 bg-black/20 p-6">
+                <div className="h-4 w-32 rounded-full bg-white/10 mb-3" />
+                <div className="h-10 w-full rounded-2xl bg-white/10" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!primaryAction) {
+    return (
+      <section className="relative overflow-hidden rounded-[2.5rem] border border-emerald-400/20 bg-emerald-500/[0.05] p-6 md:p-8 shadow-2xl">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(74,222,128,0.14),transparent_45%)] pointer-events-none" />
+        <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="text-right">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-[11px] font-cinzel font-black uppercase tracking-[0.24em] text-emerald-100">
+              <Sparkles size={12} />
+              המשמרת שקטה כרגע
+            </div>
+            <h3 className="font-cinzel text-2xl font-black text-white">השלמת את כל המשימות הפעילות בלוח הזה</h3>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">
+              אפשר לנצל את השקט כדי לעבור על לוח המשימות המלא, לבדוק אם נפתחו פעילויות חדשות, או פשוט לשמור מומנטום דרך הבית והקהילה.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <Link
+              href="/quests"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-400 px-6 py-3 font-cinzel text-xs font-black uppercase tracking-[0.24em] text-emerald-950 transition-all hover:scale-[1.02]"
+            >
+              <Sparkles size={14} />
+              ללוח המשימות
+            </Link>
+            <Link
+              href="/forums"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-black/20 px-6 py-3 font-cinzel text-xs font-black uppercase tracking-[0.24em] text-white/75 transition-all hover:border-white/20 hover:text-white"
+            >
+              <Users size={14} />
+              להיכנס לקהילה
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const urgency = missionUrgencyMeta(primaryAction.urgency);
+  const quickRoutes: QuickRoute[] = [
+    {
+      href: "/quests",
+      label: "לוח המשימות",
+      meta: `${activeQuestCount} פתוחות`,
+      icon: ScrollText,
+      highlight: true,
+    },
+    {
+      href: "/dashboard?tab=notifications",
+      label: "ינשופים",
+      meta: unreadNotifications > 0 ? `${unreadNotifications} חדשים` : "תיבה שקטה",
+      icon: Bell,
+      highlight: unreadNotifications > 0,
+    },
+    {
+      href: "/arena",
+      label: "הזירה",
+      meta: "דו-קרב אחד יכול להפוך את המומנטום",
+      icon: Swords,
+    },
+    {
+      href: "/map",
+      label: "המפה",
+      meta: "חזרה מהירה למסלולי חקירה",
+      icon: Home,
+    },
+  ];
+
+  return (
+    <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.04] p-6 md:p-8 shadow-2xl">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.14),transparent_38%)] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-white/[0.03] blur-[90px] pointer-events-none" />
+
+      <div className="relative z-10 space-y-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="order-2 text-right md:order-1">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[11px] font-cinzel font-black uppercase tracking-[0.24em] text-amber-200">
+              <Zap size={12} />
+              Mission Focus
+            </div>
+            <h3 className="font-cinzel text-2xl font-black text-white md:text-3xl">מה הצעד הכי נכון שלך עכשיו</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/60">
+              שכבת ההמשך של הלוח הזה מושכת את ההמלצות החיות ממערכת המשימות, כדי שלא תצטרך לנחש מאיפה להתחיל.
+            </p>
+          </div>
+
+          <div className="order-1 flex flex-wrap items-center justify-end gap-3 md:order-2">
+            <MissionMetric label="משימות פתוחות" value={activeQuestCount.toString()} accent={theme.accentText} />
+            <MissionMetric label="כמעט סגור" value={almostDoneCount.toString()} accent="text-amber-300" />
+            <MissionMetric
+              label="יומיות"
+              value={totalDailyCount > 0 ? `${completedDailyCount}/${totalDailyCount}` : "0/0"}
+              accent="text-emerald-300"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr]">
+          <div className="rounded-[2rem] border border-white/10 bg-black/20 p-6 shadow-[0_0_30px_rgba(15,23,42,0.2)]">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-cinzel font-black uppercase tracking-[0.24em] ${urgency.badge}`}>
+                <Clock size={12} />
+                {urgency.label}
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[11px] font-cinzel font-black uppercase tracking-[0.2em] text-white/80">
+                <Trophy size={12} />
+                {primaryAction.progressLabel}
+              </span>
+            </div>
+
+            <div className="mt-6 flex items-start justify-between gap-4">
+              <div className={`shrink-0 rounded-[1.5rem] border border-white/10 bg-white/[0.05] p-4 ${theme.accentText}`}>
+                <MissionActionGlyph href={primaryAction.href} size={26} />
+              </div>
+              <div className="flex-1 text-right">
+                <h4 className="font-cinzel text-2xl font-black text-white">{primaryAction.title}</h4>
+                <p className="mt-3 text-sm leading-7 text-white/65">{primaryAction.reason}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 text-right">
+                <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">תגמול</div>
+                <div className="mt-2 text-sm font-bold text-amber-100">{primaryAction.gainLabel}</div>
+              </div>
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 text-right">
+                <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">השפעת בית</div>
+                <div className="mt-2 text-sm font-bold text-white/90">{primaryAction.houseImpactLabel}</div>
+              </div>
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 text-right">
+                <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">קצב</div>
+                <div className={`mt-2 text-sm font-bold ${urgency.accent}`}>{questTypeLabel(primaryAction.questType)}</div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <Link
+                href={primaryAction.href}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-6 py-3 font-cinzel text-xs font-black uppercase tracking-[0.24em] text-amber-950 transition-all hover:scale-[1.02]"
+              >
+                <MissionActionGlyph href={primaryAction.href} size={14} />
+                לצאת למשימה
+              </Link>
+              <Link
+                href="/quests"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-black/20 px-6 py-3 font-cinzel text-xs font-black uppercase tracking-[0.24em] text-white/75 transition-all hover:border-white/20 hover:text-white"
+              >
+                <ScrollText size={14} />
+                לכל היעדים
+              </Link>
+            </div>
+
+            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-black/15 p-4">
+              <div className="mb-3 text-right">
+                <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">קיצורי דרך חכמים</div>
+                <div className="mt-1 text-sm text-white/60">כניסות מהירות כדי שלא תצטרך לחפש את המסך הבא.</div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {quickRoutes.map((route) => (
+                  <QuickRoutePill key={route.href} route={route} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-left">
+                  <div className="font-cinzel text-xl font-black text-white">{dailyPointsEarned}/50</div>
+                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/25">Daily Points</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">תקרת היום</div>
+                  <div className="mt-1 text-sm text-white/65">כמה נקודות כבר נסגרו במסע היומי שלך</div>
+                </div>
+              </div>
+              <div className="mt-4 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${dailyPointsPercent}%`,
+                    background: theme.accent || "#f59e0b",
+                    boxShadow: `0 0 20px ${theme.accent || "#f59e0b"}66`,
+                  }}
+                />
+              </div>
+              <div className="mt-3 text-right text-sm leading-6 text-white/55">
+                {dailyCapHint(dailyPointsEarned)}
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="text-left text-xs font-cinzel uppercase tracking-[0.24em] text-white/25">Follow-ups</div>
+                <div className="text-right">
+                  <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/30">אם נשאר לך עוד רגע</div>
+                  <div className="mt-1 text-sm text-white/65">עוד שני צעדים קלים לשמירת רצף</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {secondaryActions.length > 0 ? secondaryActions.map((action) => {
+                  return (
+                    <Link
+                      key={action.id}
+                      href={action.href}
+                      className="flex items-start justify-between gap-4 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-white/20 hover:bg-white/[0.05]"
+                    >
+                      <div className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-white/80">
+                        <MissionActionGlyph href={action.href} size={16} />
+                      </div>
+                      <div className="flex-1 text-right">
+                        <div className="font-cinzel text-sm font-black text-white">{action.title}</div>
+                        <div className="mt-1 text-xs leading-6 text-white/55">{action.gainLabel} · {action.progressLabel}</div>
+                      </div>
+                    </Link>
+                  );
+                }) : (
+                  <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-white/[0.02] p-4 text-right text-sm leading-7 text-white/55">
+                    כרגע המיקוד הראשי מספיק חזק בפני עצמו. אחרי שתסגור אותו, המערכת תציע את ההמשך הבא.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {trackedQuests.length > 0 && (
+          <div className="grid gap-3 md:grid-cols-3">
+            {trackedQuests.map((quest) => (
+              <MissionTrack key={quest.id} quest={quest} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MissionMetric({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div className="min-w-[108px] rounded-[1.5rem] border border-white/10 bg-black/25 px-4 py-3 text-right shadow-lg">
+      <div className="text-[10px] font-cinzel uppercase tracking-[0.24em] text-white/25">{label}</div>
+      <div className={`mt-2 font-cinzel text-lg font-black ${accent}`}>{value}</div>
+    </div>
+  );
+}
+
+function MissionTrack({ quest }: { quest: ComputedQuest }) {
+  const percent = quest.target > 0 ? Math.min((quest.progress / quest.target) * 100, 100) : 0;
+  const almostDone = isAlmostDoneQuest(quest);
+
+  return (
+    <div className={`rounded-[1.75rem] border p-4 text-right transition-all ${almostDone ? "border-amber-400/25 bg-amber-500/[0.06]" : "border-white/10 bg-black/20"}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className={`text-[11px] font-cinzel uppercase tracking-[0.22em] ${almostDone ? "text-amber-200" : "text-white/30"}`}>
+          {almostDone ? "עוד רגע נסגר" : "במסלול"}
+        </div>
+        <div className="flex-1 text-right">
+          <div className="font-cinzel text-sm font-black text-white">{quest.title}</div>
+          <div className="mt-1 text-xs leading-6 text-white/55">{quest.objectiveLabel}</div>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between text-[11px]">
+        <span className={`font-bold ${almostDone ? "text-amber-100" : "text-white/75"}`}>{quest.progress}/{quest.target}</span>
+        <span className="text-white/30">{quest.houseImpactLabel}</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${almostDone ? "bg-gradient-to-r from-amber-300 via-amber-400 to-orange-300" : "bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400"}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function OverviewSectionLead({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 text-right">
+      <div className="inline-flex w-fit self-end rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-cinzel font-black uppercase tracking-[0.26em] text-white/45">
+        {eyebrow}
+      </div>
+      <div>
+        <h3 className="font-cinzel text-2xl font-black text-white md:text-3xl">{title}</h3>
+        <p className="mt-2 max-w-2xl mr-0 ml-auto text-sm leading-7 text-white/58">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function QuickRoutePill({ route }: { route: QuickRoute }) {
+  const Icon = route.icon;
+
+  return (
+    <Link
+      href={route.href}
+      className={`flex items-start justify-between gap-4 rounded-[1.25rem] border px-4 py-3 text-right transition-all ${
+        route.highlight
+          ? "border-amber-400/20 bg-amber-500/10 hover:border-amber-300/35 hover:bg-amber-500/15"
+          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+      }`}
+    >
+      <div className={`shrink-0 rounded-xl border p-3 ${route.highlight ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-white/10 bg-white/[0.04] text-white/75"}`}>
+        <Icon size={16} />
+      </div>
+      <div className="flex-1">
+        <div className="font-cinzel text-sm font-black text-white">{route.label}</div>
+        <div className="mt-1 text-xs leading-6 text-white/55">{route.meta}</div>
+      </div>
+    </Link>
+  );
+}
+
+function NotificationsPulseStrip({
+  unreadCount,
+  duelAlertsCount,
+  discussionAlertsCount,
+}: {
+  unreadCount: number;
+  duelAlertsCount: number;
+  discussionAlertsCount: number;
+}) {
+  const primaryHref = duelAlertsCount > 0 ? "/arena" : "/dashboard?tab=overview";
+  const primaryLabel = duelAlertsCount > 0 ? "לקפוץ לזירה" : "לחזור למיקוד הראשי";
+  const summaryCopy =
+    unreadCount === 0
+      ? "התיבה נקייה כרגע. אפשר לחזור למסלול הפעיל בלי רעש מסביב."
+      : duelAlertsCount > 0
+        ? `מחכות לך ${duelAlertsCount} התראות דו-קרב שיכולות לייצר השפעה מיידית.`
+        : discussionAlertsCount > 0
+          ? `יש ${discussionAlertsCount} עדכוני קהילה פתוחים שמחכים לתגובה או מעבר מהיר.`
+          : `יש כרגע ${unreadCount} עדכונים חדשים שכדאי לסגור כדי לא לאבד רצף.`;
+
+  return (
+    <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="text-right">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-cinzel font-black uppercase tracking-[0.24em] text-white/65">
+            <Bell size={12} />
+            Notification Pulse
+          </div>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">{summaryCopy}</p>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <MissionMetric label="חדשים" value={unreadCount.toString()} accent={unreadCount > 0 ? "text-amber-300" : "text-white/60"} />
+          <MissionMetric label="דו-קרב" value={duelAlertsCount.toString()} accent={duelAlertsCount > 0 ? "text-rose-300" : "text-white/60"} />
+          <MissionMetric label="קהילה" value={discussionAlertsCount.toString()} accent={discussionAlertsCount > 0 ? "text-sky-300" : "text-white/60"} />
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <Link
+          href={primaryHref}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-500 px-5 py-3 font-cinzel text-xs font-black uppercase tracking-[0.24em] text-amber-950 transition-all hover:scale-[1.02]"
+        >
+          {duelAlertsCount > 0 ? <Swords size={14} /> : <Zap size={14} />}
+          {primaryLabel}
+        </Link>
+        <Link
+          href="/quests"
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-black/20 px-5 py-3 font-cinzel text-xs font-black uppercase tracking-[0.24em] text-white/75 transition-all hover:border-white/20 hover:text-white"
+        >
+          <ScrollText size={14} />
+          ללוח המשימות
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function InventorySection({ title, items, icon: Icon, theme }: any) {
   if (!items || items.length === 0) return null;
   return (
@@ -856,7 +1495,12 @@ function StatItem({ icon: Icon, label, value, theme, highlight }: any) {
 
 function TabButton({ icon: Icon, label, active, onClick, theme, count }: any) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-4 w-full p-4 rounded-2xl transition-all duration-500 ${active ? `bg-white/10 ${theme.accentText} shadow-lg ring-1 ring-white/10` : 'text-white/40 hover:text-white hover:bg-white/5'}`}>
+    <button
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      aria-label={count > 0 ? `${label} (${count} חדשים)` : label}
+      className={`flex items-center gap-4 w-full p-4 rounded-2xl transition-all duration-500 ${active ? `bg-white/10 ${theme.accentText} shadow-lg ring-1 ring-white/10` : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+    >
       <Icon size={18} />
       <span className="font-cinzel text-xs font-bold tracking-widest uppercase">{label}</span>
       {count > 0 && <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse mr-auto">{count}</span>}

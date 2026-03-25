@@ -7,10 +7,41 @@ import { createClient } from "@/utils/supabase/client";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import { useAuth } from "@/context/AuthContext";
 
+const QUESTS_FAQ_LINK = "/faq";
+
+type NotificationActorProfile = {
+    id?: string;
+    full_name?: string | null;
+    username?: string | null;
+    house?: string | null;
+    role?: string | null;
+    user_groups?: { color?: string | null } | { color?: string | null }[] | null;
+};
+
+type NotificationItem = {
+    id: string;
+    user_id: string;
+    actor_id: string | null;
+    content: string;
+    type: string;
+    target_url: string;
+    is_read: boolean;
+    created_at: string;
+    actor_profile?: NotificationActorProfile | NotificationActorProfile[] | null;
+};
+
+function getUserGroupColor(userGroups: NotificationActorProfile["user_groups"]) {
+    if (Array.isArray(userGroups)) {
+        return userGroups[0]?.color || null;
+    }
+
+    return userGroups?.color || null;
+}
+
 export default function NotificationDropdown() {
     const { session } = useAuth();
     const [supabase] = useState(() => createClient());
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
     const [roleColors, setRoleColors] = useState<Record<string, string>>({});
@@ -235,7 +266,7 @@ export default function NotificationDropdown() {
                                                             : notification.actor_profile;
                                                         const nameToShow = actorProfile?.full_name || actorProfile?.username;
                                                         const profileColor =
-                                                            actorProfile?.user_groups?.color ||
+                                                            getUserGroupColor(actorProfile?.user_groups) ||
                                                             getRoleColor(actorProfile?.role, actorProfile?.house, roleColors);
 
                                                         if (!nameToShow) {
@@ -282,13 +313,31 @@ export default function NotificationDropdown() {
                             )}
                         </div>
 
-                        <Link
-                            href="/dashboard?tab=notifications"
-                            onClick={() => setIsOpen(false)}
-                            className="p-4 bg-white/5 text-center block text-[10px] font-black uppercase text-white/30 hover:text-white hover:bg-amber-500/10 transition-all rounded-b-2xl border-t border-white/5"
-                        >
-                            לכל ההתראות בטירה
-                        </Link>
+                        <div className="border-t border-white/5 bg-white/[0.03]">
+                            <div className="grid grid-cols-2 gap-px border-b border-white/5 bg-white/5">
+                                <Link
+                                    href="/quests"
+                                    onClick={() => setIsOpen(false)}
+                                    className="px-4 py-3 text-center font-assistant text-xs font-semibold text-white/55 transition-colors hover:bg-amber-500/10 hover:text-white"
+                                >
+                                    ללוח המשימות
+                                </Link>
+                                <Link
+                                    href={QUESTS_FAQ_LINK}
+                                    onClick={() => setIsOpen(false)}
+                                    className="px-4 py-3 text-center font-assistant text-xs font-semibold text-white/55 transition-colors hover:bg-white/5 hover:text-white"
+                                >
+                                    עזרה מהירה
+                                </Link>
+                            </div>
+                            <Link
+                                href="/dashboard?tab=notifications"
+                                onClick={() => setIsOpen(false)}
+                                className="p-4 bg-white/5 text-center block text-[10px] font-black uppercase text-white/30 hover:text-white hover:bg-amber-500/10 transition-all rounded-b-2xl"
+                            >
+                                לכל ההתראות בטירה
+                            </Link>
+                        </div>
                     </div>
                 </>
             )}

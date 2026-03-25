@@ -2,11 +2,44 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Bird, Coins, Flame, Leaf, Newspaper, Skull, Star, Trophy } from "lucide-react";
+import { Bird, Coins, Flame, Leaf, Newspaper, Skull, Sparkles, Star, Trophy, type LucideIcon } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import type { NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 
-const HOUSE_META: Record<string, { label: string; short: string; color: string; glow: string; icon: any }> = {
+type HouseMeta = {
+    label: string;
+    short: string;
+    color: string;
+    glow: string;
+    icon: LucideIcon;
+};
+
+type ProfilePointsRow = {
+    house: string | null;
+    points_contributed: number | null;
+};
+
+type NewsTickerRow = {
+    id: string;
+    title: string;
+};
+
+type DuelParticipantRow = {
+    full_name: string | null;
+};
+
+type DuelTickerRow = {
+    id: string;
+    winner_id: string | null;
+    challenger_id: string | null;
+    opponent_id: string | null;
+    winner: DuelParticipantRow | DuelParticipantRow[] | null;
+    challenger: DuelParticipantRow | DuelParticipantRow[] | null;
+    opponent: DuelParticipantRow | DuelParticipantRow[] | null;
+};
+
+const HOUSE_META: Record<string, HouseMeta> = {
     Gryffindor: { label: "גריפינדור", short: "GRY", color: "#ef4444", glow: "rgba(239,68,68,0.6)", icon: Flame },
     Slytherin: { label: "סלית'רין", short: "SLY", color: "#34d399", glow: "rgba(52,211,153,0.6)", icon: Skull },
     Ravenclaw: { label: "רייבנקלו", short: "RAV", color: "#60a5fa", glow: "rgba(96,165,250,0.6)", icon: Bird },
@@ -15,7 +48,20 @@ const HOUSE_META: Record<string, { label: string; short: string; color: string; 
 
 const HOUSE_ORDER = ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"] as const;
 
-export default function MagicTicker() {
+function getParticipantName(participant: DuelParticipantRow | DuelParticipantRow[] | null) {
+    if (Array.isArray(participant)) {
+        return participant[0]?.full_name || null;
+    }
+
+    return participant?.full_name || null;
+}
+
+type MagicTickerProps = {
+    nextAction?: NextActionRecommendation | null;
+    nextActionLoading?: boolean;
+};
+
+export default function MagicTicker({ nextAction = null, nextActionLoading = false }: MagicTickerProps) {
     const { profile } = useAuth();
     const [supabase] = useState(() => createClient());
     const [houses, setHouses] = useState<Record<string, number>>({
@@ -54,25 +100,25 @@ export default function MagicTicker() {
             Hufflepuff: 0,
         };
 
-        profiles?.forEach((entry: any) => {
+        (profiles as ProfilePointsRow[] | null)?.forEach((entry) => {
             if (entry.house && nextPoints[entry.house] !== undefined) {
                 nextPoints[entry.house] += entry.points_contributed || 0;
             }
         });
         setHouses(nextPoints);
 
-        const nextItems: { id: string; title: string; href: string }[] = (news || []).map((article: any) => ({
+        const nextItems: { id: string; title: string; href: string }[] = ((news as NewsTickerRow[] | null) || []).map((article) => ({
             id: article.id,
             title: article.title,
             href: `/news?article=${article.id}`,
         }));
 
-        recentDuels?.forEach((duel: any) => {
-            const winnerName = (duel.winner as any)?.full_name;
+        ((recentDuels as DuelTickerRow[] | null) || []).forEach((duel) => {
+            const winnerName = getParticipantName(duel.winner);
             const loserName =
                 duel.winner_id === duel.challenger_id
-                    ? (duel.opponent as any)?.full_name
-                    : (duel.challenger as any)?.full_name;
+                    ? getParticipantName(duel.opponent)
+                    : getParticipantName(duel.challenger);
 
             if (winnerName && loserName) {
                 nextItems.push({
@@ -88,7 +134,9 @@ export default function MagicTicker() {
     }, [supabase]);
 
     useEffect(() => {
-        void fetchTickerData();
+        queueMicrotask(() => {
+            void fetchTickerData();
+        });
 
         const profilesChannel = supabase
             .channel("ticker-profiles")
@@ -124,6 +172,11 @@ export default function MagicTicker() {
     const leadingMeta = HOUSE_META[leadingHouse];
     const LeadingIcon = leadingMeta.icon;
     const galleons = profile?.galleons ?? 0;
+    const missionHref = nextAction?.href || "/quests";
+    const missionTitle = nextActionLoading
+        ? "מגבש את הצעד הבא שלך"
+        : nextAction?.title || "פתח/י את לוח המשימות";
+    const missionBadge = nextAction?.urgency === "high" ? "דחוף" : nextAction?.urgency === "medium" ? "פעיל" : null;
 
     return (
         <div
@@ -213,6 +266,33 @@ export default function MagicTicker() {
                 </div>
 
                 <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
+                    {profile && (
+                        <Link
+                            href={missionHref}
+                            className="hidden lg:flex items-center gap-2 shrink-0 rounded-xl border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1.5 shadow-[0_0_16px_rgba(245,158,11,0.08)] transition-all hover:border-amber-500/35 hover:bg-amber-500/[0.12]"
+                            aria-label={`מה כדאי לעשות עכשיו: ${missionTitle}`}
+                        >
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-500/20 bg-black/20">
+                                <Sparkles size={12} className="text-amber-400" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="font-cinzel text-[8px] font-black uppercase tracking-[0.24em] text-amber-300/75">
+                                        מה עכשיו
+                                    </span>
+                                    {missionBadge && (
+                                        <span className="rounded-full border border-amber-500/15 bg-black/20 px-1.5 py-0.5 font-assistant text-[9px] font-bold text-amber-100/80">
+                                            {missionBadge}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="max-w-[220px] truncate font-assistant text-xs font-semibold text-white/82">
+                                    {missionTitle}
+                                </p>
+                            </div>
+                        </Link>
+                    )}
+
                     <div
                         className="hidden sm:flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-lg"
                         style={{
@@ -222,7 +302,7 @@ export default function MagicTicker() {
                     >
                         <Newspaper size={12} style={{ color: "#fbbf24" }} className="animate-pulse" />
                         <span className="font-cinzel text-[9px] font-black text-amber-500/80 uppercase tracking-widest whitespace-nowrap">
-                            הנביא
+                            עדכונים חיים
                         </span>
                     </div>
 

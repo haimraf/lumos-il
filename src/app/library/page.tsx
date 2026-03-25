@@ -10,8 +10,39 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+type StoryAuthor = {
+    full_name: string | null;
+    avatar_url: string | null;
+    is_ghost: boolean | null;
+};
+
+type Story = {
+    id: string;
+    title: string;
+    description: string | null;
+    rating: string | null;
+    views_count: number | null;
+    cover_url: string | null;
+    house_theme: string;
+    created_at: string;
+    author_id: string;
+    profiles: StoryAuthor | null;
+};
+
+type StoryRow = Omit<Story, "profiles"> & {
+    profiles: StoryAuthor | StoryAuthor[] | null;
+};
+
+function normalizeStoryAuthor(author: StoryRow["profiles"]): StoryAuthor | null {
+    if (Array.isArray(author)) {
+        return author[0] ?? null;
+    }
+
+    return author;
+}
+
 export default function LibraryPage() {
-    const [stories, setStories] = useState<any[]>([]);
+    const [stories, setStories] = useState<Story[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showAgeGate, setShowAgeGate] = useState(false);
     const [isAdultConfirmed, setIsAdultConfirmed] = useState(false);
@@ -47,7 +78,15 @@ export default function LibraryPage() {
 
                 if (error) throw error;
                 // 👻 הסתרת סיפורים של רוחות רפאים (לא בודקים משתמש נוכחי — רשימת הסיפורים היא ציבורית)
-                setStories((data || []).filter((s: any) => !s.profiles?.is_ghost));
+                const storyRows = (data as unknown as StoryRow[] | null) || [];
+                const normalizedStories: Story[] = storyRows
+                    .map((story) => ({
+                        ...story,
+                        profiles: normalizeStoryAuthor(story.profiles),
+                    }))
+                    .filter((story) => !story.profiles?.is_ghost);
+
+                setStories(normalizedStories);
             } catch (err) {
                 console.error("Lumos Error [Library]:", err);
             } finally {
@@ -74,10 +113,10 @@ export default function LibraryPage() {
         }
     };
 
-    if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#060608]"><Sparkles className="text-amber-500 animate-pulse w-12 h-12" /></div>;
+    if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[#060608]" role="status" aria-live="polite" aria-label="טוען את ספריית הסיפורים"><Sparkles className="text-amber-500 animate-pulse w-12 h-12" /></div>;
 
     return (
-        <div className="min-h-screen bg-[#060608] text-white selection:bg-amber-500/30 pb-32 relative overflow-hidden" dir="rtl">
+        <main className="min-h-screen bg-[#060608] text-white selection:bg-amber-500/30 pb-32 relative overflow-hidden" dir="rtl" aria-label="ספריית הפאנפיקים של Lumos IL">
             {/* ambient glows */}
             <div className="fixed top-0 right-0 w-[700px] h-[600px] bg-indigo-500/[0.04] rounded-full blur-[160px] pointer-events-none" />
             <div className="fixed bottom-0 left-0 w-[600px] h-[500px] bg-amber-500/[0.03] rounded-full blur-[150px] pointer-events-none" />
@@ -88,30 +127,37 @@ export default function LibraryPage() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/98 backdrop-blur-3xl p-6"
+                        aria-hidden="true"
                     >
                         {/* שינוי ה-div העוטף של המודל (שורה 97) */}
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="library-age-gate-title"
+                            aria-describedby="library-age-gate-description"
                             className="glass-panel w-full p-8 md:p-12 rounded-[2.5rem] border-2 border-red-500/50 text-center shadow-[0_0_120px_rgba(220,38,38,0.3)] bg-[#0a0a0c]"
                             style={{ maxWidth: '450px' }} // "הגרזן": מקבע את הרוחב של המודל
                         >
                             <div className="w-20 h-20 bg-red-600/10 rounded-full flex items-center justify-center mx-auto border-2 border-red-600 mb-6 animate-pulse">
                                 <ShieldAlert size={40} className="text-red-500" />
                             </div>
-                            <h2 className="font-cinzel text-2xl md:text-3xl font-black text-red-400 mb-4 tracking-tighter uppercase">הספרייה האסורה</h2>
-                            <p className="font-crimson text-lg md:text-xl text-white/70 mb-10 leading-relaxed italic">
-                                "מדף זה מכיל תכנים המיועדים לקוסמים בוגרים בלבד (18+). האם תרצה להמשיך?"
+                            <h2 id="library-age-gate-title" className="font-cinzel text-2xl md:text-3xl font-black text-red-400 mb-4 tracking-tighter uppercase">הספרייה האסורה</h2>
+                            <p id="library-age-gate-description" className="font-crimson text-lg md:text-xl text-white/70 mb-10 leading-relaxed italic">
+                                &ldquo;מדף זה מכיל תכנים המיועדים לקוסמים בוגרים בלבד (18+). האם תרצה להמשיך?&rdquo;
                             </p>
                             <div className="flex flex-col gap-4">
                                 <button
+                                    type="button"
                                     onClick={handleConfirmAge}
                                     className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl transition-all shadow-[0_10px_40px_rgba(220,38,38,0.4)] active:scale-95 text-base"
                                 >
                                     אני מאשר, פתח את הספר
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => setShowAgeGate(false)}
                                     className="w-full text-white/30 hover:text-white hover:bg-white/5 py-4 rounded-xl transition-all text-xs uppercase font-black tracking-widest"
                                 >
@@ -130,20 +176,20 @@ export default function LibraryPage() {
                     <span className="text-amber-500/60 flex items-center gap-1.5"><BookIcon size={12} /> הספרייה</span>
                 </nav>
 
-                <header className="mb-32 flex flex-col lg:flex-row justify-between items-end gap-12">
+                <header className="mb-32 flex flex-col lg:flex-row justify-between items-end gap-12" aria-labelledby="library-page-title">
                     <motion.div
                         initial={{ x: 50, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
                         className="max-w-3xl"
                     >
-                        <h1 className="font-cinzel text-7xl md:text-9xl font-black text-amber-500 uppercase leading-[0.8] drop-shadow-[0_15px_50px_rgba(245,158,11,0.4)] mb-2">
+                        <h1 id="library-page-title" className="font-cinzel text-7xl md:text-9xl font-black text-amber-500 uppercase leading-[0.8] drop-shadow-[0_15px_50px_rgba(245,158,11,0.4)] mb-2">
                             הספרייה
                         </h1>
                         <div className="h-1 w-32 bg-gradient-to-l from-amber-500 to-transparent rounded-full mb-8" />
                         <p className="font-crimson text-3xl text-white/50 italic flex items-center gap-4">
                             <Flame size={28} className="text-amber-500/50 animate-pulse" />
-                            "אלפי סיפורים מחכים להיכתב בין הצללים של הוגוורטס..."
+                            &ldquo;אלפי סיפורים מחכים להיכתב בין הצללים של הוגוורטס...&rdquo;
                         </p>
                     </motion.div>
 
@@ -152,7 +198,7 @@ export default function LibraryPage() {
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
                     >
-                        <Link href="/library/create" className="glass-panel px-12 py-8 rounded-[2.5rem] border-2 border-amber-500/30 hover:border-amber-500/70 transition-all flex items-center gap-6 group shadow-[0_0_60px_rgba(245,158,11,0.2)] hover:shadow-[0_0_80px_rgba(245,158,11,0.3)] bg-[#0d0d0f] hover:bg-amber-500/[0.03] hover:scale-105 active:scale-95">
+                        <Link href="/library/create" aria-label="מעבר לכתיבת סיפור חדש בספרייה" className="glass-panel px-12 py-8 rounded-[2.5rem] border-2 border-amber-500/30 hover:border-amber-500/70 transition-all flex items-center gap-6 group shadow-[0_0_60px_rgba(245,158,11,0.2)] hover:shadow-[0_0_80px_rgba(245,158,11,0.3)] bg-[#0d0d0f] hover:bg-amber-500/[0.03] hover:scale-105 active:scale-95">
                             <PlusCircle size={32} className="text-amber-500 group-hover:rotate-90 transition-transform duration-700" />
                             <div className="text-right">
                                 <span className="block text-[10px] text-amber-500/60 uppercase font-black tracking-[0.2em] mb-1">יוצר חדש?</span>
@@ -162,6 +208,13 @@ export default function LibraryPage() {
                     </motion.div>
                 </header>
 
+                <section aria-labelledby="library-stories-title">
+                    <div className="mb-8 flex items-center justify-between gap-4">
+                        <h2 id="library-stories-title" className="font-cinzel text-2xl font-black text-white tracking-wide">מדפי הסיפורים</h2>
+                        <p className="text-sm text-white/35" role="status" aria-live="polite">
+                            {stories.length} סיפורים זמינים כעת
+                        </p>
+                    </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16">
                     {stories.map((story, index) => {
                         const isAdult = story.rating === 'R' || story.rating === '18+';
@@ -182,6 +235,7 @@ export default function LibraryPage() {
                                 <Link
                                     href={isLocked ? "#" : `/library/${story.id}`}
                                     onClick={(e) => { if (isLocked) { e.preventDefault(); setShowAgeGate(true); } }}
+                                    aria-label={isLocked ? `הסיפור ${story.title} נעול וידרוש אישור גיל` : `קריאת הסיפור ${story.title}`}
                                     className="group block h-full focus:outline-none"
                                 >
                                     <div className={`glass-panel h-full rounded-[3.5rem] border-2 transition-all duration-700 hover:-translate-y-8 hover:rotate-1 flex flex-col relative overflow-hidden shadow-2xl ${getHouseStyles(story.house_theme)} ${isLocked ? 'grayscale opacity-70 hover:opacity-80' : ''}`}>
@@ -190,6 +244,8 @@ export default function LibraryPage() {
                                         <div className="h-72 w-full relative bg-gradient-to-br from-[#0a0a0c] to-[#060608] flex items-center justify-center overflow-hidden border-b border-white/10 group/cover">
                                             {story.cover_url && story.cover_url.startsWith('http') ? (
                                                 <>
+                                                    {/* User-authored covers can come from arbitrary domains, so next/image is not a safe default here. */}
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img
                                                         src={story.cover_url}
                                                         alt={story.title}
@@ -214,7 +270,7 @@ export default function LibraryPage() {
                                             </div>
 
                                             {isLocked && (
-                                                <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-10 group-hover:bg-black/80 transition-all">
+                                                <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-10 group-hover:bg-black/80 transition-all" aria-hidden="true">
                                                     <div className="flex flex-col items-center gap-4">
                                                         <Lock className="text-red-500/70 animate-pulse" size={56} />
                                                         <span className="text-red-400/80 font-cinzel text-xs uppercase tracking-[0.3em] font-black">נעול</span>
@@ -236,7 +292,7 @@ export default function LibraryPage() {
                                             </div>
 
                                             <p className="font-crimson text-white/60 group-hover:text-white/70 line-clamp-3 leading-relaxed italic text-xl transition-colors">
-                                                "{story.description || "אין תיאור לסיפור זה..."}"
+                                                &ldquo;{story.description || "אין תיאור לסיפור זה..."}&rdquo;
                                             </p>
                                         </div>
 
@@ -259,19 +315,23 @@ export default function LibraryPage() {
                         );
                     })}
                 </div>
+                </section>
 
                 {stories.length === 0 && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
+                        role="status"
+                        aria-live="polite"
                         className="text-center py-40 border-2 border-dashed border-white/10 rounded-[4rem] bg-gradient-to-br from-white/[0.02] to-transparent"
                     >
                         <BookOpen size={80} className="text-amber-500/20 mx-auto mb-8 animate-pulse" />
                         <p className="font-crimson text-3xl text-white/30 italic max-w-2xl mx-auto leading-relaxed">
-                            "הספרייה עדיין שקטה... המדפים מחכים לסיפור הראשון שלך."
+                            &ldquo;הספרייה עדיין שקטה... המדפים מחכים לסיפור הראשון שלך.&rdquo;
                         </p>
                         <Link
                             href="/library/create"
+                            aria-label="מעבר ליצירת הסיפור הראשון בספרייה"
                             className="inline-flex items-center gap-3 mt-12 px-10 py-5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl text-amber-400 font-cinzel font-black uppercase tracking-widest transition-all hover:scale-105"
                         >
                             <PlusCircle size={20} />
@@ -287,6 +347,6 @@ export default function LibraryPage() {
                 ::-webkit-scrollbar-thumb { background: #1e1b1e; border-radius: 10px; border: 3px solid #060608; }
                 ::-webkit-scrollbar-thumb:hover { background: #451a03; }
             `}</style>
-        </div>
+        </main>
     );
 }

@@ -2,18 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import { createClient } from "@/utils/supabase/client";
 import { getMagicFingerprint, hasStickyMarker, plantStickyMarker } from "@/utils/magic-fingerprint";
 import HouseCupLeaderboard from "@/components/HouseCupLeaderboard";
 import {
-  Sparkles, Mail, Trophy, Users, Star, ArrowRight, X, Lock,
+  Sparkles, Mail, ArrowRight, X, Lock,
   ScrollText, Wand2, Volume2, VolumeX, KeyRound, ChevronDown,
   MessageSquare, BookOpen, ShoppingBag, HelpCircle, GraduationCap,
   Map, Zap, Bell, Swords
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
-import Link from "next/link";
 
 /**
  * LUMOS IL - LANDING V15
@@ -23,16 +23,56 @@ import Link from "next/link";
  * ✅ כל הלוגיקה הקיימת שמורה
  */
 
-const LEGACY_BANNED_ROLE = "אסיר אזקבאן";
-
 const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
+
+const landingStructuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "LUMOS IL",
+      url: "https://lumos-il.co.il",
+      logo: "https://lumos-il.co.il/images/og-image.png",
+      sameAs: [
+        "https://lumos-il.co.il/house-cup",
+        "https://lumos-il.co.il/forums",
+        "https://lumos-il.co.il/library",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      name: "LUMOS IL",
+      url: "https://lumos-il.co.il",
+      inLanguage: "he-IL",
+      description: "קהילת הארי פוטר הישראלית עם בתים, גביע הבתים, פורומים, ספרייה, זירה ומשימות.",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: "https://lumos-il.co.il/search?q={search_term_string}",
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
+
+function createInitialStars() {
+  if (typeof window === "undefined") return [];
+
+  const count = window.innerWidth < 768 ? 30 : 80;
+  return Array.from({ length: count }, () => ({
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 2 + 0.5,
+    delay: Math.random() * 4,
+    duration: Math.random() * 3 + 2,
+  }));
+}
 
 export default function Home() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [letterVisible, setLetterVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [stars, setStars] = useState<{ x: number; y: number; size: number; delay: number; duration: number }[]>([]);
+  const [stars] = useState<{ x: number; y: number; size: number; delay: number; duration: number }[]>(() => createInitialStars());
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,28 +80,10 @@ export default function Home() {
   const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [isPermanentlyBanned, setIsPermanentlyBanned] = useState(false);
+  const [isPermanentlyBanned, setIsPermanentlyBanned] = useState(() => hasStickyMarker());
 
   const [supabase] = useState(() => createClient());
   const { isMuted, toggleMute } = useUIState();
-
-  useEffect(() => {
-    if (hasStickyMarker()) {
-      setIsPermanentlyBanned(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    const count = window.innerWidth < 768 ? 30 : 80;
-    const generated = Array.from({ length: count }, () => ({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 2 + 0.5,
-      delay: Math.random() * 4,
-      duration: Math.random() * 3 + 2,
-    }));
-    setStars(generated);
-  }, []);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -91,6 +113,13 @@ export default function Home() {
     if (isOpen) return;
     setIsOpen(true);
     setTimeout(() => setLetterVisible(true), 800);
+  };
+
+  const handleEnvelopeKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpenEnvelope();
+    }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -168,11 +197,6 @@ export default function Home() {
       const fingerprint = getMagicFingerprint();
       
       // Check if this fingerprint is already associated with a banned user
-      const { data: existingBanned } = await supabase.from('profiles')
-        .select('id')
-        .eq('fingerprint', fingerprint)
-        .eq('role', 'אסיר אזקבאן')
-        .limit(1);
       const { data: existingStatusBanned } = await supabase.from('profiles')
         .select('id')
         .eq('fingerprint', fingerprint)
@@ -242,6 +266,9 @@ export default function Home() {
 
   return (
     <>
+      <Script id="landing-seo" type="application/ld+json">
+        {JSON.stringify(landingStructuredData)}
+      </Script>
       <style>{`
                 @keyframes twinkle {
                     0%, 100% { opacity: 0.2; transform: scale(1); }
@@ -323,7 +350,7 @@ export default function Home() {
                 }
             `}</style>
 
-      <main className="min-h-screen bg-[#020617] text-[#f8fafc] relative overflow-x-hidden font-crimson" dir="rtl">
+      <main className="min-h-screen bg-[#020617] text-[#f8fafc] relative overflow-x-hidden font-crimson" dir="rtl" aria-label="עמוד הבית של Lumos IL">
 
         {/* ── STARFIELD ── */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -336,7 +363,9 @@ export default function Home() {
         </div>
 
         {/* ── AUDIO TOGGLE ── */}
-        <button onClick={toggleMute}
+        <button type="button" onClick={toggleMute}
+          aria-label={isMuted ? "הפעלת מוזיקת רקע" : "השתקת מוזיקת רקע"}
+          aria-pressed={isMuted}
           className="fixed bottom-6 lg:bottom-10 left-6 lg:left-10 z-[200] p-4 rounded-full bg-[#020617]/80 backdrop-blur-xl border border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:scale-110 hover:shadow-[0_0_30px_rgba(245,158,11,0.4)] transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] outline-none group"
           title={isMuted ? "הפעל מוזיקת רקע" : "השתק מוזיקת רקע"}>
           {isMuted ? <VolumeX size={26} /> : <Volume2 size={26} />}
@@ -345,11 +374,12 @@ export default function Home() {
         {/* ══════════════════════════════════════
                     HERO — Envelope
                 ══════════════════════════════════════ */}
-        <section className="relative z-10 flex flex-col items-center justify-center min-h-[92vh] px-4 sm:px-6 py-12">
+        <section className="relative z-10 flex flex-col items-center justify-center min-h-[92vh] px-4 sm:px-6 py-12" aria-labelledby="landing-hero-title">
 
           {/* Logo */}
           <div className="text-center mb-12 animate-float">
             <h1
+              id="landing-hero-title"
               className="font-cinzel text-5xl sm:text-6xl md:text-[8rem] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-400 to-amber-700"
               style={{ filter: 'drop-shadow(0 0 40px rgba(245,158,11,0.35))' }}>
               LUMOS<span className="opacity-90">IL</span>
@@ -365,7 +395,8 @@ export default function Home() {
             <div className={`w-full grid transition-all duration-700 ease-in-out ${letterVisible ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
               <div className="overflow-hidden flex justify-center w-full">
                 <div className={`envelope-card w-full ${isOpen ? 'is-open' : ''}`}
-                  onClick={handleOpenEnvelope} role="button" tabIndex={0}>
+                  onClick={handleOpenEnvelope} onKeyDown={handleEnvelopeKeyDown} role="button" tabIndex={0}
+                  aria-label="פתיחת מכתב הקבלה של Lumos IL" aria-expanded={letterVisible} aria-controls="landing-acceptance-letter">
                   <div className="relative w-full h-[250px] sm:h-[300px] md:h-[360px] rounded-lg overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.7)] border border-amber-900/20"
                     style={{ background: 'linear-gradient(160deg, #e8d5b0 0%, #dcc49b 50%, #c9ad82 100%)' }}>
                     <div className="absolute inset-0 opacity-25 bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')]" />
@@ -395,16 +426,16 @@ export default function Home() {
             </div>
 
             {/* המכתב */}
-            <div className={`w-full grid transition-all duration-[1000ms] ease-in-out ${letterVisible ? 'grid-rows-[1fr] mt-4' : 'grid-rows-[0fr] mt-0'}`}>
+            <div id="landing-acceptance-letter" className={`w-full grid transition-all duration-[1000ms] ease-in-out ${letterVisible ? 'grid-rows-[1fr] mt-4' : 'grid-rows-[0fr] mt-0'}`}>
               <div className="overflow-hidden w-full">
                 <div className={`letter-rise w-full ${letterVisible ? 'visible' : ''}`}>
-                  <div className="w-full rounded-sm shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-amber-900/30 overflow-hidden"
+                  <div className="w-full rounded-sm shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-amber-900/30 overflow-hidden" role="region" aria-labelledby="landing-letter-title"
                     style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/old-map.png'), linear-gradient(135deg, #fdfaf5 0%, #f5eedc 100%)", color: "#2d1b0a", boxShadow: "inset 0 0 80px rgba(139,69,19,0.12), 0 40px 100px rgba(0,0,0,0.6)" }}>
                     <div className="p-6 md:p-12 text-right">
                       <div className="flex flex-col items-center mb-8 border-b border-amber-900/10 pb-6">
                         <ScrollText size={36} className="text-amber-900/40 mb-3" />
                         <h3 className="font-cinzel text-[10px] md:text-xs tracking-[0.5em] uppercase opacity-60 mb-2 text-center">אקדמיית לומוס IL</h3>
-                        <h2 className="font-cinzel text-2xl md:text-4xl font-black tracking-tight text-center">הודעת קבלה רשמית</h2>
+                        <h2 id="landing-letter-title" className="font-cinzel text-2xl md:text-4xl font-black tracking-tight text-center">הודעת קבלה רשמית</h2>
                       </div>
                       <div className="space-y-6 font-crimson text-lg md:text-2xl leading-relaxed italic">
                         <p className="font-bold not-italic text-xl md:text-3xl mb-2">מכשפה או קוסם יקרים,</p>
@@ -430,7 +461,9 @@ export default function Home() {
                           style={{ background: 'radial-gradient(circle at 35% 35%, #c0392b, #7b0000)', boxShadow: '0 0 40px rgba(127,0,0,0.35)' }}>
                           <span className="font-cinzel text-white text-3xl font-bold select-none">L</span>
                         </div>
-                        <button onClick={() => setIsModalOpen(true)}
+                        <button type="button" onClick={() => setIsModalOpen(true)}
+                          aria-haspopup="dialog" aria-expanded={isModalOpen} aria-controls="landing-auth-dialog"
+                          aria-label="פתיחת שערי הטירה והרשמה ללומוס IL"
                           className="shimmer-btn group relative w-full text-amber-950 py-5 md:py-7 rounded-md font-cinzel text-lg md:text-2xl font-black shadow-2xl flex items-center justify-center gap-4 transition-transform active:scale-95 hover:scale-[1.01]">
                           <span className="relative z-10">כניסה לשערי הטירה</span>
                           <ArrowRight className="relative z-10 group-hover:-translate-x-2 transition-transform rotate-180" size={24} />
@@ -472,8 +505,9 @@ export default function Home() {
         {/* ══════════════════════════════════════
                     HOT TOPICS — מיד אחרי ה-hero
                 ══════════════════════════════════════ */}
-        <section className="relative z-10 py-16 md:py-20">
+        <section className="relative z-10 py-16 md:py-20" aria-labelledby="landing-topics-title">
           <div className="magic-divider w-full mb-16" />
+          <h2 id="landing-topics-title" className="sr-only">נושאים חמים בקהילה</h2>
           <HotTopicsTeaser />
           <div className="magic-divider w-full mt-16" />
         </section>
@@ -481,8 +515,10 @@ export default function Home() {
         {/* ══════════════════════════════════════
                     FAQ ANNOUNCEMENT BANNER
                 ══════════════════════════════════════ */}
-        <section className="relative z-10 px-4 max-w-5xl mx-auto -mt-4 mb-4">
-          <button onClick={() => setIsModalOpen(true)} className="group block w-full text-right">
+        <section className="relative z-10 px-4 max-w-5xl mx-auto -mt-4 mb-4" aria-label="ספר השאלות והתשובות של הטירה">
+          <button type="button" onClick={() => setIsModalOpen(true)}
+            aria-haspopup="dialog" aria-expanded={isModalOpen} aria-controls="landing-auth-dialog"
+            aria-label="פתיחת הרשמה כדי לגלות את ספר השאלות והתשובות של הטירה" className="group block w-full text-right">
             <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-l from-amber-900/25 via-amber-950/20 to-[#020617]/80 p-5 md:p-6 transition-all duration-500 hover:border-amber-400/50 hover:shadow-[0_0_40px_rgba(245,158,11,0.12)]">
               {/* glow blob */}
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_50%,rgba(245,158,11,0.07),transparent_65%)] pointer-events-none" />
@@ -522,7 +558,7 @@ export default function Home() {
         {/* ══════════════════════════════════════
                     FEATURE CARDS — מה יש פה
                 ══════════════════════════════════════ */}
-        <section className="relative z-10 py-12 px-4 max-w-5xl mx-auto">
+        <section className="relative z-10 py-12 px-4 max-w-5xl mx-auto" aria-label="מה מחכה לכם בטירה">
           <div className="text-center mb-10">
             <h2 className="font-cinzel text-2xl md:text-4xl font-black text-white mb-2">מה מחכה לכם בטירה</h2>
             <p className="text-white/30 font-crimson text-lg italic">עולם שלם של קסם, קהילה ואהבה לסדרה</p>
@@ -593,7 +629,9 @@ export default function Home() {
                 badge: "חדש",
               },
             ].map(({ icon: Icon, title, desc, color, glow, badge }) => (
-              <button key={title} onClick={() => setIsModalOpen(true)}
+              <button key={title} type="button" onClick={() => setIsModalOpen(true)}
+                aria-haspopup="dialog" aria-expanded={isModalOpen} aria-controls="landing-auth-dialog"
+                aria-label={`פתיחת הרשמה כדי לגשת אל ${title}`}
                 className="feature-card group rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden text-right cursor-pointer active:scale-[0.98] transition-transform">
                 {badge && (
                   <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/20 font-cinzel text-[8px] text-amber-400 uppercase tracking-wider">
@@ -619,9 +657,10 @@ export default function Home() {
         {/* ══════════════════════════════════════
                     HOUSE CUP
                 ══════════════════════════════════════ */}
-        <section className="relative z-10 py-16 md:py-20">
+        <section className="relative z-10 py-16 md:py-20" aria-labelledby="landing-house-cup-title">
           <div className="magic-divider w-full mb-16" />
           <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <h2 id="landing-house-cup-title" className="sr-only">מצב גביע הבתים</h2>
             <HouseCupLeaderboard />
           </div>
         </section>
@@ -641,10 +680,10 @@ export default function Home() {
                 ══════════════════════════════════════ */}
         {isModalOpen && (
           <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-            <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
-            <div className="modal-enter relative w-full max-h-[90vh] overflow-y-auto custom-scrollbar rounded-[2.5rem] border border-amber-500/20 shadow-[0_0_50px_rgba(245,158,11,0.1)] bg-[#050505] p-8 md:p-10 z-10 my-auto"
-              style={{ maxWidth: '420px' }}>
-              <button onClick={() => setIsModalOpen(false)}
+            <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={() => setIsModalOpen(false)} aria-hidden="true" />
+            <div id="landing-auth-dialog" className="modal-enter relative w-full max-h-[90vh] overflow-y-auto custom-scrollbar rounded-[2.5rem] border border-amber-500/20 shadow-[0_0_50px_rgba(245,158,11,0.1)] bg-[#050505] p-8 md:p-10 z-10 my-auto"
+              role="dialog" aria-modal="true" aria-label="שערי הטירה" style={{ maxWidth: '420px' }}>
+              <button type="button" onClick={() => setIsModalOpen(false)} aria-label="סגירת חלון ההתחברות"
                 className="absolute top-6 left-6 text-white/20 hover:text-amber-500 transition-all bg-white/5 p-2 rounded-full hover:rotate-90 duration-300">
                 <X size={18} />
               </button>
@@ -661,7 +700,7 @@ export default function Home() {
                     <label className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-cinzel">דואר ינשופים</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-white/20"><Mail size={16} /></div>
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      <input id="landing-auth-email" type="email" aria-label="דואר ינשופים" value={email} onChange={(e) => setEmail(e.target.value)}
                         className="w-full bg-white/5 border border-white/10 rounded-xl pr-12 pl-4 py-3.5 outline-none focus:border-amber-500/50 transition-all font-crimson text-lg text-white placeholder-white/20"
                         placeholder="name@magic.co.il" required dir="ltr" />
                     </div>
@@ -670,13 +709,13 @@ export default function Home() {
                     <label className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-cinzel">סיסמת קסם</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-white/20"><KeyRound size={16} /></div>
-                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                      <input id="landing-auth-password" type="password" aria-label="סיסמת קסם" value={password} onChange={(e) => setPassword(e.target.value)}
                         className="w-full bg-white/5 border border-white/10 rounded-xl pr-12 pl-4 py-3.5 outline-none focus:border-amber-500/50 transition-all font-crimson text-lg text-white placeholder-white/20"
                         placeholder="••••••••" required dir="ltr" />
                     </div>
                   </div>
                   {authMessage && (
-                    <div className={`text-sm p-4 rounded-xl border font-crimson text-center ${authMessage.type === 'error' ? 'bg-red-950/30 text-red-400 border-red-500/20' : 'bg-emerald-950/30 text-emerald-400 border-emerald-500/20'}`}>
+                    <div role={authMessage.type === 'error' ? 'alert' : 'status'} aria-live="polite" className={`text-sm p-4 rounded-xl border font-crimson text-center ${authMessage.type === 'error' ? 'bg-red-950/30 text-red-400 border-red-500/20' : 'bg-emerald-950/30 text-emerald-400 border-emerald-500/20'}`}>
                       {authMessage.text}
                     </div>
                   )}
@@ -687,7 +726,7 @@ export default function Home() {
                     ) : (isLoginMode ? "התחברות" : "הרשמה לקהילה")}
                   </button>
                 </form>
-                <button onClick={() => { setIsLoginMode(!isLoginMode); setAuthMessage(null); }}
+                <button type="button" onClick={() => { setIsLoginMode(!isLoginMode); setAuthMessage(null); }}
                   className="font-crimson text-white/40 hover:text-white/80 transition-all text-sm border-b border-white/20 pb-0.5 hover:border-amber-500/50">
                   {isLoginMode ? "טרם התקבל מכתב זימון? להרשמה" : "כבר קיבלתם מכתב? להתחברות"}
                 </button>

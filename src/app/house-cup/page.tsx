@@ -3,7 +3,7 @@
 import { useState } from "react";
 import HouseHourglasses from "@/components/HouseHourglasses";
 import QuizModal from "../../components/QuizModal"; // המודל החדש שבנינו
-import { Sparkles, History, Scroll, Play, ShieldCheck, Trophy } from "lucide-react";
+import { type LucideIcon, Sparkles, History, Scroll, Play, ShieldCheck, Trophy } from "lucide-react";
 import Script from "next/script";
 import { motion } from "framer-motion";
 
@@ -31,6 +31,7 @@ export default function HouseCupPage() {
             <main
                 className="relative min-h-screen overflow-hidden bg-[#020617] pt-[220px] md:pt-[270px] pb-32"
                 dir="rtl"
+                aria-label="עמוד גביע הבתים של Lumos IL"
             >
                 {/* Background - לא נגענו */}
                 <div className="pointer-events-none absolute inset-0">
@@ -55,7 +56,7 @@ export default function HouseCupPage() {
                     style={{ maxWidth: "80rem", marginLeft: "auto", marginRight: "auto" }}
                 >
                     {/* HERO */}
-                    <header className="relative mb-20 md:mb-24 text-center">
+                    <header className="relative mb-20 md:mb-24 text-center" aria-labelledby="house-cup-page-title">
                         <div className="absolute left-1/2 top-[-90px] h-48 w-48 -translate-x-1/2 rounded-full bg-amber-400/10 blur-3xl" />
 
                         <motion.div
@@ -71,6 +72,7 @@ export default function HouseCupPage() {
                         </motion.div>
 
                         <motion.h1
+                            id="house-cup-page-title"
                             initial={{ y: 18, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.08 }}
@@ -92,8 +94,8 @@ export default function HouseCupPage() {
                             transition={{ delay: 0.22 }}
                             className="mx-auto mt-7 max-w-3xl font-crimson text-xl italic leading-relaxed text-white/60 md:text-[23px]"
                         >
-                            "מעשיכם בתוך כותלי הטירה מהדהדים בין הדפים. כל פיסת ידע, אומץ,
-                            נאמנות וחוכמה מוסיפים חול לשעון של הבית שלכם."
+                            &ldquo;מעשיכם בתוך כותלי הטירה מהדהדים בין הדפים. כל פיסת ידע, אומץ,
+                            נאמנות וחוכמה מוסיפים חול לשעון של הבית שלכם.&rdquo;
                         </motion.p>
 
                         <motion.div
@@ -145,16 +147,20 @@ export default function HouseCupPage() {
                     </section>
 
                     {/* CTA - הוחלף מ-Link ל-button שפותח את המודל */}
-                    <section className="mb-24 flex w-full flex-col items-center gap-5">
+                    <section className="mb-24 flex w-full flex-col items-center gap-5" aria-labelledby="house-cup-quiz-title">
                         <button
+                            type="button"
                             onClick={() => setIsQuizOpen(true)}
+                            aria-haspopup="dialog"
+                            aria-expanded={isQuizOpen}
+                            aria-label="פתיחת חידון הבית של גלי"
                             className="group relative flex items-center gap-6 rounded-full border border-white/10 bg-white/5 p-2 pr-8 shadow-[0_0_24px_rgba(245,158,11,0.12)] transition-all duration-500 hover:scale-[1.03] hover:border-amber-400/40 hover:bg-amber-500 hover:shadow-[0_0_60px_rgba(245,158,11,0.34)]"
                         >
                             <div className="text-right">
                                 <span className="font-assistant text-[10px] font-bold uppercase tracking-[0.28em] text-amber-500/80 transition-colors group-hover:text-amber-950/80">
                                     הנביא היומי מציג
                                 </span>
-                                <div className="mt-1 font-cinzel text-lg font-black tracking-[0.08em] text-white/90 transition-colors group-hover:text-amber-950">
+                                <div id="house-cup-quiz-title" className="mt-1 font-cinzel text-lg font-black tracking-[0.08em] text-white/90 transition-colors group-hover:text-amber-950">
                                     חידון הידע של גלי
                                 </div>
                             </div>
@@ -182,7 +188,8 @@ export default function HouseCupPage() {
                     </section>
 
                     {/* INFO CARDS */}
-                    <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                    <section className="grid grid-cols-1 gap-6 md:grid-cols-3" aria-labelledby="house-cup-info-title">
+                        <h2 id="house-cup-info-title" className="sr-only">עקרונות גביע הבתים</h2>
                         <InfoCard
                             icon={ShieldCheck}
                             title="הגינות וערכים"
@@ -216,7 +223,15 @@ export default function HouseCupPage() {
 
 // --- קומפוננטות עזר (ללא שינוי) ---
 
-function InfoCard({ icon: Icon, title, text, color, glow }: any) {
+type InfoCardProps = {
+    icon: LucideIcon;
+    title: string;
+    text: string;
+    color: string;
+    glow: string;
+};
+
+function InfoCard({ icon: Icon, title, text, color, glow }: InfoCardProps) {
     return (
         <motion.article
             initial={{ opacity: 0, y: 22 }}

@@ -486,7 +486,7 @@ export default function ForumsPage() {
         }, [isNewThreadOpen]);
 
         if (isLoading) return (
-            <div className="min-h-screen bg-[#060910] flex items-center justify-center">
+            <div className="min-h-screen bg-[#060910] flex items-center justify-center" role="status" aria-live="polite" aria-label="טוען את היכל הפורומים">
                 <Sparkles className="w-10 h-10 text-amber-500/40 animate-pulse" />
             </div>
         );
@@ -497,7 +497,7 @@ export default function ForumsPage() {
         const totalPosts = forums.reduce((a, f) => a + (f.post_count || 0), 0);
 
         return (
-            <div className="min-h-screen bg-[#060910] text-white font-assistant pt-24 pb-20" dir="rtl">
+            <main className="min-h-screen bg-[#060910] text-white font-assistant pt-24 pb-20" dir="rtl" aria-label="היכל הפורומים של Lumos IL">
                 <style>{`
                 .forums-grid-bg {
                     background-image: radial-gradient(rgba(245,158,11,0.025) 1px, transparent 1px);
@@ -603,17 +603,22 @@ export default function ForumsPage() {
                     <div className="max-w-5xl mx-auto px-4 md:px-6">
 
                         {/* breadcrumb + title */}
-                        <header className="mb-8 pt-2 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <header className="mb-8 pt-2 flex flex-col md:flex-row md:items-start justify-between gap-4" aria-labelledby="forums-page-title">
                             <div className="space-y-3">
-                                <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
+                                <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20" aria-label="ניווט לפורומים">
                                     <Link href="/" className="hover:text-amber-500 transition-colors flex items-center gap-1.5"><Home size={10} /> הוגוורטס</Link>
                                     <ChevronLeft size={10} />
                                     <span className="text-amber-500/60">היכל הפורומים</span>
                                 </nav>
-                                <h1 className="font-cinzel text-4xl md:text-5xl font-black text-white tracking-tighter">היכל הפורומים</h1>
+                                <h1 id="forums-page-title" className="font-cinzel text-4xl md:text-5xl font-black text-white tracking-tighter">היכל הפורומים</h1>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setIsNewThreadOpen(true)}
+                                aria-haspopup="dialog"
+                                aria-expanded={isNewThreadOpen}
+                                aria-controls="new-thread-dialog"
+                                aria-label="פתיחת חלון ליצירת דיון חדש בפורומים"
                                 className="mt-2 md:mt-0 self-start flex items-center gap-2 px-6 py-3 bg-gradient-to-l from-amber-600/30 to-amber-700/10 hover:from-amber-500/40 hover:to-amber-600/20 border border-amber-500/40 hover:border-amber-400 text-amber-500 hover:text-amber-300 rounded-xl font-cinzel font-black transition-all shadow-[0_0_25px_rgba(245,158,11,0.15)] hover:shadow-[0_0_35px_rgba(245,158,11,0.3)] active:scale-95 group"
                             >
                                 <Plus size={18} className="transition-transform group-hover:rotate-90" />
@@ -622,7 +627,7 @@ export default function ForumsPage() {
                         </header>
 
                         {/* stats bar */}
-                        <div className="stats-bar">
+                        <div className="stats-bar" role="region" aria-label="סטטיסטיקת פורומים">
                             <div className="stats-bar-item">
                                 <Hash size={13} className="text-amber-500/50" />
                                 <span><strong>{totalThreads.toLocaleString()}</strong> נושאים</span>
@@ -896,6 +901,7 @@ export default function ForumsPage() {
                         onClick={(e) => e.target === e.currentTarget && setIsNewThreadOpen(false)}
                     >
                         <div
+                            id="new-thread-dialog"
                             role="dialog"
                             aria-modal="true"
                             aria-labelledby="modal-title"
@@ -1107,7 +1113,7 @@ export default function ForumsPage() {
                         </div>
                     </div>
                 )}
-            </div>
+            </main>
         );
     }
 
