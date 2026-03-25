@@ -5,12 +5,19 @@ import Link from "next/link";
 import {
     BookOpen, ScrollText, Users, Store, Wand2,
     Trophy, Map, Shield, Footprints, Hourglass, MessageSquare,
-    HelpCircle, GraduationCap, Zap, ArrowRight, Bell, Swords
+    HelpCircle, GraduationCap, Swords
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
 import WhoIsOnline from "@/components/WhoIsOnline";
+import CastlePulseTeaser from "@/components/CastlePulseTeaser";
+import LiveEventTeaser from "@/components/LiveEventTeaser";
+import {
+    fetchLiveEventSettings,
+    isLiveEventVisible,
+    type LiveEventSettings,
+} from "@/lib/liveEvent";
 
 // הציטוטים הנבחרים - הכי מתאימים ללובי ולהרפתקאות
 const magicalQuotes = [
@@ -27,14 +34,13 @@ const magicalQuotes = [
 
 export default function HomePage() {
     const [userHouse, setUserHouse] = useState<string>("Unknown");
-    const [randomQuote, setRandomQuote] = useState<string>(magicalQuotes[0]);
+    const [randomQuote] = useState<string>(() => magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
     const [candles, setCandles] = useState<{ id: number; left: number; delay: number; duration: number }[]>([]);
+    const [eventConfig, setEventConfig] = useState<LiveEventSettings | null>(null);
 
     const [supabase] = useState(() => createClient());
 
     useEffect(() => {
-        setRandomQuote(magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
-
         const count = window.innerWidth < 768 ? 8 : 20;
         const generatedCandles = Array.from({ length: count }).map((_, i) => ({
             id: i,
@@ -42,9 +48,10 @@ export default function HomePage() {
             delay: Math.random() * 5,
             duration: 15 + Math.random() * 20
         }));
-        setCandles(generatedCandles);
+        const frame = window.requestAnimationFrame(() => setCandles(generatedCandles));
 
         const fetchHouse = async () => {
+            setEventConfig(await fetchLiveEventSettings(supabase));
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 const { data: profile } = await supabase
@@ -56,6 +63,10 @@ export default function HomePage() {
             }
         };
         fetchHouse();
+
+        return () => {
+            window.cancelAnimationFrame(frame);
+        };
     }, [supabase]);
 
     const getHouseStyles = (house: string) => {
@@ -69,6 +80,7 @@ export default function HomePage() {
     };
 
     const houseTheme = getHouseStyles(userHouse);
+    const showLiveEventCard = isLiveEventVisible(eventConfig);
 
     const destinations = [
         {
@@ -272,7 +284,7 @@ export default function HomePage() {
 
                     {/* באנר ה-SEO הקצר והקולע */}
                     <div className="max-w-3xl mx-auto bg-amber-950/20 border border-amber-500/10 rounded-2xl p-6 mb-8 backdrop-blur-sm">
-                        <h2 className="font-cinzel text-2xl text-amber-300/90 mb-2">ברוכ׳ הבא׳ ללומוס IL</h2>
+                        <h2 className="font-cinzel text-2xl text-amber-300/90 mb-2">הבית של קהילת הארי פוטר בישראל</h2>
                         <p className="font-crimson text-white/70 text-lg md:text-xl leading-relaxed">
                             הגעתם לפורטל המרכזי של קהילת הקוסמים של ישראל. מכאן תוכלו לנווט בין מסדרונות הטירה, לצלול אל ספריית הפאנפיקים העצומה שלנו, להתעדכן בנביא היומי או להיכנס אל חדר המועדון האישי שלכם.
                         </p>
@@ -286,6 +298,8 @@ export default function HomePage() {
                 </motion.header>
 
                 {/* תפריט ניווט תגיות סמנטי (Bento Grid) */}
+                {showLiveEventCard && <LiveEventTeaser eventConfig={eventConfig} />}
+
                 <nav aria-label="ניווט בטירה" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[180px] md:auto-rows-[210px]">
                     {destinations.map((dest, idx) => {
                         const Icon = dest.icon;
@@ -353,6 +367,7 @@ export default function HomePage() {
 
             <div className="relative z-10 mt-16 space-y-10" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
                 <WhoIsOnline />
+                <CastlePulseTeaser />
                 <HotTopicsTeaser />
             </div>
         </main>

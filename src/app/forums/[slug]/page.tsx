@@ -10,6 +10,7 @@ import {
     ChevronLeft, Pin, Lock, MessageSquare, Clock, Plus, X, Home, Sparkles, Tag, Eye, CheckCheck
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { logActivityEvent } from "@/lib/activityEvents";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
@@ -470,6 +471,17 @@ export default function ForumThreadsPage() {
             setNewThreadPinned(false);
             setNewThreadLocked(false);
             setIsNewThreadOpen(false);
+            await logActivityEvent(supabase, {
+                actorId: currentUser.id,
+                eventType: "forum_thread_created",
+                icon: "💬",
+                title: "פתח/ה שרשור חדש בפורום",
+                subtitle: newThreadTitle.trim(),
+                description: forum.name,
+                targetType: "thread",
+                targetId: threadData.id,
+                targetUrl: `/forums/thread/${threadData.id}`,
+            });
             fetchThreads();
             router.push(`/forums/thread/${threadData.id}`);
         } catch (err: any) {

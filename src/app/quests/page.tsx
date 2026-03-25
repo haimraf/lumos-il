@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { useAuth } from "@/context/AuthContext";
+import { logActivityEvent } from "@/lib/activityEvents";
+
 
 // --- מאגר שאלות טריוויה מורחב ---
 const TRIVIA_POOL = [
@@ -65,6 +67,15 @@ export default function QuestsPage() {
     }
     if (data?.success) {
       sendOwl("קצבה נאספה!", "5 גליאונים נוספו לכיסך.", "magic");
+      logActivityEvent(supabase, {
+        actorId: profile.id,
+        actorName: profile.full_name,
+        eventType: "quest_reward_claimed",
+        title: "קצבה יומית",
+        subtitle: "קיבל/ה 5 גליאונים מהקצבה היומית",
+        icon: "💰"
+      });
+
     } else {
       sendOwl("כבר אספת היום", "הקצבה תתחדש מחר בשחר.", "info");
     }
@@ -87,6 +98,16 @@ export default function QuestsPage() {
         isCorrect ? "3 נקודות קסם נוספו לבית שלך!" : `התשובה הנכונה הייתה: ${currentTrivia.a}`,
         isCorrect ? "success" : "error"
       );
+      if (isCorrect && profile) {
+        logActivityEvent(supabase, {
+          actorId: profile.id,
+          actorName: profile.full_name,
+          eventType: "quest_trivia_completed",
+          title: "מבחן לחשים",
+          subtitle: "ענה/תה נכונה על מבחן הלחשים היומי",
+          icon: "📜"
+        });
+      }
     } else {
       sendOwl("כבר ענית היום", "מבחן הלחשים יחזור מחר בשחר.", "info");
     }
@@ -107,6 +128,15 @@ export default function QuestsPage() {
     if (data?.success) {
       const typeHe = data.type === "galleons" ? "גליאונים" : "נקודות קסם";
       sendOwl("הניפלר נתפס! 🐾", `הנבל הקטן הסתיר ${data.amount} ${typeHe}!`, "magic");
+      logActivityEvent(supabase, {
+        actorId: profile.id,
+        actorName: profile.full_name,
+        eventType: "quest_niffler_found",
+        title: "ציד הניפלר",
+        subtitle: `תפס/ה את הניפלר וקיבל/ה ${data.amount} ${typeHe}`,
+        icon: "🐾"
+      });
+
     } else {
       sendOwl("הניפלר ברח", "הוא כבר תפוס להיום. יחזור מחר בשחר.", "info");
     }
@@ -127,6 +157,15 @@ export default function QuestsPage() {
     }
     if (data?.success) {
       sendOwl("הסניץ' הזהוב נתפס! ⚡", "מחפש מדהים! 5 נקודות קסם לבית שלך.", "success");
+      logActivityEvent(supabase, {
+        actorId: profile.id,
+        actorName: profile.full_name,
+        eventType: "quest_snitch_caught",
+        title: "אימון קווידיץ'",
+        subtitle: "תפס/ה את הסניץ' הזהוב",
+        icon: "⚡"
+      });
+
     } else {
       sendOwl("הסניץ' מתחבא", "כבר תפסת אותו היום. יחזור מחר לאחר שקיעה.", "info");
     }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search, ShieldAlert, ShieldX, Snowflake, UserCheck, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import type { AdminAuditInput } from "@/lib/adminAudit";
 
 const HOUSE_COLORS: Record<string, string> = {
     Gryffindor: "#ef4444",
@@ -33,7 +34,22 @@ type ModerationUser = {
     is_ghost: boolean | null;
 };
 
-export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
+type SendOwl = (
+    title: string,
+    message: string,
+    tone?: "success" | "magic" | "error" | "info" | "system",
+    isGlobal?: boolean
+) => void;
+
+type AuditEntry = Omit<AdminAuditInput, "actorId" | "actorName" | "actorRole">;
+
+export default function ModerationTab({
+    sendOwl,
+    onAudit,
+}: {
+    sendOwl: SendOwl;
+    onAudit?: (entry: AuditEntry) => void | Promise<void>;
+}) {
     const [supabase] = useState(() => createClient());
     const [searchTerm, setSearchTerm] = useState("");
     const [users, setUsers] = useState<ModerationUser[]>([]);
@@ -146,6 +162,22 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
         }
 
         sendOwl("עודכן בהצלחה", `${actionUser.full_name || actionUser.email || "המשתמש"} עודכן.`, "success");
+        void onAudit?.({
+            action:
+                actionType === "cooling"
+                    ? "set_user_cooling"
+                    : actionType === "ghost"
+                        ? "set_user_ghost"
+                        : "set_user_banned",
+            targetType: "profile",
+            targetId: actionUser.id,
+            targetLabel: actionUser.full_name || actionUser.email || null,
+            details: {
+                reason: reason.trim() || null,
+                days: actionType === "cooling" ? daysNum : null,
+                expiresAt,
+            },
+        });
         closeAction();
         void searchUsers();
     };
@@ -171,7 +203,17 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
             return;
         }
 
-        sendOwl("שוחרר", `${user.full_name || user.email || "המשתמש"} שוחרר בהצלחה.`, "success");
+        sendOwl("החסימה הוסרה", `החסימה הוסרה עבור ${user.full_name || user.email || "החשבון שנבחר"}.`, "success");
+        void onAudit?.({
+            action: "release_user_moderation",
+            targetType: "profile",
+            targetId: user.id,
+            targetLabel: user.full_name || user.email || null,
+            details: {
+                previousStatus: user.status,
+                wasGhost: Boolean(user.is_ghost),
+            },
+        });
         void searchUsers();
     };
 
@@ -186,7 +228,7 @@ export default function ModerationTab({ sendOwl }: { sendOwl: any }) {
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     onKeyDown={(event) => event.key === "Enter" && void searchUsers()}
-                    placeholder="חפש קוסם או מכשפה לפי שם או אימייל..."
+                    placeholder="חיפוש לפי שם או אימייל..."
                     className="flex-1 bg-black/40 border border-white/10 rounded-2xl p-4 outline-none focus:border-red-500/50 transition-all"
                 />
                 <button

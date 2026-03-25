@@ -1,12 +1,28 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
+import {
+  fetchLiveEventCatalog,
+  getLiveEventCatalogStatus,
+  getLiveEventHref,
+} from "@/lib/liveEvent";
 
 const BASE = "https://lumos-il.co.il";
+
+type ThreadSitemapRow = {
+  id: string;
+  updated_at: string | null;
+  forums: { slug: string | null }[] | { slug: string | null } | null;
+};
+
+type NewsSitemapRow = {
+  id: string;
+  created_at: string | null;
+};
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();
 
-  const [{ data: forums }, { data: threads }, { data: newsArticles }] = await Promise.all([
+  const [{ data: forums }, { data: threads }, { data: newsArticles }, liveEvents] = await Promise.all([
     supabase.from("forums").select("slug, updated_at"),
     supabase
       .from("threads")
@@ -18,6 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("id, created_at")
       .order("created_at", { ascending: false })
       .limit(200),
+    fetchLiveEventCatalog(supabase),
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -38,6 +55,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/rules`,              lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
   ];
 
+  const eventRoutes: MetadataRoute.Sitemap = (liveEvents || [])
+    .filter((event) => {
+      const status = getLiveEventCatalogStatus(event);
+      return status !== "draft" && status !== "archived";
+    })
+    .map((event) => {
+      const status = getLiveEventCatalogStatus(event);
+      const lastModifiedValue = event.updated_at || event.created_at;
+
+      return {
+        url: `${BASE}${getLiveEventHref(event)}`,
+        lastModified: lastModifiedValue ? new Date(lastModifiedValue) : new Date(),
+        changeFrequency: status === "live" || status === "upcoming" ? "daily" : "monthly",
+        priority: status === "live" || status === "upcoming" ? 0.88 : 0.62,
+      };
+    });
+
   const forumRoutes: MetadataRoute.Sitemap = (forums || []).map(f => ({
     url: `${BASE}/forums/${f.slug}`,
     lastModified: f.updated_at ? new Date(f.updated_at) : new Date(),
@@ -45,19 +79,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  const threadRoutes: MetadataRoute.Sitemap = (threads || []).map((t: any) => ({
-    url: `${BASE}/forums/${t.forums?.slug}/${t.id}`,
+  const threadRoutes: MetadataRoute.Sitemap = ((threads || []) as ThreadSitemapRow[]).map((t) => {
+    const forumSlug = Array.isArray(t.forums) ? t.forums[0]?.slug : t.forums?.slug;
+
+    return {
+    url: `${BASE}/forums/${forumSlug}/${t.id}`,
     lastModified: t.updated_at ? new Date(t.updated_at) : new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.6,
-  })).filter((r: any) => !r.url.includes("undefined"));
+  }}).filter((route) => !route.url.includes("undefined"));
 
-  const newsRoutes: MetadataRoute.Sitemap = (newsArticles || []).map((n: any) => ({
+  const newsRoutes: MetadataRoute.Sitemap = ((newsArticles || []) as NewsSitemapRow[]).map((n) => ({
     url: `${BASE}/news?article=${n.id}`,
     lastModified: n.created_at ? new Date(n.created_at) : new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.65,
   }));
 
-  return [...staticRoutes, ...forumRoutes, ...threadRoutes, ...newsRoutes];
+  return [...staticRoutes, ...eventRoutes, ...forumRoutes, ...threadRoutes, ...newsRoutes];
 }

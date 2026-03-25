@@ -9,6 +9,7 @@ import {
     ShieldCheck, Zap, Users
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { logActivityEvent } from "@/lib/activityEvents";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from 'next/dynamic';
@@ -75,6 +76,17 @@ export default function CreateStoryPage() {
             sendOwl("הדיו נשפך", error.message, "error");
         } else {
             sendOwl("נרשם בהצלחה!", "הסיפור שלך קיבל מקום של כבוד בספרייה.", "success");
+            await logActivityEvent(supabase, {
+                actorId: user.id,
+                eventType: "story_published",
+                icon: "📚",
+                title: "פרסמ/ה סיפור חדש בספרייה",
+                subtitle: formData.title,
+                description: formData.description.trim() || null,
+                targetType: "story",
+                targetId: data.id,
+                targetUrl: `/library/${data.id}`,
+            });
             router.push(`/library/${data.id}`);
         }
         setIsSubmitting(false);

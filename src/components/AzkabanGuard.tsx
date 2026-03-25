@@ -5,8 +5,8 @@ import { createClient } from "@/utils/supabase/client";
 import { Skull, ShieldAlert } from "lucide-react";
 import { hasStickyMarker } from "@/utils/magic-fingerprint";
 
-const LEGACY_BANNED_ROLE = "׳׳¡׳™׳¨ ׳׳–׳§׳‘׳׳";
-const STAFF_ROLES = ['׳׳™׳™׳¡׳“', '׳¨׳׳© ׳”׳•׳’׳•׳•׳¨׳˜׳¡', '׳©׳•׳׳¨ ׳”׳˜׳™׳¨׳”', '׳₪׳¨׳•׳₪׳¡׳•׳¨', '׳¦׳•׳•׳× Lumos', '׳׳ ׳”׳', '׳׳ ׳—׳”', '׳׳™׳™׳¡׳“׳×', '׳׳ ׳”׳׳×'];
+const LEGACY_BANNED_ROLE = "אסיר אזקבאן";
+const STAFF_ROLES = ["מייסד", "ראש הוגוורטס", "שומר הטירה", "פרופסור", "צוות Lumos", "מנהל", "מנחה", "מייסדת", "מנהלת"];
 
 export default function AzkabanGuard({ children }: { children: React.ReactNode }) {
     const [supabase] = useState(() => createClient());
@@ -43,10 +43,14 @@ export default function AzkabanGuard({ children }: { children: React.ReactNode }
         };
 
         const checkAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+
             if (hasStickyMarker()) {
                 setIsFingerprintBanned(true);
             }
+
             if (session?.user && !isBanned) {
                 await enforceAzkaban(session.user.id);
             }
@@ -54,7 +58,9 @@ export default function AzkabanGuard({ children }: { children: React.ReactNode }
 
         void checkAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
             void (async () => {
                 if (hasStickyMarker()) {
                     setIsFingerprintBanned(true);
@@ -83,15 +89,15 @@ export default function AzkabanGuard({ children }: { children: React.ReactNode }
                     <Skull size={80} className="text-red-900/60 mb-6 animate-pulse" />
                 )}
                 <h1 className="font-cinzel text-4xl md:text-6xl font-black text-red-600 mb-4 tracking-widest drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
-                    {isFingerprintBanned ? "׳’׳™׳©׳” ׳—׳¡׳•׳׳”" : "׳ ׳©׳׳—׳× ׳׳׳–׳§׳‘׳׳"}
+                    {isFingerprintBanned ? "גישה חסומה" : "צו אזקבאן פעיל"}
                 </h1>
                 <p className="font-crimson text-white/50 text-lg md:text-xl max-w-lg leading-relaxed italic border-t border-red-900/30 pt-6">
                     {isFingerprintBanned
-                        ? "׳”׳׳›׳©׳™׳¨ ׳©׳׳ ׳׳–׳•׳”׳” ׳›׳§׳©׳•׳¨ ׳׳₪׳¢׳™׳׳•׳× ׳¢׳•׳™׳ ׳× ׳‘׳˜׳™׳¨׳”. ׳”׳’׳™׳©׳” ׳ ׳—׳¡׳׳” ׳׳¦׳׳™׳×׳•׳× ׳¢׳ ׳™׳“׳™ ׳׳©׳¨׳“ ׳”׳§׳¡׳׳™׳."
-                        : "׳—׳©׳‘׳•׳ ׳ ׳ ׳—׳¡׳ ׳׳¦׳׳™׳×׳•׳× ׳•׳”׳•׳—׳¨׳ ׳׳׳¢׳¨׳›׳× ׳”׳•׳’׳•׳•׳¨׳˜׳¡ ׳¢׳§׳‘ ׳”׳₪׳¨׳” ׳—׳׳•׳¨׳” ׳©׳ ׳—׳•׳§׳™ ׳”׳§׳¡׳. ׳©׳¨׳‘׳™׳˜׳ ׳ ׳©׳‘׳¨."}
+                        ? "המכשיר הזה זוהה כקשור לפעילות עוינת בטירה. משרד הקסמים חסם את הגישה לצמיתות."
+                        : "צו הרחקה קבוע הוטל על חשבון זה בעקבות הפרה חמורה של חוקי הקסם. הגישה למסדרונות הטירה, לינשופים ולכשפים נחסמה."}
                 </p>
                 <div className="mt-12 text-[10px] font-cinzel text-white/20 uppercase tracking-widest">
-                    ׳׳©׳¨׳“ ׳”׳§׳¡׳׳™׳ ג€” ׳”׳׳—׳׳§׳” ׳׳׳›׳™׳₪׳× ׳—׳•׳§׳™ ׳”׳§׳¡׳
+                    משרד הקסמים - המחלקה לאכיפת חוקי הקסם
                 </div>
             </div>
         );

@@ -11,6 +11,7 @@ import {
   Volume2, VolumeX, Sparkles, Clock, User, ChevronRight
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { logActivityEvent } from "@/lib/activityEvents";
 import Link from "next/link";
 
 interface NewsItem {
@@ -517,6 +518,18 @@ function PollComponent({ newsId }: { newsId: string }) {
     const { error } = await supabase.from("poll_votes").insert([{ poll_id: poll.id, user_id: user.id, option_id: selectedOption }]);
     if (error) { sendOwl("תקלת קסם", "חלה שגיאה בשמירת ההצבעה.", "error"); setIsSubmitting(false); return; }
     await supabase.rpc("increment_vote", { p_option_id: selectedOption });
+    
+    // Log activity for Passover points
+    void logActivityEvent(supabase, {
+      actorId: user.id,
+      eventType: "news_poll_voted",
+      icon: "📊",
+      title: "הצביע/ה בסקר הנביא",
+      subtitle: poll.question || "סקר הנביא היומי",
+      targetType: "poll",
+      targetId: poll.id
+    });
+
     await fetchPollData();
     setHasVoted(true);
     setIsSubmitting(false);
@@ -705,6 +718,18 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     setNewComment("");
     fetchData();
     setCooldownRemaining(COOLDOWN_MS);
+    
+    // Log activity for Passover points
+    void logActivityEvent(supabase, {
+      actorId: user.id,
+      eventType: "news_comment_created",
+      icon: "📜",
+      title: "הגיב/ה לכתבה בנביא",
+      subtitle: trimmed.slice(0, 40) + "...",
+      targetType: "news",
+      targetId: newsId
+    });
+
     sendOwl(
       "התגובה נשלחה 🦉",
       "תגובתך פורסמה! הבית שלך קיבל +1 נקודה ו-+1 גליאון זהב עבור ההשתתפות.",

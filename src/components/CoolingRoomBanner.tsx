@@ -1,123 +1,111 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Snowflake, Clock, ChevronDown, ChevronUp, MessageSquare, BookOpen, LayoutGrid } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 const RESTRICTED_AREAS = [
-    { icon: MessageSquare, label: "הנביא היומי — תגובות" },
-    { icon: BookOpen, label: "ספרייה — תגובות לפרקים" },
-    { icon: LayoutGrid, label: "מסדרונות הטירה — פוסטים" },
+    { icon: MessageSquare, label: "הנביא היומי - תגובות" },
+    { icon: BookOpen, label: "הספרייה - תגובות לפרקים" },
+    { icon: LayoutGrid, label: "הפורומים - פוסטים" },
 ];
 
 export default function CoolingRoomBanner() {
     const { profile, refreshProfile } = useAuth();
     const [supabase] = useState(() => createClient());
-    const [expiresAt, setExpiresAt] = useState<Date | null>(null);
-    const [banReason, setBanReason] = useState<string>("");
-    const [timeLeft, setTimeLeft] = useState<string>("");
-    const [visible, setVisible] = useState(false);
+    const [now, setNow] = useState<number | null>(null);
     const [expanded, setExpanded] = useState(false);
+    const refreshRequestedRef = useRef(false);
+    const isCooling = profile?.status === "cooling" && Boolean(profile?.ban_expires_at);
+    const banReason = profile?.ban_reason || "הפרת כללי הטירה";
+    const expiryTime = isCooling && profile?.ban_expires_at ? new Date(profile.ban_expires_at).getTime() : null;
+
+    const timeLeft = useMemo(() => {
+        if (!expiryTime || now === null) return "";
+
+        const diff = expiryTime - now;
+        if (diff <= 0) return "";
+
+        const hours = Math.floor(diff / 3_600_000);
+        const minutes = Math.floor((diff % 3_600_000) / 60_000);
+        const seconds = Math.floor((diff % 60_000) / 1_000);
+
+        return hours > 0
+            ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+            : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }, [expiryTime, now]);
 
     useEffect(() => {
-        if (profile?.status === 'cooling' && profile?.ban_expires_at) {
-            const expiry = new Date(profile.ban_expires_at);
-            if (expiry > new Date()) {
-                setExpiresAt(expiry);
-                setBanReason(profile.ban_reason || "הפרת כללי הטירה");
-                setVisible(true);
-            } else {
-                setVisible(false);
-                setExpiresAt(null);
-                setTimeLeft("");
-                void refreshProfile();
-            }
-        } else {
-            setVisible(false);
-            setExpiresAt(null);
-            setTimeLeft("");
+        if (!isCooling || !expiryTime) {
+            refreshRequestedRef.current = false;
+            return;
         }
-    }, [profile, refreshProfile]);
+
+        const interval = window.setInterval(() => {
+            setNow(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [expiryTime, isCooling]);
 
     useEffect(() => {
-        if (!expiresAt) return;
+        if (!isCooling || !expiryTime || now === null) {
+            refreshRequestedRef.current = false;
+            return;
+        }
 
-        const update = () => {
-            const diff = expiresAt.getTime() - Date.now();
-            if (diff <= 0) {
-                setVisible(false);
-                setExpiresAt(null);
-                setTimeLeft("");
-                void refreshProfile();
-                return;
-            }
+        if (now >= expiryTime && !refreshRequestedRef.current) {
+            refreshRequestedRef.current = true;
+            void refreshProfile();
+            return;
+        }
 
-            const hours = Math.floor(diff / 3600000);
-            const minutes = Math.floor((diff % 3600000) / 60000);
-            const seconds = Math.floor((diff % 60000) / 1000);
-
-            setTimeLeft(hours > 0
-                ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-                : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-            );
-        };
-
-        update();
-        const interval = setInterval(update, 1000);
-        return () => clearInterval(interval);
-    }, [expiresAt, refreshProfile]);
+        if (now < expiryTime) {
+            refreshRequestedRef.current = false;
+        }
+    }, [expiryTime, isCooling, now, refreshProfile]);
 
     useEffect(() => {
         if (!profile?.id) return;
 
-        const channel = supabase.channel(`cooling-banner-${profile.id}`)
-            .on('postgres_changes', {
-                event: 'UPDATE', schema: 'public', table: 'profiles',
-                filter: `id=eq.${profile.id}`
-            }, (payload) => {
-                if (payload.new.status === 'cooling' && payload.new.ban_expires_at) {
-                    const expiry = new Date(payload.new.ban_expires_at);
-                    setExpiresAt(expiry);
-                    setBanReason(payload.new.ban_reason || "הפרת כללי הטירה");
-                    setVisible(true);
-                    if (expiry <= new Date()) {
-                        setVisible(false);
-                        setExpiresAt(null);
-                        setTimeLeft("");
-                        void refreshProfile();
-                    }
-                } else {
-                    setVisible(false);
-                    setExpiresAt(null);
-                    setTimeLeft("");
+        const channel = supabase
+            .channel(`cooling-banner-${profile.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "profiles",
+                    filter: `id=eq.${profile.id}`,
+                },
+                () => {
+                    void refreshProfile();
                 }
-            })
+            )
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [profile?.id, refreshProfile, supabase]);
 
     return (
         <AnimatePresence>
-            {visible && timeLeft && (
+            {isCooling && timeLeft && (
                 <motion.div
                     initial={{ opacity: 0, x: 40, scale: 0.9 }}
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: 40, scale: 0.9 }}
                     transition={{ duration: 0.4, ease: "easeOut" }}
-                    // ✅ ימין + גבוה יותר
-                    style={{ position: 'fixed', bottom: '14rem', right: '1.5rem', maxWidth: '290px', zIndex: 90000 }}
-                    // ✅ נגישות
+                    style={{ position: "fixed", bottom: "14rem", right: "1.5rem", maxWidth: "290px", zIndex: 90000 }}
                     role="alert"
                     aria-live="polite"
                     aria-label={`לחש השתקה פעיל. הצינון יסתיים בעוד ${timeLeft}`}
                 >
                     <div className="bg-[#080d1e]/95 backdrop-blur-xl border border-blue-500/25 rounded-3xl shadow-[0_0_50px_rgba(59,130,246,0.12)] overflow-hidden" dir="rtl">
-                        {/* כותרת */}
                         <div className="px-5 pt-5 pb-4 flex items-center gap-4">
-                            {/* אייקון פועם */}
                             <div className="relative shrink-0" aria-hidden="true">
                                 <div className="absolute inset-0 rounded-2xl bg-blue-500/20 animate-ping opacity-40" />
                                 <div className="relative w-11 h-11 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center">
@@ -130,20 +118,15 @@ export default function CoolingRoomBanner() {
                                     לחש השתקה פעיל
                                 </p>
                                 <div className="flex items-center gap-2 justify-end">
-                                    <span
-                                        className="font-cinzel font-black text-xl text-white tabular-nums"
-                                        aria-label={`זמן נותר: ${timeLeft}`}
-                                        aria-live="off"
-                                    >
+                                    <span className="font-cinzel font-black text-xl text-white tabular-nums" aria-label={`זמן נותר: ${timeLeft}`} aria-live="off">
                                         {timeLeft}
                                     </span>
                                     <Clock size={12} className="text-blue-400/50" aria-hidden="true" />
                                 </div>
                             </div>
 
-                            {/* כפתור הרחבה */}
                             <button
-                                onClick={() => setExpanded(p => !p)}
+                                onClick={() => setExpanded((previous) => !previous)}
                                 className="shrink-0 w-7 h-7 rounded-full bg-white/5 hover:bg-blue-500/20 flex items-center justify-center text-white/30 hover:text-blue-400 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-1 focus:ring-offset-transparent"
                                 aria-expanded={expanded}
                                 aria-controls="cooling-details"
@@ -153,48 +136,37 @@ export default function CoolingRoomBanner() {
                             </button>
                         </div>
 
-                        {/* פס ויזואלי */}
                         <div className="h-px mx-5 bg-blue-500/10" aria-hidden="true">
                             <motion.div
                                 className="h-full bg-gradient-to-r from-blue-500/60 to-blue-400/20"
                                 animate={{ scaleX: [1, 0.95, 1] }}
                                 transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                                style={{ transformOrigin: 'right' }}
+                                style={{ transformOrigin: "right" }}
                             />
                         </div>
 
-                        {/* פרטים מורחבים */}
                         <AnimatePresence>
                             {expanded && (
                                 <motion.div
                                     id="cooling-details"
                                     initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
+                                    animate={{ height: "auto", opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
                                     transition={{ duration: 0.25 }}
                                     className="overflow-hidden"
                                 >
                                     <div className="px-5 pt-4 pb-5 space-y-4">
-
-                                        {/* סיבה */}
                                         <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4 space-y-1 text-right">
                                             <p className="text-[9px] text-blue-400/60 uppercase tracking-widest font-black">סיבת ההשתקה</p>
-                                            <p className="font-assistant text-sm text-white/65 leading-snug">
-                                                {banReason}
-                                            </p>
+                                            <p className="font-assistant text-sm text-white/65 leading-snug">{banReason}</p>
                                         </div>
 
-                                        {/* אזורים חסומים */}
                                         <div className="space-y-2" role="list" aria-label="אזורים חסומים">
                                             <p className="w-full text-[9px] text-white/20 uppercase tracking-widest font-black text-right">
-                                                אינך יכול להגיב ב:
+                                                הגישה לתגובות חסומה ב:
                                             </p>
                                             {RESTRICTED_AREAS.map(({ icon: Icon, label }) => (
-                                                <div
-                                                    key={label}
-                                                    className="flex items-center gap-2.5 flex-row-reverse justify-end"
-                                                    role="listitem"
-                                                >
+                                                <div key={label} className="flex items-center gap-2.5 flex-row-reverse justify-end" role="listitem">
                                                     <span className="font-assistant text-xs text-white/45">{label}</span>
                                                     <div className="w-6 h-6 rounded-lg bg-blue-500/8 flex items-center justify-center shrink-0" aria-hidden="true">
                                                         <Icon size={12} className="text-blue-400/50" />
@@ -204,7 +176,7 @@ export default function CoolingRoomBanner() {
                                         </div>
 
                                         <p className="text-[10px] text-blue-400/40 italic font-assistant leading-relaxed text-right border-t border-white/5 pt-3">
-                                            לאחר סיום הצינון תוכל לחזור לפעילות מלאה בטירה.
+                                            עם סיום הצינון, הגישה המלאה לטירה תחזור.
                                         </p>
                                     </div>
                                 </motion.div>

@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { BookOpen, Wand2, ChevronRight, PenTool, Hash, AlertCircle } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { logActivityEvent } from "@/lib/activityEvents";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import dynamic from 'next/dynamic';
@@ -70,15 +71,28 @@ export default function AddChapterPage() {
             return;
         }
 
-        const { error } = await supabase
+        const { data: chapterData, error } = await supabase
             .from('chapters')
-            .insert([{ story_id: id, title: formData.title, content: formData.content, order_index: nextOrderIndex }]);
+            .insert([{ story_id: id, title: formData.title, content: formData.content, order_index: nextOrderIndex }])
+            .select('id')
+            .single();
 
         if (error) {
             sendOwl("תקלה בלחש החתימה", error.message, "error");
         } else {
             setHasUnsavedChanges(false);
             sendOwl("הפרק נחתם!", `דבריך נרשמו בהצלחה כפרק ${nextOrderIndex}.`, "success");
+            await logActivityEvent(supabase, {
+                actorId: user.id,
+                eventType: "chapter_published",
+                icon: "🪶",
+                title: "הוסיף/ה פרק חדש לסיפור",
+                subtitle: formData.title,
+                description: story?.title || null,
+                targetType: "chapter",
+                targetId: chapterData?.id || null,
+                targetUrl: `/library/${id}/${nextOrderIndex}`,
+            });
             router.push(`/library/${id}`);
         }
         setIsSubmitting(false);

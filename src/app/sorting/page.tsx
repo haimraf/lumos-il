@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { useAuth } from "@/context/AuthContext";
+import { logActivityEvent } from "@/lib/activityEvents";
 
 /**
  * LUMOS IL - SORTING CEREMONY V3
@@ -284,7 +285,18 @@ export default function SortingPage() {
             magic_traits: magicTraits,
           }).eq('id', userId);
           if (error) throw error;
-          sendOwl("המיון הושלם!", `ברוכ׳ הבא׳ לבית ${primary.name}. 100 גליאונים הוענקו לך.`, "success");
+          sendOwl("המיון הושלם!", `שערי בית ${primary.name} נפתחו, ו-100 גליאונים נוספו למאזן.`, "success");
+          await logActivityEvent(supabase, {
+            actorId: userId,
+            eventType: 'house_sorted',
+            icon: primary.emoji,
+            title: `שובצ/ה לבית ${primary.name}`,
+            subtitle: secondary ? `כמעט ${secondary.name}` : null,
+            description: '100 גליאונים הוענקו בטקס המיון',
+            targetType: 'profile',
+            targetId: userId,
+            targetUrl: '/dashboard',
+          });
           refreshProfile();
         } catch (e) {
           console.error("Sorting DB Error:", e);

@@ -11,6 +11,7 @@ import {
     EyeOff, AlertTriangle, Loader2, Mars, Venus, Eye, Timer, Lock, MessageSquare, Pin
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import { logActivityEvent } from "@/lib/activityEvents";
 import { enrichContent } from "@/utils/enrichContent";
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false }) as any;
@@ -610,6 +611,17 @@ export default function ThreadViewPage() {
                 pendingQuotes.current = [];
                 pendingMentions.current = [];
 
+                await logActivityEvent(supabase, {
+                    actorId: currentUser.id,
+                    eventType: "forum_reply_created",
+                    icon: "🦉",
+                    title: "הגיב/ה בדיון בפורום",
+                    subtitle: thread?.title || null,
+                    description: stripped.slice(0, 140) || null,
+                    targetType: "thread",
+                    targetId: threadId,
+                    targetUrl: `/forums/thread/${threadId}`,
+                });
                 setReplyContent("");
                 fetchData(false);
             }

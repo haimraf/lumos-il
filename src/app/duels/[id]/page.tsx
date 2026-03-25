@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { logActivityEvent } from "@/lib/activityEvents";
 import { Loader2, Swords, Shield } from "lucide-react";
 
 /* ── Constants ── */
@@ -375,6 +376,21 @@ export default function DuelPage() {
             await supabase.rpc("admin_add_reward", { target_user_id: duelState.challenger_id, points_to_add: 0, galleons_to_add: 25 });
             await supabase.rpc("admin_add_reward", { target_user_id: duelState.opponent_id, points_to_add: 0, galleons_to_add: 25 });
         }
+
+        await logActivityEvent(supabase, {
+            actorId: winnerId || duelState.challenger_id,
+            eventType: isTie ? "duel_tied" : "arena_duel_completed",
+            icon: isTie ? "🤝" : "⚔️",
+            title: isTie ? "סיים/ה דו-קרב בתיקו" : "ניצח/ה בדו-קרב בזירה",
+            subtitle:
+                challenger?.full_name && opponent?.full_name
+                    ? `${challenger.full_name} נגד ${opponent.full_name}`
+                    : null,
+            description: isTie ? "שני הצדדים קיבלו 25 גליאונים" : "הקרב הוכרע והפרסים נשלחו",
+            targetType: "duel",
+            targetId: id,
+            targetUrl: `/duels/${id}`,
+        });
 
         // 10% rare card for winner
         if (myId === winnerId && Math.random() < 0.1) {

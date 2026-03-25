@@ -139,13 +139,13 @@ const ANIMALS: Record<string, {
 const QUESTIONS = [
     {
         id: 1,
-        text: "חיים הם כמו קרב — איזה קוסם/ת תהיה/י בשדה הקרב?",
+        text: "חיים הם כמו קרב - איזה סגנון קסם יוביל את הזירה?",
         icon: "⚔️",
         options: [
-            { text: "הראשון/ה לקפוץ קדימה — גם אם אין תוכנית", animals: ["stag", "lion", "dragon"] },
-            { text: "זה שמגן על החלשים מאחוריי", animals: ["doe", "bear", "boar"] },
-            { text: "זה שמוצא את הדרך החכמה — לא הישירה", animals: ["fox", "serpent", "owl"] },
-            { text: "זה שמחבר את כולם ומייצר אחדות", animals: ["dolphin", "otter", "hare"] },
+            { text: "זינוק קדימה גם בלי תוכנית מלאה", animals: ["stag", "lion", "dragon"] },
+            { text: "הגנה על החלשים מתוך קו אחורי יציב", animals: ["doe", "bear", "boar"] },
+            { text: "בחירת הדרך החכמה במקום הישירה", animals: ["fox", "serpent", "owl"] },
+            { text: "איחוד הכוחות ויצירת אחדות סביב המטרה", animals: ["dolphin", "otter", "hare"] },
         ]
     },
     {

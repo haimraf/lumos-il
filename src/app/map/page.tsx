@@ -27,6 +27,20 @@ const HOUSE_COLORS: Record<string, string> = {
     Guest: "#8b6914",
 };
 
+type ActivityItem = {
+    id: string;
+    type: "post" | "join" | "thread";
+    icon: string;
+    actorName: string;
+    description: string;
+    profileId: string | null;
+    house: string | null;
+    time: string;
+    sub: string | null;
+    threadId: string | null;
+    group_color?: string | null;
+};
+
 const ZONES = [
     { key: "ברחבת הכניסה", icon: "🏰", label: "רחבת הכניסה", path: "/home" },
     { key: "בסמטת דיאגון", icon: "🛍️", label: "סמטת דיאגון", path: "/shop" },
@@ -82,7 +96,7 @@ export default function MaraudersMasterMap() {
     const [supabase] = useState(() => createClient());
     const [zones, setZones] = useState<Record<string, number>>({});
     const [totalOnline, setTotal] = useState(0);
-    const [activity, setActivity] = useState<any[]>([]);
+    const [activity, setActivity] = useState<ActivityItem[]>([]);
     const [steps, setSteps] = useState<any[]>([]);
     const [guestCount, setGuestCount] = useState(0);
     const [topHouse, setTopHouse] = useState<string>("Guest");
@@ -149,7 +163,7 @@ export default function MaraudersMasterMap() {
 
     /* ── Fetch recent activity ── */
     const fetchActivity = useCallback(async () => {
-        const results: any[] = [];
+        const results: ActivityItem[] = [];
 
         // פוסטים אחרונים בפורום
         const { data: posts } = await supabase
@@ -161,13 +175,15 @@ export default function MaraudersMasterMap() {
         posts?.forEach((p: any) => {
             const prof = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
             const thread = Array.isArray(p.threads) ? p.threads[0] : p.threads;
+            const authorName = prof?.full_name || prof?.username || "קוסמ׳";
             results.push({
                 id: "post_" + p.id,
                 type: "post",
                 icon: "📜",
-                text: `${prof?.full_name || prof?.username || "קוסמ׳"} כתב׳ בפורום`,
+                actorName: authorName,
+                description: "הודעה חדשה בפורום",
                 profileId: prof?.id || null,
-                house: prof?.house,
+                house: prof?.house || null,
                 time: p.created_at,
                 sub: thread?.title || null,
                 threadId: thread?.id || null,
@@ -184,14 +200,18 @@ export default function MaraudersMasterMap() {
             .limit(3);
 
         newMembers?.forEach((m: any) => {
+            const memberName = m.full_name || m.username || "קוסמ׳";
             results.push({
                 id: "member_" + m.id,
                 profileId: m.id,
                 type: "join",
                 icon: "✨",
-                text: `${m.full_name || m.username || "קוסמ׳"} הצטרפ׳ לבית ${HOUSE_NAMES[m.house] || m.house}`,
-                house: m.house,
+                actorName: memberName,
+                description: `מיון לבית ${HOUSE_NAMES[m.house] || m.house}`,
+                house: m.house || null,
                 time: m.created_at,
+                sub: null,
+                threadId: null,
             });
         });
 
@@ -204,14 +224,16 @@ export default function MaraudersMasterMap() {
 
         threads?.forEach((t: any) => {
             const prof = Array.isArray(t.profiles) ? t.profiles[0] : t.profiles;
+            const authorName = prof?.full_name || prof?.username || "קוסמ׳";
             results.push({
                 id: "thread_" + t.id,
                 threadId: t.id,
                 profileId: prof?.id || null,
                 type: "thread",
                 icon: "🔮",
-                text: `${prof?.full_name || prof?.username || "קוסמ׳"} פתח׳ שרשור חדש`,
-                house: prof?.house,
+                actorName: authorName,
+                description: "שרשור חדש בפורום",
+                house: prof?.house || null,
                 time: t.created_at,
                 sub: t.title,
             });
@@ -233,9 +255,9 @@ export default function MaraudersMasterMap() {
             }
         }
 
-        const enriched = results.map(r => ({
-            ...r,
-            group_color: r.profileId ? (actGrpMap[r.profileId] || null) : null,
+        const enriched = results.map((result) => ({
+            ...result,
+            group_color: result.profileId ? (actGrpMap[result.profileId] || null) : null,
         }));
 
         enriched.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -675,8 +697,6 @@ export default function MaraudersMasterMap() {
                                         {activity.map(item => {
                                             const color = item.group_color || (item.house ? HOUSE_COLORS[item.house] : HOUSE_COLORS.Guest);
                                             const threadHref = item.threadId ? `/forums/thread/${item.threadId}` : null;
-                                            const firstName = item.text.split(" ")[0];
-                                            const restText = item.text.split(" ").slice(1).join(" ");
                                             return (
                                                 <div key={item.id} className="mm-activity">
                                                     <div className="mm-activity-icon">{item.icon}</div>
@@ -686,12 +706,12 @@ export default function MaraudersMasterMap() {
                                                                 <Link href={`/wizard/${item.profileId}`}
                                                                     style={{ color, fontWeight: "bold", textDecoration: "none" }}
                                                                     className="hover:underline">
-                                                                    {firstName}
+                                                                    {item.actorName}
                                                                 </Link>
                                                             ) : (
-                                                                <span style={{ color, fontWeight: "bold" }}>{firstName}</span>
+                                                                <span style={{ color, fontWeight: "bold" }}>{item.actorName}</span>
                                                             )}
-                                                            {" "}{restText}
+                                                            {" • "}{item.description}
                                                         </div>
                                                         {item.sub && (
                                                             threadHref ? (

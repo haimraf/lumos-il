@@ -233,7 +233,7 @@ function DashboardContent() {
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` }, () => refreshProfile())
         .subscribe();
       if (!hasAnnounced.current && profile) {
-        sendOwl("ברוכ׳ הבא׳", `שמחים לראותך שוב בחדר המועדון.`, "info");
+        sendOwl("חזרה נעימה לטירה", "שמחים לראותך שוב בחדר המועדון.", "info");
         hasAnnounced.current = true;
       }
     }
@@ -497,7 +497,7 @@ function DashboardContent() {
                       <span className="h-[1px] w-10 bg-amber-500" />
                     </div>
                     <div className="space-y-8">
-                      <h2 className="font-cinzel text-xl text-white/40 tracking-widest">ברוכ׳ הבא׳ לבית</h2>
+                      <h2 className="font-cinzel text-xl text-white/40 tracking-widest">חדר המועדון של הבית</h2>
                       <h1 className={`font-cinzel text-4xl sm:text-5xl md:text-[7rem] font-black tracking-tighter leading-[1.1] ${theme.accentText} ${theme.glowColor}`}>
                         {theme.nameHe}
                       </h1>

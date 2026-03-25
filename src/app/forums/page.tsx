@@ -83,7 +83,7 @@ const HOUSE_POINTS_META: Record<string, { icon: any; color: string; glow: string
     Hufflepuff: { icon: Leaf, color: "#fbbf24", glow: "rgba(251,191,36,0.4)", nameHe: "הפלפאף" },
 };
 const HOUSE_ORDER = ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"] as const;
-const LEGACY_BANNED_ROLE = "׳׳¡׳™׳¨ ׳׳–׳§׳‘׳׳";
+const LEGACY_BANNED_ROLE = "אסיר אזקבאן";
 
 const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
 
@@ -369,7 +369,7 @@ export default function ForumsPage() {
 
             if (profile?.status === 'banned') {
                 setIsSubmitting(false);
-                alert("׳׳×׳” ׳›׳׳•׳ ׳‘׳׳–׳§׳‘׳׳ ׳•׳׳™׳ ׳׳ ׳’׳™׳©׳” ׳׳”׳˜׳™׳ ׳›׳©׳₪׳™׳ ׳׳• ׳׳©׳׳•׳— ׳™׳ ׳©׳•׳₪׳™׳ ׳‘׳§׳”׳™׳׳”.");
+                alert("צו אזקבאן פעיל על החשבון הזה, ולכן אין גישה להטיל כשפים או לשלוח ינשופים בקהילה.");
                 return;
             }
 
@@ -380,7 +380,7 @@ export default function ForumsPage() {
             // 🛑 בדיקת אזקבאן חמורה!
             if (profile?.role === 'אסיר אזקבאן') {
                 setIsSubmitting(false);
-                alert("אתה כלוא באזקבאן ואין לך גישה להטיל כשפים או לשלוח ינשופים בקהילה.");
+                alert("צו אזקבאן פעיל על החשבון הזה, ולכן אין גישה להטיל כשפים או לשלוח ינשופים בקהילה.");
                 return;
             }
 

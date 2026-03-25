@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 interface UIContextType {
@@ -10,63 +10,77 @@ interface UIContextType {
   toggleMute: () => void;
   banReason: string | null;
   banExpiresAt: string | null;
-  banType: 'banned' | 'cooling' | null;
+  banType: "banned" | "cooling" | null;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const date = new Date(iso);
+  return date.toLocaleString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const { profile, refreshProfile } = useAuth();
-  const [isMuted, setIsMuted] = useState<boolean>(true);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isMuted, setIsMuted] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("lumos_isMuted") === "true";
+  });
+  const isInitialized = true;
 
   useEffect(() => {
-    const stored = localStorage.getItem('lumos_isMuted');
-    setIsMuted(stored === 'true');
-    setIsInitialized(true);
-  }, []);
-
-  const isCoolingExpired = Boolean(
-    profile?.status === 'cooling' &&
-    profile.ban_expires_at &&
-    new Date(profile.ban_expires_at).getTime() <= Date.now()
-  );
-
-  useEffect(() => {
-    if (isCoolingExpired) {
-      void refreshProfile();
+    if (profile?.status !== "cooling" || !profile.ban_expires_at) {
+      return;
     }
-  }, [isCoolingExpired, refreshProfile]);
 
-  const banType: 'banned' | 'cooling' | null =
-    profile?.status === 'banned'
-      ? 'banned'
-      : profile?.status === 'cooling' && !isCoolingExpired
-        ? 'cooling'
+    const expiryTime = new Date(profile.ban_expires_at).getTime();
+    const remaining = expiryTime - Date.now();
+
+    if (remaining <= 0) {
+      void refreshProfile();
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void refreshProfile();
+    }, remaining);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [profile?.ban_expires_at, profile?.status, refreshProfile]);
+
+  const banType: "banned" | "cooling" | null =
+    profile?.status === "banned"
+      ? "banned"
+      : profile?.status === "cooling"
+        ? "cooling"
         : null;
+
   const isSiteLocked = banType !== null;
   const banReason =
-    banType === 'banned'
-      ? profile?.ban_reason || "׳”׳₪׳¨׳× ׳›׳׳׳™ ׳”׳˜׳™׳¨׳”"
-      : banType === 'cooling'
-        ? profile?.ban_reason || "׳”׳×׳ ׳”׳’׳•׳× ׳©׳׳™׳ ׳” ׳”׳•׳׳׳×"
+    banType === "banned"
+      ? profile?.ban_reason || "הפרת כללי הטירה"
+      : banType === "cooling"
+        ? profile?.ban_reason || "התנהגות שאינה הולמת את רוח הטירה"
         : null;
-  const banExpiresAt = banType === 'cooling' ? profile?.ban_expires_at || null : null;
+  const banExpiresAt = banType === "cooling" ? profile?.ban_expires_at || null : null;
 
   const toggleMute = () => {
-    setIsMuted(prev => {
-      const newVal = !prev;
-      localStorage.setItem('lumos_isMuted', String(newVal));
-      return newVal;
+    setIsMuted((previous) => {
+      const nextValue = !previous;
+      localStorage.setItem("lumos_isMuted", String(nextValue));
+      return nextValue;
     });
   };
 
-  const isCooling = banType === 'cooling';
+  const isCooling = banType === "cooling";
 
   return (
     <UIContext.Provider value={{ isMuted, isInitialized, isSiteLocked, toggleMute, banReason, banExpiresAt, banType }}>
@@ -90,105 +104,130 @@ export function UIProvider({ children }: { children: ReactNode }) {
             zIndex: 99999,
           }}
         >
-          <div style={{
-            position: "absolute",
-            top: "20%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "600px",
-            height: "600px",
-            borderRadius: "50%",
-            background: isCooling
-              ? "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)"
-              : "radial-gradient(circle, rgba(220,38,38,0.06) 0%, transparent 70%)",
-            pointerEvents: "none",
-          }} />
+          <div
+            style={{
+              position: "absolute",
+              top: "20%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "600px",
+              height: "600px",
+              borderRadius: "50%",
+              background: isCooling
+                ? "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)"
+                : "radial-gradient(circle, rgba(220,38,38,0.06) 0%, transparent 70%)",
+              pointerEvents: "none",
+            }}
+          />
 
-          <div style={{
-            width: "120px",
-            height: "120px",
-            borderRadius: "50%",
-            background: isCooling ? "rgba(59,130,246,0.08)" : "rgba(220,38,38,0.08)",
-            border: `1px solid ${isCooling ? "rgba(59,130,246,0.3)" : "rgba(220,38,38,0.3)"}`,
-            boxShadow: `0 0 60px ${isCooling ? "rgba(59,130,246,0.15)" : "rgba(220,38,38,0.15)"}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "56px",
-            marginBottom: "32px",
-          }}>
-            {isCooling ? "ג„ן¸" : "נ”’"}
+          <div
+            style={{
+              width: "120px",
+              height: "120px",
+              borderRadius: "50%",
+              background: isCooling ? "rgba(59,130,246,0.08)" : "rgba(220,38,38,0.08)",
+              border: `1px solid ${isCooling ? "rgba(59,130,246,0.3)" : "rgba(220,38,38,0.3)"}`,
+              boxShadow: `0 0 60px ${isCooling ? "rgba(59,130,246,0.15)" : "rgba(220,38,38,0.15)"}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "56px",
+              marginBottom: "32px",
+            }}
+          >
+            {isCooling ? "❄️" : "🚫"}
           </div>
 
-          <h1 style={{
-            fontFamily: "'Cinzel', serif",
-            fontSize: "clamp(1.8rem, 5vw, 3rem)",
-            fontWeight: 900,
-            color: isCooling ? "#60a5fa" : "#ef4444",
-            letterSpacing: "-0.02em",
-            textTransform: "uppercase",
-            marginBottom: "12px",
-            textShadow: `0 0 40px ${isCooling ? "rgba(96,165,250,0.4)" : "rgba(239,68,68,0.4)"}`,
-          }}>
-            {isCooling ? "׳—׳“׳¨ ׳”׳§׳™׳¨׳•׳¨" : "׳’׳•׳¨׳©׳× ׳׳”׳˜׳™׳¨׳”"}
+          <h1
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: "clamp(1.8rem, 5vw, 3rem)",
+              fontWeight: 900,
+              color: isCooling ? "#60a5fa" : "#ef4444",
+              letterSpacing: "-0.02em",
+              textTransform: "uppercase",
+              marginBottom: "12px",
+              textShadow: `0 0 40px ${isCooling ? "rgba(96,165,250,0.4)" : "rgba(239,68,68,0.4)"}`,
+            }}
+          >
+            {isCooling ? "חדר הקירור" : "הגישה נחסמה"}
           </h1>
 
-          <p style={{
-            color: "rgba(255,255,255,0.35)",
-            fontStyle: "italic",
-            fontSize: "1rem",
-            maxWidth: "420px",
-            lineHeight: 1.6,
-            marginBottom: "32px",
-          }}>
+          <p
+            style={{
+              color: "rgba(255,255,255,0.35)",
+              fontStyle: "italic",
+              fontSize: "1rem",
+              maxWidth: "420px",
+              lineHeight: 1.6,
+              marginBottom: "32px",
+            }}
+          >
             {isCooling
-              ? "\"׳¦׳™׳ ׳•׳ ׳–׳׳ ׳™ ׳”׳•׳¦׳ ׳¢׳ ׳™׳“׳™ ׳׳•׳¢׳¦׳× ׳”׳˜׳™׳¨׳”. ׳ ׳™׳×׳ ׳׳—׳–׳•׳¨ ׳׳׳—׳¨ ׳×׳•׳ ׳”׳×׳§׳•׳₪׳”.\""
-              : "\"׳¦׳• ׳”׳¨׳—׳§׳” ׳¨׳©׳׳™ ׳”׳•׳¦׳ ׳¢׳ ׳™׳“׳™ ׳׳©׳¨׳“ ׳”׳§׳¡׳׳™׳ ׳‘׳¢׳§׳‘׳•׳× ׳”׳×׳ ׳”׳’׳•׳× ׳©׳׳™׳ ׳” ׳”׳•׳׳׳×.\""}
+              ? "\"הצינון הזמני נועד לשמור על מרחב מכבד בטירה. הגישה המלאה תשוב עם תום התקופה.\""
+              : "\"משרד הקסמים הוציא צו הרחקה רשמי בעקבות הפרה חמורה של כללי הטירה.\""}
           </p>
 
-          <div style={{
-            background: isCooling ? "rgba(59,130,246,0.06)" : "rgba(220,38,38,0.06)",
-            border: `1px solid ${isCooling ? "rgba(59,130,246,0.2)" : "rgba(220,38,38,0.2)"}`,
-            borderRadius: "20px",
-            padding: "24px 32px",
-            maxWidth: "420px",
-            width: "100%",
-            marginBottom: "16px",
-          }}>
-            <p style={{
-              fontFamily: "'Cinzel', serif",
-              fontSize: "9px",
-              fontWeight: 900,
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              color: isCooling ? "rgba(96,165,250,0.6)" : "rgba(239,68,68,0.6)",
-              marginBottom: "8px",
-            }}>
-              ׳¡׳™׳‘׳× ׳”׳”׳¨׳—׳§׳”
+          <div
+            style={{
+              background: isCooling ? "rgba(59,130,246,0.06)" : "rgba(220,38,38,0.06)",
+              border: `1px solid ${isCooling ? "rgba(59,130,246,0.2)" : "rgba(220,38,38,0.2)"}`,
+              borderRadius: "20px",
+              padding: "24px 32px",
+              maxWidth: "420px",
+              width: "100%",
+              marginBottom: "16px",
+            }}
+          >
+            <p
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: "9px",
+                fontWeight: 900,
+                textTransform: "uppercase",
+                letterSpacing: "0.2em",
+                color: isCooling ? "rgba(96,165,250,0.6)" : "rgba(239,68,68,0.6)",
+                marginBottom: "8px",
+              }}
+            >
+              סיבת ההרחקה
             </p>
             <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.95rem", lineHeight: 1.5 }}>
               {banReason}
             </p>
           </div>
 
-          <div style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: "14px",
-            padding: "14px 24px",
-            maxWidth: "420px",
-            width: "100%",
-            marginBottom: "32px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-          }}>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: "14px",
+              padding: "14px 24px",
+              maxWidth: "420px",
+              width: "100%",
+              marginBottom: "32px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+            }}
+          >
             {isCooling && banExpiresAt ? (
               <>
-                <span style={{ fontSize: "14px" }}>נ•</span>
+                <span style={{ fontSize: "14px" }}>⏰</span>
                 <div>
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", fontFamily: "'Cinzel', serif", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "2px" }}>׳©׳—׳¨׳•׳¨ ׳‘׳×׳׳¨׳™׳</p>
+                  <p
+                    style={{
+                      fontSize: "9px",
+                      color: "rgba(255,255,255,0.25)",
+                      fontFamily: "'Cinzel', serif",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.15em",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    שחרור בתאריך
+                  </p>
                   <p style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, color: "#60a5fa", fontSize: "0.9rem" }}>
                     {formatDate(banExpiresAt)}
                   </p>
@@ -196,11 +235,22 @@ export function UIProvider({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <span style={{ fontSize: "14px" }}>ג™¾ן¸</span>
+                <span style={{ fontSize: "14px" }}>🛡️</span>
                 <div>
-                  <p style={{ fontSize: "9px", color: "rgba(255,255,255,0.25)", fontFamily: "'Cinzel', serif", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "2px" }}>׳¡׳•׳’ ׳”׳”׳¨׳—׳§׳”</p>
+                  <p
+                    style={{
+                      fontSize: "9px",
+                      color: "rgba(255,255,255,0.25)",
+                      fontFamily: "'Cinzel', serif",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.15em",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    סטטוס ההרחקה
+                  </p>
                   <p style={{ fontFamily: "'Cinzel', serif", fontWeight: 700, color: "#ef4444", fontSize: "0.9rem" }}>
-                    ׳”׳¨׳—׳§׳” ׳§׳‘׳•׳¢׳”
+                    הרחקה קבועה
                   </p>
                 </div>
               </>
@@ -208,7 +258,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
           </div>
 
           <button
-            onClick={() => window.location.href = 'mailto:support@lumos-il.co.il'}
+            onClick={() => {
+              window.location.href = "mailto:support@lumos-il.co.il";
+            }}
             style={{
               fontSize: "10px",
               textTransform: "uppercase",
@@ -222,10 +274,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
               transition: "color 0.2s",
               fontFamily: "'Cinzel', serif",
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.5)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.2)")}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.color = "rgba(255,255,255,0.5)";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.color = "rgba(255,255,255,0.2)";
+            }}
           >
-            ׳¢׳¨׳¢׳•׳¨ ׳׳׳©׳¨׳“ ׳”׳§׳¡׳׳™׳
+            ערעור למשרד הקסמים
           </button>
         </div>
       ) : (
@@ -238,7 +294,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 export function useUIState() {
   const context = useContext(UIContext);
   if (context === undefined) {
-    throw new Error('useUIState must be used within a UIProvider');
+    throw new Error("useUIState must be used within a UIProvider");
   }
   return context;
 }

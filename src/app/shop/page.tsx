@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useOwlMail } from "@/components/OwlMail";
+import { logActivityEvent } from "@/lib/activityEvents";
 import { Coins, Sparkles, Shield, Wand2, Users, ScrollText, ChevronRight, ShoppingBag, Zap, Star, Map } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -131,6 +132,19 @@ function ShopContent() {
 
         if (!error) {
             sendOwl("רכישה מוצלחת!", `${item.name} התווסף למזוודה!`, "success");
+            if (session?.user?.id) {
+                await logActivityEvent(supabase, {
+                    actorId: session.user.id,
+                    eventType: "shop_purchase",
+                    icon: "🛍️",
+                    title: "רכש/ה פריט חדש בסמטת דיאגון",
+                    subtitle: item.name,
+                    description: `${item.price} גליאונים`,
+                    targetType: "shop_item",
+                    targetId: item.id,
+                    targetUrl: "/shop",
+                });
+            }
             refreshProfile();
         } else {
             sendOwl("שגיאת גרינגוטס", error.message || "משהו השתבש...", "error");

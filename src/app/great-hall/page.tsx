@@ -57,7 +57,7 @@ export default function GreatHall() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [myId, setMyId] = useState<string | null>(null);
-    const [myName, setMyName] = useState<string>("קוסם/ת");
+    const [myName, setMyName] = useState<string>("קוסמ׳");
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
@@ -126,7 +126,7 @@ export default function GreatHall() {
             if (authLoading) return;
             if (!sessionUser || !isMounted) {
                 setMyId(null);
-                setMyName("׳§׳•׳¡׳/׳×");
+                setMyName("קוסמ׳");
                 setMessages([]);
                 setBlockedUserIds([]);
                 setIsLoading(false);
@@ -136,7 +136,7 @@ export default function GreatHall() {
             const userId = sessionUser.id;
             setMyId(userId);
 
-            const extractedName = sessionUser.email ? sessionUser.email.split("@")[0] : "קוסם/ת";
+            const extractedName = sessionUser.email ? sessionUser.email.split("@")[0] : "קוסמ׳";
             const resolvedName = authProfile?.full_name || extractedName;
             setMyName(resolvedName);
 
@@ -505,7 +505,7 @@ export default function GreatHall() {
                                     ? { name: msgGrp.name, color: msgGrp.color }
                                     : getRoleDisplay(msg.profiles?.role, roleColors);
 
-                                let displayName = "קוסם/ת";
+                        let displayName = "קוסמ׳";
                                 if (msg.profiles?.full_name && msg.profiles.full_name !== "Wizard") {
                                     displayName = msg.profiles.full_name;
                                 } else if (msg.profiles?.email) {
