@@ -1,6 +1,5 @@
--- Fix live-event reward distribution on projects where admin_audit_logs.actor_id
--- is a foreign key to profiles(id). System-generated event completion logs should
--- not use a fake UUID that violates the FK.
+-- Notifications on this project require target_url, so event reward notifications
+-- must link back to the public event page.
 
 CREATE OR REPLACE FUNCTION public.distribute_event_rewards()
 RETURNS void
