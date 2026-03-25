@@ -252,14 +252,23 @@ export default function QuestsPage() {
   const rewardPulseTimeoutRef = useRef<BrowserTimeout | null>(null);
   const completionTimeoutsRef = useRef<Record<string, BrowserTimeout>>({});
 
-  const dateObj = new Date();
-  const today = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`;
+// פונקציה שבודקת האם התאריך מהשרת תואם להיום (גם לפי שעון ישראל וגם לפי UTC)
+  const checkIsDoneToday = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    
+    const now = new Date();
+    // תאריך לפי שעון ישראל (מקומי לדפדפן)
+    const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    // תאריך לפי שעון שרת (UTC)
+    const utcToday = now.toISOString().split("T")[0];
+    
+    return dateStr.startsWith(localToday) || dateStr.startsWith(utcToday);
+  };
 
-  const isAllowanceDone = dailyStatus.allowance || profile?.last_reward_date === today;
-  const isTriviaDone = dailyStatus.trivia || profile?.last_trivia_date === today;
-  const isNifflerDone = dailyStatus.niffler || profile?.last_niffler_date === today;
-  const isSnitchDone = dailyStatus.snitch || profile?.last_snitch_date === today;
-
+  const isAllowanceDone = dailyStatus.allowance || checkIsDoneToday(profile?.last_reward_date);
+  const isTriviaDone = dailyStatus.trivia || checkIsDoneToday(profile?.last_trivia_date);
+  const isNifflerDone = dailyStatus.niffler || checkIsDoneToday(profile?.last_niffler_date);
+  const isSnitchDone = dailyStatus.snitch || checkIsDoneToday(profile?.last_snitch_date);
   useEffect(() => {
     const refreshComputedState = async () => {
       if (!profile?.id) {
@@ -1157,19 +1166,43 @@ function QuestCard({ title, desc, reward, icon, completed, justCompleted = false
         <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${theme.iconBg}`}>{icon}</div>
         <span className={`rounded-full border px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-tighter ${justCompleted ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100" : theme.badge}`}>{justCompleted ? "הושלם עכשיו" : reward}</span>
       </div>
-      <div className="relative mb-8 flex-1">
-        <h3 className="mb-3 font-cinzel text-xl font-bold text-white">{title}</h3>
-        <p className="font-crimson text-lg leading-relaxed text-white/60">{desc}</p>
-        {statusHint && <p className={`mt-4 text-sm leading-relaxed ${justCompleted ? "text-emerald-100/80" : completed ? "text-white/35" : "text-white/50"}`}>{statusHint}</p>}
-      </div>
-      {completed ? (
-        <div className={`relative mt-auto flex w-full items-center justify-center gap-2 rounded-xl border py-4 text-center font-cinzel font-bold ${justCompleted ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100" : theme.done}`}>
-          <CheckCircle2 size={18} />
-          {justCompleted ? "הושלם עכשיו" : "הושלם להיום"}
-        </div>
-      ) : (
-        <button onClick={onAction} className={`relative mt-auto w-full rounded-xl bg-gradient-to-r py-4 text-lg font-black font-cinzel tracking-widest text-white shadow-lg transition-all active:scale-95 ${theme.btn}`}>{btnText}</button>
-      )}
+<div className="relative mb-8 flex-1">
+  <h3 className="mb-3 font-cinzel text-xl font-bold text-white">{title}</h3>
+  <p className="font-crimson text-lg leading-relaxed text-white/60">{desc}</p>
+  {statusHint && (
+    <p
+      className={`mt-4 text-sm leading-relaxed ${
+        justCompleted
+          ? "text-emerald-100/80"
+          : completed
+          ? "text-white/35"
+          : "text-white/50"
+      }`}
+    >
+      {statusHint}
+    </p>
+  )}
+</div>
+
+{completed || justCompleted ? (
+  <div
+    className={`relative mt-auto flex w-full items-center justify-center gap-2 rounded-xl border py-4 text-center font-cinzel font-bold ${
+      justCompleted
+        ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100"
+        : theme.done
+    }`}
+  >
+    <CheckCircle2 size={18} />
+    {justCompleted ? "הושלם עכשיו" : "הושלם להיום"}
+  </div>
+) : (
+  <button
+    onClick={onAction}
+    className={`relative mt-auto w-full rounded-xl bg-gradient-to-r py-4 text-lg font-black font-cinzel tracking-widest text-white shadow-lg transition-all active:scale-95 ${theme.btn}`}
+  >
+    {btnText}
+  </button>
+)}
     </div>
   );
 }
