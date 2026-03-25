@@ -231,6 +231,44 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   const supportForumHref = liveEvent.support_forum_href || "/forums/feedback-and-suggestions";
   const leadingWizard = leaderboard[0] || null;
 
+  const refreshLeaderboardData = useCallback(async () => {
+    const [
+      {
+        data: { user },
+      },
+      { data: leaderboardProfiles },
+    ] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase
+        .from("profiles")
+        .select("id, full_name, house, created_at, event_points, passover_points")
+        .or("event_points.gt.0,passover_points.gt.0")
+        .limit(250),
+    ]);
+
+    const rankedParticipants = [...(leaderboardProfiles || [])]
+      .filter((profile) => getProfileLiveEventPoints(profile) > 0)
+      .sort(compareLiveEventParticipants);
+
+    setParticipantCount(rankedParticipants.length);
+    setLeaderboard(rankedParticipants.slice(0, 10));
+    setCurrentUserRank(
+      user ? rankedParticipants.findIndex((profile) => profile.id === user.id) + 1 || null : null,
+    );
+
+    if (user) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      setUserProfile(data);
+      return;
+    }
+
+    setUserProfile(null);
+  }, [supabase]);
+
   const refreshEventConfig = useCallback(async () => {
     if (initialEventConfig?.slug) {
       const refreshedEvent = await fetchLiveEventBySlug(supabase, initialEventConfig.slug);
@@ -259,50 +297,19 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
       if (!initialEventConfig?.slug && refreshedEvent?.slug && refreshedEvent.slug !== "passover") {
         return;
       }
-
-      const [
-        {
-          data: { user },
-        },
-        { data: leaderboardProfiles },
-      ] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase
-          .from("profiles")
-          .select("id, full_name, house, created_at, event_points, passover_points")
-          .or("event_points.gt.0,passover_points.gt.0")
-          .limit(250),
-      ]);
-
-      const rankedParticipants = [...(leaderboardProfiles || [])]
-        .filter((profile) => getProfileLiveEventPoints(profile) > 0)
-        .sort(compareLiveEventParticipants);
-
-      setParticipantCount(rankedParticipants.length);
-      setLeaderboard(rankedParticipants.slice(0, 10));
-      setCurrentUserRank(
-        user ? rankedParticipants.findIndex((profile) => profile.id === user.id) + 1 || null : null,
-      );
-
-      if (user) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        setUserProfile(data);
-      }
+      await refreshLeaderboardData();
 
       setLoading(false);
     };
 
     void fetchData();
-  }, [initialEventConfig, refreshEventConfig, supabase]);
+  }, [initialEventConfig, refreshEventConfig, refreshLeaderboardData]);
 
   useEffect(() => {
     const refreshOnReturn = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       void refreshEventConfig();
+      void refreshLeaderboardData();
     };
 
     window.addEventListener("focus", refreshOnReturn);
@@ -310,6 +317,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         void refreshEventConfig();
+        void refreshLeaderboardData();
       }
     }, 30000);
     const siteSettingsChannel = supabase
@@ -325,14 +333,36 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
         },
       )
       .subscribe();
+    const profilesChannel = supabase
+      .channel(`live-event-scoreboard-sync-${initialEventConfig?.slug || "featured"}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        (payload: any) => {
+          const nextProfile = payload?.new || {};
+          const prevProfile = payload?.old || {};
+          const pointsChanged = payload?.eventType !== "UPDATE"
+            || nextProfile.event_points !== prevProfile.event_points
+            || nextProfile.passover_points !== prevProfile.passover_points
+            || nextProfile.group_id !== prevProfile.group_id
+            || nextProfile.full_name !== prevProfile.full_name
+            || nextProfile.house !== prevProfile.house;
+
+          if (pointsChanged) {
+            void refreshLeaderboardData();
+          }
+        },
+      )
+      .subscribe();
 
     return () => {
       window.removeEventListener("focus", refreshOnReturn);
       document.removeEventListener("visibilitychange", refreshOnReturn);
       window.clearInterval(interval);
       void supabase.removeChannel(siteSettingsChannel);
+      void supabase.removeChannel(profilesChannel);
     };
-  }, [initialEventConfig?.slug, refreshEventConfig, supabase]);
+  }, [initialEventConfig?.slug, refreshEventConfig, refreshLeaderboardData, supabase]);
 
   if (loading) return null;
 

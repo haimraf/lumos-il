@@ -412,6 +412,49 @@ export default function AdminPanel() {
         return () => { supabase.removeChannel(channel); };
     }, [router, supabase, fetchData, profile, authLoading]);
 
+    useEffect(() => {
+        if (authLoading || !profile || !['מנהל', 'מנחה'].includes(profile.role || '')) return;
+
+        const shouldRefreshLiveAdminData = () => activeTab === "events" || activeTab === "activity";
+        const channel = supabase
+            .channel('admin_live_event_scoreboard_sync')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'profiles' },
+                (payload: any) => {
+                    if (!shouldRefreshLiveAdminData()) return;
+
+                    const nextProfile = payload?.new || {};
+                    const prevProfile = payload?.old || {};
+                    const pointsChanged = payload?.eventType !== 'UPDATE'
+                        || nextProfile.event_points !== prevProfile.event_points
+                        || nextProfile.passover_points !== prevProfile.passover_points
+                        || nextProfile.group_id !== prevProfile.group_id
+                        || nextProfile.full_name !== prevProfile.full_name
+                        || nextProfile.house !== prevProfile.house;
+
+                    if (pointsChanged) {
+                        void fetchData();
+                    }
+                },
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'site_settings' },
+                (payload: any) => {
+                    if (!shouldRefreshLiveAdminData()) return;
+
+                    const key = payload?.new?.key || payload?.old?.key;
+                    if (key === LIVE_EVENT_SETTINGS_KEY || key === LIVE_EVENTS_CATALOG_KEY) {
+                        void fetchData();
+                    }
+                },
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [activeTab, authLoading, fetchData, profile, supabase]);
+
     /* ── Search ── */
     const searchUsers = useCallback(async (q: string) => {
         if (!q.trim()) { setUsers([]); return; }

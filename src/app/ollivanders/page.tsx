@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Wand2, Sparkles, ChevronRight, Coins, History, ShieldCheck, Flame, Star, Quote } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { useAuth } from "@/context/AuthContext";
+import { logActivityEvent } from "@/lib/activityEvents";
 
 // --- Wand Database (Lore המבוסס על ספרי הארי פוטר בשפה א-מגדרית) ---
 const WOODS_LORE: Record<string, string> = {
@@ -79,6 +80,19 @@ export default function OllivandersPage() {
         setRevealedWand(newWand);
         setIsPurchasing(false);
         sendOwl(newWand.isGregorovitch ? "זכייה ביצירת מופת!" : "השרביט בחר בך!", `שרביט תוצרת ${newWand.maker} כעת ברשותך.`, "magic");
+        if (session?.user?.id) {
+          void logActivityEvent(supabase, {
+            actorId: session.user.id,
+            eventType: "shop_purchase",
+            icon: "🪄",
+            title: "רכש/ה שרביט חדש אצל אוליבנדר",
+            subtitle: `${newWand.maker}: ${newWand.fullText}`,
+            description: "15 גליאונים",
+            targetType: "wand",
+            targetId: `${newWand.maker}:${newWand.fullText}`,
+            targetUrl: "/shop/ollivanders",
+          });
+        }
         refreshProfile();
       }, 4000);
     } else {
