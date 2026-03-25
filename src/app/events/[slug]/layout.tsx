@@ -9,6 +9,8 @@ import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+const EVENT_OG_IMAGE = "https://lumos-il.co.il/logo.png";
+
 type EventLayoutProps = {
   children: React.ReactNode;
   params: Promise<{
@@ -25,6 +27,7 @@ export async function generateMetadata({ params }: EventLayoutProps): Promise<Me
     return {
       title: "איוונט בטירה | LUMOS IL",
       description: "עמוד איוונט מיוחד בטירה של LUMOS IL.",
+      robots: { index: false, follow: true },
     };
   }
 
@@ -35,27 +38,38 @@ export async function generateMetadata({ params }: EventLayoutProps): Promise<Me
     || `${eventLabel} ב-LUMOS IL עם משימות דינמיות, ניקוד אישי וביתי, טיימר חי ופרסים לקהילה.`;
   const title = `${eventLabel} | ${tagline} | LUMOS IL`;
   const path = getLiveEventHref(event);
+  const canonicalUrl = `https://lumos-il.co.il${path}`;
 
   return {
     title,
     description,
     robots: status === "archived" || status === "draft"
       ? { index: false, follow: false }
-      : undefined,
+      : { index: true, follow: true },
     alternates: {
-      canonical: `https://lumos-il.co.il${path}`,
+      canonical: canonicalUrl,
     },
     openGraph: {
       title,
       description,
-      url: `https://lumos-il.co.il${path}`,
+      url: canonicalUrl,
       siteName: "LUMOS IL",
       type: "website",
+      locale: "he_IL",
+      images: [
+        {
+          url: EVENT_OG_IMAGE,
+          width: 512,
+          height: 512,
+          alt: `${eventLabel} | LUMOS IL`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: [EVENT_OG_IMAGE],
     },
   };
 }

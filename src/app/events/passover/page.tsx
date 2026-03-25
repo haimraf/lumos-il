@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -33,6 +33,7 @@ import {
   fetchLiveEventSettings,
   getDefaultLiveEventSettings,
   getLiveEventEnd,
+  getLiveEventHref,
   getLiveEventLabel,
   getLiveEventPhase,
   getLiveEventStart,
@@ -41,6 +42,7 @@ import {
   LIVE_EVENT_SETTINGS_KEY,
   type LiveEventSettings,
 } from "@/lib/liveEvent";
+import { useReducedMotion } from "framer-motion";
 
 type LiveEventExperienceProps = {
   initialEventConfig?: LiveEventSettings | null;
@@ -205,6 +207,7 @@ function formatEventDate(value: string) {
 export function LiveEventExperience({ initialEventConfig = null }: LiveEventExperienceProps) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
+  const prefersReducedMotion = useReducedMotion();
   const [userProfile, setUserProfile] = useState<EventProfile | null>(null);
   const [leaderboard, setLeaderboard] = useState<EventProfile[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
@@ -216,6 +219,10 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   const eventLabel = getLiveEventLabel(liveEvent);
   const eventPoints = getProfileLiveEventPoints(userProfile);
   const eventPhase = getLiveEventPhase(liveEvent);
+  const eventHref = getLiveEventHref(liveEvent);
+  const eventUrl = `https://lumos-il.co.il${eventHref}`;
+  const eventStart = getLiveEventStart(liveEvent) || undefined;
+  const eventEnd = getLiveEventEnd(liveEvent) || undefined;
   const countdownTarget = eventPhase === "upcoming"
     ? getLiveEventStart(liveEvent) || DEFAULT_END
     : getLiveEventEnd(liveEvent) || DEFAULT_END;
@@ -230,6 +237,37 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   );
   const supportForumHref = liveEvent.support_forum_href || "/forums/feedback-and-suggestions";
   const leadingWizard = leaderboard[0] || null;
+  const statusText = eventPhase === "upcoming" ? "פתיחת השערים בעוד:" : "סגירת השערים בעוד:";
+  const progressValue = Math.min(100, Math.max(0, (eventPoints / 500) * 100));
+  const countdownSummary = `${statusText} ${countdown.days} ימים, ${countdown.hours} שעות, ${countdown.minutes} דקות ו-${countdown.seconds} שניות.`;
+  const eventStructuredData = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: eventLabel,
+    description: eventDescription,
+    eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
+    eventStatus: eventPhase === "upcoming"
+      ? "https://schema.org/EventScheduled"
+      : eventPhase === "live"
+        ? "https://schema.org/EventInProgress"
+        : eventPhase === "ended"
+          ? "https://schema.org/EventCompleted"
+          : "https://schema.org/EventScheduled",
+    startDate: eventStart,
+    endDate: eventEnd,
+    url: eventUrl,
+    image: ["https://lumos-il.co.il/logo.png"],
+    inLanguage: "he-IL",
+    location: {
+      "@type": "VirtualLocation",
+      url: eventUrl,
+    },
+    organizer: {
+      "@type": "Organization",
+      name: "LUMOS IL",
+      url: "https://lumos-il.co.il",
+    },
+  }), [eventDescription, eventEnd, eventLabel, eventPhase, eventStart, eventUrl]);
 
   const refreshLeaderboardData = useCallback(async () => {
     const [
@@ -404,7 +442,6 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
 
   const isUpcoming = eventPhase === "upcoming";
   const statusLabel = isUpcoming ? "בקרוב" : "באוויר";
-  const statusText = isUpcoming ? "פתיחת השערים בעוד:" : "סגירת השערים בעוד:";
   const statusDate = isUpcoming
     ? formatEventDate(getLiveEventStart(liveEvent))
     : formatEventDate(getLiveEventEnd(liveEvent));
@@ -416,18 +453,27 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
       : EVENT_LEADERBOARD_COPY.noPersonalRank;
 
   return (
-    <main className="event-readable min-h-screen bg-[#120d09] text-[#fef3c7] overflow-x-hidden selection:bg-amber-500/30 text-[1.02rem]" dir="rtl">
+    <main
+      className="event-readable min-h-screen bg-[#120d09] text-[#fef3c7] overflow-x-hidden selection:bg-amber-500/30 text-[1.02rem]"
+      dir="rtl"
+      aria-labelledby="live-event-title"
+    >
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(eventStructuredData) }}
+      />
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/old-map.png')] opacity-[0.04]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-700/25 via-[#120d09] to-[#080503]" />
         <motion.div
-          animate={{ y: [0, -20, 0], opacity: [0.5, 0.8, 0.5] }}
-          transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
+          animate={prefersReducedMotion ? undefined : { y: [0, -20, 0], opacity: [0.5, 0.8, 0.5] }}
+          transition={prefersReducedMotion ? undefined : { repeat: Infinity, duration: 5, ease: "easeInOut" }}
           className="absolute top-[10%] left-[15%] w-[30vw] h-[30vw] bg-amber-600/10 blur-[120px] rounded-full"
         />
         <motion.div
-          animate={{ y: [0, 30, 0], opacity: [0.3, 0.6, 0.3] }}
-          transition={{ repeat: Infinity, duration: 7, ease: "easeInOut", delay: 1 }}
+          animate={prefersReducedMotion ? undefined : { y: [0, 30, 0], opacity: [0.3, 0.6, 0.3] }}
+          transition={prefersReducedMotion ? undefined : { repeat: Infinity, duration: 7, ease: "easeInOut", delay: 1 }}
           className="absolute bottom-[5%] right-[10%] w-[40vw] h-[40vw] bg-emerald-900/10 blur-[150px] rounded-full"
         />
       </div>
@@ -435,7 +481,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <header className="text-center space-y-6 pt-10">
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-5 py-2 text-[11px] font-black uppercase tracking-[0.3em] text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
           >
@@ -444,9 +490,10 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, scale: 0.95 }}
+            id="live-event-title"
+            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1, type: "spring" }}
+            transition={prefersReducedMotion ? undefined : { delay: 0.1, type: "spring" }}
             className="font-cinzel text-6xl font-black md:text-8xl drop-shadow-2xl text-transparent bg-clip-text bg-gradient-to-b from-[#fff6d9] via-amber-300 to-amber-700"
           >
             {eventLabel || "איוונט מיוחד"}
@@ -463,9 +510,9 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
 
         <section className="mt-16 grid gap-8 lg:grid-cols-2">
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={prefersReducedMotion ? undefined : { delay: 0.3 }}
             className="group relative overflow-hidden rounded-[2.5rem] border border-amber-500/20 bg-gradient-to-br from-white/[0.04] to-black/40 p-8 backdrop-blur-xl shadow-2xl"
           >
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay" />
@@ -494,7 +541,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
               </div>
               <div className="rounded-3xl bg-white/[0.08] p-6 border border-white/10 text-center transition-transform hover:scale-105">
                 <div className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-blue-500">
-                  {userProfile?.house || "—"}
+                  {userProfile?.house || "-"}
                 </div>
                 <div className="text-[11px] text-blue-100/50 uppercase tracking-widest mt-2 font-bold">
                   בית המייצג
@@ -507,11 +554,19 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                 <span className="text-amber-300">היעד: {rewards[0]?.title || "אלוף האיוונט"}</span>
                 <span>{eventPoints} / 500</span>
               </div>
-              <div className="h-3 w-full rounded-full overflow-hidden border border-white/10 bg-white/[0.08] p-0.5">
+              <div
+                className="h-3 w-full rounded-full overflow-hidden border border-white/10 bg-white/[0.08] p-0.5"
+                role="progressbar"
+                aria-label="התקדמות ניקוד באיוונט"
+                aria-valuemin={0}
+                aria-valuemax={500}
+                aria-valuenow={Math.min(500, eventPoints)}
+                aria-valuetext={`${eventPoints} מתוך 500 נקודות`}
+              >
                 <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (eventPoints / 500) * 100)}%` }}
-                  transition={{ duration: 1.5, ease: "easeOut" }}
+                  initial={prefersReducedMotion ? false : { width: 0 }}
+                  animate={{ width: `${progressValue}%` }}
+                  transition={prefersReducedMotion ? undefined : { duration: 1.5, ease: "easeOut" }}
                   className="h-full rounded-full bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-300 shadow-[0_0_20px_rgba(251,191,36,0.6)]"
                 />
               </div>
@@ -519,17 +574,24 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={prefersReducedMotion ? undefined : { delay: 0.4 }}
             className="relative overflow-hidden rounded-[2.5rem] border border-amber-500/20 bg-[#18120f] p-8 flex flex-col justify-center items-center text-center shadow-2xl"
+            role="region"
+            aria-labelledby="event-countdown-title"
+            aria-describedby="event-countdown-summary"
           >
             <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')]" />
-            <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 4 }}>
+            <motion.div
+              animate={prefersReducedMotion ? undefined : { rotate: [0, 5, -5, 0] }}
+              transition={prefersReducedMotion ? undefined : { repeat: Infinity, duration: 4 }}
+            >
               <Clock3 className="text-amber-500/80 mb-6" size={48} />
             </motion.div>
 
             <div className="relative z-10 space-y-5">
+              <p id="event-countdown-summary" className="sr-only">{countdownSummary}</p>
               <div
                 className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-black uppercase border mb-2 ${
                   isUpcoming
@@ -545,9 +607,9 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                 {statusLabel}
               </div>
 
-              <h2 className="font-cinzel text-3xl font-black text-amber-50">{statusText}</h2>
+              <h2 id="event-countdown-title" className="font-cinzel text-3xl font-black text-amber-50">{statusText}</h2>
 
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-3 justify-center" role="timer" aria-label={countdownSummary}>
                 {[
                   { label: "ימים", value: countdown.days },
                   { label: "שעות", value: countdown.hours },
@@ -589,21 +651,21 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
           </motion.div>
         </section>
 
-        <section className="mt-20 grid gap-8 xl:grid-cols-[1.2fr_0.8fr] relative z-10">
+        <section className="mt-20 grid gap-8 xl:grid-cols-[1.2fr_0.8fr] relative z-10" aria-labelledby="event-leaderboard-title">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
+            transition={prefersReducedMotion ? undefined : { delay: 0.45 }}
             className="rounded-[2.7rem] border border-amber-500/20 bg-gradient-to-br from-white/[0.05] to-black/35 p-8 shadow-2xl"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="font-cinzel text-3xl font-black text-amber-50">{EVENT_LEADERBOARD_COPY.title}</h2>
+                <h2 id="event-leaderboard-title" className="font-cinzel text-3xl font-black text-amber-50">{EVENT_LEADERBOARD_COPY.title}</h2>
                 <p className="mt-2 text-base leading-relaxed text-white/[0.78]">
                   {EVENT_LEADERBOARD_COPY.explainer}
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center" aria-live="polite">
                 <div className="font-cinzel text-2xl font-black text-amber-300">{participantCount}</div>
                 <div className="text-[11px] font-black uppercase tracking-[0.24em] text-white/55">{EVENT_LEADERBOARD_COPY.participants}</div>
               </div>
@@ -616,15 +678,16 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                   : EVENT_LEADERBOARD_COPY.liveEmpty}
               </div>
             ) : (
-              <div className="mt-8 space-y-3">
+              <ol className="mt-8 space-y-3 list-none p-0 m-0">
                 {leaderboard.map((profile, index) => {
                   const rewardForRank = rewards.find((reward) => reward.rank === index + 1);
                   const profilePoints = getProfileLiveEventPoints(profile);
 
                   return (
-                    <div
+                    <li
                       key={profile.id || `${profile.full_name}-${index}`}
                       className="flex items-center gap-4 rounded-[1.8rem] border border-white/10 bg-white/[0.05] px-5 py-4"
+                      aria-label={`${profile.full_name || EVENT_LEADERBOARD_COPY.guest}, מקום ${index + 1}, ${profilePoints} נקודות`}
                     >
                       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl font-cinzel text-lg font-black ${
                         index === 0
@@ -659,20 +722,20 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                         <div className="font-cinzel text-2xl font-black text-amber-300">{profilePoints}</div>
                         <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">{EVENT_LEADERBOARD_COPY.points}</div>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
             )}
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={prefersReducedMotion ? undefined : { delay: 0.5 }}
             className="space-y-5"
           >
-            <div className="rounded-[2.5rem] border border-emerald-400/20 bg-emerald-500/10 p-7">
+            <div className="rounded-[2.5rem] border border-emerald-400/20 bg-emerald-500/10 p-7" aria-live="polite">
               <h3 className="font-cinzel text-sm font-black uppercase tracking-[0.22em] text-emerald-300">{EVENT_LEADERBOARD_COPY.yourStatusTitle}</h3>
               <p className="mt-4 text-lg leading-relaxed text-white/[0.84]">{currentUserStatus}</p>
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -681,7 +744,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">{EVENT_LEADERBOARD_COPY.yourPoints}</div>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
-                  <div className="font-cinzel text-2xl font-black text-amber-300">{currentUserRank || "—"}</div>
+                  <div className="font-cinzel text-2xl font-black text-amber-300">{currentUserRank || "-"}</div>
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">{EVENT_LEADERBOARD_COPY.yourPlace}</div>
                 </div>
               </div>
@@ -701,10 +764,10 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
           </motion.div>
         </section>
 
-        <section className="mt-24 relative z-10">
+        <section className="mt-24 relative z-10" aria-labelledby="event-missions-title">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 px-2 gap-4">
             <div>
-              <h2 className="font-cinzel text-4xl font-black text-amber-50 drop-shadow-lg">
+              <h2 id="event-missions-title" className="font-cinzel text-4xl font-black text-amber-50 drop-shadow-lg">
                 משימות האיוונט
               </h2>
               <p className="text-amber-100/80 text-lg mt-2 font-light leading-relaxed">
@@ -720,21 +783,22 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
             </Link>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 list-none p-0 m-0">
             {missions.map((mission, idx) => {
               const IconComponent = (mission.icon ? ICON_MAP[mission.icon] : undefined) || HelpCircle;
               const tone = getAccentTone(mission.color);
 
               return (
-                <motion.div
+                <motion.li
                   key={mission.title || `mission-${idx}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+                  whileInView={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: 0.1 * idx }}
+                  transition={prefersReducedMotion ? undefined : { delay: 0.1 * idx }}
                 >
                   <Link
                     href={mission.href || "/"}
+                    aria-label={`${mission.title || "משימת איוונט"} - ${mission.points || 0} נקודות איוונט`}
                     className="group block h-full rounded-[2rem] border border-white/[0.12] bg-[#1a1410] p-7 transition-all hover:scale-[1.03] hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] relative overflow-hidden"
                   >
                     <div
@@ -763,10 +827,10 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                       </p>
                     </div>
                   </Link>
-                </motion.div>
+                </motion.li>
               );
             })}
-          </div>
+          </ul>
 
           {missions.length === 0 && (
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-8 text-center text-white/55 font-crimson text-lg italic">
@@ -775,23 +839,24 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
           )}
         </section>
 
-        <section className="mt-28 grid gap-8 lg:grid-cols-3 relative z-10">
+        <section className="mt-28 grid gap-8 lg:grid-cols-3 relative z-10" aria-labelledby="event-rewards-title">
           <div className="lg:col-span-2 rounded-[3rem] bg-gradient-to-br from-amber-600/20 via-amber-900/10 to-black p-[1px] shadow-2xl">
             <div className="h-full rounded-[2.9rem] border border-amber-500/[0.18] bg-[#120d09] p-10 md:p-14 relative overflow-hidden">
               <div className="absolute top-0 right-0 h-64 w-64 rounded-full bg-amber-500/5 blur-[80px] pointer-events-none" />
 
-              <h2 className="mb-10 font-cinzel text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-100 to-amber-500">
-                היכל התהילה — הפרסים
+              <h2 id="event-rewards-title" className="mb-10 font-cinzel text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-100 to-amber-500">
+                היכל התהילה - הפרסים
               </h2>
 
-              <div className="relative z-10 grid gap-6 sm:grid-cols-2">
+              <ol className="relative z-10 grid gap-6 sm:grid-cols-2 list-none p-0 m-0">
                 {rewards.map((reward) => {
                   const IconComponent = (reward.icon ? ICON_MAP[reward.icon] : undefined) || Gift;
 
                   return (
-                    <div
+                    <li
                       key={reward.rank || reward.title}
                       className="flex items-start gap-5 rounded-3xl border border-white/10 bg-white/[0.07] p-5 transition-colors hover:bg-white/[0.1]"
+                      aria-label={`${reward.title || "פרס"} למקום ${reward.rank || "לא מוגדר"}, ${reward.galleons || 0} גליאונים ו-${reward.points || 0} נקודות בית`}
                     >
                       <div className="mt-1 rounded-xl border border-amber-500/20 bg-amber-500/10 p-2 text-amber-400">
                         <IconComponent size={22} />
@@ -810,10 +875,10 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                           {reward.galleons} גליאונים | {reward.points} נקודות בית
                         </div>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
 
               {rewards.length === 0 && (
                 <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-8 text-center text-white/55 font-crimson text-lg italic">
@@ -825,7 +890,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
 
           <div className="space-y-6">
             <motion.div
-              whileHover={{ scale: 1.02 }}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
               className="rounded-[2.5rem] bg-gradient-to-br from-amber-500 to-amber-700 p-8 text-[#1a0d02] shadow-[0_15px_30px_rgba(245,158,11,0.2)]"
             >
               <h3 className="mb-3 font-cinzel text-3xl font-black leading-tight">זקוקים לרמז?</h3>
@@ -834,6 +899,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
               </p>
               <Link
                 href={supportForumHref}
+                aria-label="פתיחת פנייה לצוות המדריכים"
                 className="inline-flex items-center gap-2 rounded-full bg-[#1a0d02] px-7 py-3.5 text-sm font-black text-amber-400 transition-transform hover:scale-105 hover:bg-black shadow-lg"
               >
                 פתיחת פנייה לצוות
@@ -849,7 +915,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
               <p className="mt-3 text-sm leading-relaxed text-white/[0.72]">
                 {isUpcoming
                   ? "המאהל כבר מוכן והדף יישאר מסונכרן אוטומטית עם שעת הפתיחה שהוגדרה בלוח הבקרה."
-                  : "האירוע חי עכשיו והמערכת סופרת נקודות בזמן אמת עד שעת הסיום שהוגדרה."}
+                  : "האיוונט חי עכשיו והמערכת סופרת נקודות בזמן אמת עד שעת הסיום שהוגדרה."}
               </p>
             </div>
           </div>
@@ -888,6 +954,22 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
 
         .event-readable .text-white\/68 {
           color: rgba(255, 255, 255, 0.85) !important;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .event-readable *,
+          .event-readable *::before,
+          .event-readable *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+          }
+
+          .event-readable .group:hover,
+          .event-readable a:hover {
+            transform: none !important;
+          }
         }
       `}</style>
     </main>
