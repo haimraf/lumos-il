@@ -90,7 +90,7 @@ export default function OllivandersPage() {
             description: "15 גליאונים",
             targetType: "wand",
             targetId: `${newWand.maker}:${newWand.fullText}`,
-            targetUrl: "/shop/ollivanders",
+            targetUrl: "/ollivanders",
           });
         }
         refreshProfile();
