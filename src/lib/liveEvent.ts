@@ -338,14 +338,14 @@ export function pickFeaturedLiveEvent(
   now = Date.now(),
 ) {
   const sorted = sortLiveEventCatalog(events, now);
-  const visibleEvents = sorted.filter((event) => {
-    const status = getLiveEventCatalogStatus(event, now);
-    return status === "live" || status === "upcoming";
-  });
+  const liveEvents = sorted.filter((event) => getLiveEventCatalogStatus(event, now) === "live");
+  const upcomingEvents = sorted.filter((event) => getLiveEventCatalogStatus(event, now) === "upcoming");
 
   return (
-    visibleEvents.find((event) => event.featured)
-    || visibleEvents[0]
+    liveEvents.find((event) => event.featured)
+    || liveEvents[0]
+    || upcomingEvents.find((event) => event.featured)
+    || upcomingEvents[0]
     || sorted.find((event) => event.featured && getLiveEventCatalogStatus(event, now) !== "archived")
     || sorted.find((event) => getLiveEventCatalogStatus(event, now) !== "archived")
     || null

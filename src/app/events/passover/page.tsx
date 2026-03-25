@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
   Clock3,
@@ -36,6 +37,8 @@ import {
   getLiveEventPhase,
   getLiveEventStart,
   getProfileLiveEventPoints,
+  LIVE_EVENTS_CATALOG_KEY,
+  LIVE_EVENT_SETTINGS_KEY,
   type LiveEventSettings,
 } from "@/lib/liveEvent";
 
@@ -200,6 +203,7 @@ function formatEventDate(value: string) {
 }
 
 export function LiveEventExperience({ initialEventConfig = null }: LiveEventExperienceProps) {
+  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [userProfile, setUserProfile] = useState<EventProfile | null>(null);
   const [leaderboard, setLeaderboard] = useState<EventProfile[]>([]);
@@ -227,17 +231,33 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   const supportForumHref = liveEvent.support_forum_href || "/forums/feedback-and-suggestions";
   const leadingWizard = leaderboard[0] || null;
 
+  const refreshEventConfig = useCallback(async () => {
+    if (initialEventConfig?.slug) {
+      const refreshedEvent = await fetchLiveEventBySlug(supabase, initialEventConfig.slug);
+      if (refreshedEvent) {
+        setEventConfig(refreshedEvent);
+        return refreshedEvent;
+      }
+
+      setEventConfig(initialEventConfig);
+      return initialEventConfig;
+    }
+
+    const featuredEvent = await fetchLiveEventSettings(supabase);
+    setEventConfig(featuredEvent);
+
+    if (featuredEvent?.slug && featuredEvent.slug !== "passover") {
+      router.replace(`/events/${featuredEvent.slug}`);
+    }
+
+    return featuredEvent;
+  }, [initialEventConfig, router, supabase]);
+
   useEffect(() => {
     const fetchData = async () => {
-      if (initialEventConfig?.slug) {
-        const refreshedEvent = await fetchLiveEventBySlug(supabase, initialEventConfig.slug);
-        if (refreshedEvent) {
-          setEventConfig(refreshedEvent);
-        } else {
-          setEventConfig(initialEventConfig);
-        }
-      } else {
-        setEventConfig(await fetchLiveEventSettings(supabase));
+      const refreshedEvent = await refreshEventConfig();
+      if (!initialEventConfig?.slug && refreshedEvent?.slug && refreshedEvent.slug !== "passover") {
+        return;
       }
 
       const [
@@ -277,7 +297,42 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
     };
 
     void fetchData();
-  }, [initialEventConfig, supabase]);
+  }, [initialEventConfig, refreshEventConfig, supabase]);
+
+  useEffect(() => {
+    const refreshOnReturn = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void refreshEventConfig();
+    };
+
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshEventConfig();
+      }
+    }, 30000);
+    const siteSettingsChannel = supabase
+      .channel(`live-event-page-sync-${initialEventConfig?.slug || "featured"}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "site_settings" },
+        (payload: any) => {
+          const key = payload?.new?.key || payload?.old?.key;
+          if (key === LIVE_EVENT_SETTINGS_KEY || key === LIVE_EVENTS_CATALOG_KEY) {
+            void refreshEventConfig();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+      window.clearInterval(interval);
+      void supabase.removeChannel(siteSettingsChannel);
+    };
+  }, [initialEventConfig?.slug, refreshEventConfig, supabase]);
 
   if (loading) return null;
 

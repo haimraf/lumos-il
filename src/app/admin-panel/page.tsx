@@ -786,11 +786,18 @@ export default function AdminPanel() {
 
         const { error } = await supabase.rpc('distribute_event_rewards');
 
-        const isMissingRpc = Boolean(error?.message && /(Could not find the function|does not exist)/i.test(error.message));
+        const isMissingRpc = Boolean(
+            error?.message
+            && (
+                /Could not find the function/i.test(error.message)
+                || /schema cache/i.test(error.message)
+                || /function\s+public\.(distribute_event_rewards|distribute_passover_rewards).*does not exist/i.test(error.message)
+            ),
+        );
         if (isMissingRpc) {
             sendOwl(
                 "נדרש עדכון מסד",
-                'חסרה פונקציית distribute_event_rewards. צריך להריץ את המיגרציה 20260325_event_reward_delivery_upgrade.sql כדי לחלק את הפרסים לפי ההגדרות החיות.',
+                'ה-RPC של חלוקת הפרסים לא זמין למשתמש המחובר. אם כבר הרצת את מיגרציות הפרסים, תריץ גם את 20260325_event_reward_rpc_grants.sql כדי לתת הרשאת EXECUTE ל-admin המחובר.',
                 "error",
             );
             return;

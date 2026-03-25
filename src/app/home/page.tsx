@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
     BookOpen, ScrollText, Users, Store, Wand2,
@@ -16,6 +16,8 @@ import LiveEventTeaser from "@/components/LiveEventTeaser";
 import {
     fetchLiveEventSettings,
     isLiveEventVisible,
+    LIVE_EVENTS_CATALOG_KEY,
+    LIVE_EVENT_SETTINGS_KEY,
     type LiveEventSettings,
 } from "@/lib/liveEvent";
 
@@ -40,6 +42,10 @@ export default function HomePage() {
 
     const [supabase] = useState(() => createClient());
 
+    const refreshHomeEvent = useCallback(async () => {
+        setEventConfig(await fetchLiveEventSettings(supabase));
+    }, [supabase]);
+
     useEffect(() => {
         const count = window.innerWidth < 768 ? 8 : 20;
         const generatedCandles = Array.from({ length: count }).map((_, i) => ({
@@ -51,7 +57,7 @@ export default function HomePage() {
         const frame = window.requestAnimationFrame(() => setCandles(generatedCandles));
 
         const fetchHouse = async () => {
-            setEventConfig(await fetchLiveEventSettings(supabase));
+            await refreshHomeEvent();
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 const { data: profile } = await supabase
@@ -64,10 +70,40 @@ export default function HomePage() {
         };
         fetchHouse();
 
+        const refreshOnReturn = () => {
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            void refreshHomeEvent();
+        };
+
+        window.addEventListener("focus", refreshOnReturn);
+        document.addEventListener("visibilitychange", refreshOnReturn);
+        const interval = window.setInterval(() => {
+            if (document.visibilityState === "visible") {
+                void refreshHomeEvent();
+            }
+        }, 30000);
+        const siteSettingsChannel = supabase
+            .channel("home-live-events-sync")
+            .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "site_settings" },
+                (payload: any) => {
+                    const key = payload?.new?.key || payload?.old?.key;
+                    if (key === LIVE_EVENT_SETTINGS_KEY || key === LIVE_EVENTS_CATALOG_KEY) {
+                        void refreshHomeEvent();
+                    }
+                },
+            )
+            .subscribe();
+
         return () => {
             window.cancelAnimationFrame(frame);
+            window.removeEventListener("focus", refreshOnReturn);
+            document.removeEventListener("visibilitychange", refreshOnReturn);
+            window.clearInterval(interval);
+            void supabase.removeChannel(siteSettingsChannel);
         };
-    }, [supabase]);
+    }, [refreshHomeEvent, supabase]);
 
     const getHouseStyles = (house: string) => {
         switch (house) {
