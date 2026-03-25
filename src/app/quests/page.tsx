@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
@@ -11,7 +11,7 @@ import { useOwlMail } from "@/components/OwlMail";
 import { useAuth } from "@/context/AuthContext";
 import { logActivityEvent } from "@/lib/activityEvents";
 import { processUserAction } from "@/lib/gameplay/processUserAction";
-import type { ProcessUserActionOutput } from "@/lib/gameplay/types";
+import type { ProcessUserActionOutput, QuestUpdate } from "@/lib/gameplay/types";
 import type { NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 import { computeQuestProgress, fetchQuestActivitySummary } from "@/lib/gameplay/questProgress";
 import type { ComputedQuest } from "@/lib/gameplay/questProgress";
@@ -55,6 +55,10 @@ export default function QuestsPage() {
   const [computedQuests, setComputedQuests] = useState<ComputedQuest[]>([]);
   const [nextActions, setNextActions] = useState<NextActionRecommendation[]>([]);
   const [lastFeedback, setLastFeedback] = useState<ProcessUserActionOutput | null>(null);
+  const [liveToasts, setLiveToasts] = useState<Array<{ id: string; title: string; subtitle: string; tone: "success" | "info" | "magic" }>>([]);
+  const toastCounterRef = useRef(0);
+  const recentLocalEventsRef = useRef<Record<string, number>>({});
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dateObj = new Date();
   const today = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
@@ -87,6 +91,7 @@ export default function QuestsPage() {
     void refreshComputedState();
   }, [
     supabase,
+    profile,
     profile?.id,
     profile?.last_reward_date,
     profile?.last_trivia_date,
@@ -96,8 +101,158 @@ export default function QuestsPage() {
     profile?.daily_points_earned,
   ]);
 
+  const estimateEventPoints = useCallback((eventType: string) => {
+    const pointMap: Record<string, number> = {
+      quest_trivia_completed: 10,
+      quest_niffler_found: 10,
+      quest_snitch_caught: 15,
+      quest_reward_claimed: 5,
+      arena_duel_completed: 15,
+      duel_tied: 10,
+      story_published: 25,
+      chapter_published: 15,
+      forum_thread_created: 15,
+      forum_reply_created: 10,
+      news_comment_created: 5,
+      news_poll_voted: 8,
+      library_chapter_read: 5,
+    };
+    return pointMap[eventType] || 0;
+  }, []);
+
+  const pushLiveToast = useCallback((title: string, subtitle: string, tone: "success" | "info" | "magic" = "magic") => {
+    toastCounterRef.current += 1;
+    const id = `toast-${toastCounterRef.current}`;
+    setLiveToasts((prev) => [...prev.slice(-2), { id, title, subtitle, tone }]);
+    window.setTimeout(() => {
+      setLiveToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 3600);
+  }, []);
+
+  const dispatchGameplayFeedback = useCallback((feedback: ProcessUserActionOutput) => {
+    const rewardParts: string[] = [];
+    if (feedback.reward.points > 0) rewardParts.push(`+${feedback.reward.points} נק׳`);
+    if (feedback.reward.galleons > 0) rewardParts.push(`+${feedback.reward.galleons} גליאונים`);
+    const rewardLabel = rewardParts.length > 0 ? rewardParts.join(" • ") : "ללא תגמול ישיר";
+
+    sendOwl("תגמול עודכן", rewardLabel, "magic");
+    pushLiveToast("תגמול התקבל", rewardLabel, "magic");
+
+    if (feedback.houseImpact.pointsDelta > 0 || feedback.houseImpact.message) {
+      sendOwl("השפעה על הבית", feedback.houseImpact.message, "success");
+      pushLiveToast("השפעת בית", feedback.houseImpact.message, "success");
+    }
+
+    if (feedback.completedQuests.length > 0) {
+      const names = feedback.completedQuests.map((quest) => quest.title).join(" • ");
+      sendOwl("משימה הושלמה! 🏆", names, "success");
+      pushLiveToast("משימה הושלמה", names, "success");
+    }
+  }, [sendOwl, pushLiveToast]);
+
+  const markLocalEvent = useCallback((eventType: string) => {
+    recentLocalEventsRef.current[eventType] = Date.now();
+  }, []);
+
+  const isDuplicateRealtimeEvent = useCallback((eventType: string) => {
+    const ts = recentLocalEventsRef.current[eventType];
+    if (!ts) return false;
+    return Date.now() - ts < 5000;
+  }, []);
+
+  const scheduleProfileRefresh = useCallback(() => {
+    if (refreshTimeoutRef.current) return;
+    refreshTimeoutRef.current = setTimeout(() => {
+      refreshTimeoutRef.current = null;
+      void refreshProfile();
+    }, 800);
+  }, [refreshProfile]);
+
+  const fetchEconomySnapshot = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("points_contributed, galleons")
+      .eq("id", userId)
+      .single();
+    return {
+      points: data?.points_contributed || 0,
+      galleons: data?.galleons || 0,
+    };
+  }, [supabase]);
+
+  const applyActualRewardDeltas = useCallback((
+    feedback: ProcessUserActionOutput,
+    before: { points: number; galleons: number },
+    after: { points: number; galleons: number },
+  ): ProcessUserActionOutput => {
+    const awardedPoints = Math.max(0, after.points - before.points);
+    const awardedGalleons = Math.max(0, after.galleons - before.galleons);
+    const capLimited = awardedPoints < feedback.reward.points;
+    return {
+      ...feedback,
+      reward: {
+        points: awardedPoints,
+        galleons: awardedGalleons,
+      },
+      houseImpact: {
+        pointsDelta: awardedPoints,
+        message: capLimited
+          ? "התקרה היומית הגבילה את כמות הנקודות שנוספה בפועל."
+          : feedback.houseImpact.message,
+      },
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const channel = supabase
+      .channel(`quest-loop-${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "activity_events",
+          filter: `actor_id=eq.${profile.id}`,
+        },
+        (payload) => {
+          const newEvent = payload.new as { event_type?: string };
+          const eventType = newEvent.event_type || "activity_event";
+          if (isDuplicateRealtimeEvent(eventType)) {
+            scheduleProfileRefresh();
+            return;
+          }
+          const feedback = processUserAction({
+            actionType: "activity_event",
+            source: "event",
+            rawResult: { points_awarded: estimateEventPoints(eventType), event_type: eventType },
+            houseImpact: {
+              pointsDelta: estimateEventPoints(eventType),
+              message: eventType.startsWith("arena_duel") || eventType === "duel_tied"
+                ? "הקרב בזירה השפיע על מומנטום הבית."
+                : "הפעילות שלך בטירה חיזקה את השפעת הבית.",
+            },
+          });
+          setLastFeedback(feedback);
+          dispatchGameplayFeedback(feedback);
+          scheduleProfileRefresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [profile?.id, supabase, scheduleProfileRefresh, isDuplicateRealtimeEvent, estimateEventPoints, dispatchGameplayFeedback]);
+
   const handleDailyCollect = async () => {
     if (isAllowanceDone || !profile) return;
+    const before = await fetchEconomySnapshot(profile.id);
     setDailyStatus(s => ({ ...s, allowance: true }));
     const { data, error } = await supabase.rpc('claim_daily_allowance', { p_user_id: profile.id });
     if (error) {
@@ -106,13 +261,22 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
-      setLastFeedback(processUserAction({
+      const questUpdates: QuestUpdate[] = [{
+        questId: "daily_allowance",
+        title: "דמי הכיס של משרד הקסמים",
+        progressBefore: 0,
+        progressAfter: 1,
+        target: 1,
+        status: "completed",
+      }];
+      const feedback = processUserAction({
         actionType: "daily_allowance",
         source: "rpc",
         rawResult: data,
         houseImpact: { pointsDelta: 0, message: "דמי הכיס מוכנים להמשך המסע היומי." },
-      }));
-      sendOwl("קצבה נאספה!", "5 גליאונים נוספו לכיסך.", "magic");
+        questUpdates,
+      });
+      markLocalEvent("quest_reward_claimed");
       logActivityEvent(supabase, {
         actorId: profile.id,
         actorName: profile.full_name,
@@ -121,15 +285,21 @@ export default function QuestsPage() {
         subtitle: "קיבל/ה 5 גליאונים מהקצבה היומית",
         icon: "💰"
       });
+      await refreshProfile();
+      const after = await fetchEconomySnapshot(profile.id);
+      const adjustedFeedback = applyActualRewardDeltas(feedback, before, after);
+      setLastFeedback(adjustedFeedback);
+      dispatchGameplayFeedback(adjustedFeedback);
 
     } else {
       sendOwl("כבר אספת היום", "הקצבה תתחדש מחר בשחר.", "info");
+      await refreshProfile();
     }
-    await refreshProfile();
   };
 
   const handleTriviaAnswer = async (selected: string) => {
     if (isTriviaDone || !profile || !currentTrivia) return;
+    const before = await fetchEconomySnapshot(profile.id);
     const isCorrect = selected === currentTrivia.a;
     setDailyStatus(s => ({ ...s, trivia: true }));
     const { data, error } = await supabase.rpc('claim_trivia_reward', { p_user_id: profile.id, p_is_correct: isCorrect });
@@ -139,17 +309,24 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
-      setLastFeedback(processUserAction({
+      const feedback = processUserAction({
         actionType: "daily_trivia",
         source: "rpc",
         rawResult: data,
-      }));
-      sendOwl(
-        isCorrect ? "לחש מוצלח! ✨" : "הלחש נכשל",
-        isCorrect ? "3 נקודות קסם נוספו לבית שלך!" : `התשובה הנכונה הייתה: ${currentTrivia.a}`,
-        isCorrect ? "success" : "error"
-      );
+        questUpdates: isCorrect ? [{
+          questId: "daily_spell_exam",
+          title: "מבחן הלחשים היומי",
+          progressBefore: 0,
+          progressAfter: 1,
+          target: 1,
+          status: "completed",
+        }] : [],
+      });
+      if (!isCorrect) {
+        sendOwl("הלחש נכשל", `התשובה הנכונה הייתה: ${currentTrivia.a}`, "error");
+      }
       if (isCorrect && profile) {
+        markLocalEvent("quest_trivia_completed");
         logActivityEvent(supabase, {
           actorId: profile.id,
           actorName: profile.full_name,
@@ -159,14 +336,20 @@ export default function QuestsPage() {
           icon: "📜"
         });
       }
+      await refreshProfile();
+      const after = await fetchEconomySnapshot(profile.id);
+      const adjustedFeedback = applyActualRewardDeltas(feedback, before, after);
+      setLastFeedback(adjustedFeedback);
+      dispatchGameplayFeedback(adjustedFeedback);
     } else {
       sendOwl("כבר ענית היום", "מבחן הלחשים יחזור מחר בשחר.", "info");
+      await refreshProfile();
     }
-    await refreshProfile();
   };
 
   const handleNifflerHunt = async () => {
     if (isNifflerDone || nifflerLoading || !profile) return;
+    const before = await fetchEconomySnapshot(profile.id);
     setNifflerLoading(true);
     setDailyStatus(s => ({ ...s, niffler: true }));
     const { data, error } = await supabase.rpc('claim_niffler_reward', { p_user_id: profile.id });
@@ -177,13 +360,21 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
-      setLastFeedback(processUserAction({
+      const feedback = processUserAction({
         actionType: "daily_niffler",
         source: "rpc",
         rawResult: data,
-      }));
+        questUpdates: [{
+          questId: "daily_niffler_hunt",
+          title: "מרדף הניפלר",
+          progressBefore: 0,
+          progressAfter: 1,
+          target: 1,
+          status: "completed",
+        }],
+      });
       const typeHe = data.type === "galleons" ? "גליאונים" : "נקודות קסם";
-      sendOwl("הניפלר נתפס! 🐾", `הנבל הקטן הסתיר ${data.amount} ${typeHe}!`, "magic");
+      markLocalEvent("quest_niffler_found");
       logActivityEvent(supabase, {
         actorId: profile.id,
         actorName: profile.full_name,
@@ -192,16 +383,22 @@ export default function QuestsPage() {
         subtitle: `תפס/ה את הניפלר וקיבל/ה ${data.amount} ${typeHe}`,
         icon: "🐾"
       });
+      await refreshProfile();
+      const after = await fetchEconomySnapshot(profile.id);
+      const adjustedFeedback = applyActualRewardDeltas(feedback, before, after);
+      setLastFeedback(adjustedFeedback);
+      dispatchGameplayFeedback(adjustedFeedback);
 
     } else {
       sendOwl("הניפלר ברח", "הוא כבר תפוס להיום. יחזור מחר בשחר.", "info");
+      await refreshProfile();
     }
-    await refreshProfile();
     setNifflerLoading(false);
   };
 
   const handleSnitchCatch = async () => {
     if (isSnitchDone || snitchLoading || !profile) return;
+    const before = await fetchEconomySnapshot(profile.id);
     setSnitchLoading(true);
     setDailyStatus(s => ({ ...s, snitch: true }));
     const { data, error } = await supabase.rpc('claim_snitch_reward', { p_user_id: profile.id });
@@ -212,12 +409,20 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
-      setLastFeedback(processUserAction({
+      const feedback = processUserAction({
         actionType: "daily_snitch",
         source: "rpc",
         rawResult: data,
-      }));
-      sendOwl("הסניץ' הזהוב נתפס! ⚡", "מחפש מדהים! 5 נקודות קסם לבית שלך.", "success");
+        questUpdates: [{
+          questId: "daily_snitch_run",
+          title: "מרדף אחרי הסניץ'",
+          progressBefore: 0,
+          progressAfter: 1,
+          target: 1,
+          status: "completed",
+        }],
+      });
+      markLocalEvent("quest_snitch_caught");
       logActivityEvent(supabase, {
         actorId: profile.id,
         actorName: profile.full_name,
@@ -226,11 +431,16 @@ export default function QuestsPage() {
         subtitle: "תפס/ה את הסניץ' הזהוב",
         icon: "⚡"
       });
+      await refreshProfile();
+      const after = await fetchEconomySnapshot(profile.id);
+      const adjustedFeedback = applyActualRewardDeltas(feedback, before, after);
+      setLastFeedback(adjustedFeedback);
+      dispatchGameplayFeedback(adjustedFeedback);
 
     } else {
       sendOwl("הסניץ' מתחבא", "כבר תפסת אותו היום. יחזור מחר לאחר שקיעה.", "info");
+      await refreshProfile();
     }
-    await refreshProfile();
     setSnitchLoading(false);
   };
 
@@ -286,6 +496,24 @@ export default function QuestsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="fixed bottom-6 start-6 z-30 flex flex-col gap-2 pointer-events-none">
+        {liveToasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`min-w-[220px] max-w-xs rounded-xl border px-4 py-3 shadow-xl backdrop-blur-md ${
+              toast.tone === "success"
+                ? "bg-emerald-500/10 border-emerald-400/30"
+                : toast.tone === "info"
+                  ? "bg-blue-500/10 border-blue-400/30"
+                  : "bg-amber-500/10 border-amber-400/30"
+            }`}
+          >
+            <p className="font-cinzel text-xs font-black text-white mb-1">{toast.title}</p>
+            <p className="text-[11px] text-white/70">{toast.subtitle}</p>
+          </div>
+        ))}
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 pt-10">
