@@ -96,8 +96,6 @@ const EMPTY_CHAMPIONS: Record<HouseId, HouseChampion> = {
   Hufflepuff: { name: "טרם נקבע", points: 0 },
 };
 
-type BrowserTimeout = ReturnType<typeof window.setTimeout>;
-
 function momentumCopy(value: number) {
   if (value >= 8) return "רותח";
   if (value >= 4) return "מתחמם";
@@ -149,12 +147,12 @@ export default function HouseCupLeaderboard() {
   const [highlightHouse, setHighlightHouse] = useState<HouseId | null>(null);
   const previousPointsRef = useRef<Record<HouseId, number>>(EMPTY_POINTS);
   const previousLeaderRef = useRef<HouseId | null>(null);
-  const highlightTimeoutRef = useRef<BrowserTimeout | null>(null);
+  const highlightTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (highlightTimeoutRef.current) {
-        clearTimeout(highlightTimeoutRef.current);
+      if (highlightTimeoutRef.current !== null) {
+        window.clearTimeout(highlightTimeoutRef.current);
       }
     };
   }, []);
@@ -233,7 +231,9 @@ export default function HouseCupLeaderboard() {
 
       if (biggestGainHouse && biggestGainValue > 0) {
         setHighlightHouse(biggestGainHouse);
-        if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+        if (highlightTimeoutRef.current !== null) {
+          window.clearTimeout(highlightTimeoutRef.current);
+        }
         highlightTimeoutRef.current = window.setTimeout(() => {
           setHighlightHouse(null);
           highlightTimeoutRef.current = null;
