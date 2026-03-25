@@ -26,12 +26,14 @@ import { getYearFromProfile, getYearTitle } from "@/lib/yearSystem";
 import { logAdminAudit, type AdminAuditInput } from "@/lib/adminAudit";
 import { logActivityEvent } from "@/lib/activityEvents";
 import {
+    compareLiveEventParticipants,
     LIVE_EVENTS_CATALOG_KEY,
     LIVE_EVENT_SETTINGS_KEY,
     buildLiveEventLegacyMirror,
     getDefaultLiveEventCatalogEntry,
     getLiveEventCatalogStatus,
     getLiveEventLabel,
+    getProfileLiveEventPoints,
     normalizeLiveEventCatalog,
     normalizeLiveEventCatalogEntry,
     normalizeLiveEventSettings,
@@ -157,6 +159,18 @@ const EVENT_ACTIVITY_OPTIONS = [
     { value: "house_sorted", label: "מיון לבית" },
     { value: "arena_duel_completed", label: "ניצחון בזירה" },
 ] as const;
+
+const EVENT_ADMIN_LEADERBOARD_COPY = {
+    title: "\u05DC\u05D5\u05D7 \u05DE\u05D5\u05D1\u05D9\u05DC\u05D9\u05DD \u05D7\u05D9",
+    explainer: "\u05D6\u05D4 \u05D4\u05E1\u05D3\u05E8 \u05E9\u05D4\u05DE\u05E2\u05E8\u05DB\u05EA \u05EA\u05E9\u05EA\u05DE\u05E9 \u05D1\u05D5 \u05D0\u05DD \u05EA\u05DC\u05D7\u05E6\u05D9 \u05E2\u05DB\u05E9\u05D9\u05D5 \u05E2\u05DC \u05D7\u05DC\u05D5\u05E7\u05EA \u05E4\u05E8\u05E1\u05D9\u05DD. \u05D0\u05D5\u05EA\u05D5 \u05D3\u05D9\u05E8\u05D5\u05D2, \u05D0\u05D5\u05EA\u05D4 \u05DC\u05D5\u05D2\u05D9\u05E7\u05EA \u05E9\u05D5\u05D5\u05D9\u05D5\u05DF, \u05D1\u05DC\u05D9 \u05D4\u05E4\u05EA\u05E2\u05D5\u05EA \u05D1\u05E8\u05D2\u05E2 \u05D4\u05D0\u05D7\u05E8\u05D5\u05DF.",
+    withPoints: "\u05E2\u05DD \u05E0\u05D9\u05E7\u05D5\u05D3",
+    firstPlaceNow: "\u05DE\u05E7\u05D5\u05DD \u05E8\u05D0\u05E9\u05D5\u05DF \u05DB\u05E8\u05D2\u05E2",
+    empty: "\u05E2\u05D3\u05D9\u05D9\u05DF \u05D0\u05D9\u05DF \u05E9\u05D7\u05E7\u05E0\u05D9\u05DD \u05E2\u05DD \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA \u05D0\u05D9\u05D5\u05D5\u05E0\u05D8. \u05D1\u05E8\u05D2\u05E2 \u05E9\u05D4\u05E4\u05E2\u05D9\u05DC\u05D5\u05EA \u05EA\u05EA\u05D7\u05D9\u05DC \u05DC\u05D4\u05D9\u05E1\u05E4\u05E8, \u05D4\u05D8\u05D1\u05DC\u05D4 \u05EA\u05D5\u05E4\u05D9\u05E2 \u05DB\u05D0\u05DF \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA.",
+    guest: "\u05E7\u05D5\u05E1\u05DD/\u05EA",
+    finishNow: "\u05D0\u05DD \u05EA\u05D7\u05DC\u05E7\u05D9 \u05E2\u05DB\u05E9\u05D9\u05D5 \u05E4\u05E8\u05E1\u05D9\u05DD, \u05D6\u05D4 \u05D4\u05DE\u05E7\u05D5\u05DD \u05D4\u05E8\u05D0\u05E9\u05D5\u05DF.",
+    points: "\u05E0\u05E7\u05D5\u05D3\u05D5\u05EA",
+    tieBreak: "\u05E9\u05D5\u05D5\u05D9\u05D5\u05DF \u05D1\u05E0\u05E7\u05D5\u05D3\u05D5\u05EA \u05E0\u05E9\u05D1\u05E8 \u05DC\u05E4\u05D9 \u05EA\u05D0\u05E8\u05D9\u05DA \u05D4\u05E8\u05E9\u05DE\u05D4 \u05DE\u05D5\u05E7\u05D3\u05DD \u05D9\u05D5\u05EA\u05E8. \u05D6\u05D0\u05EA \u05D0\u05D5\u05EA\u05D4 \u05DC\u05D5\u05D2\u05D9\u05E7\u05D4 \u05E9\u05D4-RPC \u05E9\u05DC \u05D7\u05DC\u05D5\u05E7\u05EA \u05D4\u05E4\u05E8\u05E1\u05D9\u05DD \u05DE\u05E9\u05EA\u05DE\u05E9 \u05D1\u05D4 \u05D1\u05DE\u05E1\u05D3.",
+} as const;
 
 const getDefaultEventMission = (): LiveEventMission => ({
     title: "",
@@ -3009,6 +3023,11 @@ export default function AdminPanel() {
                                         ...group,
                                         events: eventCatalog.filter((event) => getLiveEventCatalogStatus(event) === group.key),
                                     }));
+                                    const rankedParticipants = [...allProfiles]
+                                        .filter((profile) => getProfileLiveEventPoints(profile) > 0)
+                                        .sort(compareLiveEventParticipants);
+                                    const eventLeaderboard = rankedParticipants.slice(0, 10);
+                                    const liveLeader = eventLeaderboard[0] || null;
                                     return (
                                         <section className={`admin-card rounded-[2.5rem] p-8 border transition-all duration-700
                                             ${ev.active ? 'border-pink-500/30 bg-gradient-to-br from-pink-500/10 to-transparent' : 'border-white/5 opacity-80'}`}>
@@ -3564,6 +3583,84 @@ export default function AdminPanel() {
                                                     )}
                                                 </div>
                                             </div>
+                                            </div>
+
+                                            <div className="mt-8 rounded-[2rem] border border-sky-400/20 bg-gradient-to-l from-sky-500/10 via-sky-500/5 to-transparent p-6 space-y-5">
+                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                                                    <div>
+                                                        <h4 className="font-cinzel text-lg font-black text-sky-200">{EVENT_ADMIN_LEADERBOARD_COPY.title}</h4>
+                                                        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/65">
+                                                            {EVENT_ADMIN_LEADERBOARD_COPY.explainer}
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-center">
+                                                            <div className="font-cinzel text-2xl font-black text-sky-200">{rankedParticipants.length}</div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{EVENT_ADMIN_LEADERBOARD_COPY.withPoints}</div>
+                                                        </div>
+                                                        <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-center">
+                                                            <div className="font-cinzel text-lg font-black text-amber-300 truncate max-w-[160px]">
+                                                                {liveLeader?.full_name || "—"}
+                                                            </div>
+                                                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{EVENT_ADMIN_LEADERBOARD_COPY.firstPlaceNow}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {eventLeaderboard.length === 0 ? (
+                                                    <div className="rounded-[1.6rem] border border-dashed border-white/12 bg-white/[0.03] p-6 text-center text-sm text-white/55">
+                                                        {EVENT_ADMIN_LEADERBOARD_COPY.empty}
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        {eventLeaderboard.map((profile, index) => {
+                                                            const rewardForRank = ev.rewards.find((reward) => reward.rank === index + 1);
+                                                            const profilePoints = getProfileLiveEventPoints(profile);
+
+                                                            return (
+                                                                <div key={profile.id || `${profile.full_name}-${index}`} className="flex items-center gap-4 rounded-[1.6rem] border border-white/10 bg-black/20 px-5 py-4">
+                                                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl font-cinzel text-base font-black ${
+                                                                        index === 0
+                                                                            ? 'bg-amber-500/20 text-amber-300'
+                                                                            : index === 1
+                                                                                ? 'bg-slate-300/15 text-slate-200'
+                                                                                : index === 2
+                                                                                    ? 'bg-orange-500/20 text-orange-300'
+                                                                                    : 'bg-white/10 text-white/75'
+                                                                    }`}>
+                                                                        {index + 1}
+                                                                    </div>
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                            <p className="truncate font-cinzel text-base font-black text-white/85">{profile.full_name || EVENT_ADMIN_LEADERBOARD_COPY.guest}</p>
+                                                                            {profile.house && (
+                                                                                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/55">
+                                                                                    {profile.house}
+                                                                                </span>
+                                                                            )}
+                                                                            {rewardForRank?.title && (
+                                                                                <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black tracking-[0.16em] text-emerald-300">
+                                                                                    {rewardForRank.title}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="mt-1 text-xs text-white/45">
+                                                                            {index === 0 ? EVENT_ADMIN_LEADERBOARD_COPY.finishNow : `\u05DB\u05E8\u05D2\u05E2 \u05D1\u05DE\u05E7\u05D5\u05DD ${index + 1}.`}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="text-left">
+                                                                        <div className="font-cinzel text-xl font-black text-amber-300">{profilePoints}</div>
+                                                                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/45">{EVENT_ADMIN_LEADERBOARD_COPY.points}</div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+
+                                                <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-sm leading-relaxed text-white/60">
+                                                    {EVENT_ADMIN_LEADERBOARD_COPY.tieBreak}
+                                                </div>
                                             </div>
 
                                             <div className="mt-8 p-6 bg-gradient-to-r from-amber-900/40 to-amber-600/20 border border-amber-500/30 rounded-[2rem] text-center space-y-4 shadow-[0_0_30px_rgba(245,158,11,0.15)]">

@@ -392,6 +392,26 @@ export function getProfileLiveEventPoints(
   return Math.max(eventPoints, legacyPoints);
 }
 
+function getLeaderboardTimestamp(value: unknown) {
+  if (typeof value !== "string" || !value) return Number.POSITIVE_INFINITY;
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+}
+
+export function compareLiveEventParticipants(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>,
+) {
+  const pointDelta = getProfileLiveEventPoints(right) - getProfileLiveEventPoints(left);
+  if (pointDelta !== 0) return pointDelta;
+
+  const createdAtDelta = getLeaderboardTimestamp(left.created_at) - getLeaderboardTimestamp(right.created_at);
+  if (createdAtDelta !== 0) return createdAtDelta;
+
+  return asString(left.full_name).localeCompare(asString(right.full_name), "he");
+}
+
 export async function fetchLiveEventCatalog(
   supabase: SupabaseClient,
 ): Promise<LiveEventCatalogEntry[]> {

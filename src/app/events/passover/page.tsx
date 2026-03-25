@@ -27,6 +27,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import {
+  compareLiveEventParticipants,
   fetchLiveEventBySlug,
   fetchLiveEventSettings,
   getDefaultLiveEventSettings,
@@ -43,8 +44,10 @@ type LiveEventExperienceProps = {
 };
 
 type EventProfile = {
+  id?: string;
   full_name?: string | null;
   house?: string | null;
+  created_at?: string | null;
   event_points?: number | null;
   passover_points?: number | null;
 };
@@ -133,6 +136,25 @@ const ACCENT_TONES: Record<string, AccentTone> = {
 };
 
 const DEFAULT_END = "2026-04-15T23:59:59Z";
+const EVENT_LEADERBOARD_COPY = {
+  title: "\u05D8\u05D1\u05DC\u05EA \u05D4\u05DE\u05D5\u05D1\u05D9\u05DC\u05D9\u05DD \u05E2\u05DB\u05E9\u05D9\u05D5",
+  explainer: "\u05D6\u05D0\u05EA \u05D0\u05D5\u05EA\u05D4 \u05D4\u05D8\u05D1\u05DC\u05D4 \u05E9\u05DC\u05E4\u05D9\u05D4 \u05D4\u05DE\u05E2\u05E8\u05DB\u05EA \u05DE\u05D6\u05D4\u05D4 \u05D0\u05EA \u05DE\u05E7\u05D5\u05DD 1, 2, 3 \u05D5\u05D4\u05DC\u05D0\u05D4 \u05D1\u05D6\u05DE\u05DF \u05D7\u05DC\u05D5\u05E7\u05EA \u05D4\u05E4\u05E8\u05E1\u05D9\u05DD.",
+  participants: "\u05DE\u05E9\u05EA\u05EA\u05E4\u05D9\u05DD \u05E2\u05DD \u05E0\u05D9\u05E7\u05D5\u05D3",
+  upcomingEmpty: "\u05D4\u05D8\u05D1\u05DC\u05D4 \u05EA\u05EA\u05DE\u05DC\u05D0 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05EA \u05D1\u05E8\u05D2\u05E2 \u05E9\u05D4\u05D0\u05D9\u05D5\u05D5\u05E0\u05D8 \u05D9\u05D9\u05E4\u05EA\u05D7 \u05D5\u05D9\u05EA\u05D7\u05D9\u05DC\u05D5 \u05DC\u05D4\u05D9\u05E6\u05D1\u05E8 \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA.",
+  liveEmpty: "\u05E2\u05D3\u05D9\u05D9\u05DF \u05D0\u05D9\u05DF \u05E9\u05D7\u05E7\u05E0\u05D9\u05DD \u05E2\u05DD \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA \u05D0\u05D9\u05D5\u05D5\u05E0\u05D8. \u05D1\u05E8\u05D2\u05E2 \u05E9\u05D4\u05E7\u05E1\u05DD \u05D9\u05D6\u05D5\u05D6, \u05D4\u05E9\u05DE\u05D5\u05EA \u05D9\u05D5\u05E4\u05D9\u05E2\u05D5 \u05DB\u05D0\u05DF.",
+  guest: "\u05E7\u05D5\u05E1\u05DD/\u05EA",
+  leadingNow: "\u05DE\u05D5\u05D1\u05D9\u05DC/\u05D4 \u05D0\u05EA \u05D4\u05D0\u05D9\u05D5\u05D5\u05E0\u05D8 \u05DB\u05E8\u05D2\u05E2.",
+  points: "\u05E0\u05E7\u05D5\u05D3\u05D5\u05EA",
+  yourStatusTitle: "\u05DE\u05D4 \u05D4\u05DE\u05E6\u05D1 \u05E9\u05DC\u05DA",
+  yourPoints: "\u05D4\u05E0\u05D9\u05E7\u05D5\u05D3 \u05E9\u05DC\u05DA",
+  yourPlace: "\u05D4\u05DE\u05E7\u05D5\u05DD \u05E9\u05DC\u05DA",
+  leaderTitle: "\u05DE\u05D9 \u05DE\u05D5\u05D1\u05D9\u05DC \u05DB\u05E8\u05D2\u05E2",
+  noLeader: "\u05E2\u05D3\u05D9\u05D9\u05DF \u05D0\u05D9\u05DF \u05DE\u05D5\u05D1\u05D9\u05DC \u05DB\u05D9 \u05D4\u05D8\u05D1\u05DC\u05D4 \u05E8\u05D9\u05E7\u05D4.",
+  tieBreak: "\u05D0\u05DD \u05D9\u05E9 \u05E9\u05D5\u05D5\u05D9\u05D5\u05DF \u05D1\u05E0\u05E7\u05D5\u05D3\u05D5\u05EA, \u05D4\u05DE\u05E2\u05E8\u05DB\u05EA \u05E9\u05D5\u05D1\u05E8\u05EA \u05D0\u05D5\u05EA\u05D5 \u05DC\u05E4\u05D9 \u05EA\u05D0\u05E8\u05D9\u05DA \u05D4\u05E8\u05E9\u05DE\u05D4 \u05DE\u05D5\u05E7\u05D3\u05DD \u05D9\u05D5\u05EA\u05E8.",
+  rankedNowPrefix: "\u05D0\u05EA/\u05D4 \u05DB\u05E8\u05D2\u05E2 \u05D1\u05DE\u05E7\u05D5\u05DD ",
+  noTopTenYet: "\u05E6\u05D1\u05E8\u05EA \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA, \u05D0\u05D1\u05DC \u05E2\u05D3\u05D9\u05D9\u05DF \u05DC\u05D0 \u05E0\u05DB\u05E0\u05E1\u05EA \u05DC\u05D8\u05D5\u05E4 10.",
+  noPersonalRank: "\u05E2\u05D3\u05D9\u05D9\u05DF \u05DC\u05D0 \u05E6\u05D1\u05E8\u05EA \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA, \u05D0\u05D6 \u05E2\u05D3\u05D9\u05D9\u05DF \u05D0\u05D9\u05DF \u05D3\u05D9\u05E8\u05D5\u05D2 \u05D0\u05D9\u05E9\u05D9.",
+};
 
 function useCountdown(target: string) {
   const targetMs = useMemo(() => new Date(target).getTime(), [target]);
@@ -180,6 +202,9 @@ function formatEventDate(value: string) {
 export function LiveEventExperience({ initialEventConfig = null }: LiveEventExperienceProps) {
   const [supabase] = useState(() => createClient());
   const [userProfile, setUserProfile] = useState<EventProfile | null>(null);
+  const [leaderboard, setLeaderboard] = useState<EventProfile[]>([]);
+  const [participantCount, setParticipantCount] = useState(0);
+  const [currentUserRank, setCurrentUserRank] = useState<number | null>(null);
   const [eventConfig, setEventConfig] = useState<LiveEventSettings | null>(initialEventConfig);
   const [loading, setLoading] = useState(() => !initialEventConfig);
 
@@ -200,6 +225,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
       : "דף איוונט ייעודי, טיימר דינמי, משימות ופרסים מההגדרות החיות, וניקוד אישי שמסונכרן עם הפעילות שלכם ברחבי הטירה."
   );
   const supportForumHref = liveEvent.support_forum_href || "/forums/feedback-and-suggestions";
+  const leadingWizard = leaderboard[0] || null;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -214,9 +240,29 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
         setEventConfig(await fetchLiveEventSettings(supabase));
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const [
+        {
+          data: { user },
+        },
+        { data: leaderboardProfiles },
+      ] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase
+          .from("profiles")
+          .select("id, full_name, house, created_at, event_points, passover_points")
+          .or("event_points.gt.0,passover_points.gt.0")
+          .limit(250),
+      ]);
+
+      const rankedParticipants = [...(leaderboardProfiles || [])]
+        .filter((profile) => getProfileLiveEventPoints(profile) > 0)
+        .sort(compareLiveEventParticipants);
+
+      setParticipantCount(rankedParticipants.length);
+      setLeaderboard(rankedParticipants.slice(0, 10));
+      setCurrentUserRank(
+        user ? rankedParticipants.findIndex((profile) => profile.id === user.id) + 1 || null : null,
+      );
 
       if (user) {
         const { data } = await supabase
@@ -277,6 +323,12 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   const statusDate = isUpcoming
     ? formatEventDate(getLiveEventStart(liveEvent))
     : formatEventDate(getLiveEventEnd(liveEvent));
+
+  const currentUserStatus = currentUserRank
+    ? `${EVENT_LEADERBOARD_COPY.rankedNowPrefix}${currentUserRank}.`
+    : eventPoints > 0
+      ? EVENT_LEADERBOARD_COPY.noTopTenYet
+      : EVENT_LEADERBOARD_COPY.noPersonalRank;
 
   return (
     <main className="event-readable min-h-screen bg-[#120d09] text-[#fef3c7] overflow-x-hidden selection:bg-amber-500/30 text-[1.02rem]" dir="rtl">
@@ -447,6 +499,118 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                 {isUpcoming
                   ? "הדף כבר מוכן, אבל צבירת הנקודות תתחיל אוטומטית רק בזמן הפתיחה."
                   : "כל פעולה נתמכת ברחבי הטירה נספרת לניקוד האיוונט בזמן שהוא חי."}
+              </p>
+            </div>
+          </motion.div>
+        </section>
+
+        <section className="mt-20 grid gap-8 xl:grid-cols-[1.2fr_0.8fr] relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="rounded-[2.7rem] border border-amber-500/20 bg-gradient-to-br from-white/[0.05] to-black/35 p-8 shadow-2xl"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-cinzel text-3xl font-black text-amber-50">{EVENT_LEADERBOARD_COPY.title}</h2>
+                <p className="mt-2 text-base leading-relaxed text-white/[0.78]">
+                  {EVENT_LEADERBOARD_COPY.explainer}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-center">
+                <div className="font-cinzel text-2xl font-black text-amber-300">{participantCount}</div>
+                <div className="text-[11px] font-black uppercase tracking-[0.24em] text-white/55">{EVENT_LEADERBOARD_COPY.participants}</div>
+              </div>
+            </div>
+
+            {leaderboard.length === 0 ? (
+              <div className="mt-8 rounded-[2rem] border border-dashed border-white/12 bg-white/[0.03] p-8 text-center text-base text-white/[0.7]">
+                {isUpcoming
+                  ? EVENT_LEADERBOARD_COPY.upcomingEmpty
+                  : EVENT_LEADERBOARD_COPY.liveEmpty}
+              </div>
+            ) : (
+              <div className="mt-8 space-y-3">
+                {leaderboard.map((profile, index) => {
+                  const rewardForRank = rewards.find((reward) => reward.rank === index + 1);
+                  const profilePoints = getProfileLiveEventPoints(profile);
+
+                  return (
+                    <div
+                      key={profile.id || `${profile.full_name}-${index}`}
+                      className="flex items-center gap-4 rounded-[1.8rem] border border-white/10 bg-white/[0.05] px-5 py-4"
+                    >
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl font-cinzel text-lg font-black ${
+                        index === 0
+                          ? "bg-amber-500/20 text-amber-300"
+                          : index === 1
+                            ? "bg-slate-300/15 text-slate-200"
+                            : index === 2
+                              ? "bg-orange-500/20 text-orange-300"
+                              : "bg-white/8 text-white/80"
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-cinzel text-lg font-black text-white">{profile.full_name || EVENT_LEADERBOARD_COPY.guest}</p>
+                          {profile.house && (
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/60">
+                              {profile.house}
+                            </span>
+                          )}
+                          {rewardForRank?.title && (
+                            <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+                              {rewardForRank.title}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm text-white/60">
+                          {index === 0 ? EVENT_LEADERBOARD_COPY.leadingNow : `מקום ${index + 1} בדירוג החי.`}
+                        </p>
+                      </div>
+                      <div className="text-left">
+                        <div className="font-cinzel text-2xl font-black text-amber-300">{profilePoints}</div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">{EVENT_LEADERBOARD_COPY.points}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="space-y-5"
+          >
+            <div className="rounded-[2.5rem] border border-emerald-400/20 bg-emerald-500/10 p-7">
+              <h3 className="font-cinzel text-sm font-black uppercase tracking-[0.22em] text-emerald-300">{EVENT_LEADERBOARD_COPY.yourStatusTitle}</h3>
+              <p className="mt-4 text-lg leading-relaxed text-white/[0.84]">{currentUserStatus}</p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
+                  <div className="font-cinzel text-2xl font-black text-emerald-300">{eventPoints}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">{EVENT_LEADERBOARD_COPY.yourPoints}</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-center">
+                  <div className="font-cinzel text-2xl font-black text-amber-300">{currentUserRank || "—"}</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">{EVENT_LEADERBOARD_COPY.yourPlace}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[2.5rem] border border-sky-400/20 bg-sky-500/10 p-7">
+              <h3 className="font-cinzel text-sm font-black uppercase tracking-[0.22em] text-sky-200">{EVENT_LEADERBOARD_COPY.leaderTitle}</h3>
+              <p className="mt-4 text-lg leading-relaxed text-white/[0.84]">
+                {leadingWizard
+                  ? `${leadingWizard.full_name || EVENT_LEADERBOARD_COPY.guest} במקום ראשון עם ${getProfileLiveEventPoints(leadingWizard)} נקודות.`
+                  : EVENT_LEADERBOARD_COPY.noLeader}
+              </p>
+              <p className="mt-4 text-sm leading-relaxed text-white/[0.72]">
+                {EVENT_LEADERBOARD_COPY.tieBreak}
               </p>
             </div>
           </motion.div>
