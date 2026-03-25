@@ -14,9 +14,10 @@ import {
 import { useUIState } from "@/context/UIContext";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { useAuth } from "@/context/AuthContext";
-import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
+import { getNamedRoleColor, getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import MagicTicker from "@/components/MagicTicker";
+import QuestBeacon from "@/components/QuestBeacon";
 import { computeQuestProgress, fetchQuestActivitySummary } from "@/lib/gameplay/questProgress";
 import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 
@@ -105,8 +106,21 @@ export default function Header() {
         session?.user?.email?.split("@")[0] ||
         "Community Member";
     const displayHouse = profile?.house || "Unknown";
+    const displayHouseLabel =
+        displayHouse === "Gryffindor"
+            ? "גריפינדור"
+            : displayHouse === "Slytherin"
+                ? "סלית'רין"
+                : displayHouse === "Ravenclaw"
+                    ? "רייבנקלו"
+                    : displayHouse === "Hufflepuff"
+                        ? "הפלאפאף"
+                        : "לא מוין";
     const displayGalleons = profile?.galleons?.toLocaleString() || "0";
-    const profileGroupId = typeof profile?.group_id === "string" ? profile.group_id : null;
+    const profileGroupId =
+        typeof profile?.group_id === "string" || typeof profile?.group_id === "number"
+            ? profile.group_id
+            : null;
     const profilePointsContributed = typeof profile?.points_contributed === "number" ? profile.points_contributed : 0;
     const profileDailyPointsEarned = typeof profile?.daily_points_earned === "number" ? profile.daily_points_earned : 0;
     const profileLastRewardDate = typeof profile?.last_reward_date === "string" ? profile.last_reward_date : null;
@@ -115,28 +129,46 @@ export default function Header() {
     const profileLastSnitchDate = typeof profile?.last_snitch_date === "string" ? profile.last_snitch_date : null;
 
     const [nameColor, setNameColor] = useState<string>("rgba(255,255,255,0.85)");
+    const [displayGroupName, setDisplayGroupName] = useState<string | null>(null);
     useEffect(() => {
         if (!profile) {
             queueMicrotask(() => {
                 setNameColor("rgba(255,255,255,0.85)");
+                setDisplayGroupName(null);
             });
             return;
         }
         (async () => {
             // אם יש group_id — קח ישירות את צבע הקבוצה
-            if (profileGroupId) {
+            if (profileGroupId !== null) {
                 const { data } = await supabase
                     .from("user_groups")
-                    .select("color")
+                    .select("name, color")
                     .eq("id", profileGroupId)
                     .single();
-                if (data?.color) { setNameColor(data.color); return; }
+                const groupMeta = data as { name?: string | null; color?: string | null } | null;
+                setDisplayGroupName(groupMeta?.name ?? null);
+                if (groupMeta?.color) { setNameColor(groupMeta.color); return; }
+            } else {
+                setDisplayGroupName(null);
             }
             // fallback — roleColors לפי שם דרגה
             const map = await getRoleColorFromDB(supabase);
-            setNameColor(getRoleColor(profile.role, profile.house, map));
+            const roleColor = getNamedRoleColor(profile.role, map);
+            if (roleColor) {
+                setNameColor(roleColor);
+                return;
+            }
+
+            setNameColor(getRoleColor(null, profile.house, map));
         })();
     }, [profile, profileGroupId, supabase]);
+
+    const identityMeta = [
+        displayGroupName,
+        displayHouseLabel !== "לא מוין" ? displayHouseLabel : null,
+        profile?.year ? `שנה ${profile.year}` : null,
+    ].filter(Boolean).join(" · ");
 
     useEffect(() => {
         if (!isAuthenticated || !displayProfileId) {
@@ -498,7 +530,7 @@ export default function Header() {
 
                                     {avatarMenuOpen && (
                                         <div
-                                            className="absolute right-0 top-[calc(100%+12px)] w-72 max-w-[calc(100vw-1.5rem)] bg-[#070d1a] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] z-[600] overflow-hidden"
+                                            className="absolute right-0 top-[calc(100%+12px)] w-80 max-w-[calc(100vw-1.5rem)] bg-[#070d1a] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] z-[600] overflow-hidden"
                                             dir="rtl"
                                             style={{ animation: "avatarMenuIn 0.18s cubic-bezier(0.22,1,0.36,1) forwards" }}
                                         >
@@ -527,39 +559,36 @@ export default function Header() {
                                                     }
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="font-assistant font-bold text-sm truncate" style={{ color: nameColor }}>{displayName}</p>
-                                                    <p className="font-assistant text-xs text-white/35 mt-0.5">
-                                                        {displayHouse === 'Gryffindor' ? "גריפינדור" : displayHouse === 'Slytherin' ? "סלית'רין" : displayHouse === 'Ravenclaw' ? "רייבנקלו" : displayHouse === 'Hufflepuff' ? "הפלפאף" : "לא מוין"}
-                                                        {profile?.year ? ` · שנה ${profile.year}` : ""}
-                                                    </p>
+                                                    <p className="font-assistant font-bold text-sm truncate" title={identityMeta} style={{ color: nameColor }}>{displayName}</p>
+                                                    <p className="font-assistant text-xs text-white/35 mt-0.5">{identityMeta}</p>
                                                 </div>
                                             </div>
 
-                                            {!isGuest && (
-                                                <div className="px-3 py-3 border-b border-white/[0.07]">
-                                                    <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.06] p-3 shadow-[0_0_24px_rgba(245,158,11,0.06)]">
-                                                        <div className="flex items-start justify-between gap-3">
+                                            {false && !isGuest && (
+                                                <div className="px-4 py-4 border-b border-white/[0.07]">
+                                                    <div className="rounded-[1.6rem] border border-amber-500/15 bg-amber-500/[0.06] p-4 shadow-[0_0_24px_rgba(245,158,11,0.06)]">
+                                                        <div className="flex items-start justify-between gap-4">
                                                             <div className="min-w-0">
                                                                 <p className="font-cinzel text-[9px] font-black uppercase tracking-[0.3em] text-amber-300/70">
                                                                     מה כדאי לעשות עכשיו
                                                                 </p>
-                                                                <p className="mt-1 truncate font-assistant text-sm font-semibold text-white/85">
+                                                                <p className="mt-1 font-assistant text-sm font-semibold leading-6 text-white/90">
                                                                     {missionTitle}
                                                                 </p>
-                                                                <p className="mt-1 text-xs text-white/45">
+                                                                <p className="mt-1 text-xs leading-5 text-white/50">
                                                                     {missionHint}
                                                                 </p>
                                                             </div>
-                                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-black/20">
+                                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-500/20 bg-black/20">
                                                                 <Sparkles size={14} className="text-amber-400" />
                                                             </div>
                                                         </div>
 
-                                                        <div className="mt-3 grid grid-cols-2 gap-2">
+                                                        <div className="mt-4 space-y-2.5">
                                                             <Link
                                                                 href={missionHref}
                                                                 onClick={() => setAvatarMenuOpen(false)}
-                                                                className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-center font-assistant text-xs font-bold text-amber-950 transition-colors hover:bg-amber-400"
+                                                                className="flex w-full min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-center font-assistant text-sm font-bold text-amber-950 transition-colors hover:bg-amber-400"
                                                             >
                                                                 <Zap size={13} />
                                                                 לצעד הבא
@@ -567,7 +596,7 @@ export default function Header() {
                                                             <Link
                                                                 href={QUESTS_FAQ_LINK}
                                                                 onClick={() => setAvatarMenuOpen(false)}
-                                                                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center font-assistant text-xs font-semibold text-white/60 transition-colors hover:text-white"
+                                                                className="flex w-full min-h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-center font-assistant text-sm font-semibold text-white/65 transition-colors hover:text-white"
                                                             >
                                                                 <HelpCircle size={13} className="text-amber-400/70" />
                                                                 הסבר מהיר
@@ -679,7 +708,7 @@ export default function Header() {
                         </Link>
                     )}
 
-                    {!isGuest && (
+                    {false && !isGuest && (
                         <div className="w-full mb-5 rounded-3xl border border-amber-500/15 bg-amber-500/[0.06] px-5 py-4 shadow-[0_0_36px_rgba(245,158,11,0.08)]">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -772,6 +801,13 @@ export default function Header() {
                     )}
                 </nav>
             </div>
+
+            <QuestBeacon
+                isAuthenticated={isAuthenticated}
+                hidden={isOpen || avatarMenuOpen}
+                nextAction={nextAction}
+                nextActionLoading={nextActionLoading}
+            />
         </>
     );
 }

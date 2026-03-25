@@ -170,7 +170,6 @@ export default function MagicTicker({ nextAction = null, nextActionLoading = fal
         houses[currentLeader] >= houses[currentHouse] ? currentLeader : currentHouse
     );
     const leadingMeta = HOUSE_META[leadingHouse];
-    const LeadingIcon = leadingMeta.icon;
     const galleons = profile?.galleons ?? 0;
     const missionHref = nextAction?.href || "/quests";
     const missionTitle = nextActionLoading
@@ -199,19 +198,9 @@ export default function MagicTicker({ nextAction = null, nextActionLoading = fal
                         </span>
                     </div>
                     <Link href="/house-cup" className="group p-1" aria-label={`מוביל גביע הבתים: ${leadingMeta.label}`}>
-                        <LeadingIcon
-                            size={20}
-                            className="transition-transform group-hover:scale-110"
-                            style={{
-                                color: leadingMeta.color,
-                                filter: `drop-shadow(0 0 10px ${leadingMeta.glow})`,
-                            }}
-                        />
-                    </Link>
-                    <Link href="/house-cup" className="group p-1">
                         <Trophy
-                            size={20}
-                            className="transition-transform group-hover:scale-110"
+                            size={18}
+                            className="me-1 transition-transform group-hover:scale-110"
                             style={{
                                 color: "#f59e0b",
                                 filter: "drop-shadow(0 0 10px rgba(245,158,11,0.5))",
@@ -266,7 +255,7 @@ export default function MagicTicker({ nextAction = null, nextActionLoading = fal
                 </div>
 
                 <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
-                    {profile && (
+                    {false && profile && (
                         <Link
                             href={missionHref}
                             className="hidden lg:flex items-center gap-2 shrink-0 rounded-xl border border-amber-500/20 bg-amber-500/[0.08] px-2.5 py-1.5 shadow-[0_0_16px_rgba(245,158,11,0.08)] transition-all hover:border-amber-500/35 hover:bg-amber-500/[0.12]"
