@@ -164,23 +164,20 @@ const EVENT_LEADERBOARD_COPY = {
 
 function useCountdown(target: string) {
   const targetMs = useMemo(() => new Date(target).getTime(), [target]);
-  const [now, setNow] = useState(0);
+  // אתחול לזמן הנוכחי כדי למנוע קפיצות במספרים בטעינה הראשונה
+  const [now, setNow] = useState(() => Date.now()); 
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setNow(Date.now()));
+    // עדכון כל שנייה בדיוק
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearInterval(timer);
-    };
+    return () => window.clearInterval(timer);
   }, []);
 
   const diff = Math.max(0, targetMs - now);
   const totalSeconds = Math.floor(diff / 1000);
 
   return {
-    isDone: diff <= 0,
+    isDone: diff <= 0 && targetMs > 0, // וידוא שתאריך לא תקין לא מחזיר מיד true
     days: Math.floor(totalSeconds / 86400),
     hours: Math.floor((totalSeconds % 86400) / 3600),
     minutes: Math.floor((totalSeconds % 3600) / 60),
@@ -359,6 +356,16 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
 
     return featuredEvent;
   }, [initialEventConfig, router, supabase]);
+
+// הוסף את הבלוק הזה מתחת להגדרת ה-countdown
+  useEffect(() => {
+    // אם הטיימר הגיע לאפס, והאירוע עדיין לא מוגדר כ"הסתיים"
+    if (countdown.isDone && eventPhase !== "ended") {
+      console.log("Timer ended! Transitioning event phase...");
+      // קריאה מחדש לשרת ולפונקציות שמחשבות את השלב הנוכחי
+      void refreshEventConfig();
+    }
+  }, [countdown.isDone, eventPhase, refreshEventConfig]);
 
   useEffect(() => {
     const fetchData = async () => {
