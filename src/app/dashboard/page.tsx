@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
   Coins, Trophy, Wand2, Users, ScrollText, ShoppingBag,
-  ChevronLeft, ChevronRight, LogOut, Settings, Mail, Lock, Sparkles, Zap, Home, Bell,
+  ChevronRight, LogOut, Settings, Mail, Lock, Sparkles, Zap, Home, Bell,
   Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu, Swords, type LucideIcon
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
@@ -506,13 +506,17 @@ function DashboardContent() {
       const bScore = (isAlmostDoneQuest(b) ? 100 : 0) + (b.target > 0 ? (b.progress / b.target) * 100 : 0);
       return bScore - aScore;
     })
-    .slice(0, 3);
+    .slice(0, 2);
   const dailyPointCap = 50;
   const dailyPointsEarned = Math.max(0, Math.min(profile?.daily_points_earned || 0, dailyPointCap));
   const dailyPointsPercent = (dailyPointsEarned / dailyPointCap) * 100;
   const unreadNotificationsCount = notifications.filter((notification) => !notification.is_read).length;
   const duelAlertsCount = notifications.filter((notification) => !notification.is_read && (notification.type === "duel_result" || notification.type === "duel_missed")).length;
   const discussionAlertsCount = notifications.filter((notification) => !notification.is_read && notification.target_url && notification.type !== "duel_result" && notification.type !== "duel_missed").length;
+  const currentYear = getYearFromProfile(profile);
+  const badgeColor = myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors);
+  const badgeLabel = myGroup?.name || profile?.role || "";
+  const identitySummary = `${getYearTitle(currentYear)} · שנה ${getYearLabel(currentYear)} · ${profile?.gender === 'female' ? 'מכשפה' : 'קוסם'}`;
 
   return (
     <>
@@ -568,23 +572,47 @@ function DashboardContent() {
             <div className={`glass-panel rounded-[2.5rem] border-t border-l ${theme.borderColor} p-6 md:p-8 sticky top-12 shadow-2xl overflow-hidden ${theme.glow}`}>
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none rounded-[2.5rem]" />
 
-              <div className="relative z-10 flex flex-col items-center gap-4 border-b border-white/10 pb-6 text-center">
-                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br ${theme.colors} p-1 shadow-lg ring-2 ring-white/10`}>
-                  <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center text-3xl md:text-4xl">
-                    {profile?.avatar_url
-                      ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                      : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
+                <div className="relative z-10 flex flex-col items-center gap-4 border-b border-white/10 pb-6 text-center">
+                  <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br ${theme.colors} p-1 shadow-lg ring-2 ring-white/10`}>
+                    <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center text-3xl md:text-4xl">
+                      {profile?.avatar_url
+                        ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                        : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
                     }
                   </div>
                 </div>
-                <div>
-                  <h3 className="font-cinzel text-xl md:text-2xl font-black tracking-tight mb-1"
-                    style={{ color: myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors) }}>
-                    {profile?.full_name}
-                  </h3>
-                  <span className="text-xs text-white/30 font-cinzel tracking-widest block">{getYearTitle(getYearFromProfile(profile))} · שנה {getYearLabel(getYearFromProfile(profile))} · {profile?.gender === 'female' ? 'מכשפה' : 'קוסם'}</span>
+                  <div>
+                    <h3 className="font-cinzel text-xl md:text-2xl font-black tracking-tight mb-1"
+                    style={{ color: badgeColor }}>
+                      {profile?.full_name}
+                    </h3>
+                    <span className="text-xs text-white/30 font-cinzel tracking-widest block">{identitySummary}</span>
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                      {badgeLabel && (
+                        <span style={{
+                          fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif",
+                          textTransform: "uppercase", letterSpacing: "0.12em",
+                          padding: "4px 12px", borderRadius: "999px",
+                          color: badgeColor, background: `${badgeColor}18`, border: `1px solid ${badgeColor}40`,
+                        }}>
+                          {badgeLabel}
+                        </span>
+                      )}
+                      {profile?.patronus && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-cinzel uppercase tracking-[0.16em] text-white/55">
+                          <span className="text-sm leading-none">{PATRONUS_ANIMALS[profile.patronus]?.emoji || "🔮"}</span>
+                          {PATRONUS_ANIMALS[profile.patronus]?.nameHe || profile.patronus}
+                        </span>
+                      )}
+                      {profile?.wand_type && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-cinzel uppercase tracking-[0.16em] text-white/55">
+                          <Wand2 size={11} className="text-amber-400/70" />
+                          {profile.wand_type}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
               <nav className="relative z-10 flex flex-col gap-2 pt-6">
                 <Link href="/" className="flex items-center gap-4 w-full p-4 rounded-2xl text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 mb-4 transition-all group">
@@ -611,37 +639,8 @@ function DashboardContent() {
               </nav>
 
               <div className="relative z-10 pt-6 mt-6 border-t border-white/10 space-y-4">
-                {false && <OverviewSectionLead
-                  eyebrow="מירוץ חי"
-                  title="הבית שלך לא רץ לבד"
-                  description="גביע הבתים יושב עכשיו בתוך מסך הכניסה, כדי שהשפעת כל פעולה תורגש גם מחוץ ללוח המשימות."
-                />}
-                {(myGroup || profile?.role) && (() => {
-                  const badgeColor = myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors);
-                  const badgeLabel = myGroup?.name || profile?.role;
-                  return (
-                    <div className="flex items-center justify-between">
-                      <span style={{
-                        fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif",
-                        textTransform: "uppercase", letterSpacing: "0.12em",
-                        padding: "2px 10px", borderRadius: "999px",
-                        color: badgeColor, background: `${badgeColor}18`, border: `1px solid ${badgeColor}40`,
-                      }}>{badgeLabel}</span>
-                      <span className="text-[10px] text-white/30 font-cinzel">{getYearTitle(getYearFromProfile(profile))}</span>
-                    </div>
-                  );
-                })()}
                 <StatItem icon={Coins} label="גליאונים" value={profile?.galleons || 0} theme={theme} highlight="text-amber-500" />
                 <StatItem icon={Trophy} label="נקודות בית" value={profile?.points_contributed || 0} theme={theme} />
-                {profile?.wand_type && (
-                  <div className="pt-4 border-t border-white/10 text-right">
-                    <div className="flex items-center gap-2 text-white/30 text-xs uppercase mb-2">
-                      <Wand2 size={12} />
-                      <span className="font-bold font-cinzel">השרביט שלך</span>
-                    </div>
-                    <p className="text-xs text-white/60 leading-relaxed italic pr-2 border-r border-amber-500/20">{profile.wand_type}</p>
-                  </div>
-                )}
               </div>
 
               <button onClick={async () => { await supabase.auth.signOut(); router.push('/'); }} className="relative z-10 w-full mt-8 py-3 text-xs text-red-400/40 hover:text-red-400 font-cinzel tracking-widest uppercase transition-all flex items-center justify-center gap-2 border border-white/5 rounded-xl hover:border-red-400/20">
@@ -655,7 +654,7 @@ function DashboardContent() {
 
             {/* ── Overview ── */}
             {activeTab === 'overview' && (
-              <div className="space-y-10 animate-in fade-in duration-1000">
+              <div className="space-y-8 md:space-y-10 animate-in fade-in duration-1000">
 
                 {/* Hero */}
                 <section className={`relative overflow-hidden p-8 md:p-12 lg:p-16 rounded-[3rem] lg:rounded-[4rem] border-t border-r ${theme.borderColor} ${theme.heroGradient} ${theme.glow}`}>
@@ -768,65 +767,14 @@ function DashboardContent() {
                 />
 
                 <OverviewSectionLead
-                  eyebrow="שערי כניסה"
-                  title="מסלולים מהירים להמשך הערב בטירה"
-                  description="קיצורים ברורים לאזורים שהכי קל להפוך בהם מומנטום לפעולה."
-                />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                  <ActionCard href="/shop" icon={ShoppingBag} title="דיאגון" desc="חנות קסמים" theme={theme} />
-                  <ActionCard href="/forums" icon={Users} title="האולם הגדול" desc="שיחות וקהילה" theme={theme} />
-                  <ActionCard href="/library" icon={ScrollText} title="הספרייה" desc="לור וסיפורים" theme={theme} />
-                </div>
-
-                {/* 👑 הדרגה שלי */}
-                <OverviewSectionLead
                   eyebrow="מירוץ חי"
                   title="הבית שלך לא רץ לבד"
                   description="גביע הבתים יושב עכשיו בתוך מסך הכניסה, כדי שהשפעת כל פעולה תורגש גם מחוץ ללוח המשימות."
                 />
                 <HouseCupLeaderboard />
 
-                {(myGroup || profile?.role) && (() => {
-                  const badgeColor = myGroup?.color || getRoleColor(profile?.role, profile?.house, roleColors);
-                  const badgeName = myGroup?.name || profile?.role || "";
-                  const currentYear = getYearFromProfile(profile);
-                  return (
-                    <div className="glass-panel p-6 rounded-2xl border border-white/[0.06] flex items-center gap-5">
-                      <div className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                        style={{ background: `${badgeColor}15`, border: `1px solid ${badgeColor}30` }}>
-                        👑
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[10px] text-white/30 font-cinzel uppercase tracking-widest mb-1">הדרגה שלי</div>
-                        <span style={{
-                          fontSize: "11px", fontWeight: 900, fontFamily: "'Cinzel', serif",
-                          textTransform: "uppercase", letterSpacing: "0.12em",
-                          padding: "2px 12px", borderRadius: "999px",
-                          color: badgeColor, background: `${badgeColor}18`, border: `1px solid ${badgeColor}40`,
-                        }}>{badgeName}</span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-cinzel font-black text-sm" style={{ color: badgeColor }}>שנה {getYearLabel(currentYear)}</div>
-                        <div className="text-[10px] text-white/30 font-cinzel">{getYearTitle(currentYear)}</div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
                 {/* ✨ תכונות קסומות מולדות */}
                 <MagicTraitsCard profile={profile} theme={theme} />
-
-                {profile.patronus && (
-                  <div className="glass-panel rounded-2xl p-4 border border-white/[0.06] flex items-center gap-4">
-                    <span className="text-4xl">{PATRONUS_ANIMALS[profile.patronus]?.emoji || "🔮"}</span>
-                    <div>
-                      <p className="font-cinzel text-xs text-white/30 uppercase tracking-widest">הפטרונוס שלך</p>
-                      <p className={`font-cinzel font-black text-lg ${theme.accentText}`}>
-                        {PATRONUS_ANIMALS[profile.patronus]?.nameHe || profile.patronus}
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 {/* מפת הקונדסאים */}
                 <div className={`glass-panel rounded-[3rem] p-6 md:p-8 border ${theme.borderColor} shadow-2xl flex flex-col items-start overflow-hidden`}>
@@ -1303,7 +1251,7 @@ function MissionFocusStrip({
         </div>
 
         {trackedQuests.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {trackedQuests.map((quest) => (
               <MissionTrack key={quest.id} quest={quest} />
             ))}
@@ -1505,20 +1453,6 @@ function TabButton({ icon: Icon, label, active, onClick, theme, count }: any) {
       <span className="font-cinzel text-xs font-bold tracking-widest uppercase">{label}</span>
       {count > 0 && <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse mr-auto">{count}</span>}
     </button>
-  );
-}
-
-function ActionCard({ href, icon: Icon, title, desc, theme }: any) {
-  return (
-    <Link href={href} className="group glass-panel p-10 rounded-[2.5rem] border-t border-r flex flex-col items-center text-center gap-6 hover:border-amber-500/30 transition-all duration-700 relative overflow-hidden shadow-xl" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-      <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <div className={`relative z-10 p-5 rounded-2xl bg-white/5 ${theme.accentText} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}><Icon size={32} /></div>
-      <div className="relative z-10">
-        <h3 className="font-cinzel text-lg font-bold tracking-widest mb-1">{title}</h3>
-        <p className="text-[9px] text-white/20 uppercase tracking-[0.2em] font-cinzel">{desc}</p>
-      </div>
-      <ChevronLeft size={16} className="text-white/10 group-hover:text-amber-500 group-hover:-translate-x-2 transition-all mt-1" />
-    </Link>
   );
 }
 
