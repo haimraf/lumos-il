@@ -278,21 +278,26 @@ export default function SortingPage() {
     setTimeout(async () => {
       if (userId) {
         try {
-          const { error } = await supabase.from('profiles').update({
-            house: primaryId,
-            role: 'תלמיד׳',
-            galleons: 100,
-            magic_traits: magicTraits,
-          }).eq('id', userId);
+          const { data, error } = await supabase.rpc('complete_sorting_ceremony_secure', {
+            p_house: primaryId,
+            p_magic_traits: magicTraits,
+          });
           if (error) throw error;
-          sendOwl("המיון הושלם!", `שערי בית ${primary.name} נפתחו, ו-100 גליאונים נוספו למאזן.`, "success");
+          const bonusGalleons = data?.bonus_galleons ?? 0;
+          sendOwl(
+            "המיון הושלם!",
+            bonusGalleons > 0
+              ? `שערי בית ${primary.name} נפתחו, ו-${bonusGalleons} גליאונים נוספו למאזן.`
+              : `שערי בית ${primary.name} נפתחו.`,
+            "success"
+          );
           await logActivityEvent(supabase, {
             actorId: userId,
             eventType: 'house_sorted',
             icon: primary.emoji,
             title: `שובצ/ה לבית ${primary.name}`,
             subtitle: secondary ? `כמעט ${secondary.name}` : null,
-            description: '100 גליאונים הוענקו בטקס המיון',
+            description: bonusGalleons > 0 ? `${bonusGalleons} גליאונים הוענקו בטקס המיון` : 'טקס המיון הושלם בהצלחה',
             targetType: 'profile',
             targetId: userId,
             targetUrl: '/dashboard',

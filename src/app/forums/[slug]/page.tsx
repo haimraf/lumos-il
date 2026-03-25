@@ -441,31 +441,18 @@ export default function ForumThreadsPage() {
 
         setIsSubmitting(true);
         try {
-            const { data: threadData, error: tError } = await supabase
-                .from('threads')
-                .insert([{
-                    forum_id: forum.id,
-                    author_id: currentUser.id,
-                    title: newThreadTitle.trim(),
-                    prefix: newThreadPrefix,
-                    is_pinned: newThreadPinned,
-                    is_locked: newThreadLocked,
-                    last_post_at: new Date().toISOString(),
-                    last_activity_at: new Date().toISOString()
-                }])
-                .select().single();
+            const { data: threadData, error: tError } = await supabase.rpc('create_forum_thread_secure', {
+                p_forum_id: forum.id,
+                p_title: newThreadTitle.trim(),
+                p_content: newThreadContent,
+                p_prefix: newThreadPrefix,
+                p_is_pinned: newThreadPinned,
+                p_is_locked: newThreadLocked,
+            });
             if (tError) throw tError;
 
-            const { error: pError } = await supabase
-                .from('forum_posts')
-                .insert([{ thread_id: threadData.id, user_id: currentUser.id, content: newThreadContent }]);
-
-            if (pError) {
-                // Thread was created but first post failed — delete the empty thread and report
-                await supabase.from('threads').delete().eq('id', threadData.id);
-                throw pError;
-            }
-
+            const threadId = threadData?.thread_id;
+            if (!threadId) throw new Error("יצירת השרשור נכשלה.");
             setNewThreadTitle("");
             setNewThreadContent("");
             setNewThreadPinned(false);
@@ -479,11 +466,11 @@ export default function ForumThreadsPage() {
                 subtitle: newThreadTitle.trim(),
                 description: forum.name,
                 targetType: "thread",
-                targetId: threadData.id,
-                targetUrl: `/forums/thread/${threadData.id}`,
+                targetId: threadId,
+                targetUrl: `/forums/thread/${threadId}`,
             });
             fetchThreads();
-            router.push(`/forums/thread/${threadData.id}`);
+            router.push(`/forums/thread/${threadId}`);
         } catch (err: any) {
             console.error("Thread creation failed:", err);
 

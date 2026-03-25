@@ -100,23 +100,29 @@ export default function DuelChallenge() {
 
     const handleExpire = async () => {
         if (!pending) return;
-        await supabase.from("duels").update({ status: "expired" }).eq("id", pending.duelId);
-        await supabase.from("notifications").update({ is_read: true }).eq("id", pending.notifId);
+        await supabase.rpc("respond_to_duel_challenge_secure", {
+            p_duel_id: pending.duelId,
+            p_action: "expire",
+        });
         setPending(null);
     };
 
     const handleAccept = async () => {
         if (!pending) return;
-        await supabase.from("duels").update({ status: "active" }).eq("id", pending.duelId);
-        await supabase.from("notifications").update({ is_read: true }).eq("id", pending.notifId);
+        await supabase.rpc("respond_to_duel_challenge_secure", {
+            p_duel_id: pending.duelId,
+            p_action: "accept",
+        });
         setPending(null);
         router.push(`/duels/${pending.duelId}`);
     };
 
     const handleDecline = async () => {
         if (!pending) return;
-        await supabase.from("duels").update({ status: "declined" }).eq("id", pending.duelId);
-        await supabase.from("notifications").update({ is_read: true }).eq("id", pending.notifId);
+        await supabase.rpc("respond_to_duel_challenge_secure", {
+            p_duel_id: pending.duelId,
+            p_action: "decline",
+        });
         setPending(null);
     };
 

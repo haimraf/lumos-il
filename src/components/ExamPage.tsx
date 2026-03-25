@@ -209,10 +209,7 @@ export default function ExamPage({ examType }: { examType: ExamType }) {
         });
 
         if (didPass) {
-            const updateData: any = {};
-            updateData[`${examType}_passed`] = true;
-            updateData[`${examType}_passed_at`] = new Date().toISOString();
-            await supabase.from('profiles').update(updateData).eq('id', user.id);
+            await supabase.rpc('save_exam_pass_secure', { p_exam_type: examType });
         }
     };
 

@@ -557,11 +557,10 @@ export default function ThreadViewPage() {
         setIsSubmitting(true);
         const threadId = Array.isArray(id) ? id[0] : id;
         try {
-            const { error } = await supabase.from('forum_posts').insert([{
-                thread_id: threadId,
-                user_id: currentUser.id,
-                content: replyContent,
-            }]);
+            const { error } = await supabase.rpc('create_forum_reply_secure', {
+                p_thread_id: threadId,
+                p_content: replyContent,
+            });
 
             if (error) {
                 sendOwl("שגיאת שליחה", error.message, "error");

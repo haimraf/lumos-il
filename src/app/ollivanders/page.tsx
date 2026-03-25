@@ -69,10 +69,10 @@ export default function OllivandersPage() {
     setIsPurchasing(true);
     const newWand = generateWandData();
 
-    const { error } = await supabase.from('profiles').update({
-      wand_type: `${newWand.maker}: ${newWand.fullText}`,
-      galleons: profile.galleons - 15
-    }).eq('id', profile.id);
+    const { error } = await supabase.rpc('purchase_wand_secure', {
+      p_wand_type: `${newWand.maker}: ${newWand.fullText}`,
+      p_cost: 15,
+    });
 
     if (!error) {
       setTimeout(() => {
@@ -82,6 +82,7 @@ export default function OllivandersPage() {
         refreshProfile();
       }, 4000);
     } else {
+      sendOwl("רכישת שרביט נכשלה", error.message, "error");
       setIsPurchasing(false);
     }
   };

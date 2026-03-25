@@ -13,6 +13,7 @@ const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loadin
 import 'react-quill-new/dist/quill.snow.css';
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
+import { logActivityEvent } from "@/lib/activityEvents";
 
 interface Forum {
     id: string;
@@ -431,18 +432,18 @@ export default function ForumsPage() {
                 const contentStr = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px; margin-left:6px; background:${PREFIX_CONFIG[newThreadPrefix].bg}; color:${PREFIX_CONFIG[newThreadPrefix].text}; border:1px solid ${PREFIX_CONFIG[newThreadPrefix].border};">${newThreadPrefix}</span> ${newThreadContent}`;
 
                 // 2. יצירת האשכול עם כל העמודות המעודכנות
-                const { data: threadData, error: threadError } = await supabase.from('threads').insert({
-                    forum_id: selectedForumId,
-                    title: newThreadTitle.trim(),
-                    author_id: session.user.id, // <--- תוקן ל-author_id
-                    last_post_at: new Date().toISOString(),
-                    last_activity_at: new Date().toISOString(), // <--- הוסף למניעת שגיאות
-                    prefix: newThreadPrefix, // <--- נשמר עכשיו גם ברמת הדאטה-בייס
-                    is_pinned: canModerate ? newThreadPinned : false,
-                    is_locked: canModerate ? newThreadLocked : false
-                }).select('id').single();
+                const { data: threadData, error: threadError } = await supabase.rpc('create_forum_thread_secure', {
+                    p_forum_id: selectedForumId,
+                    p_title: newThreadTitle.trim(),
+                    p_content: contentStr,
+                    p_prefix: newThreadPrefix,
+                    p_is_pinned: canModerate ? newThreadPinned : false,
+                    p_is_locked: canModerate ? newThreadLocked : false
+                });
 
-                if (threadError || !threadData) {
+                const threadId = threadData?.thread_id;
+
+                if (threadError || !threadId) {
                     setIsSubmitting(false);
                     console.error("❌ Supabase Thread Insert Error:", threadError);
                     alert(`שגיאה ביצירת נושא: ${threadError?.message || 'שגיאה לא ידועה בדאטה-בייס'}`);
@@ -450,23 +451,22 @@ export default function ForumsPage() {
                 }
 
                 // 3. יצירת הודעת הפתיחה (הפוסט הראשון)
-                const { error: postError } = await supabase.from('forum_posts').insert({
-                    thread_id: threadData.id,
-                    user_id: session.user.id, // <--- נשמר user_id כי ככה זה בטבלת forum_posts
-                    content: contentStr
+                await logActivityEvent(supabase, {
+                    actorId: session.user.id,
+                    eventType: "forum_thread_created",
+                    icon: "📬",
+                    title: "פתח/ה שרשור חדש בפורום",
+                    subtitle: newThreadTitle.trim(),
+                    description: forum?.name || null,
+                    targetType: "thread",
+                    targetId: threadId,
+                    targetUrl: `/forums/thread/${threadId}`,
                 });
-
-                if (postError) {
-                    setIsSubmitting(false);
-                    console.error("❌ Supabase Post Insert Error:", postError);
-                    alert(`הנושא נוצר, אך כתיבת ההודעה נכשלה: ${postError.message}`);
-                    return;
-                }
 
                 // 4. הכל עבר בהצלחה! מעבירים את המשתמש לאשכול החדש
                 setIsSubmitting(false);
                 setIsNewThreadOpen(false);
-                window.location.href = `/forums/thread/${threadData.id}`;
+                window.location.href = `/forums/thread/${threadId}`;
 
             } catch (err) {
                 setIsSubmitting(false);

@@ -699,11 +699,10 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     }
 
     setIsPosting(true);
-    const { error } = await supabase
-      .from("comments")
-      .insert([{ news_id: newsId, user_id: user.id, content: trimmed, user_name: null }])
-      .select()
-      .maybeSingle();
+    const { error } = await supabase.rpc("create_news_comment_secure", {
+      p_news_id: newsId,
+      p_content: trimmed,
+    });
 
     if (error) {
       const releaseMatch = error.message.match(/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/);
@@ -731,8 +730,8 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     });
 
     sendOwl(
-      "התגובה נשלחה 🦉",
-      "תגובתך פורסמה! הבית שלך קיבל +1 נקודה ו-+1 גליאון זהב עבור ההשתתפות.",
+      "התגובה נשלחה ✅",
+      "תגובתך פורסמה ונרשמה בהצלחה.",
       "magic"
     );
     setIsPosting(false);

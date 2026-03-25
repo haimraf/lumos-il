@@ -71,11 +71,12 @@ export default function AddChapterPage() {
             return;
         }
 
-        const { data: chapterData, error } = await supabase
-            .from('chapters')
-            .insert([{ story_id: id, title: formData.title, content: formData.content, order_index: nextOrderIndex }])
-            .select('id')
-            .single();
+        const { data: chapterData, error } = await supabase.rpc('create_story_chapter_secure', {
+            p_story_id: id,
+            p_title: formData.title,
+            p_content: formData.content,
+            p_order_index: nextOrderIndex,
+        });
 
         if (error) {
             sendOwl("תקלה בלחש החתימה", error.message, "error");

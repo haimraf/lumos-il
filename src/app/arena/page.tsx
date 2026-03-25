@@ -149,14 +149,14 @@ export default function ArenaPage() {
     const challengeUser = async (opponentId: string, opponentName: string) => {
         if (!profile?.id) { router.push("/"); return; }
         setChallenging(opponentId);
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-        const { data: duel, error } = await supabase.from("duels").insert({
-            challenger_id: profile.id, opponent_id: opponentId, status: "pending", expires_at: expiresAt,
-        }).select("id").single();
-        if (!error && duel) {
-            router.push(`/duels/${duel.id}`);
+        const { data, error } = await supabase.rpc("create_duel_challenge_secure", {
+            p_opponent_id: opponentId,
+        });
+        const duelId = data?.duel_id;
+        if (!error && duelId) {
+            router.push(`/duels/${duelId}`);
         } else {
-            sendOwl("שגיאה", "לא ניתן ליצור אתגר.", "error");
+            sendOwl("שגיאה", error?.message || "לא ניתן ליצור אתגר.", "error");
             setChallenging(null);
         }
     };

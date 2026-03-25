@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { logActivityEvent } from "@/lib/activityEvents";
 import { Loader2, Swords, Shield } from "lucide-react";
 
 /* ── Constants ── */
@@ -134,8 +133,6 @@ export default function DuelPage() {
     const [allSpells, setAllSpells] = useState<any[]>([]);
     const [casting, setCasting] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [winner, setWinner] = useState<any>(null);
-    const [reward, setReward] = useState<string | null>(null);
     const [pendingSecsLeft, setPendingSecsLeft] = useState<number>(300);
     const [turnSecsLeft, setTurnSecsLeft] = useState<number>(180);
     const logRef = useRef<HTMLDivElement>(null);
@@ -157,31 +154,19 @@ export default function DuelPage() {
     useEffect(() => {
         if (!id) return;
         const load = async () => {
-            const { data: d } = await supabase.from("duels").select("*").eq("id", id).single();
+            let { data: d } = await supabase.from("duels").select("*").eq("id", id).single();
             if (!d) { setLoading(false); return; }
 
-            // Ensure current_turn is set when duel is active
             if (d.status === "active" && !d.current_turn) {
-                const deadline = new Date(Date.now() + TURN_TIMEOUT * 1000).toISOString();
-                await supabase.from("duels").update({ current_turn: d.challenger_id, turn_deadline: deadline }).eq("id", id);
-                d.current_turn = d.challenger_id;
-                d.turn_deadline = deadline;
+                await supabase.rpc("ensure_duel_turn_secure", { p_duel_id: id });
+                const { data: refreshed } = await supabase.from("duels").select("*").eq("id", id).single();
+                if (refreshed) d = refreshed;
             }
 
-            // Auto-forfeit if turn_deadline passed
             if (d.status === "active" && d.turn_deadline && new Date(d.turn_deadline) < new Date()) {
-                const forfeitId = d.current_turn;
-                const winnerId  = forfeitId === d.challenger_id ? d.opponent_id : d.challenger_id;
-                const { data: finishedDuel } = await supabase.from("duels").update({
-                    status: "finished", winner_id: winnerId, current_turn: null, turn_deadline: null, finished_at: new Date().toISOString(),
-                }).eq("id", id).eq("status", "active").select("*").single();
-                if (finishedDuel) {
-                    d.status = "finished";
-                    d.winner_id = winnerId;
-                    d.current_turn = null;
-                    d.turn_deadline = null;
-                    await finishDuel(winnerId, forfeitId, finishedDuel);
-                }
+                await supabase.rpc("skip_duel_turn_secure", { p_duel_id: id });
+                const { data: refreshed } = await supabase.from("duels").select("*").eq("id", id).single();
+                if (refreshed) d = refreshed;
             }
 
             setDuel(d);
@@ -248,29 +233,14 @@ export default function DuelPage() {
         const expires = duel.expires_at ? new Date(duel.expires_at).getTime() : Date.now() + 300_000;
 
         const expireDuel = async () => {
-            const { data: expiredDuel } = await supabase.from("duels").update({ status: "expired" }).eq("id", id).eq("status", "pending").select("*").single();
+            await supabase.rpc("respond_to_duel_challenge_secure", {
+                p_duel_id: id,
+                p_action: "expire",
+            });
+            const { data: expiredDuel } = await supabase.from("duels").select("*").eq("id", id).single();
             if (!expiredDuel) return;
             setDuel(expiredDuel);
-            await supabase.from("notifications").insert([
-                {
-                    user_id: duel.challenger_id,
-                    actor_id: duel.opponent_id,
-                    type: "duel_missed",
-                    target_url: `/arena`,
-                    content: "האתגר שלך לדו-קרב פג תוקף — הצד השני לא הגיע ⏰",
-                    is_read: false,
-                },
-                {
-                    user_id: duel.opponent_id,
-                    actor_id: duel.challenger_id,
-                    type: "duel_missed",
-                    target_url: `/arena`,
-                    content: "פספסת אתגר לדו-קרב! ⚔️ אפשר לאתגר בחזרה מהזירה",
-                    is_read: false,
-                },
-            ]);
         };
-
         const tick = () => {
             const secs = Math.max(0, Math.floor((expires - Date.now()) / 1000));
             setPendingSecsLeft(secs);
@@ -296,9 +266,12 @@ export default function DuelPage() {
             }, async (payload) => {
                 console.log("[Duel] duel updated:", payload.new);
                 const updated = payload.new as any;
-                setDuel(updated);
                 if (updated.status === "active" && !updated.current_turn) {
-                    await supabase.from("duels").update({ current_turn: updated.challenger_id }).eq("id", id);
+                    await supabase.rpc("ensure_duel_turn_secure", { p_duel_id: id });
+                    const { data: refreshed } = await supabase.from("duels").select("*").eq("id", id).single();
+                    setDuel(refreshed || updated);
+                } else {
+                    setDuel(updated);
                 }
             })
             .on("postgres_changes", {
@@ -319,86 +292,7 @@ export default function DuelPage() {
     }, [moves]);
 
     /* ── Finish detection ── */
-    useEffect(() => {
-        if (!duel || !challenger || !opponent) return;
-        if (duel.status !== "active") return;
 
-        const chHP = computeHP(moves, challenger.id);
-        const opHP = computeHP(moves, opponent.id);
-
-        if ((chHP <= 0 || opHP <= 0) && !finalizedDuelRef.current) {
-            const isTie = chHP <= 0 && opHP <= 0;
-            const winnerId = isTie ? null : (chHP > opHP ? challenger.id : opponent.id);
-            const loserId = isTie ? null : (winnerId === challenger.id ? opponent.id : challenger.id);
-
-            void (async () => {
-                const { data: finishedDuel } = await supabase.from("duels").update({
-                    status: "finished",
-                    winner_id: winnerId,
-                    current_turn: null,
-                    turn_deadline: null,
-                    finished_at: new Date().toISOString(),
-                }).eq("id", id).eq("status", "active").select("*").single();
-
-                if (finishedDuel) {
-                    await finishDuel(winnerId, loserId, finishedDuel);
-                }
-            })();
-        }
-    }, [moves]);
-
-    const finishDuel = async (winnerId: string | null, loserId: string | null, finishedDuel?: any) => {
-        if (finalizedDuelRef.current) return;
-        finalizedDuelRef.current = true;
-
-        const duelState = finishedDuel || duel;
-        if (!duelState) return;
-
-        const isTie = winnerId === null;
-        if (finishedDuel) {
-            setDuel(finishedDuel);
-        }
-        const notifications = isTie
-            ? [
-                { user_id: duelState.challenger_id, type: "duel_result", content: "תיקו! קיבלתם 25 גליאונים 🤝", target_url: `/duels/${id}`, is_read: false },
-                { user_id: duelState.opponent_id,   type: "duel_result", content: "תיקו! קיבלתם 25 גליאונים 🤝", target_url: `/duels/${id}`, is_read: false },
-            ]
-            : [
-                { user_id: winnerId!, type: "duel_result", content: "ניצחת בדו-קרב! +50 גליאונים 🏆", target_url: `/duels/${id}`, is_read: false },
-                { user_id: loserId,   type: "duel_result", content: "הפסדת בדו-קרב. +10 גליאונים 💪",  target_url: `/duels/${id}`, is_read: false },
-            ];
-        await supabase.from("notifications").insert(notifications);
-
-        if (winnerId && loserId) {
-            await supabase.rpc("admin_add_reward", { target_user_id: winnerId, points_to_add: 0, galleons_to_add: 50 });
-            await supabase.rpc("admin_add_reward", { target_user_id: loserId, points_to_add: 0, galleons_to_add: 10 });
-        } else {
-            await supabase.rpc("admin_add_reward", { target_user_id: duelState.challenger_id, points_to_add: 0, galleons_to_add: 25 });
-            await supabase.rpc("admin_add_reward", { target_user_id: duelState.opponent_id, points_to_add: 0, galleons_to_add: 25 });
-        }
-
-        await logActivityEvent(supabase, {
-            actorId: winnerId || duelState.challenger_id,
-            eventType: isTie ? "duel_tied" : "arena_duel_completed",
-            icon: isTie ? "🤝" : "⚔️",
-            title: isTie ? "סיים/ה דו-קרב בתיקו" : "ניצח/ה בדו-קרב בזירה",
-            subtitle:
-                challenger?.full_name && opponent?.full_name
-                    ? `${challenger.full_name} נגד ${opponent.full_name}`
-                    : null,
-            description: isTie ? "שני הצדדים קיבלו 25 גליאונים" : "הקרב הוכרע והפרסים נשלחו",
-            targetType: "duel",
-            targetId: id,
-            targetUrl: `/duels/${id}`,
-        });
-
-        // 10% rare card for winner
-        if (myId === winnerId && Math.random() < 0.1) {
-            setReward("קיבלת קלף: אלבוס דמבלדור! 🃏");
-        }
-    };
-
-    /* ── Cast spell ── */
     const getSpellKey = (spell: any): string | null => {
         const cmd = spell.terminal_command?.toLowerCase();
         if (cmd && SPELL_CATALOG[cmd]) return cmd;
@@ -406,15 +300,6 @@ export default function DuelPage() {
             if (spell.name?.includes(heName)) return key;
         }
         return null;
-    };
-
-    const myTurn = (): boolean => {
-        if (!myId || !duel || duel.status !== "active") return false;
-        // Use current_turn from DB if available, fall back to move history
-        if (duel.current_turn) return duel.current_turn === myId;
-        if (moves.length === 0) return myId === duel.challenger_id;
-        const last = moves[moves.length - 1];
-        return last.player_id !== myId;
     };
 
     const getDuelingPower = (p: any): number => {
@@ -427,18 +312,15 @@ export default function DuelPage() {
 
     const skipTurn = async () => {
         if (!myId || !duel) return;
-        const nextTurn = duel.current_turn === duel.challenger_id ? duel.opponent_id : duel.challenger_id;
-        const nextDeadline = new Date(Date.now() + TURN_TIMEOUT * 1000).toISOString();
-        await Promise.all([
-            supabase.from("duels").update({ current_turn: nextTurn, turn_deadline: nextDeadline }).eq("id", id),
-            supabase.from("duel_moves").insert({ duel_id: id, player_id: myId, spell_used: "skip", damage_dealt: 0, effect: "פג הזמן — התור דולג!" }),
-        ]);
+        const { error } = await supabase.rpc("skip_duel_turn_secure", { p_duel_id: id });
+        if (error) {
+            console.error("[Duel] skip error:", error.message, error.code);
+        }
     };
 
     const castSpell = async (spellKey: string) => {
         if (!myId || !duel || casting) return;
 
-        // Guard: enforce turn order
         if (duel.current_turn !== myId) {
             console.warn("[Duel] not your turn", duel.current_turn, "!=", myId);
             return;
@@ -446,73 +328,32 @@ export default function DuelPage() {
 
         setCasting(true);
 
-        const isChallenger = myId === duel.challenger_id;
-        const me = isChallenger ? challenger : opponent;
-        const spellDef = SPELL_CATALOG[spellKey];
-        const duelingPower = getDuelingPower(me);
-        const damage = spellDef.baseDamage + (spellDef.usesDuelingPower ? duelingPower : 0);
-
-        const { error } = await supabase.from("duel_moves").insert({
-            duel_id: id,
-            player_id: myId,
-            spell_used: spellKey,
-            damage_dealt: damage,
+        const { data, error } = await supabase.rpc("cast_duel_spell_secure", {
+            p_duel_id: id,
+            p_spell_key: spellKey,
         });
 
         if (error) {
-            console.error("[Duel] insert error:", error.message, error.code);
+            console.error("[Duel] cast error:", error.message, error.code);
             setCasting(false);
             return;
         }
 
-        // Update HP + advance turn in duels table
-        const hpField    = isChallenger ? "opponent_hp" : "challenger_hp";
-        const myHpField  = isChallenger ? "challenger_hp" : "opponent_hp";
-        const currentHP  = isChallenger ? (duel.opponent_hp  ?? MAX_HP) : (duel.challenger_hp ?? MAX_HP);
-        const myCurrentHP = isChallenger ? (duel.challenger_hp ?? MAX_HP) : (duel.opponent_hp ?? MAX_HP);
-        const newHP      = Math.max(0, currentHP - damage);
-        const loserId    = isChallenger ? duel.opponent_id : duel.challenger_id;
-
-        // Tie: both at 0
-        const isTie     = newHP <= 0 && myCurrentHP <= 0;
-        const finished  = newHP <= 0;
-
-        console.log("[Duel] newHP:", newHP, "hpField:", hpField, "finished:", finished, "tie:", isTie);
-
-        const nextDeadline = new Date(Date.now() + TURN_TIMEOUT * 1000).toISOString();
-        const { data: updateData, error: updateError } = await supabase.from("duels").update({
-            [hpField]: newHP,
-            current_turn: finished ? null : (isChallenger ? duel.opponent_id : duel.challenger_id),
-            turn_deadline: finished ? null : nextDeadline,
-            status: finished ? "finished" : "active",
-            winner_id: isTie ? null : (finished ? myId : null),
-            ...(finished ? { finished_at: new Date().toISOString() } : {}),
-        }).eq("id", id).eq("status", "active").eq("current_turn", myId).select("*").single();
-
-        console.log("[Duel] update result:", updateData, "error:", updateError);
-
-        if (updateError) {
-            console.error("[Duel] duel update failed:", updateError.message, updateError.code);
-            setCasting(false);
-            return;
-        }
-
-        if (!updateData) {
-            setCasting(false);
-            return;
-        }
-
-        setDuel(updateData);
-
-        if (finished) {
-            const winnerId = isTie ? null : myId;
-            await finishDuel(winnerId, loserId, updateData);
+        if (data) {
+            setDuel((prev: any) => prev ? {
+                ...prev,
+                status: data.status ?? prev.status,
+                winner_id: data.winner_id ?? prev.winner_id,
+                challenger_hp: data.challenger_hp ?? prev.challenger_hp,
+                opponent_hp: data.opponent_hp ?? prev.opponent_hp,
+                current_turn: data.current_turn ?? prev.current_turn,
+                turn_deadline: data.turn_deadline ?? prev.turn_deadline,
+            } : prev);
         }
 
         setCasting(false);
     };
 
-    /* ── Available spells (from learned_spells + stupefy as default) ── */
     const availableSpells = (): string[] => {
         const defaults = ["stupefy"];
         if (!allSpells.length) return defaults;
@@ -591,12 +432,6 @@ export default function DuelPage() {
                         <p className="font-cinzel text-2xl font-black text-amber-400">
                             +{isWinner ? "50" : "10"} גליאונים 🪙
                         </p>
-                        {isWinner && (
-                            <p className="font-cinzel text-white/40 text-sm">10% סיכוי לקלף נדיר 🃏</p>
-                        )}
-                        {reward && (
-                            <p className="font-cinzel text-amber-300 text-sm font-black">{reward}</p>
-                        )}
                     </div>
                     <div className="flex gap-4 justify-center">
                         <button onClick={() => router.push("/dashboard")}

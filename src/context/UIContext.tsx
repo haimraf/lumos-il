@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useSyncExternalStore, ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 interface UIContextType {
@@ -14,6 +14,53 @@ interface UIContextType {
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
+const MUTE_STORAGE_KEY = "lumos_isMuted";
+const MUTE_CHANGE_EVENT = "lumos-mute-change";
+
+function subscribeToMutePreference(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const handleStorageChange = (event: StorageEvent) => {
+    if (event.key === null || event.key === MUTE_STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+
+  window.addEventListener("storage", handleStorageChange);
+  window.addEventListener(MUTE_CHANGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorageChange);
+    window.removeEventListener(MUTE_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+function getMuteSnapshot() {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const storedPreference = window.localStorage.getItem(MUTE_STORAGE_KEY);
+  return storedPreference === null ? true : storedPreference === "true";
+}
+
+function getMuteServerSnapshot() {
+  return true;
+}
+
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getHydrationSnapshot() {
+  return true;
+}
+
+function getHydrationServerSnapshot() {
+  return false;
+}
 
 function formatDate(iso: string) {
   const date = new Date(iso);
@@ -28,11 +75,16 @@ function formatDate(iso: string) {
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const { profile, refreshProfile } = useAuth();
-  const [isMuted, setIsMuted] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return localStorage.getItem("lumos_isMuted") === "true";
-  });
-  const isInitialized = true;
+  const isMuted = useSyncExternalStore(
+    subscribeToMutePreference,
+    getMuteSnapshot,
+    getMuteServerSnapshot,
+  );
+  const isInitialized = useSyncExternalStore(
+    subscribeToHydration,
+    getHydrationSnapshot,
+    getHydrationServerSnapshot,
+  );
 
   useEffect(() => {
     if (profile?.status !== "cooling" || !profile.ban_expires_at) {
@@ -73,11 +125,13 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const banExpiresAt = banType === "cooling" ? profile?.ban_expires_at || null : null;
 
   const toggleMute = () => {
-    setIsMuted((previous) => {
-      const nextValue = !previous;
-      localStorage.setItem("lumos_isMuted", String(nextValue));
-      return nextValue;
-    });
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextValue = !getMuteSnapshot();
+    window.localStorage.setItem(MUTE_STORAGE_KEY, String(nextValue));
+    window.dispatchEvent(new Event(MUTE_CHANGE_EVENT));
   };
 
   const isCooling = banType === "cooling";

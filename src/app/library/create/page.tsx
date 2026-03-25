@@ -58,19 +58,13 @@ export default function CreateStoryPage() {
             return;
         }
 
-        const { data, error } = await supabase
-            .from('stories')
-            .insert([{
-                author_id: user.id,
-                title: formData.title,
-                description: formData.description,
-                house_theme: formData.house_theme,
-                rating: formData.rating,
-                cover_url: formData.cover_url.trim(),
-                is_published: true,
-                views_count: 0
-            }])
-            .select().single();
+        const { data, error } = await supabase.rpc('create_story_secure', {
+            p_title: formData.title,
+            p_description: formData.description,
+            p_house_theme: formData.house_theme,
+            p_rating: formData.rating,
+            p_cover_url: formData.cover_url.trim(),
+        });
 
         if (error) {
             sendOwl("הדיו נשפך", error.message, "error");

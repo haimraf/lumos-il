@@ -221,9 +221,13 @@ export default function GreatHall() {
         setNewMessage("");
         setShowEmojiPicker(false);
         try {
-            await supabase.from("messages").insert({ content, user_id: myId });
-        } catch {
+            const { error } = await supabase.rpc("send_great_hall_message_secure", {
+                p_content: content,
+            });
+            if (error) throw error;
+        } catch (error: any) {
             setNewMessage(content);
+            sendOwl("שגיאת ינשוף", error?.message || "לא ניתן היה לשלוח את ההודעה כרגע.", "error");
         } finally {
             setIsSending(false);
         }

@@ -437,15 +437,14 @@ export default function WizardProfilePage() {
     const handleChallengeDuel = async () => {
         if (!currentUser || !id) return;
         setDuelLoading(true);
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-        const { data: duel, error } = await supabase.from("duels").insert({
-            challenger_id: currentUser.id,
-            opponent_id: id,
-            status: "pending",
-            expires_at: expiresAt,
-        }).select("id").single();
-        if (!error && duel) {
-            window.location.href = `/duels/${duel.id}`;
+        const { data, error } = await supabase.rpc("create_duel_challenge_secure", {
+            p_opponent_id: id,
+        });
+        const duelId = data?.duel_id;
+        if (!error && duelId) {
+            window.location.href = `/duels/${duelId}`;
+        } else if (error) {
+            sendOwl("שגיאה", error.message, "error");
         }
         setDuelLoading(false);
     };

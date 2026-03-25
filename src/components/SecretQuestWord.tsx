@@ -37,22 +37,15 @@ export default function SecretQuestWord({ word }: { word: string }) {
         setIsLoading(true);
 
         try {
-            /** * ✨ המלצה מקצועית: 
-             * במקום select ו-update, עדיף להריץ פונקציית RPC ב-Supabase שנקראת 'claim_lost_card'.
-             * היא תבצע את ההוספה (increment) בצורה אטומית ותמנע באגים של דריסת זהב.
-             */
-
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update({
-                    found_lost_card: true,
-                    galleons: (profile?.galleons || 0) + 50,
-                    points_contributed: (profile?.points_contributed || 0) + 10
-                })
-                .eq('id', session.user.id)
-                .eq('found_lost_card', false);
+            const { data, error: updateError } = await supabase.rpc('claim_lost_card_secure');
 
             if (updateError) throw updateError;
+
+            if (!data?.success) {
+                sendOwl("הקלף כבר נאסף", "הקסם הזה כבר נספר אצלך בפרופיל.", "info");
+                setIsFound(true);
+                return;
+            }
 
             sendOwl("גילוי מרעיש!", "הקלף האבוד נמצא! 50 גליאונים ו-10 נקודות נוספו למאזן.", "magic");
             setIsFound(true);

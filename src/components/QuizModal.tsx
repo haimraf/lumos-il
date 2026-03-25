@@ -22,7 +22,7 @@ export default function QuizModal({ onClose }: { onClose: () => void }) {
     const [score, setScore] = useState(0);
     const [earnedPoints, setEarnedPoints] = useState(0);
     const [earnedGalleons, setEarnedGalleons] = useState(0);
-    const [answersHistory, setAnswersHistory] = useState<{ question_id: string; is_correct: boolean }[]>([]);
+    const [answersHistory, setAnswersHistory] = useState<{ question_id: string; selected_answer: string }[]>([]);
     const [isFinished, setIsFinished] = useState(false);
 
     // ✅ נדרש ל-createPortal
@@ -68,7 +68,7 @@ export default function QuizModal({ onClose }: { onClose: () => void }) {
         const currentQuestion = questions[currentStep];
         const isCorrect = option === currentQuestion.correct_answer;
 
-        setAnswersHistory(prev => [...prev, { question_id: currentQuestion.id, is_correct: isCorrect }]);
+        setAnswersHistory(prev => [...prev, { question_id: currentQuestion.id, selected_answer: option }]);
 
         if (isCorrect) {
             setScore(prev => prev + 1);
@@ -92,31 +92,24 @@ export default function QuizModal({ onClose }: { onClose: () => void }) {
 
         const saveResultsToDB = async () => {
             try {
-                const submissionsToInsert = answersHistory.map(ans => ({
-                    user_id: profile.id,
-                    question_id: ans.question_id,
-                    is_correct: ans.is_correct
-                }));
-                await supabase.from("trivia_submissions").insert(submissionsToInsert);
+                const { data, error } = await supabase.rpc("submit_arcade_quiz_secure", {
+                    p_answers: answersHistory,
+                });
 
-                if (earnedPoints > 0 || earnedGalleons > 0) {
-                    const { data: userProfile } = await supabase
-                        .from("profiles")
-                        .select("galleons, points_contributed, house")
-                        .eq("id", profile.id)
-                        .single();
+                if (error) throw error;
 
-                    if (userProfile) {
-                        await supabase.from("profiles").update({
-                            galleons: (userProfile.galleons || 0) + earnedGalleons,
-                            points_contributed: (userProfile.points_contributed || 0) + earnedPoints,
-                            last_trivia_date: new Date().toISOString()
-                        }).eq("id", profile.id);
-
-                    }
+                if (data?.success === false && data?.reason === "already_claimed") {
+                    setEarnedPoints(0);
+                    setEarnedGalleons(0);
+                    sendOwl("כבר סיימת חידון היום", "פרסי החידון היומיים כבר נאספו היום.", "info");
+                    return;
                 }
+
+                setEarnedPoints(data?.points ?? 0);
+                setEarnedGalleons(data?.galleons ?? 0);
             } catch (error) {
                 console.error("Failed to save wizarding results:", error);
+                sendOwl("שגיאת חידון", "לא הצלחנו לשמור את תוצאות החידון הפעם.", "error");
             }
         };
 

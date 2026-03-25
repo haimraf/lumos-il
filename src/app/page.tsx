@@ -105,7 +105,7 @@ export default function Home() {
         const user = data.session?.user;
         if (user) {
           // Update fingerprint on login
-          await supabase.from('profiles').update({ fingerprint }).eq('id', user.id);
+          await supabase.rpc('sync_profile_fingerprint_secure', { p_fingerprint: fingerprint });
 
           const { data: prof } = await supabase.from('profiles').select('house, role, status').eq('id', user.id).single();
           
@@ -202,10 +202,10 @@ export default function Home() {
       if (error) setAuthMessage({ type: 'error', text: error.message });
       else if (data?.user) {
         // Double down on the profile update to ensure it's locked in
-        await supabase.from('profiles').update({ 
-            fingerprint,
-            is_ghost: isMatchingBanned 
-        }).eq('id', data.user.id);
+        await supabase.rpc('sync_profile_fingerprint_secure', {
+            p_fingerprint: fingerprint,
+            p_is_ghost: isMatchingBanned
+        });
         
         if (isMatchingBanned) {
             plantStickyMarker('GHOST');

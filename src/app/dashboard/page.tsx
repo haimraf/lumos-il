@@ -285,8 +285,9 @@ function DashboardContent() {
   const handleResetHouse = async () => {
     if (profile.galleons < 500) { sendOwl("אין מספיק זהב", "עליך לאסוף 500 גליאונים.", "error"); return; }
     if (profile.house_changes_count >= 1) { sendOwl("הגורל נחתם", "כבר ניצלת את המיון החוזר שלך.", "error"); return; }
-    const { error } = await supabase.from('profiles').update({ house: 'Unsorted', galleons: profile.galleons - 500, house_changes_count: 1 }).eq('id', profile.id);
+    const { error } = await supabase.rpc('reset_house_secure');
     if (!error) { sendOwl("שיקוי החרטה פעל", "המצנפת ממתינה לך...", "magic"); setTimeout(() => router.push('/sorting'), 2000); }
+    else { sendOwl("שיקוי החרטה נכשל", error.message, "error"); }
   };
 
   const markAsRead = async (id: string) => {
@@ -377,8 +378,7 @@ function DashboardContent() {
           <SpellRitual
             spell={activeRitual}
             onSuccess={async () => {
-              const newSpells = [...(profile.learned_spells || []), activeRitual.id];
-              await supabase.from('profiles').update({ learned_spells: newSpells }).eq('id', profile.id);
+              await supabase.rpc('learn_spell_secure', { p_spell_id: activeRitual.id });
               sendOwl("הריטואל הושלם!", `למדת את ${activeRitual.name}!`, "magic");
               refreshProfile();
               setActiveRitual(null);
