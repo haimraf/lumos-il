@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import {
@@ -10,6 +10,12 @@ import {
 import { useOwlMail } from "@/components/OwlMail";
 import { useAuth } from "@/context/AuthContext";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { processUserAction } from "@/lib/gameplay/processUserAction";
+import type { ProcessUserActionOutput } from "@/lib/gameplay/types";
+import type { NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
+import { computeQuestProgress, fetchQuestActivitySummary } from "@/lib/gameplay/questProgress";
+import type { ComputedQuest } from "@/lib/gameplay/questProgress";
+import { computeNextActions } from "@/lib/gameplay/nextActionEngine";
 
 
 // --- מאגר שאלות טריוויה מורחב ---
@@ -38,10 +44,17 @@ export default function QuestsPage() {
   const { sendOwl } = useOwlMail();
   const { profile, refreshProfile, isLoading: authLoading, session, profileError } = useAuth();
 
-  const [currentTrivia, setCurrentTrivia] = useState<any>(null);
+  type TriviaQuestion = typeof TRIVIA_POOL[number];
+  const [currentTrivia] = useState<TriviaQuestion | null>(() => {
+    const day = new Date().getDate();
+    return TRIVIA_POOL[day % TRIVIA_POOL.length] ?? null;
+  });
   const [nifflerLoading, setNifflerLoading] = useState(false);
   const [snitchLoading, setSnitchLoading] = useState(false);
   const [dailyStatus, setDailyStatus] = useState({ allowance: false, trivia: false, niffler: false, snitch: false });
+  const [computedQuests, setComputedQuests] = useState<ComputedQuest[]>([]);
+  const [nextActions, setNextActions] = useState<NextActionRecommendation[]>([]);
+  const [lastFeedback, setLastFeedback] = useState<ProcessUserActionOutput | null>(null);
 
   const dateObj = new Date();
   const today = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
@@ -52,9 +65,36 @@ export default function QuestsPage() {
   const isSnitchDone = dailyStatus.snitch || profile?.last_snitch_date === today;
 
   useEffect(() => {
-    const day = new Date().getDate();
-    setCurrentTrivia(TRIVIA_POOL[day % TRIVIA_POOL.length]);
-  }, []);
+    const refreshComputedState = async () => {
+      if (!profile?.id) {
+        setComputedQuests([]);
+        setNextActions([]);
+        return;
+      }
+
+      const activity = await fetchQuestActivitySummary(supabase, profile.id);
+      const questProgress = computeQuestProgress(profile, activity);
+      setComputedQuests(questProgress.quests);
+      setNextActions(computeNextActions({
+        profile: {
+          daily_points_earned: profile.daily_points_earned,
+          house: profile.house,
+        },
+        questProgress,
+      }));
+    };
+
+    void refreshComputedState();
+  }, [
+    supabase,
+    profile?.id,
+    profile?.last_reward_date,
+    profile?.last_trivia_date,
+    profile?.last_niffler_date,
+    profile?.last_snitch_date,
+    profile?.points_contributed,
+    profile?.daily_points_earned,
+  ]);
 
   const handleDailyCollect = async () => {
     if (isAllowanceDone || !profile) return;
@@ -66,6 +106,12 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
+      setLastFeedback(processUserAction({
+        actionType: "daily_allowance",
+        source: "rpc",
+        rawResult: data,
+        houseImpact: { pointsDelta: 0, message: "דמי הכיס מוכנים להמשך המסע היומי." },
+      }));
       sendOwl("קצבה נאספה!", "5 גליאונים נוספו לכיסך.", "magic");
       logActivityEvent(supabase, {
         actorId: profile.id,
@@ -79,7 +125,7 @@ export default function QuestsPage() {
     } else {
       sendOwl("כבר אספת היום", "הקצבה תתחדש מחר בשחר.", "info");
     }
-    refreshProfile();
+    await refreshProfile();
   };
 
   const handleTriviaAnswer = async (selected: string) => {
@@ -93,6 +139,11 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
+      setLastFeedback(processUserAction({
+        actionType: "daily_trivia",
+        source: "rpc",
+        rawResult: data,
+      }));
       sendOwl(
         isCorrect ? "לחש מוצלח! ✨" : "הלחש נכשל",
         isCorrect ? "3 נקודות קסם נוספו לבית שלך!" : `התשובה הנכונה הייתה: ${currentTrivia.a}`,
@@ -111,7 +162,7 @@ export default function QuestsPage() {
     } else {
       sendOwl("כבר ענית היום", "מבחן הלחשים יחזור מחר בשחר.", "info");
     }
-    refreshProfile();
+    await refreshProfile();
   };
 
   const handleNifflerHunt = async () => {
@@ -126,6 +177,11 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
+      setLastFeedback(processUserAction({
+        actionType: "daily_niffler",
+        source: "rpc",
+        rawResult: data,
+      }));
       const typeHe = data.type === "galleons" ? "גליאונים" : "נקודות קסם";
       sendOwl("הניפלר נתפס! 🐾", `הנבל הקטן הסתיר ${data.amount} ${typeHe}!`, "magic");
       logActivityEvent(supabase, {
@@ -140,7 +196,7 @@ export default function QuestsPage() {
     } else {
       sendOwl("הניפלר ברח", "הוא כבר תפוס להיום. יחזור מחר בשחר.", "info");
     }
-    refreshProfile();
+    await refreshProfile();
     setNifflerLoading(false);
   };
 
@@ -156,6 +212,11 @@ export default function QuestsPage() {
       return;
     }
     if (data?.success) {
+      setLastFeedback(processUserAction({
+        actionType: "daily_snitch",
+        source: "rpc",
+        rawResult: data,
+      }));
       sendOwl("הסניץ' הזהוב נתפס! ⚡", "מחפש מדהים! 5 נקודות קסם לבית שלך.", "success");
       logActivityEvent(supabase, {
         actorId: profile.id,
@@ -169,7 +230,7 @@ export default function QuestsPage() {
     } else {
       sendOwl("הסניץ' מתחבא", "כבר תפסת אותו היום. יחזור מחר לאחר שקיעה.", "info");
     }
-    refreshProfile();
+    await refreshProfile();
     setSnitchLoading(false);
   };
 
@@ -201,6 +262,9 @@ export default function QuestsPage() {
 
   const hColor = (profile?.house && HOUSE_COLORS[profile.house]) ? HOUSE_COLORS[profile.house] : 'text-amber-400';
   const trophyClass = hColor.split(' ')[0] || 'text-amber-400';
+  const dailyProgress = `${Math.min(profile?.daily_points_earned || 0, 50)}/50`;
+  const activeQuestsCount = computedQuests.filter((quest) => quest.status === "active").length;
+  const nextActionHint = nextActions[0]?.title || "בחר/י משימה מהלוח";
 
   return (
     <main className="min-h-screen bg-[#020617] text-[#f8fafc] relative overflow-hidden pb-20" dir="rtl">
@@ -208,6 +272,20 @@ export default function QuestsPage() {
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-indigo-900/5 blur-[120px] animate-pulse"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-amber-900/5 blur-[120px]"></div>
+      </div>
+
+      <div className="fixed top-20 inset-x-0 z-20 px-4 pointer-events-none">
+        <div className="mx-auto max-w-6xl">
+          <div className="pointer-events-auto rounded-2xl border border-white/10 bg-black/45 backdrop-blur-xl px-4 py-3 shadow-2xl">
+            <div className="flex flex-wrap items-center gap-3 md:gap-5 text-xs md:text-sm font-cinzel">
+              <span className="text-amber-300">🪙 {profile?.galleons || 0} גליאונים</span>
+              <span className="text-blue-300">📈 יומי {dailyProgress}</span>
+              <span className={`${hColor}`}>🏆 תרומה {profile?.points_contributed || 0}</span>
+              <span className="text-emerald-300">📜 משימות פעילות {activeQuestsCount}</span>
+              <span className="text-white/70 truncate">✨ צעד הבא: {nextActionHint}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 pt-10">
@@ -227,6 +305,64 @@ export default function QuestsPage() {
           <h1 className="font-cinzel text-4xl sm:text-6xl md:text-8xl font-black text-white mb-4 drop-shadow-2xl">לוח <span className="text-amber-500 italic">המשימות</span></h1>
           <p className="font-crimson text-2xl text-white/40 italic uppercase tracking-widest">עבודה קשה היא הדרך היחידה לתהילה</p>
         </div>
+
+        {lastFeedback && (
+          <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <p className="font-cinzel text-[11px] tracking-[0.2em] uppercase text-amber-300/80 mb-2">עדכון אחרון</p>
+            <div className="flex flex-wrap gap-3 text-sm font-bold">
+              <span className="text-amber-400">+{lastFeedback.reward.galleons} גליאונים</span>
+              <span className="text-blue-300">+{lastFeedback.reward.points} נק׳</span>
+              <span className="text-white/70">{lastFeedback.houseImpact.message}</span>
+            </div>
+          </div>
+        )}
+
+        {nextActions.length > 0 && (
+          <section className="mb-8">
+            <h2 className="font-cinzel text-xl md:text-2xl text-white mb-4">מה לעשות עכשיו?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {nextActions.map((action) => (
+                <Link key={action.id} href={action.href} className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:border-amber-500/30 transition-all">
+                  <p className="font-cinzel text-sm font-black text-amber-300 mb-1">{action.title}</p>
+                  <p className="text-xs text-white/55 mb-2">{action.reason}</p>
+                  <p className="text-[11px] text-white/70">{action.gainLabel}</p>
+                  <p className="text-[11px] text-emerald-300/80 mt-1">{action.houseImpactLabel}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {computedQuests.length > 0 && (
+          <section className="mb-10 rounded-3xl border border-white/10 bg-white/[0.03] p-5 md:p-6">
+            <h2 className="font-cinzel text-xl md:text-2xl text-white mb-4">Quest Board V2</h2>
+            <div className="space-y-3">
+              {computedQuests.map((quest) => {
+                const percent = quest.target > 0 ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
+                return (
+                  <div key={quest.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <p className="font-cinzel font-black text-white text-sm">{quest.title}</p>
+                      <span className={`text-[10px] font-cinzel font-black uppercase tracking-widest ${quest.status === "completed" ? "text-emerald-400" : "text-white/40"}`}>
+                        {quest.status === "completed" ? "הושלם" : "פעיל"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-white/55 mb-2">{quest.objectiveLabel}</p>
+                    <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2">
+                      <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-400" style={{ width: `${percent}%` }} />
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-[11px] font-bold">
+                      <span className="text-white/70">{quest.progress}/{quest.target}</span>
+                      <span className="text-amber-300">+{quest.reward.galleons} גליאונים</span>
+                      <span className="text-blue-300">+{quest.reward.points} נק׳</span>
+                      <span className="text-emerald-300/80">{quest.houseImpactLabel}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -303,8 +439,19 @@ export default function QuestsPage() {
   );
 }
 
-function QuestCard({ title, desc, reward, icon, completed, onAction, btnText, color }: any) {
-  const colors: Record<string, any> = {
+type QuestCardProps = {
+  title: string;
+  desc: string;
+  reward: string;
+  icon: ReactNode;
+  completed: boolean;
+  onAction: () => void | Promise<void>;
+  btnText: string;
+  color: "amber" | "emerald" | "violet";
+};
+
+function QuestCard({ title, desc, reward, icon, completed, onAction, btnText, color }: QuestCardProps) {
+  const colors: Record<QuestCardProps["color"], { border: string; iconBg: string; badge: string; btn: string }> = {
     amber: { border: 'hover:border-amber-500/50 hover:shadow-[0_15px_50px_rgba(245,158,11,0.2)] hover:-translate-y-2 border-t border-r border-white/10', iconBg: 'bg-amber-500/10 border-amber-500/20', badge: 'text-amber-400 bg-amber-500/10 border-amber-500/20', btn: 'from-amber-600 to-amber-800 hover:from-amber-500 hover:to-amber-700' },
     emerald: { border: 'hover:border-emerald-500/50 hover:shadow-[0_15px_50px_rgba(16,185,129,0.2)] hover:-translate-y-2 border-t border-r border-white/10', iconBg: 'bg-emerald-500/10 border-emerald-500/20', badge: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', btn: 'from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700' },
     violet: { border: 'hover:border-violet-500/50 hover:shadow-[0_15px_50px_rgba(139,92,246,0.2)] hover:-translate-y-2 border-t border-r border-white/10', iconBg: 'bg-violet-500/10 border-violet-500/20', badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20', btn: 'from-violet-600 to-violet-900 hover:from-violet-500 hover:to-violet-800' }
