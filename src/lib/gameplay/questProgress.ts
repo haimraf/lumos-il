@@ -248,6 +248,46 @@ export function computeQuestProgress(
     houseImpactLabel: "נוכחות פעילה מגדילה השפעה",
   });
 
+  const communityEvents = [
+    "story_published",
+    "chapter_published",
+    "forum_thread_created",
+    "forum_reply_created",
+    "news_comment_created",
+    "news_poll_voted",
+    "library_chapter_read",
+  ];
+
+  const dailyCommunityProgress = communityEvents.reduce((sum, eventType) => sum + (activity.dailyByType[eventType] || 0), 0);
+  const dailyCommunityTarget = 2;
+  quests.push({
+    id: "daily_quill_and_owl",
+    type: "exploration",
+    title: "נוצה וינשוף בפעולה",
+    description: "כתיבה, תגובה או קריאה מחברות בין אגפי הטירה.",
+    objectiveLabel: "לבצע 2 אינטראקציות קהילתיות היום",
+    progress: clampProgress(dailyCommunityProgress, dailyCommunityTarget),
+    target: dailyCommunityTarget,
+    status: questStatus(dailyCommunityProgress, dailyCommunityTarget),
+    reward: { points: 10, galleons: 5 },
+    houseImpactLabel: "הפעילות הקהילתית מזינה את כוח הבית",
+  });
+
+  const weeklyHouseMomentum = communityEvents.reduce((sum, eventType) => sum + (activity.weeklyByType[eventType] || 0), 0);
+  const weeklyHouseMomentumTarget = 5;
+  quests.push({
+    id: "weekly_house_momentum",
+    type: "house",
+    title: "מומנטום ביתי",
+    description: "הבית שלך מתרומם כשהקהילה נשארת חיה ופעילה לאורך השבוע.",
+    objectiveLabel: "לצבור 5 פעולות קהילתיות השבוע",
+    progress: clampProgress(weeklyHouseMomentum, weeklyHouseMomentumTarget),
+    target: weeklyHouseMomentumTarget,
+    status: questStatus(weeklyHouseMomentum, weeklyHouseMomentumTarget),
+    reward: { points: 20, galleons: 10 },
+    houseImpactLabel: "מומנטום חיובי ישיר לבית שלך",
+  });
+
   const mainTarget = 10;
   const mainProgress = profile.points_contributed || 0;
   quests.push({
