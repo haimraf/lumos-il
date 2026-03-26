@@ -67,7 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return {
         url: `${BASE}${getLiveEventHref(event)}`,
         lastModified: lastModifiedValue ? new Date(lastModifiedValue) : new Date(),
-        changeFrequency: status === "live" || status === "upcoming" ? "daily" : "monthly",
+        changeFrequency: status === "live" || status === "upcoming" ? ("daily" as const) : ("monthly" as const),
         priority: status === "live" || status === "upcoming" ? 0.88 : 0.62,
       };
     });
@@ -85,15 +85,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return {
     url: `${BASE}/forums/${forumSlug}/${t.id}`,
     lastModified: t.updated_at ? new Date(t.updated_at) : new Date(),
-    changeFrequency: "weekly" as const,
-    priority: 0.6,
+    changeFrequency: "daily" as const, // עודכן מ-weekly ל-daily
+    priority: 0.8, // עודכן מ-0.6 ל-0.8
   }}).filter((route) => !route.url.includes("undefined"));
 
   const newsRoutes: MetadataRoute.Sitemap = ((newsArticles || []) as NewsSitemapRow[]).map((n) => ({
     url: `${BASE}/news?article=${n.id}`,
     lastModified: n.created_at ? new Date(n.created_at) : new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.65,
+    changeFrequency: "daily" as const, // עודכן מ-monthly ל-daily
+    priority: 0.8, // עודכן מ-0.65 ל-0.8
   }));
 
   return [...staticRoutes, ...eventRoutes, ...forumRoutes, ...threadRoutes, ...newsRoutes];
