@@ -101,7 +101,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
                 
                 sessionStorage.setItem('owl_shown_system_messages', JSON.stringify(shownIds));
             } catch (e) {
-                console.error("Failed to load system messages:", e);
+                console.warn("System messages feed unavailable right now.");
             }
         };
 

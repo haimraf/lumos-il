@@ -131,7 +131,7 @@ const ZONES: ZoneSummary[] = [
   { key: "/news", label: "\u05d4\u05e0\u05d1\u05d9\u05d0 \u05d4\u05d9\u05d5\u05de\u05d9", path: "/news", icon: "\ud83d\udcf0", count: 0 },
   { key: "/dashboard", label: "\u05d7\u05d3\u05e8 \u05d4\u05de\u05d5\u05e2\u05d3\u05d5\u05df", path: "/dashboard", icon: "\u2697\ufe0f", count: 0 },
   { key: "/forums", label: "\u05d4\u05de\u05e1\u05d3\u05e8\u05d5\u05e0\u05d5\u05ea", path: "/forums", icon: "\ud83d\udd6f\ufe0f", count: 0 },
-  { key: "/map", label: "\u05de\u05e4\u05ea \u05d4\u05e7\u05d5\u05e1\u05de\u05d9\u05dd", path: "/map", icon: "\ud83d\uddfa\ufe0f", count: 0 },
+  { key: "/map", label: "\u05de\u05e4\u05ea \u05d4\u05e7\u05d5\u05e0\u05d3\u05e1\u05d0\u05d9\u05dd", path: "/map", icon: "\ud83d\uddfa\ufe0f", count: 0 },
 ];
 
 function getZoneKey(path: string) {

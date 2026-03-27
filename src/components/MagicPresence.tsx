@@ -8,7 +8,7 @@ import { AFK_IDLE_MS, isMissingPresenceColumnsError, type PresenceStatus } from 
 
 const LOCATION_LABELS = {
     entrance: "\u05d1\u05e8\u05d7\u05d1\u05ea \u05d4\u05db\u05e0\u05d9\u05e1\u05d4",
-    map: "\u05d1\u05de\u05e4\u05ea \u05d4\u05e7\u05d5\u05e1\u05de\u05d9\u05dd",
+    map: "\u05d1\u05de\u05e4\u05ea \u05d4\u05e7\u05d5\u05e0\u05d3\u05e1\u05d0\u05d9\u05dd",
     news: "\u05d1\u05e0\u05d1\u05d9\u05d0 \u05d4\u05d9\u05d5\u05de\u05d9",
     dashboard: "\u05d1\u05d7\u05d3\u05e8 \u05d4\u05de\u05d5\u05e2\u05d3\u05d5\u05df",
     shop: "\u05d1\u05e1\u05de\u05d8\u05ea \u05d3\u05d9\u05d0\u05d2\u05d5\u05df",
@@ -18,9 +18,11 @@ const LOCATION_LABELS = {
 export default function MagicPresence() {
     const [supabase] = useState(() => createClient());
     const pathname = usePathname();
-    const { session, profile } = useAuth();
+    const { session, profile, isLoading } = useAuth();
     const lastActivityRef = useRef(Date.now());
     const hasPresenceColumnsRef = useRef<boolean | null>(null);
+    const presenceDisabledRef = useRef(false);
+    const cleanedLegacyPresenceRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -65,8 +67,16 @@ export default function MagicPresence() {
                 return id;
             })();
 
+        if (session?.user && isLoading) {
+            return;
+        }
+
         const presenceId = profile?.id || session?.user?.id || guestId;
         const presenceType = session?.user ? "member" : "guest";
+        const legacyPresenceId =
+            session?.user?.id && profile?.id && profile.id !== session.user.id
+                ? session.user.id
+                : null;
 
         const getLocationLabel = () => {
             if (!pathname || pathname === "/" || pathname.includes("/home") || pathname.includes("/great-hall")) {
@@ -83,6 +93,8 @@ export default function MagicPresence() {
         let cancelled = false;
 
         const updatePresence = async () => {
+            if (presenceDisabledRef.current) return;
+
             const lastActiveAt = new Date(lastActivityRef.current).toISOString();
             const presenceStatus: PresenceStatus =
                 document.hidden || Date.now() - lastActivityRef.current >= AFK_IDLE_MS
@@ -91,7 +103,12 @@ export default function MagicPresence() {
 
             const basePayload = {
                 id: presenceId,
-                user_name: profile?.full_name || session?.user?.email?.split("@")[0] || "\u05d0\u05d5\u05e8\u05d7",
+                user_name:
+                    profile?.full_name?.trim() ||
+                    session?.user?.user_metadata?.full_name ||
+                    session?.user?.user_metadata?.name ||
+                    session?.user?.email?.split("@")[0] ||
+                    "\u05d0\u05d5\u05e8\u05d7",
                 house: profile?.house || "Guest",
                 current_path: pathname,
                 location_label: getLocationLabel(),
@@ -120,8 +137,24 @@ export default function MagicPresence() {
                 hasPresenceColumnsRef.current = true;
             }
 
+            if (
+                !response.error &&
+                legacyPresenceId &&
+                cleanedLegacyPresenceRef.current !== legacyPresenceId
+            ) {
+                const cleanupResponse = await supabase
+                    .from("online_users")
+                    .delete()
+                    .eq("id", legacyPresenceId);
+
+                if (!cleanupResponse.error) {
+                    cleanedLegacyPresenceRef.current = legacyPresenceId;
+                }
+            }
+
             if (response.error && !cancelled) {
-                console.error("[MagicPresence] online_users upsert error:", response.error);
+                presenceDisabledRef.current = true;
+                console.warn("[MagicPresence] online presence unavailable, disabling live sync for this session.");
             }
         };
 
@@ -134,7 +167,7 @@ export default function MagicPresence() {
             cancelled = true;
             clearInterval(interval);
         };
-    }, [pathname, profile, session, supabase]);
+    }, [isLoading, pathname, profile, session, supabase]);
 
     return null;
 }

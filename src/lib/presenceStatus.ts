@@ -30,7 +30,7 @@ export const AFK_IDLE_MS = 3 * 60 * 1000;
 
 const LOCATION_LABEL_ALIASES: Record<string, string> = {
   "ברחבת הכניסה": "רחבת הכניסה",
-  "במפת הקוסמים": "מפת הקוסמים",
+  "במפת הקונדסאים": "מפת הקונדסאים",
   "בנביא היומי": "הנביא היומי",
   "בחדר המועדון": "חדר המועדון",
   "בסמטת דיאגון": "סמטת דיאגון",
@@ -158,7 +158,7 @@ function normalizePresencePath(currentPath: string | null | undefined) {
 function getFriendlyLabelFromPath(path: string) {
   if (path === "/" || path.startsWith("/home") || path.startsWith("/great-hall")) return "רחבת הכניסה";
   if (path.startsWith("/dashboard") || path.startsWith("/profile")) return "חדר המועדון";
-  if (path.startsWith("/map")) return "מפת הקוסמים";
+  if (path.startsWith("/map")) return "מפת הקונדסאים";
   if (path.startsWith("/quests")) return "לוח הקווסטים";
   if (path.startsWith("/forums/thread/")) return "אשכול בפורום";
   if (path.startsWith("/forums")) return "המסדרונות";
@@ -174,7 +174,7 @@ function getFriendlyLabelFromPath(path: string) {
 
 function prettifyUnknownPath(path: string) {
   const segments = path.split("?")[0].split("#")[0].split("/").filter(Boolean);
-  if (segments.length === 0) return "מפת הקוסמים";
+  if (segments.length === 0) return "מפת הקונדסאים";
 
   const lastSegment = segments[segments.length - 1]
     .replace(/[-_]+/g, " ")

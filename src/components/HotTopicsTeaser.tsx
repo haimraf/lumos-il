@@ -183,7 +183,8 @@ export default function HotTopicsTeaser() {
                 
                 setTopics(sortedByRecentActivity.slice(0, 3));
             } catch (e) {
-                console.error("Error fetching hot topics:", e);
+                console.warn("Hot topics unavailable right now; continuing without teaser content.");
+                setTopics([]);
             } finally {
                 setIsLoading(false);
             }
