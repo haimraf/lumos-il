@@ -61,19 +61,29 @@ export default function NotificationDropdown() {
     };
 
     const fetchNotifications = useCallback(async (uid: string) => {
-        const { data, error } = await supabase
-            .from("notifications")
-            .select("*")
-            .eq("user_id", uid)
-            .order("created_at", { ascending: false })
-            .limit(10);
+        const [
+            { data, error },
+            { count, error: unreadCountError },
+        ] = await Promise.all([
+            supabase
+                .from("notifications")
+                .select("*")
+                .eq("user_id", uid)
+                .order("created_at", { ascending: false })
+                .limit(10),
+            supabase
+                .from("notifications")
+                .select("id", { count: "exact", head: true })
+                .eq("user_id", uid)
+                .eq("is_read", false),
+        ]);
 
         if (error) {
             console.error("[NotificationDropdown] fetch failed:", error.message);
             return;
         }
 
-        const notifs = data || [];
+        const notifs = (data || []) as NotificationItem[];
         const actorIds = [...new Set(notifs.map((notification) => notification.actor_id))].filter(Boolean);
 
         if (actorIds.length > 0) {
@@ -85,13 +95,14 @@ export default function NotificationDropdown() {
             if (profiles) {
                 const profileMap = Object.fromEntries(profiles.map((profile) => [profile.id, profile]));
                 notifs.forEach((notification) => {
+                    if (!notification.actor_id) return;
                     notification.actor_profile = profileMap[notification.actor_id];
                 });
             }
         }
 
         setNotifications(notifs);
-        setUnreadCount(notifs.filter((notification) => !notification.is_read).length);
+        setUnreadCount(unreadCountError ? notifs.filter((notification) => !notification.is_read).length : count ?? 0);
     }, [supabase]);
 
     useEffect(() => {
@@ -143,17 +154,20 @@ export default function NotificationDropdown() {
     }, [isOpen]);
 
     const deleteNotification = async (id: string) => {
+        const deletedNotification = notifications.find((notification) => notification.id === id) || null;
         const { error } = await supabase.from("notifications").delete().eq("id", id);
         if (error) {
             console.error("[NotificationDropdown] delete failed:", error.message);
             return;
         }
 
-        setNotifications((previous) => {
-            const updated = previous.filter((notification) => notification.id !== id);
-            setUnreadCount(updated.filter((notification) => !notification.is_read).length);
-            return updated;
-        });
+        setNotifications((previous) => previous.filter((notification) => notification.id !== id));
+        if (deletedNotification?.is_read === false) {
+            setUnreadCount((previous) => Math.max(previous - 1, 0));
+        }
+        if (userId) {
+            void fetchNotifications(userId);
+        }
     };
 
     const deleteAll = async () => {
@@ -170,22 +184,32 @@ export default function NotificationDropdown() {
     };
 
     const markAsRead = async (id: string) => {
+        const targetNotification = notifications.find((notification) => notification.id === id) || null;
         await supabase.from("notifications").update({ is_read: true }).eq("id", id);
 
         setNotifications((previous) => {
-            const updated = previous.map((notification) =>
+            return previous.map((notification) =>
                 notification.id === id ? { ...notification, is_read: true } : notification
             );
-            setUnreadCount(updated.filter((notification) => !notification.is_read).length);
-            return updated;
         });
+        if (targetNotification?.is_read === false) {
+            setUnreadCount((previous) => Math.max(previous - 1, 0));
+        }
+        if (userId) {
+            void fetchNotifications(userId);
+        }
     };
 
     const markAllAsReadInDB = async () => {
         if (!userId || unreadCount === 0) return;
 
+        setNotifications((previous) => previous.map((notification) => ({ ...notification, is_read: true })));
         setUnreadCount(0);
-        await supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false);
+        const { error } = await supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false);
+        if (error) {
+            console.error("[NotificationDropdown] mark all as read failed:", error.message);
+            void fetchNotifications(userId);
+        }
     };
 
     return (

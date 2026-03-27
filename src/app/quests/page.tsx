@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useOwlMail } from "@/components/OwlMail";
+import QuestCommunityPulse from "@/components/QuestCommunityPulse";
 import { useAuth } from "@/context/AuthContext";
 import { logActivityEvent } from "@/lib/activityEvents";
 import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
@@ -25,6 +26,7 @@ import {
   fetchQuestActivitySummary,
   type ComputedQuest,
 } from "@/lib/gameplay/questProgress";
+import { fetchQuestCatalog, subscribeToQuestCatalogChanges } from "@/lib/gameplay/questCatalog";
 import { processUserAction } from "@/lib/gameplay/processUserAction";
 import type { ProcessUserActionOutput, QuestUpdate } from "@/lib/gameplay/types";
 
@@ -100,6 +102,13 @@ const HOUSE_COLORS: Record<string, string> = {
 
 type BrowserTimeout = ReturnType<typeof setTimeout>;
 
+const QUICK_DAILY_QUEST_IDS = new Set([
+  "daily_allowance",
+  "daily_spell_exam",
+  "daily_niffler_hunt",
+  "daily_snitch_run",
+]);
+
 function getUrgencyMeta(urgency: NextActionRecommendation["urgency"]) {
   if (urgency === "high") {
     return {
@@ -124,6 +133,79 @@ function getUrgencyMeta(urgency: NextActionRecommendation["urgency"]) {
   };
 }
 
+function getLiveDailyQuestMeta(quest: ComputedQuest) {
+  if (quest.id === "daily_quill_and_owl") {
+    return {
+      href: quest.actionHref,
+      cta: quest.progress > 0 ? "להשלים דרך השיח החי" : quest.actionLabel,
+      eyebrow: "פורומים והנביא",
+      Icon: BookOpen,
+      iconClass: "text-blue-300",
+      shellClass: "border-blue-400/20 bg-blue-500/10 text-blue-100",
+    };
+  }
+
+  if (quest.id === "daily_castle_presence") {
+    return {
+      href: quest.actionHref,
+      cta: quest.actionLabel,
+      eyebrow: "תנועה חיה בטירה",
+      Icon: Sparkles,
+      iconClass: "text-amber-300",
+      shellClass: "border-amber-400/20 bg-amber-500/10 text-amber-100",
+    };
+  }
+
+  if (quest.id === "daily_duel_victory") {
+    return {
+      href: quest.actionHref,
+      cta: quest.actionLabel,
+      eyebrow: "דו-קרב יומי",
+      Icon: Trophy,
+      iconClass: "text-rose-300",
+      shellClass: "border-rose-400/20 bg-rose-500/10 text-rose-100",
+    };
+  }
+
+  return {
+    href: quest.actionHref || "/quests",
+    cta: quest.actionLabel || "לפתוח את היעד",
+    eyebrow: "יעד יומי",
+    Icon: Flame,
+    iconClass: "text-white/80",
+    shellClass: "border-white/10 bg-white/5 text-white/70",
+  };
+}
+
+function getPrimaryActionSupportCopy(remainingDailyTasks: number) {
+  if (remainingDailyTasks <= 0) {
+    return "אתגרי היום נסגרו. עכשיו זה זמן טוב לדחוף קדימה מסלולים ארוכים יותר ולתת לטירה להרגיש אותך.";
+  }
+
+  if (remainingDailyTasks === 1) {
+    return "אתגרים ששווה לסיים: נשאר לך עוד מעשה יומי אחד להיום.";
+  }
+
+  return `אתגרים ששווה לסיים: נשארו לך עוד ${remainingDailyTasks} מעשים יומיים להיום.`;
+}
+
+function getQuickDailySectionCopy(quickDailyTasksRemaining: number) {
+  if (quickDailyTasksRemaining <= 0) {
+    return "אלה היו הבונוסים המהירים של היום. סיימתם אותם? מעולה. עכשיו הזמן לעבור לאתגרים החיים שלמעלה.";
+  }
+
+  return "אלה בונוסים מהירים להיום. סיימתם אותם? מעולה. המשיכו לאתגרים שלמעלה כדי להרגיש את הטירה זזה איתכם.";
+}
+
+function formatQuestReward(quest?: ComputedQuest | null) {
+  if (!quest) return "";
+
+  const parts: string[] = [];
+  if (quest.reward.points > 0) parts.push(`${quest.reward.points} נקודות`);
+  if (quest.reward.galleons > 0) parts.push(`${quest.reward.galleons} גליאונים`);
+
+  return parts.join(" • ");
+}
 function getQuestTypeLabel(type: ComputedQuest["type"]) {
   switch (type) {
     case "daily":
@@ -269,30 +351,29 @@ export default function QuestsPage() {
   const isTriviaDone = dailyStatus.trivia || checkIsDoneToday(profile?.last_trivia_date);
   const isNifflerDone = dailyStatus.niffler || checkIsDoneToday(profile?.last_niffler_date);
   const isSnitchDone = dailyStatus.snitch || checkIsDoneToday(profile?.last_snitch_date);
-  useEffect(() => {
-    const refreshComputedState = async () => {
-      if (!profile?.id) {
-        setComputedQuests([]);
-        setNextActions([]);
-        return;
-      }
+  const refreshComputedState = useCallback(async () => {
+    if (!profile?.id) {
+      setComputedQuests([]);
+      setNextActions([]);
+      return;
+    }
 
-      const activity = await fetchQuestActivitySummary(supabase, profile.id);
-      const questProgress = computeQuestProgress(profile, activity);
+    const [activity, questCatalog] = await Promise.all([
+      fetchQuestActivitySummary(supabase, profile.id),
+      fetchQuestCatalog(supabase),
+    ]);
+    const questProgress = computeQuestProgress(profile, activity, questCatalog);
 
-      setComputedQuests(questProgress.quests);
-      setNextActions(
-        computeNextActions({
-          profile: {
-            daily_points_earned: profile.daily_points_earned,
-            house: profile.house,
-          },
-          questProgress,
-        }),
-      );
-    };
-
-    void refreshComputedState();
+    setComputedQuests(questProgress.quests);
+    setNextActions(
+      computeNextActions({
+        profile: {
+          daily_points_earned: profile.daily_points_earned,
+          house: profile.house,
+        },
+        questProgress,
+      }),
+    );
   }, [
     supabase,
     profile,
@@ -304,6 +385,24 @@ export default function QuestsPage() {
     profile?.points_contributed,
     profile?.daily_points_earned,
   ]);
+
+  useEffect(() => {
+    void refreshComputedState();
+  }, [refreshComputedState]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const questCatalogChannel = subscribeToQuestCatalogChanges(
+      supabase,
+      `quests-page-${profile.id}`,
+      refreshComputedState,
+    );
+
+    return () => {
+      void supabase.removeChannel(questCatalogChannel);
+    };
+  }, [profile?.id, refreshComputedState, supabase]);
 
   const estimateEventPoints = useCallback((eventType: string) => {
     const pointMap: Record<string, number> = {
@@ -567,7 +666,7 @@ export default function QuestsPage() {
         eventType: "quest_reward_claimed",
         title: "קצבה ממשרד הקסמים",
         subtitle: "קיבלת 5 גליאונים מהקצבה היומית",
-        icon: "💰",
+        icon: "נ’°",
       });
 
       await refreshProfile();
@@ -630,7 +729,7 @@ export default function QuestsPage() {
           eventType: "quest_trivia_completed",
           title: "מבחן הלחשים היומי",
           subtitle: "ענית נכון על מבחן הלחשים היומי",
-          icon: "📘",
+          icon: "נ“˜",
         });
       }
 
@@ -686,7 +785,7 @@ export default function QuestsPage() {
         eventType: "quest_niffler_found",
         title: "מרדף הניפלר",
         subtitle: `תפסת את הניפלר וקיבלת ${data.amount} ${rewardTypeLabel}`,
-        icon: "🦦",
+        icon: "נ¦¦",
       });
 
       await refreshProfile();
@@ -741,7 +840,7 @@ export default function QuestsPage() {
         eventType: "quest_snitch_caught",
         title: "מרדף אחרי הסניץ'",
         subtitle: "תפסת את הסניץ' הזהוב",
-        icon: "⚡",
+        icon: "ג¡",
       });
 
       await refreshProfile();
@@ -797,16 +896,24 @@ export default function QuestsPage() {
   const dailyPoints = Math.min(profile?.daily_points_earned || 0, 50);
   const dailyProgress = `${dailyPoints}/50`;
   const dailyProgressPercent = Math.min(100, Math.round((dailyPoints / 50) * 100));
+  const questLookup = new Map(computedQuests.map((quest) => [quest.id, quest]));
   const activeQuestsCount = computedQuests.filter((quest) => quest.status === "active").length;
   const completedQuestsCount = computedQuests.length - activeQuestsCount;
-  const nextActionHint = nextActions[0]?.title || "בחר/י משימה מהלוח";
+  const nextActionHint = nextActions[0]?.title || "בחר/י יעד מהלוח";
   const primaryAction = nextActions[0] ?? null;
   const secondaryActions = nextActions.slice(1);
   const primaryUrgency = primaryAction ? getUrgencyMeta(primaryAction.urgency) : null;
   const triviaJustCompleted = justCompletedQuestIds.includes("daily_spell_exam");
-  const remainingDailyTasks = [isAllowanceDone, isTriviaDone, isNifflerDone, isSnitchDone].filter(
+  const quickDailyTasksRemaining = [isAllowanceDone, isTriviaDone, isNifflerDone, isSnitchDone].filter(
     (done) => !done,
   ).length;
+  const activeDailyQuests = computedQuests.filter((quest) => quest.metricWindow === "daily" && quest.status === "active");
+  const activeLiveDailyQuests = activeDailyQuests.filter((quest) => !QUICK_DAILY_QUEST_IDS.has(quest.id));
+  const remainingDailyTasks = activeDailyQuests.length;
+  const allowanceQuest = questLookup.get("daily_allowance");
+  const triviaQuest = questLookup.get("daily_spell_exam");
+  const nifflerQuest = questLookup.get("daily_niffler_hunt");
+  const snitchQuest = questLookup.get("daily_snitch_run");
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#020617] pb-20 text-[#f8fafc]" dir="rtl">
@@ -907,14 +1014,14 @@ export default function QuestsPage() {
           <div className="relative grid gap-5 lg:grid-cols-[1.35fr_0.95fr]">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.24em] text-amber-100"><Sparkles size={12} className="text-amber-300" />מה כדאי לעשות עכשיו?</span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.24em] text-amber-100"><Sparkles size={12} className="text-amber-300" />שגרת מסדרונות</span>
                 {primaryUrgency && <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.22em] ${primaryUrgency.className}`}><primaryUrgency.Icon size={12} />{primaryUrgency.label}</span>}
               </div>
 
               {primaryAction ? (
                 <>
                   <div>
-                    <p className="text-[11px] font-cinzel uppercase tracking-[0.25em] text-white/35">במוקד</p>
+                    <p className="text-[11px] font-cinzel uppercase tracking-[0.25em] text-white/35">במוקד הטירה</p>
                     <h2 className="mt-2 max-w-3xl font-cinzel text-3xl font-black text-white md:text-4xl">{primaryAction.title}</h2>
                     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70 md:text-base">{primaryAction.reason}</p>
                   </div>
@@ -922,20 +1029,21 @@ export default function QuestsPage() {
                     <HeroChip label="תגמול" value={primaryAction.gainLabel} tone="amber" pulse={rewardPulse} />
                     <HeroChip label="התקדמות" value={primaryAction.progressLabel} tone="blue" />
                     <HeroChip label="בית" value={primaryAction.houseImpactLabel} tone="emerald" />
-                    <HeroChip label="הלוח" value={`${activeQuestsCount} פעילים`} tone="rose" pulse={remainingDailyTasks > 0} />
+                    <HeroChip label="במוקד הטירה" value={`${activeQuestsCount} פעילים`} tone="rose" pulse={remainingDailyTasks > 0} />
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Link href={primaryAction.href} className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-400 px-6 py-3 text-sm font-black font-cinzel uppercase tracking-[0.18em] text-[#1f1405] shadow-[0_12px_32px_rgba(251,191,36,0.28)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(251,191,36,0.34)]">
-                      לצעד הבא
+                      הצעד הבא שלך
                       <ChevronRight size={16} className="transition-transform group-hover:-translate-x-1" />
                     </Link>
-                    <p className="text-sm text-white/55">{remainingDailyTasks > 0 ? `משימות שכדאי לסגור בקרוב: נשארו עוד ${remainingDailyTasks} פעולות יומיות להיום.` : "המשימות היומיות הושלמו. זה הזמן לדחוף קדימה את המשימות הארוכות יותר."}</p>
+                    <p className="text-sm text-white/55">{getPrimaryActionSupportCopy(remainingDailyTasks)}</p>
                   </div>
                 </>
               ) : (
                 <div className="space-y-4">
-                  <h2 className="font-cinzel text-3xl font-black text-white md:text-4xl">כל היעדים כרגע שקטים</h2>
-                  <p className="max-w-2xl text-sm leading-relaxed text-white/70 md:text-base">הלוח ריק לרגע, אז שווה לצאת למסדרונות ולהצית עוד תנועה במערכת.</p>
+                  <p className="text-[11px] font-cinzel uppercase tracking-[0.25em] text-white/35">במוקד הטירה</p>
+                  <h2 className="font-cinzel text-3xl font-black text-white md:text-4xl">הלוח שקט לרגע</h2>
+                  <p className="max-w-2xl text-sm leading-relaxed text-white/70 md:text-base">אין כרגע מסלול דחוף במיוחד, אז זה זמן טוב לצאת למסדרונות, לפתוח תנועה חדשה, ולתת לקווסט הבא להופיע מתוך הפעילות שלך.</p>
                   <Link href="/map" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-6 py-3 text-sm font-black font-cinzel uppercase tracking-[0.18em] text-cyan-100 transition-all hover:border-cyan-300/40 hover:bg-cyan-500/15">לצאת לטירה<ChevronRight size={16} /></Link>
                 </div>
               )}
@@ -944,7 +1052,7 @@ export default function QuestsPage() {
             <div className="rounded-[1.75rem] border border-white/10 bg-black/20 p-4 md:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-cinzel text-[10px] uppercase tracking-[0.24em] text-white/35">צעדי המשך</p>
+                  <p className="font-cinzel text-[10px] uppercase tracking-[0.24em] text-white/35">הצעד הבא שלך</p>
                   <h3 className="mt-1 font-cinzel text-lg font-black text-white">מסלולים פתוחים</h3>
                 </div>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.2em] text-white/45">{secondaryActions.length > 0 ? `${secondaryActions.length} פתוחים` : "פוקוס יחיד"}</span>
@@ -967,14 +1075,79 @@ export default function QuestsPage() {
                   );
                 }) : (
                   <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-5 text-center">
-                    <p className="font-cinzel text-sm font-black text-white/70">כל הזרקור על המשימה הראשית</p>
-                    <p className="mt-2 text-xs leading-relaxed text-white/45">כרגע אין המלצות משניות בולטות, אז כדאי לסגור את היעד העליון.</p>
+                    <p className="font-cinzel text-sm font-black text-white/70">כל הפוקוס נשאר על המסלול הראשי</p>
+                    <p className="mt-2 text-xs leading-relaxed text-white/45">כרגע אין עוד מסלולים בולטים מסביב, אז שווה לסגור קודם את היעד העליון ואז לתת להמלצה הבאה להתעדכן מהדאטה החי.</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
         </section>
+
+        <QuestCommunityPulse currentHouse={profile?.house} />
+
+        {activeLiveDailyQuests.length > 0 && (
+          <section className="mb-6">
+            <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="font-cinzel text-[11px] uppercase tracking-[0.24em] text-white/35">יעדים עם מעשה אמיתי</p>
+                <h2 className="mt-1 font-cinzel text-2xl font-black text-white">יומיות חיות של הטירה</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">
+                  אלה היעדים שבאמת מחיים את היום באתר: לפתוח אשכול, להגיב, או להיכנס לזירה. לא רק ללחוץ על כפתור ולקחת פרס.
+                </p>
+              </div>
+              <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.2em] text-emerald-100">
+                {activeLiveDailyQuests.length} דורשות מעשה
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {activeLiveDailyQuests.slice(0, 3).map((quest) => {
+                const meta = getLiveDailyQuestMeta(quest);
+                const progressPercent = quest.target > 0 ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
+
+                return (
+                  <Link
+                    key={quest.id}
+                    href={meta.href}
+                    className="group rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.05]"
+                  >
+                    <div className="mb-4 flex items-start justify-between gap-4">
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${meta.shellClass}`}>
+                        <meta.Icon size={22} className={meta.iconClass} />
+                      </div>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.2em] ${meta.shellClass}`}>
+                        {meta.eyebrow}
+                      </span>
+                    </div>
+                    <h3 className="font-cinzel text-lg font-black text-white">{quest.title}</h3>
+                    <p className="mt-2 min-h-[3.5rem] text-sm leading-relaxed text-white/60">{quest.description}</p>
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-white/70">{quest.objectiveLabel}</span>
+                        <span className="text-[11px] font-bold text-white/45">{quest.progress}/{quest.target}</span>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-300 transition-all duration-500"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold">
+                      <span className="rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-blue-100">+{quest.reward.points} נקודות</span>
+                      <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-amber-100">+{quest.reward.galleons} גליאונים</span>
+                    </div>
+                    <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-black font-cinzel uppercase tracking-[0.18em] text-white/80 transition-all group-hover:border-amber-300/30 group-hover:bg-amber-500/10 group-hover:text-amber-100">
+                      {meta.cta}
+                      <ChevronRight size={14} className="transition-transform group-hover:-translate-x-1" />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {computedQuests.length > 0 && (
           <section className="mb-10 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 md:p-6">
@@ -1035,34 +1208,39 @@ export default function QuestsPage() {
         <section className="mb-6">
           <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="font-cinzel text-[11px] uppercase tracking-[0.24em] text-white/35">פידבק פעולות יומיות</p>
-              <h2 className="mt-1 font-cinzel text-2xl font-black text-white">המשימות היומיות של היום</h2>
+              <p className="font-cinzel text-[11px] uppercase tracking-[0.24em] text-white/35">בונוסים מהירים להיום</p>
+              <h2 className="mt-1 font-cinzel text-2xl font-black text-white">מענקי הקסם היומיים</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">
+                {getQuickDailySectionCopy(quickDailyTasksRemaining)}
+              </p>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.2em] text-white/50">{remainingDailyTasks > 0 ? `נשארו ${remainingDailyTasks}` : "היומיות נסגרו"}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.2em] text-white/50">
+              {quickDailyTasksRemaining > 0 ? `נשארו ${quickDailyTasksRemaining} מהירים` : "המהירים נסגרו"}
+            </span>
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             <QuestCard
-              title="קצבה ממשרד הקסמים"
-              desc="הינשוף הגיע עם דמי כיס קטנים להמשך הלימודים."
-              reward="5 גליאונים"
+              title={allowanceQuest?.title || "קצבה ממשרד הקסמים"}
+              desc={allowanceQuest?.description || "הינשוף הגיע עם דמי כיס קטנים להמשך הלימודים."}
+              reward={formatQuestReward(allowanceQuest) || "5 גליאונים"}
               icon={<Coins className="text-amber-500" size={32} />}
               completed={isAllowanceDone}
               justCompleted={justCompletedQuestIds.includes("daily_allowance")}
               statusHint={isAllowanceDone ? "הקופה של היום כבר נאספה." : "משרד הקסמים אישר דמי כיס כדי לפתוח את היום עם מומנטום."}
               onAction={handleDailyCollect}
-              btnText="לאסוף קצבה"
+              btnText={allowanceQuest?.actionLabel || "לאסוף קצבה"}
               color="amber"
             />
 
             <div className={`relative flex flex-col rounded-[2.5rem] p-8 transition-all duration-500 glass-panel ${triviaJustCompleted ? "border border-emerald-300/40 bg-emerald-500/[0.08] shadow-[0_0_45px_rgba(74,222,128,0.2)]" : isTriviaDone ? "border border-white/10 bg-white/[0.03] opacity-70" : "border-t border-r border-white/10 hover:-translate-y-2 hover:border-blue-500/30 hover:shadow-[0_15px_50px_rgba(59,130,246,0.2)]"}`}>
               <div className="relative mb-6 flex items-start justify-between">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10"><BookOpen className="text-blue-400" size={28} /></div>
-                <span className={`rounded-full border px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-tighter ${triviaJustCompleted ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>{triviaJustCompleted ? "הושלם עכשיו" : "מבחן יומי"}</span>
+                <span className={`rounded-full border px-3 py-1 text-[10px] font-black font-cinzel uppercase tracking-tighter ${triviaJustCompleted ? "border-emerald-300/35 bg-emerald-500/10 text-emerald-100" : "border-blue-500/20 bg-blue-500/10 text-blue-400"}`}>{triviaJustCompleted ? "הושלם עכשיו" : formatQuestReward(triviaQuest) || "מבחן יומי"}</span>
               </div>
               <div className="relative mb-4">
-                <h3 className="mb-3 font-cinzel text-xl font-bold text-white">מבחן הלחשים היומי</h3>
-                <p className="text-sm leading-relaxed text-white/55">{isTriviaDone ? "היום כבר נבחנת. מחר יחכה לך אתגר חדש." : "המרצה מצפה לתשובה מדויקת אחת לפחות כדי לסגור את היעד היומי."}</p>
+                <h3 className="mb-3 font-cinzel text-xl font-bold text-white">{triviaQuest?.title || "מבחן הלחשים היומי"}</h3>
+                <p className="text-sm leading-relaxed text-white/55">{isTriviaDone ? "היום כבר נבחנת. מחר יחכה לך אתגר חדש." : triviaQuest?.description || "המרצה מצפה לתשובה מדויקת אחת לפחות כדי לסגור את היעד היומי."}</p>
               </div>
               {isTriviaDone ? (
                 <div className="relative mt-auto flex flex-1 flex-col justify-end">
@@ -1084,28 +1262,28 @@ export default function QuestsPage() {
             </div>
 
             <QuestCard
-              title="מרדף הניפלר"
-              desc="ניפלר ברח עם שלל נוצץ. משימה מהירה עם בוסט מעולה."
-              reward="7 נקודות / גליאונים"
+              title={nifflerQuest?.title || "מרדף הניפלר"}
+              desc={nifflerQuest?.description || "ניפלר ברח עם שלל נוצץ. משימה מהירה עם בוסט מעולה."}
+              reward={formatQuestReward(nifflerQuest) || "7 נקודות / גליאונים"}
               icon={<Search className="text-emerald-500" size={32} />}
               completed={isNifflerDone}
               justCompleted={justCompletedQuestIds.includes("daily_niffler_hunt")}
               statusHint={isNifflerDone ? "הניפלר של היום כבר נתפס." : "משימה מהירה עם בוסט טוב כדי לדחוף את הלוח קדימה."}
               onAction={handleNifflerHunt}
-              btnText={nifflerLoading ? "מחפש..." : "לצאת לציד"}
+              btnText={nifflerLoading ? "מחפש..." : (nifflerQuest?.actionLabel || "לצאת לציד")}
               color="emerald"
             />
 
             <QuestCard
-              title="מרדף אחרי הסניץ'"
-              desc="הסניץ' שוב בשטח. תפיסה מהירה דוחפת את הבית קדימה."
-              reward="15 נקודות"
+              title={snitchQuest?.title || "מרדף אחרי הסניץ'"}
+              desc={snitchQuest?.description || "הסניץ' שוב בשטח. תפיסה מהירה דוחפת את הבית קדימה."}
+              reward={formatQuestReward(snitchQuest) || "15 נקודות"}
               icon={<Zap className="text-violet-400" size={32} />}
               completed={isSnitchDone}
               justCompleted={justCompletedQuestIds.includes("daily_snitch_run")}
               statusHint={isSnitchDone ? "הסניץ' של היום כבר נתפס." : "תפיסה מהירה אחת יכולה לתת דחיפה חדה לבית שלך."}
               onAction={handleSnitchCatch}
-              btnText={snitchLoading ? "מזנק..." : "לתפוס סניץ'"}
+              btnText={snitchLoading ? "מזנק..." : (snitchQuest?.actionLabel || "לתפוס סניץ'")}
               color="violet"
             />
           </div>
@@ -1206,3 +1384,4 @@ function QuestCard({ title, desc, reward, icon, completed, justCompleted = false
     </div>
   );
 }
+

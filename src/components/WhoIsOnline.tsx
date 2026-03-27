@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { getHouseIcon, getHouseLabel, getHouseReadableColor, withAlpha } from "@/lib/houses";
+import {
+  getHouseDisplayIcon,
+  getHouseDisplayLabel,
+  getHouseReadableColor,
+  withAlpha,
+} from "@/lib/houses";
 
 type OnlineUserRow = {
   id: string;
@@ -14,7 +19,10 @@ type OnlineUserRow = {
 
 type ProfileGroupRow = {
   id: string;
-  user_groups: { name?: string | null; color?: string | null } | { name?: string | null; color?: string | null }[] | null;
+  user_groups:
+    | { name?: string | null; color?: string | null }
+    | { name?: string | null; color?: string | null }[]
+    | null;
 };
 
 type OnlineUser = OnlineUserRow & {
@@ -35,19 +43,25 @@ export default function WhoIsOnline() {
   useEffect(() => {
     const fetchOnline = async () => {
       const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from("online_users")
-        .select("id, user_name, house")
-        .gte("last_seen", cutoff)
-        .order("last_seen", { ascending: false })
-        .limit(20);
+      const [{ data }, { count }] = await Promise.all([
+        supabase
+          .from("online_users")
+          .select("id, user_name, house")
+          .gte("last_seen", cutoff)
+          .order("last_seen", { ascending: false })
+          .limit(20),
+        supabase
+          .from("online_users")
+          .select("id", { count: "exact", head: true })
+          .gte("last_seen", cutoff),
+      ]);
 
       if (!data) return;
-      setTotalOnline(data.length);
+      setTotalOnline(count ?? data.length);
 
       const members = (data as OnlineUserRow[]).filter((user) => !String(user.id).startsWith("guest_"));
       const userIds = members.map((user) => user.id).filter(Boolean);
-      let groupMap: Record<string, { color: string | null; name: string | null }> = {};
+      const groupMap: Record<string, { color: string | null; name: string | null }> = {};
 
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -64,11 +78,13 @@ export default function WhoIsOnline() {
         });
       }
 
-      setOnlineUsers(members.slice(0, 15).map((user) => ({
-        ...user,
-        group_color: groupMap[user.id]?.color || null,
-        group_name: groupMap[user.id]?.name || null,
-      })));
+      setOnlineUsers(
+        members.slice(0, 15).map((user) => ({
+          ...user,
+          group_color: groupMap[user.id]?.color || null,
+          group_name: groupMap[user.id]?.name || null,
+        })),
+      );
     };
 
     void fetchOnline();
@@ -84,21 +100,21 @@ export default function WhoIsOnline() {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
       <div
-        className="rounded-2xl p-5 border"
+        className="rounded-2xl border p-5"
         style={{ background: "rgba(255,255,255,0.015)", borderColor: "rgba(255,255,255,0.06)" }}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={14} style={{ color: "#34d399" }} />
             <span className="font-cinzel text-xs font-black uppercase tracking-widest text-emerald-400/70">
-              מחוברים עכשיו
+              {"\u05de\u05d7\u05d5\u05d1\u05e8\u05d9\u05dd \u05e2\u05db\u05e9\u05d9\u05d5"}
             </span>
           </div>
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
             style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.18)" }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-cinzel text-xs font-black text-emerald-400">{totalOnline}</span>
           </div>
         </div>
@@ -108,14 +124,15 @@ export default function WhoIsOnline() {
             {onlineUsers.map((user) => {
               const houseColor = getHouseReadableColor(user.house);
               const nameColor = user.group_color || houseColor;
-              const houseLabel = user.group_name || getHouseLabel(user.house) || "טרם סווג";
-              const houseIcon = getHouseIcon(user.house) || "✨";
+              const houseLabel =
+                user.group_name || getHouseDisplayLabel(user.house, "\u05d8\u05e8\u05dd \u05de\u05d5\u05d9\u05e0/\u05ea");
+              const houseIcon = getHouseDisplayIcon(user.house, "\u2728");
 
               return (
                 <Link
                   key={user.id}
                   href={`/wizard/${user.id}`}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all hover:opacity-80"
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition-all hover:opacity-80"
                   style={{
                     background: withAlpha(nameColor, 0.1),
                     border: `1px solid ${withAlpha(nameColor, 0.24)}`,
@@ -124,13 +141,15 @@ export default function WhoIsOnline() {
                   title={houseLabel}
                 >
                   <span className="text-sm leading-none">{houseIcon}</span>
-                  {user.user_name || "אורח מסתורי"}
+                  {user.user_name || "\u05d0\u05d5\u05e8\u05d7 \u05de\u05e1\u05ea\u05d5\u05e8\u05d9"}
                 </Link>
               );
             })}
           </div>
         ) : (
-          <p className="text-xs text-white/20 italic text-center py-2">רק אורחים מחוברים כעת</p>
+          <p className="py-2 text-center text-xs italic text-white/20">
+            {"\u05e8\u05e7 \u05d0\u05d5\u05e8\u05d7\u05d9\u05dd \u05de\u05d7\u05d5\u05d1\u05e8\u05d9\u05dd \u05db\u05e2\u05ea"}
+          </p>
         )}
       </div>
     </div>

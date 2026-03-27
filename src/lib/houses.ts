@@ -17,9 +17,9 @@ export const HOUSE_IDS: HouseId[] = ["Gryffindor", "Slytherin", "Ravenclaw", "Hu
 export const HOUSE_PALETTES: Record<HouseId, HousePalette> = {
   Gryffindor: {
     id: "Gryffindor",
-    label: "גריפינדור",
+    label: "\u05d2\u05e8\u05d9\u05e4\u05d9\u05e0\u05d3\u05d5\u05e8",
     shortLabel: "GRY",
-    icon: "🦁",
+    icon: "\ud83e\udd81",
     primary: "#740001",
     secondary: "#D3A625",
     accent: "#D3A625",
@@ -28,9 +28,9 @@ export const HOUSE_PALETTES: Record<HouseId, HousePalette> = {
   },
   Slytherin: {
     id: "Slytherin",
-    label: "סלית'רין",
+    label: "\u05e1\u05dc\u05d9\u05ea'\u05e8\u05d9\u05df",
     shortLabel: "SLY",
-    icon: "🐍",
+    icon: "\ud83d\udc0d",
     primary: "#1A472A",
     secondary: "#5D5D5D",
     accent: "#5D5D5D",
@@ -39,9 +39,9 @@ export const HOUSE_PALETTES: Record<HouseId, HousePalette> = {
   },
   Ravenclaw: {
     id: "Ravenclaw",
-    label: "רייבנקלו",
+    label: "\u05e8\u05d9\u05d9\u05d1\u05e0\u05e7\u05dc\u05d5",
     shortLabel: "RAV",
-    icon: "🦅",
+    icon: "\ud83e\udd85",
     primary: "#0E1A40",
     secondary: "#946B2D",
     accent: "#946B2D",
@@ -50,9 +50,9 @@ export const HOUSE_PALETTES: Record<HouseId, HousePalette> = {
   },
   Hufflepuff: {
     id: "Hufflepuff",
-    label: "הפלפאף",
+    label: "\u05d4\u05e4\u05dc\u05e4\u05d0\u05e3",
     shortLabel: "HUF",
-    icon: "🦡",
+    icon: "\ud83e\udda1",
     primary: "#EEB939",
     secondary: "#27251F",
     accent: "#27251F",
@@ -63,15 +63,24 @@ export const HOUSE_PALETTES: Record<HouseId, HousePalette> = {
 
 const HOUSE_ALIASES: Record<string, HouseId> = {
   gryffindor: "Gryffindor",
-  "גריפינדור": "Gryffindor",
+  "\u05d2\u05e8\u05d9\u05e4\u05d9\u05e0\u05d3\u05d5\u05e8": "Gryffindor",
   slytherin: "Slytherin",
-  "סלית׳רין": "Slytherin",
-  "סלית'רין": "Slytherin",
+  "\u05e1\u05dc\u05d9\u05ea\u05e8\u05d9\u05df": "Slytherin",
+  "\u05e1\u05dc\u05d9\u05ea'\u05e8\u05d9\u05df": "Slytherin",
   ravenclaw: "Ravenclaw",
-  "רייבנקלו": "Ravenclaw",
+  "\u05e8\u05d9\u05d9\u05d1\u05e0\u05e7\u05dc\u05d5": "Ravenclaw",
   hufflepuff: "Hufflepuff",
-  "הפלפאף": "Hufflepuff",
+  "\u05d4\u05e4\u05dc\u05e4\u05d0\u05e3": "Hufflepuff",
 };
+
+const UNSORTED_HOUSE_VALUES = new Set([
+  "unsorted",
+  "unknown",
+  "unassigned",
+  "\u05dc\u05d0 \u05de\u05d5\u05d9\u05df",
+  "\u05d8\u05e8\u05dd \u05de\u05d5\u05d9\u05e0/\u05ea",
+  "\u05d8\u05e8\u05dd \u05e1\u05d5\u05d5\u05d2",
+]);
 
 export type HouseVisualTheme = {
   palette: HousePalette;
@@ -103,6 +112,17 @@ export function resolveHouseId(value: string | null | undefined): HouseId | null
   return HOUSE_ALIASES[normalized] || HOUSE_ALIASES[normalized.toLowerCase()] || null;
 }
 
+export function isUnsortedHouse(value: string | null | undefined) {
+  if (typeof value !== "string") return true;
+
+  const normalized = value.trim();
+  if (!normalized) return true;
+  if (normalized.toLowerCase() === "guest") return false;
+  if (UNSORTED_HOUSE_VALUES.has(normalized) || UNSORTED_HOUSE_VALUES.has(normalized.toLowerCase())) return true;
+
+  return resolveHouseId(normalized) === null;
+}
+
 export function getHousePalette(house: string | null | undefined): HousePalette | null {
   const houseId = resolveHouseId(house);
   if (!houseId) return null;
@@ -113,12 +133,28 @@ export function getHouseLabel(house: string | null | undefined) {
   return getHousePalette(house)?.label || null;
 }
 
+export function getHouseDisplayLabel(
+  house: string | null | undefined,
+  fallback = "\u05dc\u05d0 \u05de\u05d5\u05d9\u05df",
+) {
+  if (isUnsortedHouse(house)) return fallback;
+  return getHouseLabel(house) || house || fallback;
+}
+
 export function getHouseShortLabel(house: string | null | undefined) {
   return getHousePalette(house)?.shortLabel || null;
 }
 
 export function getHouseIcon(house: string | null | undefined) {
   return getHousePalette(house)?.icon || null;
+}
+
+export function getHouseDisplayIcon(
+  house: string | null | undefined,
+  fallback = "\ud83c\udfa9",
+) {
+  if (isUnsortedHouse(house)) return fallback;
+  return getHouseIcon(house) || fallback;
 }
 
 export function hexToRgb(hex: string) {
@@ -177,17 +213,17 @@ export function getHouseVisualTheme(house: string | null | undefined): HouseVisu
 }
 
 export function getHouseAccentColor(house: string | null | undefined) {
-  return getHousePalette(house)?.accent || "rgba(255,255,255,0.7)";
+  return getHousePalette(house)?.accent || "#cbd5e1";
 }
 
 export function getHousePrimaryColor(house: string | null | undefined) {
-  return getHousePalette(house)?.primary || "rgba(255,255,255,0.7)";
+  return getHousePalette(house)?.primary || "#cbd5e1";
 }
 
 export function getHouseSecondaryColor(house: string | null | undefined) {
-  return getHousePalette(house)?.secondary || "rgba(255,255,255,0.7)";
+  return getHousePalette(house)?.secondary || "#cbd5e1";
 }
 
 export function getHouseReadableColor(house: string | null | undefined) {
-  return getHousePalette(house)?.readable || "rgba(255,255,255,0.7)";
+  return getHousePalette(house)?.readable || "#cbd5e1";
 }

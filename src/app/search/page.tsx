@@ -373,7 +373,7 @@ function ResultCard({ result, query, index }: { result: Result; query: string; i
                     {(house || badgeLabel) && (
                         <p className="font-assistant text-xs mt-0.5" style={{ color: `${houseColor}80` }}>
                             {house ? HOUSE_NAMES[house] : ''}
-                            {house && badgeLabel && ' · '}
+                            {house && badgeLabel && ' • '}
                             {badgeLabel || ''}
                         </p>
                     )}
@@ -399,7 +399,7 @@ function ResultCard({ result, query, index }: { result: Result; query: string; i
                         {cfg.label}
                     </span>
                     {result.meta?.forum_name && (
-                        <span className="text-[10px] text-white/20 font-assistant">· {result.meta.forum_name}</span>
+                        <span className="text-[10px] text-white/20 font-assistant">• {result.meta.forum_name}</span>
                     )}
                 </div>
                 <h3 className="font-cinzel text-[15px] font-black text-white/80 group-hover:text-white transition-colors mb-1.5 leading-snug">
@@ -415,3 +415,5 @@ function ResultCard({ result, query, index }: { result: Result; query: string; i
         </Link>
     );
 }
+
+

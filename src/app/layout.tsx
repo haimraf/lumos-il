@@ -1,5 +1,4 @@
 import "./globals.css";
-import { Assistant, Cinzel, Crimson_Pro } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { OwlMailProvider } from "@/components/OwlMail";
@@ -17,10 +16,6 @@ import AzkabanGuard from "@/components/AzkabanGuard";
 /**
  * LUMOS IL - ROOT LAYOUT V3.1 FIXED
  */
-
-const assistant = Assistant({ subsets: ["hebrew", "latin"], variable: "--font-assistant", display: "swap" });
-const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel", display: "swap" });
-const crimson = Crimson_Pro({ subsets: ["latin"], variable: "--font-crimson", display: "swap", style: "italic" });
 
 export const viewport = {
   width: "device-width",
@@ -70,7 +65,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${assistant.variable} ${cinzel.variable} ${crimson.variable} scroll-smooth`}>
+    <html lang="he" dir="rtl" className="scroll-smooth">
       <body className="antialiased bg-[#020617] text-[#f8fafc] font-assistant selection:bg-amber-500/30 flex flex-col min-h-screen">
 
         {/* Skip link לנגישות מקלדת */}

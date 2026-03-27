@@ -81,8 +81,8 @@ function moveMessage(move: any, actorName: string, targetName: string): string {
     const drama = SPELL_DRAMA[move.spell_used];
     const desc = drama ? pickRandom(drama) : `השתמש ב-${spell.name}`;
     if (spell.isBlock) return `🛡️ ${actorName} ${desc}`;
-    if (spell.isSkip)  return `🪄 ${actorName} ${desc} — ${targetName} מדלג תור!`;
-    return `⚔️ ${actorName} ${desc} — ${move.damage_dealt} נזק! ${DAMAGE_DRAMA(move.damage_dealt)}`;
+    if (spell.isSkip)  return `🪄 ${actorName} ${desc} • ${targetName} מדלג תור!`;
+    return `⚔️ ${actorName} ${desc} • ${move.damage_dealt} נזק! ${DAMAGE_DRAMA(move.damage_dealt)}`;
 }
 
 /* ── HP Bar ── */
@@ -559,7 +559,7 @@ export default function DuelPage() {
                             ? "bg-red-500/10 border-red-500/30 text-red-400"
                             : "bg-white/[0.03] border-white/10 text-white/30"
                     }`}>
-                        {isMyTurn ? "⚔️ התור שלך — בחר לחש" : "⌛ ממתין ליריב..."}
+                        {isMyTurn ? "⚔️ התור שלך • בחר לחש" : "⌛ ממתין ליריב..."}
                     </span>
                     <div className="flex items-center gap-2 w-48">
                         <div className="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden">
@@ -639,3 +639,5 @@ export default function DuelPage() {
         </div>
     );
 }
+
+

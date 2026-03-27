@@ -27,11 +27,11 @@ import 'react-quill-new/dist/quill.snow.css';
 import { getYearFromProfile, getYearTitle, getYearLabel } from "@/lib/yearSystem";
 
 /**
- * LUMOS IL — THREAD VIEW V8
- * ✅ ציטוטים — inline styles (לא תלוי ב-CSS specificity של Quill)
- * ✅ סמן אחרי ציטוט — נוחת מחוץ לblockquote
- * ✅ התראות — useRef במקום DOMParser (Quill מסנן data-*)
- * ✅ מיוט — תוקן
+ * LUMOS IL • THREAD VIEW V8
+ * ✅ ציטוטים • inline styles (לא תלוי ב-CSS specificity של Quill)
+ * ✅ סמן אחרי ציטוט • נוחת מחוץ לblockquote
+ * ✅ התראות • useRef במקום DOMParser (Quill מסנן data-*)
+ * ✅ מיוט • תוקן
  * ✅ Cooldown 30 שניות
  * ✅ Presence מחובר
  */
@@ -75,7 +75,7 @@ const SPELLS = [
 const COOLDOWN_MS = 30_000;
 const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
 
-// Inline style string לblockquote — עוקף את כל CSS specificity של Quill
+// Inline style string לblockquote • עוקף את כל CSS specificity של Quill
 const BLOCKQUOTE_STYLE = [
     "display:block",
     "border-right:3px solid #f59e0b",
@@ -195,14 +195,14 @@ export default function ThreadViewPage() {
         return () => clearInterval(interval);
     }, [fetchGlobalOnline]);
 
-    // ✅ useRef לשמירת מי צוטט/תויג — לא תלוי ב-HTML parsing
+    // ✅ useRef לשמירת מי צוטט/תויג • לא תלוי ב-HTML parsing
     const pendingQuotes = useRef<string[]>([]);
     const pendingMentions = useRef<string[]>([]);
 
     // ✅ רשימת הדרגות שמקבלות גישות ניהול בעמוד האשכול
     const STAFF_ROLES = ['מייסד', 'ראש הוגוורטס', 'שומר הטירה', 'פרופסור', 'צוות Lumos', 'מנהל', 'מנחה'];
 
-    /* ── Auth init — רץ ראשון, מפריד מ-fetchData ── */
+    /* ── Auth init • רץ ראשון, מפריד מ-fetchData ── */
     useEffect(() => {
         const initAuth = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -214,7 +214,7 @@ export default function ThreadViewPage() {
 
                 const groupData = profile?.user_groups;
                 const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
-                const normalizedRole = profile?.status === "active" && profile?.role === "׳׳¡׳™׳¨ ׳׳–׳§׳‘׳׳" ? null : roleName;
+                const normalizedRole = profile?.status === "active" && profile?.role === "אסיר אזקבאן" ? null : roleName;
                 setUserRole((profile?.status === "active" && profile?.role === LEGACY_BANNED_ROLE_HE ? null : roleName) || normalizedRole || null);
 
                 const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", session.user.id);
@@ -231,7 +231,7 @@ export default function ThreadViewPage() {
 
                 const groupData = profile?.user_groups;
                 const roleName = groupData ? (Array.isArray(groupData) ? groupData[0]?.name : (groupData as any).name) : profile?.role;
-                const normalizedRole = profile?.status === "active" && profile?.role === "׳׳¡׳™׳¨ ׳׳–׳§׳‘׳׳" ? null : roleName;
+                const normalizedRole = profile?.status === "active" && profile?.role === "אסיר אזקבאן" ? null : roleName;
                 setUserRole((profile?.status === "active" && profile?.role === LEGACY_BANNED_ROLE_HE ? null : roleName) || normalizedRole || null);
 
                 const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", session.user.id);
@@ -268,7 +268,7 @@ export default function ThreadViewPage() {
                 .from('forums').select('*').eq('id', threadData.forum_id).single();
             if (forumData) setForum(forumData);
 
-            // Select only columns that definitely exist in profiles — omit 'username' which may not exist
+            // Select only columns that definitely exist in profiles • omit 'username' which may not exist
             const { data: postsData, error: postsError } = await supabase
                 .from('forum_posts')
                 .select(`*, profiles(house, role, wand_type, full_name, email, signature, patronus, avatar_url, year, gender, created_at, id, is_ghost, user_groups(name, color)), post_reactions(spell_type, user_id)`)
@@ -374,14 +374,14 @@ export default function ThreadViewPage() {
         const author = post.profiles?.full_name || 'קוסם';
         const color = post.profiles?.house ? HOUSE_CONFIG[post.profiles.house].accent : '#f59e0b';
 
-        // ✅ רשום מי צוטט — לפני כל שינוי ב-editor
+        // ✅ רשום מי צוטט • לפני כל שינוי ב-editor
         pendingQuotes.current.push(post.user_id);
 
         const cleanContent = post.content.replace(/<\/?p[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-        // ✅ Inline styles — Quill לא יכול לדרוס אותם
+        // ✅ Inline styles • Quill לא יכול לדרוס אותם
         const quoteHtml = `<blockquote style="${BLOCKQUOTE_STYLE}">` +
-            `<strong style="color:${color};font-style:normal;font-weight:700">${author} כתב׳:</strong>` +
+            `<strong style="color:${color};font-style:normal;font-weight:700">${author} כתב/ה:</strong>` +
             `<br>${cleanContent}` +
             `</blockquote>`;
 
@@ -533,15 +533,10 @@ export default function ThreadViewPage() {
         }
 
         if (userProfile?.status === 'banned') {
-            sendOwl("׳’׳™׳©׳” ׳ ׳“׳—׳×׳”", "׳׳¡׳™׳¨׳™׳ ׳׳׳–׳§׳‘׳׳ ׳׳ ׳™׳›׳•׳׳™׳ ׳׳©׳׳•׳— ׳™׳ ׳©׳•׳₪׳™׳.", "error");
-            return;
-        }
-
-        // 🛑 בדיקת אזקבאן בתגובות!
-        if (userRole === 'אסיר אזקבאן') {
             sendOwl("גישה נדחתה", "אסירים מאזקבאן לא יכולים לשלוח ינשופים.", "error");
             return;
         }
+
         // Cooldown check
         const lastPost = posts[posts.length - 1];
         if (lastPost?.user_id === currentUser.id && !STAFF_ROLES.includes(userRole || '')) {
@@ -839,12 +834,12 @@ export default function ThreadViewPage() {
                             <MessageSquare size={11} />
                             {posts.length} תגובות
                         </span>
-                        <span className="text-white/10">·</span>
+                        <span className="text-white/10">•</span>
                         <span className="flex items-center gap-1.5">
                             <Eye size={11} />
                             {((thread?.views || 0) + 1).toLocaleString()} צפיות
                         </span>
-                        <span className="text-white/10">·</span>
+                        <span className="text-white/10">•</span>
                         <span className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
                             {onlineUserIds.size} מקוונים כעת
@@ -917,7 +912,7 @@ export default function ThreadViewPage() {
                                     <Pin size={15} className="text-amber-400 shrink-0" />
                                     <div>
                                         <span className="font-cinzel font-black text-amber-400 text-xs uppercase tracking-widest">שרשור מעוגן</span>
-                                        <span className="font-crimson text-amber-400/60 text-sm mr-3 italic">— נעוץ על ידי צוות הטירה לנוחות הקהילה</span>
+                                        <span className="font-crimson text-amber-400/60 text-sm mr-3 italic">• נעוץ על ידי צוות הטירה לנוחות הקהילה</span>
                                     </div>
                                 </div>
                             )}
@@ -926,7 +921,7 @@ export default function ThreadViewPage() {
                                     <Lock size={15} className="text-red-400 shrink-0" />
                                     <div>
                                         <span className="font-cinzel font-black text-red-400 text-xs uppercase tracking-widest">שרשור נעול</span>
-                                        <span className="font-crimson text-red-400/60 text-sm mr-3 italic">— שרשור זה נסגר ואין אפשרות להוסיף תגובות חדשות</span>
+                                        <span className="font-crimson text-red-400/60 text-sm mr-3 italic">• שרשור זה נסגר ואין אפשרות להוסיף תגובות חדשות</span>
                                     </div>
                                 </div>
                             )}
@@ -1017,7 +1012,7 @@ export default function ThreadViewPage() {
                                     {/* year at hogwarts */}
                                     {post.profiles?.created_at && (
                                         <span className="text-[9px] text-white/20 font-bold">
-                                            שנה {getYearLabel(getYearFromProfile(post.profiles))} · {getYearTitle(getYearFromProfile(post.profiles))}
+                                            שנה {getYearLabel(getYearFromProfile(post.profiles))} • {getYearTitle(getYearFromProfile(post.profiles))}
                                         </span>
                                     )}
 
@@ -1041,7 +1036,7 @@ export default function ThreadViewPage() {
                                     {/* join date */}
                                     {post.profiles?.created_at && (
                                         <div className="post-sidebar-stat w-full">
-                                            <span className="post-sidebar-stat-label">הצטרפ׳</span>
+                                            <span className="post-sidebar-stat-label">הצטרפ/ה</span>
                                             <span className="post-sidebar-stat-num" style={{ fontSize: "9px", color: "rgba(255,255,255,0.3)" }}>
                                                 {new Date(post.profiles.created_at).toLocaleDateString("he-IL", { year: "numeric", month: "short" })}
                                             </span>
@@ -1279,3 +1274,5 @@ export default function ThreadViewPage() {
         </div>
     );
 }
+
+

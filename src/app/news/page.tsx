@@ -450,9 +450,9 @@ function ArticleReader({ article, roleColors, onClose }: { article: NewsItem; ro
                     );
                   })() : (article.author || "כתב מערכת")}
                 </span>
-                <span className="text-[#1e0e04]/20">·</span>
+                <span className="text-[#1e0e04]/20">•</span>
                 <span>{formatDate(article.created_at)}</span>
-                <span className="text-[#1e0e04]/20">·</span>
+                <span className="text-[#1e0e04]/20">•</span>
                 <span className="flex items-center gap-1.5">
                   <Clock size={11} aria-hidden="true" />
                   {readingTime(article.content)} דקות קריאה
@@ -673,7 +673,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     if (trimmed.length < MIN_COMMENT_LENGTH) {
       sendOwl(
         "הלחש קצר מדי 📜",
-        `תגובה איכותית דורשת לפחות ${MIN_COMMENT_LENGTH} תווים. כתבת ${trimmed.length} — עוד ${MIN_COMMENT_LENGTH - trimmed.length} תווים נדרשים.`,
+        `תגובה איכותית דורשת לפחות ${MIN_COMMENT_LENGTH} תווים. כתבת ${trimmed.length} • עוד ${MIN_COMMENT_LENGTH - trimmed.length} תווים נדרשים.`,
         "error"
       );
       return;
@@ -709,7 +709,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
       const releaseStr = releaseMatch
         ? new Date(releaseMatch[0]).toLocaleString("he-IL", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })
         : null;
-      sendOwl("לחש השתקה ❄️", releaseStr ? `הצינון יסתיים ב-${releaseStr}.` : "פנה למשרד הקסמים לפרטים.", "error");
+      sendOwl("לחש השתקה ❄️", releaseStr ? `הצינון יסתיים ב-${releaseStr}.` : "פנו למשרד הקסמים לפרטים.", "error");
       setIsPosting(false);
       return;
     }
@@ -802,7 +802,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
               {newComment.trim().length} / {MIN_COMMENT_LENGTH} תווים מינימום
               {newComment.trim().length >= MIN_COMMENT_LENGTH && " ✓"}
               {currentUserId && comments.some(c => c.user_id === currentUserId) && (
-                <span className="mr-2" style={{ color: "rgba(180,83,9,0.6)" }}>· כבר הגבת לכתבה זו</span>
+                <span className="mr-2" style={{ color: "rgba(180,83,9,0.6)" }}>• כבר הגבת לכתבה זו</span>
               )}
             </span>
             {/* cooldown indicator */}
@@ -1002,3 +1002,5 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     </section>
   );
 }
+
+

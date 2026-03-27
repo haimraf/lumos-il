@@ -2,11 +2,12 @@
 
 import imageCompression from 'browser-image-compression';
 
-import { getMagicFingerprint, plantStickyMarker } from "@/utils/magic-fingerprint";
+import { getMagicFingerprint } from "@/utils/magic-fingerprint";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
+import MagicAvatar from "@/components/MagicAvatar";
 import {
     ChevronRight, Wand2, Shield, ShieldAlert, ShieldOff, Star,
     Calendar, MessageSquare, BookOpen, Package, Clock,
@@ -17,12 +18,15 @@ import { useOwlMail } from "@/components/OwlMail";
 import { getYearFromProfile, getYearTitle, getYearLabel } from "@/lib/yearSystem";
 import { getItemBoostBadges } from "@/lib/inventoryBoosts";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
+import { logAdminAudit } from "@/lib/adminAudit";
+import { getHouseDisplayIcon, getHouseDisplayLabel, isUnsortedHouse } from "@/lib/houses";
+import { renderAvatarFrameBlob } from "@/lib/mediaFraming";
 
 const ANIMALS_MAP: Record<string, { emoji: string; nameHe: string; nameEn: string }> = {
     stag: { emoji: "🦌", nameHe: "צבי", nameEn: "Stag" },
-    otter: { emoji: "🦦", nameHe: "Otter", nameEn: "Otter" },
+    otter: { emoji: "🦦", nameHe: "לוטרה", nameEn: "Otter" },
     wolf: { emoji: "🐺", nameHe: "זאב", nameEn: "Wolf" },
-    doe: { emoji: "🦌", nameHe: "צביה", nameEn: "Doe" },
+    doe: { emoji: "🦌", nameHe: "איילה", nameEn: "Doe" },
     hare: { emoji: "🐇", nameHe: "ארנב בר", nameEn: "Hare" },
     boar: { emoji: "🐗", nameHe: "חזיר בר", nameEn: "Boar" },
     cat: { emoji: "🐱", nameHe: "חתול", nameEn: "Cat" },
@@ -53,7 +57,7 @@ const HOUSE_CONFIG: Record<string, {
         banner: "linear-gradient(135deg, #450a0a 0%, #7f1d1d 40%, #450a0a 100%)",
         glow: "rgba(220,38,38,0.4)", textColor: "text-red-400",
         badgeBg: "bg-red-900/50 text-red-300 border-red-700/50",
-        quote: "אומץ, תעוזה ואבירות — לב הגריפינדור לעולם לא יכנע"
+        quote: "אומץ, תעוזה ואבירות. לב גריפינדורי לעולם לא נכנע."
     },
     Slytherin: {
         name: "סלית'רין", emoji: "🐍",
@@ -61,7 +65,7 @@ const HOUSE_CONFIG: Record<string, {
         banner: "linear-gradient(135deg, #022c22 0%, #064e3b 40%, #022c22 100%)",
         glow: "rgba(5,150,105,0.4)", textColor: "text-emerald-400",
         badgeBg: "bg-emerald-900/50 text-emerald-300 border-emerald-700/50",
-        quote: "שאפתנות ופיקחות — הדרך לגדולה מתחילה בסלית'רין"
+        quote: "שאפתנות ופיקחות. הדרך לגדולה מתחילה בסלית'רין."
     },
     Ravenclaw: {
         name: "רייבנקלו", emoji: "🦅",
@@ -69,7 +73,7 @@ const HOUSE_CONFIG: Record<string, {
         banner: "linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 40%, #1e1b4b 100%)",
         glow: "rgba(37,99,235,0.4)", textColor: "text-blue-400",
         badgeBg: "bg-blue-900/50 text-blue-300 border-blue-700/50",
-        quote: "חכמה ויצירתיות — הדעת היא הכוח הגדול מכולם"
+        quote: "חכמה ויצירתיות. הידע הוא הכוח הגדול מכולם."
     },
     Hufflepuff: {
         name: "הפלפאף", emoji: "🦡",
@@ -77,20 +81,20 @@ const HOUSE_CONFIG: Record<string, {
         banner: "linear-gradient(135deg, #451a03 0%, #78350f 40%, #451a03 100%)",
         glow: "rgba(217,119,6,0.4)", textColor: "text-amber-400",
         badgeBg: "bg-amber-900/50 text-amber-300 border-amber-700/50",
-        quote: "נאמנות וטוב לב — הפלפאף הוא בית של כולם"
+        quote: "נאמנות וטוב לב. הפלפאף הוא בית של כולם."
     },
 };
 
 const RANK_CONFIG: Record<string, { label: string; class: string; icon: string }> = {
-    "מנהל": { label: "מנהל", class: "bg-amber-500 text-amber-950 border-amber-400", icon: "⚡" },
+    "מנהל": { label: "מנהל", class: "bg-amber-500 text-amber-950 border-amber-400", icon: "👑" },
     "פרופסור": { label: "פרופסור", class: "bg-purple-600/80 text-white border-purple-400", icon: "📚" },
-    "מדריך": { label: "מדריך", class: "bg-blue-600/80 text-white border-blue-400", icon: "🔵" },
-    "תלמיד׳": { label: "תלמיד׳", class: "bg-white/10 text-white/70 border-white/20", icon: "✨" },
+    "מדריך": { label: "מדריך", class: "bg-blue-600/80 text-white border-blue-400", icon: "🪄" },
+    "תלמיד/ה": { label: "תלמיד/ה", class: "bg-white/10 text-white/70 border-white/20", icon: "🧙" },
 };
 
 const TRAITS = [
     { key: "courage", name: "אומץ לב", icon: "⚔️", color: "#dc2626" },
-    { key: "wisdom", name: "חכמה", icon: "📖", color: "#2563eb" },
+    { key: "wisdom", name: "חכמה", icon: "🧠", color: "#2563eb" },
     { key: "cunning", name: "ערמומיות", icon: "🐍", color: "#059669" },
     { key: "loyalty", name: "נאמנות", icon: "🦡", color: "#d97706" },
 ];
@@ -131,6 +135,7 @@ export default function WizardProfilePage() {
 
     // Avatar & Cover
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [avatarSourceUrl, setAvatarSourceUrl] = useState<string | null>(null);
     const [coverUrl, setCoverUrl] = useState<string | null>(null);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [uploadingCover, setUploadingCover] = useState(false);
@@ -140,6 +145,7 @@ export default function WizardProfilePage() {
 
     // Cover position
     const [coverPosition, setCoverPosition] = useState("50% 50%");
+    const [autoFittingAvatar, setAutoFittingAvatar] = useState(false);
     const bannerRef = useRef<HTMLDivElement>(null);
 
     // Duel
@@ -203,7 +209,13 @@ export default function WizardProfilePage() {
             setProfile(p);
             setAvatarUrl(p.avatar_url || null);
             setCoverUrl(p.cover_url || null);
-            setCoverPosition(p.cover_position || "50% 50%");
+            setCoverPosition(typeof p.cover_position === "string" ? p.cover_position : "50% 50%");
+            if (currentUser?.id === p.id) {
+                const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(`${p.id}/avatar-source.webp`);
+                setAvatarSourceUrl(`${publicUrl}?t=${Date.now()}`);
+            } else {
+                setAvatarSourceUrl(null);
+            }
 
             const { data: fp } = await supabase
                 .from("forum_posts")
@@ -237,7 +249,7 @@ export default function WizardProfilePage() {
             setIsLoading(false);
         };
         load();
-    }, [id, supabase, router]);
+    }, [currentUser?.id, id, supabase, router]);
 
     // Load friendship status + friends list
     useEffect(() => {
@@ -337,101 +349,124 @@ export default function WizardProfilePage() {
 
     // Removed heavy debug logs for performance
 
-    // פונקציית שליחה לאזקבאן
-    const handleSendToAzkaban = async () => {
-        const modernBanReason = "\u05d4\u05e8\u05d7\u05e7\u05d4 \u05d9\u05d6\u05d5\u05de\u05d4 \u05e2\"\u05d9 \u05d4\u05d4\u05e0\u05d4\u05dc\u05d4";
-        if (!confirm("🚨 האם אתה בטוח שברצונך לשלוח משתמש זה לאזקבאן ולחסום אותו מהקהילה?")) return;
-
-        try {
-            const { error: modernBanError } = await supabase
-                .from('profiles')
-                .update({
-                    status: 'banned',
-                    ban_reason: modernBanReason,
-                    ban_expires_at: null,
-                    is_ghost: false,
-                })
-                .eq('id', id);
-
-            if (modernBanError) throw modernBanError;
-
-            sendOwl("׳׳–׳§׳‘׳׳", "׳”׳׳©׳×׳׳© ׳ ׳©׳׳— ׳׳׳–׳§׳‘׳׳ ׳‘׳”׳¦׳׳—׳”.", "success");
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-            return;
-        } catch (err: any) {
-            console.error(err);
-            sendOwl("׳©׳’׳™׳׳”", "׳׳©׳”׳• ׳”׳©׳×׳‘׳© ׳‘׳©׳׳™׳—׳” ׳׳׳–׳§׳‘׳׳.", "error");
-            return;
-        }
-
+    const applyModerationAction = async ({
+        status,
+        isGhost,
+        reason,
+        expiresAt,
+        auditAction,
+        successTitle,
+        successMessage,
+    }: {
+        status: string;
+        isGhost: boolean;
+        reason: string | null;
+        expiresAt: string | null;
+        auditAction: string;
+        successTitle: string;
+        successMessage: string;
+    }) => {
         try {
             const { error } = await supabase
-                .from('profiles')
-                .update({ role: 'אסיר אזקבאן' })
-                .eq('id', id);
+                .from("profiles")
+                .update({
+                    status,
+                    ban_reason: reason,
+                    ban_expires_at: expiresAt,
+                    is_ghost: isGhost,
+                })
+                .eq("id", id);
 
             if (error) throw error;
 
-            await supabase
-                .from('profiles')
-                .update({
-                    status: 'banned',
-                    ban_reason: "׳”׳¨׳—׳§׳” ׳™׳–׳•׳׳” ׳¢\"׳™ ׳”׳ ׳”׳׳”",
-                    ban_expires_at: null,
-                    is_ghost: false,
-                })
-                .eq('id', id);
+            await logAdminAudit(supabase, {
+                actorId: currentUser?.id || null,
+                action: auditAction,
+                targetType: "profile",
+                targetId: id,
+                targetLabel: profile?.full_name || null,
+                details: {
+                    reason,
+                    expiresAt,
+                    source: "wizard-profile",
+                    previousStatus: profile?.status || null,
+                    previousGhost: Boolean(profile?.is_ghost),
+                },
+            });
 
-            plantStickyMarker('אסיר אזקבאן');
-            sendOwl("אזקבאן", "המשתמש נשלח לאזקבאן בהצלחה.", "success");
-
-            // רענון קל כדי שהדרגה תתעדכן ויזואלית בעמוד
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
-
+            setProfile((previous: any) => previous ? ({
+                ...previous,
+                status,
+                ban_reason: reason,
+                ban_expires_at: expiresAt,
+                is_ghost: isGhost,
+            }) : previous);
+            sendOwl(successTitle, successMessage, "success");
         } catch (err: any) {
             console.error(err);
-            sendOwl("שגיאה", "משהו השתבש בשליחה לאזקבאן.", "error");
+            sendOwl("שגיאה", err?.message || "לא הצלחתי לעדכן את סטטוס המשמעת.", "error");
         }
     };
 
-    // פונקציית Shadowban
+    const handleSendToAzkaban = async () => {
+        const reason = "הרחקה יזומה ע\"י ההנהלה";
+        if (!confirm("🚨 להפעיל באן קבוע על המשתמש הזה?")) return;
+
+        await applyModerationAction({
+            status: "banned",
+            isGhost: false,
+            reason,
+            expiresAt: null,
+            auditAction: "set_user_banned",
+            successTitle: "באן הופעל",
+            successMessage: "המשתמש עודכן למצב מורחק.",
+        });
+    };
+
+    const handleCoolingRoom = async () => {
+        const rawDays = window.prompt("לכמה ימים לשלוח לקולינג רום?", "1");
+        if (rawDays === null) return;
+
+        const days = Math.max(1, Number.parseInt(rawDays, 10) || 1);
+        const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
+
+        await applyModerationAction({
+            status: "cooling",
+            isGhost: false,
+            reason: "התנהגות שאינה הולמת את רוח הטירה",
+            expiresAt,
+            auditAction: "set_user_cooling",
+            successTitle: "קולינג רום הופעל",
+            successMessage: `המשתמש נשלח לקולינג רום ל-${days} ימים.`,
+        });
+    };
+
     const handleShadowBan = async () => {
-        if (!confirm("👻 להפוך משתמש זה לרוח רפאים? (אף אחד לא יראה את ההודעות שלו חוץ ממנו)")) return;
+        if (!confirm("👻 להפעיל שאדו באן? המשתמש יוכל לפרסם, אבל אחרים לא יראו את התוכן שלו.")) return;
 
-        try {
-            const { error: modernGhostError } = await supabase
-                .from('profiles')
-                .update({ is_ghost: true })
-                .eq('id', id);
+        await applyModerationAction({
+            status: "active",
+            isGhost: true,
+            reason: "הופעל שאדו באן מפרופיל המשתמש",
+            expiresAt: null,
+            auditAction: "set_user_ghost",
+            successTitle: "שאדו באן הופעל",
+            successMessage: "המשתמש עבר למצב שאדו באן.",
+        });
+    };
 
-            if (modernGhostError) throw modernGhostError;
+    const handleReleaseModeration = async () => {
+        if (!confirm("לשחרר את המשתמש מכל הגבלה פעילה?")) return;
 
-            sendOwl("׳¨׳•׳— ׳¨׳₪׳׳™׳", "׳”׳׳©׳×׳׳© ׳”׳₪׳ ׳׳¨׳•׳— ׳¨׳₪׳׳™׳ ׳‘׳”׳¦׳׳—׳”.", "success");
-            return;
-        } catch (err: any) {
-            console.error(err);
-            sendOwl("׳©׳’׳™׳׳”", "׳”׳§׳¡׳ ׳ ׳›׳©׳.", "error");
-            return;
-        }
-
-        try {
-            const { error } = await supabase
-                .from('profiles')
-                .update({ is_ghost: true })
-                .eq('id', id);
-
-            if (error) throw error;
-            
-            plantStickyMarker('GHOST');
-            sendOwl("רוח רפאים", "המשתמש הפך לרוח רפאים בהצלחה.", "success");
-        } catch (err: any) {
-            console.error(err);
-            sendOwl("שגיאה", "הקסם נכשל.", "error");
-        }
+        await applyModerationAction({
+            status: "active",
+            isGhost: false,
+            reason: null,
+            expiresAt: null,
+            auditAction: "release_user_moderation",
+            successTitle: "ההגבלה הוסרה",
+            successMessage: "המשתמש חזר למצב פעיל.",
+        });
     };
 
     const handleChallengeDuel = async () => {
@@ -453,21 +488,72 @@ export default function WizardProfilePage() {
         const file = e.target.files?.[0];
         if (!file || !currentUser) return;
         setUploadingAvatar(true);
-        const compressed = await imageCompression(file, {
-            maxSizeMB: 0.2,
-            maxWidthOrHeight: 512,
-            useWebWorker: true,
-            fileType: 'image/webp',
-        });
-        const path = `${currentUser.id}/avatar.webp`;
-        const { error } = await supabase.storage.from("avatars").upload(path, compressed, { upsert: true });
-        if (!error) {
+        try {
+            const compressed = await imageCompression(file, {
+                maxSizeMB: 1,
+                maxWidthOrHeight: 1600,
+                useWebWorker: true,
+                fileType: 'image/webp',
+            });
+            const sourcePath = `${currentUser.id}/avatar-source.webp`;
+            const { error: sourceError } = await supabase.storage.from("avatars").upload(sourcePath, compressed, { upsert: true });
+            if (sourceError) throw sourceError;
+            const framedAvatar = await renderAvatarFrameBlob(compressed, {
+                position: "50% 50%",
+                zoom: 1,
+            });
+            const path = `${currentUser.id}/avatar.webp`;
+            const { error } = await supabase.storage.from("avatars").upload(path, framedAvatar, { upsert: true });
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+            const { data: { publicUrl: sourcePublicUrl } } = supabase.storage.from("avatars").getPublicUrl(sourcePath);
+            const urlWithBust = `${publicUrl}?t=${Date.now()}`;
+            await supabase.from("profiles").update({
+                avatar_url: urlWithBust,
+            }).eq("id", currentUser.id);
+            setAvatarUrl(urlWithBust);
+            setAvatarSourceUrl(`${sourcePublicUrl}?t=${Date.now()}`);
+        } finally {
+            setUploadingAvatar(false);
+            e.target.value = "";
+        }
+    };
+
+    const handleAutoFitAvatar = async () => {
+        if (!(avatarSourceUrl || avatarUrl) || !currentUser) return;
+        setAutoFittingAvatar(true);
+        try {
+            let framedAvatar: Blob;
+            try {
+                framedAvatar = await renderAvatarFrameBlob(avatarSourceUrl || avatarUrl!, {
+                    position: "50% 50%",
+                    zoom: 1,
+                });
+            } catch (error) {
+                if (!avatarUrl || !avatarSourceUrl || avatarSourceUrl === avatarUrl) throw error;
+                setAvatarSourceUrl(null);
+                framedAvatar = await renderAvatarFrameBlob(avatarUrl, {
+                    position: "50% 50%",
+                    zoom: 1,
+                });
+            }
+
+            const path = `${currentUser.id}/avatar.webp`;
+            const { error } = await supabase.storage.from("avatars").upload(path, framedAvatar, { upsert: true });
+            if (error) throw error;
+
             const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
             const urlWithBust = `${publicUrl}?t=${Date.now()}`;
             await supabase.from("profiles").update({ avatar_url: urlWithBust }).eq("id", currentUser.id);
             setAvatarUrl(urlWithBust);
+            sendOwl("האווטאר הותאם", "תמונת הפרופיל הותאמה אוטומטית למסגרת.", "success");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "לא הצלחנו להתאים את האווטאר אוטומטית.";
+            sendOwl("שגיאת אווטאר", message, "error");
+        } finally {
+            setAutoFittingAvatar(false);
         }
-        setUploadingAvatar(false);
     };
 
     const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -501,14 +587,22 @@ export default function WizardProfilePage() {
     if (!profile) return null;
 
     const house = HOUSE_CONFIG[profile.house] || null;
+    const isUnsortedProfile = isUnsortedHouse(profile.house);
     const grp = profile.user_groups as { name: string; color: string } | null;
-    const badgeLabel = grp?.name || profile.role || "חבר";
+    const badgeLabel = grp?.name || profile.role || "חבר/ה";
     const badgeColor = grp?.color || getRoleColor(profile.role, profile.house, roleColors);
     const inv = getInventory(profile.inventory);
     const traits = profile.magic_traits || null;
     const allItems = [...inv.items, ...inv.companions, ...inv.cards];
     const postCount = posts.length;
     const joinDate = new Date(profile.created_at).toLocaleDateString("he-IL", { year: "numeric", month: "long" });
+    const moderationState = profile.is_ghost
+        ? { label: "שאדו באן", color: "#a855f7", background: "rgba(168,85,247,0.12)" }
+        : profile.status === "banned"
+            ? { label: "באן פעיל", color: "#ef4444", background: "rgba(239,68,68,0.12)" }
+            : profile.status === "cooling"
+                ? { label: "בקולינג רום", color: "#60a5fa", background: "rgba(96,165,250,0.12)" }
+                : null;
 
     const getThreadTitle = (threadId: string) =>
         threads.find(t => t.id === threadId)?.title || "שרשור";
@@ -643,7 +737,7 @@ export default function WizardProfilePage() {
 
                 {isOwnProfile && (
                     <div className="absolute bottom-4 left-4 z-50 flex items-center gap-2">
-                        {/* כפתור שנה תמונה */}
+                        {/* כפתור שינוי תמונת רקע */}
                         <label
                             htmlFor="cover-upload"
                             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 text-white/70 hover:text-white text-xs font-cinzel uppercase tracking-wider backdrop-blur-sm cursor-pointer transition-all"
@@ -690,13 +784,15 @@ export default function WizardProfilePage() {
                         <div className="avatar-wrapper relative cursor-pointer group shrink-0"
                             onClick={() => isOwnProfile && avatarInputRef.current?.click()}>
                             <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                            <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden border-4 border-[#060910] shadow-2xl flex items-center justify-center text-5xl md:text-6xl"
-                                style={{
-                                    background: house?.banner || "rgba(255,255,255,0.05)",
-                                    boxShadow: house ? `0 0 30px ${house.glow}, 0 8px 32px rgba(0,0,0,0.8)` : undefined,
-                                }}>
-                                {avatarUrl ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" /> : (house?.emoji || "🧙")}
-                            </div>
+                            <MagicAvatar
+                                avatarUrl={avatarUrl}
+                                name={profile.full_name}
+                                house={profile.house}
+                                className="w-24 h-24 md:w-32 md:h-32 border-4 border-[#060910] shadow-2xl"
+                                roundedClassName="rounded-2xl"
+                                fallbackClassName="text-5xl md:text-6xl"
+                                style={{ boxShadow: house ? `0 0 30px ${house.glow}, 0 8px 32px rgba(0,0,0,0.8)` : undefined }}
+                            />
                             {isOwnProfile && (
                                 <div className="avatar-upload-overlay absolute inset-0 rounded-2xl bg-black/60 flex flex-col items-center justify-center gap-1">
                                     {uploadingAvatar ? <Loader2 size={20} className="text-white animate-spin" /> : <Camera size={20} className="text-white" />}
@@ -713,7 +809,7 @@ export default function WizardProfilePage() {
                                     color: grp?.color || getRoleColor(profile.role, profile.house, roleColors),
                                     textShadow: `0 0 30px ${grp?.color || getRoleColor(profile.role, profile.house, roleColors)}40`
                                 }}>
-                                {profile.full_name || "קוסם אנונימי"}
+                                {profile.full_name || "קוסם/ת אנונימי/ת"}
                             </h1>
                             <div className="flex flex-wrap justify-center md:justify-start items-center gap-2">
                                 <span style={{
@@ -726,7 +822,7 @@ export default function WizardProfilePage() {
                                 </span>
                                 {house && (
                                     <span className={`text-[10px] px-3 py-1 rounded-full border font-black uppercase tracking-widest ${house.badgeBg}`}>
-                                        {house.emoji} {house.name}
+                                        {getHouseDisplayIcon(profile.house)} {getHouseDisplayLabel(profile.house, "טרם מוינ/ת")}
                                     </span>
                                 )}
                                 {profile.duel_badge && (
@@ -744,18 +840,33 @@ export default function WizardProfilePage() {
                                 </span>
                             </div>
 
+                            {isUnsortedProfile && (
+                                isOwnProfile ? (
+                                    <Link
+                                        href="/sorting"
+                                        className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-400/25 bg-amber-500/10 px-4 py-2 text-xs font-black text-amber-100 transition-all hover:bg-amber-500/20"
+                                    >
+                                        🎩 טרם עברת מיון. לחצ/י להשלמת הטקס
+                                    </Link>
+                                ) : (
+                                    <div className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-400/25 bg-amber-500/10 px-4 py-2 text-xs font-black text-amber-100">
+                                        🎩 הפרופיל הזה עדיין לא עבר מיון לבית
+                                    </div>
+                                )
+                            )}
+
                             {/* Joining & Year Info */}
                             <div className="flex flex-wrap justify-center md:justify-start gap-4 text-[11px] text-white/30 font-cinzel mt-1">
                                 {(() => {
                                     const y = getYearFromProfile(profile);
                                     return (
                                         <span className="flex items-center gap-1.5">
-                                            <BookOpen size={11} /> שנה {getYearLabel(y)} — {getYearTitle(y)}
+                                            <BookOpen size={11} /> שנה {getYearLabel(y)} • {getYearTitle(y)}
                                         </span>
                                     );
                                 })()}
                                 <span className="flex items-center gap-1.5">
-                                    <Calendar size={11} /> הצטרפ׳ {joinDate}
+                                    <Calendar size={11} /> הצטרפ/ה {joinDate}
                                 </span>
                             </div>
                         </div>
@@ -766,6 +877,18 @@ export default function WizardProfilePage() {
                         <div className="flex flex-wrap justify-center md:justify-end gap-2 w-full">
                             {currentUser && !isOwnProfile && (
                                 <>
+                                    {moderationState && (
+                                        <span
+                                            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest"
+                                            style={{
+                                                background: moderationState.background,
+                                                borderColor: `${moderationState.color}55`,
+                                                color: moderationState.color,
+                                            }}
+                                        >
+                                            <ShieldAlert size={13} /> {moderationState.label}
+                                        </span>
+                                    )}
                                     {canModerate && profile?.role !== 'מייסד' && (
                                         <>
                                             <button
@@ -773,16 +896,32 @@ export default function WizardProfilePage() {
                                                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
                                                 style={{ background: "rgba(153,27,27,0.2)", borderColor: "rgba(185,28,28,0.5)", color: "#fca5a5" }}
                                             >
-                                                <Skull size={13} /> אזקבאן
+                                                <Skull size={13} /> באן
+                                            </button>
+                                            <button
+                                                onClick={handleCoolingRoom}
+                                                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
+                                                style={{ background: "rgba(59,130,246,0.1)", borderColor: "rgba(96,165,250,0.4)", color: "#93c5fd" }}
+                                            >
+                                                <Clock size={13} /> קולינג
                                             </button>
                                             <button
                                                 onClick={handleShadowBan}
                                                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
-                                                style={{ background: "rgba(59,130,246,0.1)", borderColor: "rgba(96,165,250,0.4)", color: "#93c5fd" }}
-                                                title="Shadowban - הפוך לרואה ואינו נראה"
+                                                style={{ background: "rgba(168,85,247,0.12)", borderColor: "rgba(168,85,247,0.45)", color: "#d8b4fe" }}
+                                                title="Shadowban - רואה ואינו נראה"
                                             >
-                                                <Ghost size={13} /> רוח רפאים
+                                                <Ghost size={13} /> שאדו
                                             </button>
+                                            {moderationState && (
+                                                <button
+                                                    onClick={handleReleaseModeration}
+                                                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border font-cinzel text-[10px] font-black uppercase tracking-widest transition-all w-auto"
+                                                    style={{ background: "rgba(16,185,129,0.12)", borderColor: "rgba(16,185,129,0.4)", color: "#6ee7b7" }}
+                                                >
+                                                    <ShieldOff size={13} /> שחרור
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                     <button
@@ -801,13 +940,24 @@ export default function WizardProfilePage() {
                                         }
                                     >
                                         {friendshipLoading ? <Loader2 size={13} className="animate-spin" /> : isFriend ? <UserMinus size={13} /> : <UserPlus size={13} />}
-                                        {friendshipLoading ? "..." : isFriend ? "הסר" : "הוסף חבר"}
+                                        {friendshipLoading ? "..." : isFriend ? "הסר/י" : "הוסף/י חבר/ה"}
                                     </button>
                                 </>
                             )}
+
+                            {isOwnProfile && avatarUrl && (
+                                <button
+                                    type="button"
+                                    onClick={handleAutoFitAvatar}
+                                    disabled={autoFittingAvatar}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] font-black text-white/70 transition-all hover:bg-white/[0.08] hover:text-white"
+                                >
+                                    {autoFittingAvatar ? "מיישר..." : "התאם אווטאר אוטומטית"}
+                                </button>
+                            )}
                         </div>
 
-                        {/* Stats bar — desktop */}
+                        {/* Stats bar • desktop */}
                         <div className="hidden md:flex items-center gap-6 mt-2">
                             <div className="text-center">
                                 <div className="font-cinzel font-black text-xl text-white">{postCount}</div>
@@ -918,7 +1068,7 @@ export default function WizardProfilePage() {
                                 <div className="font-cinzel font-black text-3xl" style={{ color: house?.accent || "#f8fafc" }}>
                                     {profile.learned_spells.length}
                                 </div>
-                                <p className="text-[10px] text-white/25 mt-1 font-cinzel uppercase tracking-widest">לחשים שולטו</p>
+                                <p className="text-[10px] text-white/25 mt-1 font-cinzel uppercase tracking-widest">לחשים שולטים</p>
                             </div>
                         )}
 
@@ -935,13 +1085,14 @@ export default function WizardProfilePage() {
                                             <Link key={f.id} href={`/wizard/${f.id}`}
                                                 className="flex flex-col items-center gap-1 group"
                                                 title={f.full_name}>
-                                                <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white/[0.08] flex items-center justify-center text-xl transition-all group-hover:border-white/30"
-                                                    style={{ background: fHouse?.banner || "rgba(255,255,255,0.05)" }}>
-                                                    {f.avatar_url
-                                                        ? <img src={f.avatar_url} alt={f.full_name} className="w-full h-full object-cover" />
-                                                        : fHouse?.emoji || "🧙"
-                                                    }
-                                                </div>
+                                                <MagicAvatar
+                                                    avatarUrl={f.avatar_url}
+                                                    name={f.full_name}
+                                                    house={f.house}
+                                                    className="w-10 h-10 border-2 border-white/[0.08] transition-all group-hover:border-white/30"
+                                                    roundedClassName="rounded-xl"
+                                                    fallbackClassName="text-xl"
+                                                />
                                                 <span className="text-[9px] text-white/30 group-hover:text-white/60 transition-colors truncate max-w-[40px] font-cinzel">
                                                     {f.full_name?.split(" ")[0]}
                                                 </span>
@@ -965,7 +1116,7 @@ export default function WizardProfilePage() {
                         {/* Tabs */}
                         <div className="flex border-b border-white/[0.06] overflow-x-auto"
                             style={{ "--accent": house?.accent || "#f59e0b" } as React.CSSProperties}>
-                            {[
+                                {[
                                 { key: "posts", label: "הודעות", icon: <MessageSquare size={13} />, count: postCount },
                                 { key: "inventory", label: "חפצים", icon: <Package size={13} />, count: allItems.length },
                                 { key: "traits", label: "תכונות", icon: <Shield size={13} />, count: null },
@@ -1047,7 +1198,7 @@ export default function WizardProfilePage() {
                                                         className="w-14 h-14 object-cover rounded-lg mx-auto mb-3 border border-white/10" />
                                                 ) : (
                                                     <div className="w-14 h-14 rounded-lg mx-auto mb-3 flex items-center justify-center text-2xl bg-white/[0.03] border border-white/[0.06]">
-                                                        ✨
+                                                        🎁
                                                     </div>
                                                 )}
                                                 <p className="font-cinzel text-[10px] font-black text-white/70 uppercase tracking-wide truncate">
@@ -1073,7 +1224,7 @@ export default function WizardProfilePage() {
                             <div className="p-4 space-y-5">
                                 {!traits ? (
                                     <div className="py-16 text-center text-white/20 font-crimson italic text-lg">
-                                        תכונות טרם נחשפו — יש לעבור את מצנפת המיון
+                                        התכונות עדיין לא נחשפו. צריך לעבור קודם את טקס המיון.
                                     </div>
                                 ) : TRAITS.map(t => (
                                     <div key={t.key} className="space-y-2">
@@ -1104,7 +1255,7 @@ export default function WizardProfilePage() {
                             <div>
                                 {duelsHistory.length === 0 ? (
                                     <div className="py-16 text-center text-white/20 font-crimson italic text-lg">
-                                        הקוסם עוד לא השתתף בדו-קרבות
+                                        הקוסם/ת עוד לא השתתפ/ה בדו-קרבות
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
@@ -1136,24 +1287,26 @@ export default function WizardProfilePage() {
                                                                     ? "rgba(34,197,94,0.15)"
                                                                     : "rgba(239,68,68,0.12)",
                                                         }}>
-                                                        {tied ? "🤝" : won ? "🏆" : "💀"}
+                                                        {tied ? "🤝" : won ? "🏆" : "💥"}
                                                     </div>
                                                     {/* Enemy info */}
                                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                        <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/[0.08] flex items-center justify-center text-lg shrink-0"
-                                                            style={{ background: enemyHouse?.banner || "rgba(255,255,255,0.05)" }}>
-                                                            {enemy?.avatar_url
-                                                                ? <img src={enemy.avatar_url} alt={enemy.full_name} className="w-full h-full object-cover" />
-                                                                : enemyHouse?.emoji || "🧙"}
-                                                        </div>
+                                                        <MagicAvatar
+                                                            avatarUrl={enemy?.avatar_url}
+                                                            name={enemy?.full_name}
+                                                            house={enemy?.house}
+                                                            className="w-9 h-9 border border-white/[0.08] shrink-0"
+                                                            roundedClassName="rounded-xl"
+                                                            fallbackClassName="text-lg"
+                                                        />
                                                         <div className="min-w-0">
                                                             <p className="font-cinzel text-xs font-black text-white/70 truncate">
                                                                 {tied ? "תיקו מול " : won ? "ניצחת את " : "הפסדת מול "}
-                                                                <span style={{ color: enemyHouse?.accent || "white" }}>{enemy?.full_name || "קוסם"}</span>
+                                                                <span style={{ color: enemyHouse?.accent || "white" }}>{enemy?.full_name || "קוסם/ת"}</span>
                                                             </p>
                                                             {enemyHouse && (
                                                                 <p className="text-[9px] mt-0.5" style={{ color: enemyHouse.accent }}>
-                                                                    {enemyHouse.emoji} {enemyHouse.name}
+                                                                    {getHouseDisplayIcon(enemy?.house)} {getHouseDisplayLabel(enemy?.house)}
                                                                 </p>
                                                             )}
                                                         </div>
@@ -1176,7 +1329,7 @@ export default function WizardProfilePage() {
                             <div>
                                 {friends.length === 0 ? (
                                     <div className="py-16 text-center text-white/20 font-crimson italic text-lg">
-                                        {isOwnProfile ? "עוד אין לך חברים — חפשו קוסמים לחברות!" : "עוד אין חברים בפרופיל זה"}
+                                        {isOwnProfile ? "עדיין אין לך חברים. חפש/י קוסמים להתחבר אליהם." : "עדיין אין חברים בפרופיל הזה"}
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1185,20 +1338,21 @@ export default function WizardProfilePage() {
                                             return (
                                                 <Link key={f.id} href={`/wizard/${f.id}`}
                                                     className="friend-card rounded-xl p-4 flex flex-col items-center gap-3">
-                                                    <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/[0.08] flex items-center justify-center text-3xl"
-                                                        style={{ background: fHouse?.banner || "rgba(255,255,255,0.05)" }}>
-                                                        {f.avatar_url
-                                                            ? <img src={f.avatar_url} alt={f.full_name} className="w-full h-full object-cover" />
-                                                            : fHouse?.emoji || "🧙"
-                                                        }
-                                                    </div>
+                                                    <MagicAvatar
+                                                        avatarUrl={f.avatar_url}
+                                                        name={f.full_name}
+                                                        house={f.house}
+                                                        className="w-16 h-16 border-2 border-white/[0.08]"
+                                                        roundedClassName="rounded-2xl"
+                                                        fallbackClassName="text-3xl"
+                                                    />
                                                     <div className="text-center">
                                                         <p className="font-cinzel text-xs font-black text-white/80 truncate max-w-[100px]">
                                                             {f.full_name || "קוסם"}
                                                         </p>
                                                         {fHouse && (
                                                             <p className="text-[9px] mt-0.5" style={{ color: fHouse.accent }}>
-                                                                {fHouse.name}
+                                                                {getHouseDisplayLabel(f.house)}
                                                             </p>
                                                         )}
                                                     </div>
@@ -1215,3 +1369,4 @@ export default function WizardProfilePage() {
         </div>
     );
 }
+

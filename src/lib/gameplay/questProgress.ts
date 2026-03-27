@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { DEFAULT_QUEST_CATALOG, type QuestCatalogEntry } from "@/lib/gameplay/questCatalog";
 
 export type QuestKind = "daily" | "weekly" | "main" | "house" | "exploration";
 export type QuestStatus = "active" | "completed";
@@ -20,9 +21,14 @@ export type ComputedQuest = {
   title: string;
   description: string;
   objectiveLabel: string;
+  actionHref: string;
+  actionLabel: string;
   progress: number;
   target: number;
   status: QuestStatus;
+  metricSource: QuestCatalogEntry["metric"]["source"];
+  metricWindow: QuestCatalogEntry["metric"]["window"];
+  metricEventTypes: string[];
   reward: {
     points: number;
     galleons: number;
@@ -158,150 +164,80 @@ export async function fetchQuestActivitySummary(
 export function computeQuestProgress(
   profile: ProfileQuestSnapshot,
   activity: ActivitySummary,
+  questCatalog: QuestCatalogEntry[] = DEFAULT_QUEST_CATALOG,
   now = new Date(),
 ): QuestProgressResult {
   const today = toIsoDateUTC(now);
+  const weekStart = startOfUtcWeek(now).getTime();
 
-  const quests: ComputedQuest[] = [
-    fromDailyFlag(profile.last_reward_date === today, {
-      id: "daily_allowance",
-      type: "daily",
-      title: "דמי הכיס של משרד הקסמים",
-      description: "הינשוף הגיע עם קצבה קטנה להמשך הלימודים.",
-      objectiveLabel: "לאסוף קצבה יומית",
-      reward: { points: 0, galleons: 5 },
-      houseImpactLabel: "משאב אישי למשימות עתידיות",
-    }),
+  const quests: ComputedQuest[] = questCatalog
+    .filter((entry) => entry.enabled !== false)
+    .sort((left, right) => left.order - right.order)
+    .map((entry) => {
+      let progress = 0;
 
-    fromDailyFlag(profile.last_trivia_date === today, {
-      id: "daily_spell_exam",
-      type: "daily",
-      title: "מבחן הלחשים היומי",
-      description: "המרצה מצפה לתשובה מדויקת אחת לפחות.",
-      objectiveLabel: "להשלים טריוויה יומית",
-      reward: { points: 10, galleons: 0 },
-      houseImpactLabel: "מחזק את ניקוד הבית",
-    }),
+      if (entry.metric.source === "profile_flag") {
+        const flagField = entry.metric.profileField as keyof ProfileQuestSnapshot | undefined;
+        const rawFieldValue = flagField ? profile[flagField] : null;
+        const rawValue = typeof rawFieldValue === "string" ? rawFieldValue : null;
+        const timestamp = rawValue ? new Date(rawValue).getTime() : 0;
+        const isCompleted = entry.metric.window === "weekly"
+          ? timestamp >= weekStart
+          : rawValue === today;
+        progress = isCompleted ? entry.target : 0;
+      }
 
-    fromDailyFlag(profile.last_niffler_date === today, {
-      id: "daily_niffler_hunt",
-      type: "daily",
-      title: "מרדף הניפלר",
-      description: "הניפלר בורח במסדרונות עם שלל קסום.",
-      objectiveLabel: "לתפוס את הניפלר",
-      reward: { points: 20, galleons: 0 },
-      houseImpactLabel: "תוספת מהירה לבית",
-    }),
+      if (entry.metric.source === "activity_total") {
+        progress = entry.metric.window === "weekly"
+          ? activity.weeklyTotal
+          : activity.dailyTotal;
+      }
 
-    fromDailyFlag(profile.last_snitch_date === today, {
-      id: "daily_snitch_run",
-      type: "daily",
-      title: "מרדף אחרי הסניץ'",
-      description: "אימון קצר לקבוצת הקווידיץ' של הבית.",
-      objectiveLabel: "לתפוס סניץ' פעם אחת",
-      reward: { points: 15, galleons: 0 },
-      houseImpactLabel: "נקודות יוקרה לבית",
-    }),
-  ];
+      if (entry.metric.source === "activity_types") {
+        const eventTypes = entry.metric.eventTypes || [];
+        const sourceMap = entry.metric.window === "weekly"
+          ? activity.weeklyByType
+          : activity.dailyByType;
+        progress = eventTypes.reduce((sum, eventType) => sum + (sourceMap[eventType] || 0), 0);
+      }
 
-  const dailyDuelWins = activity.dailyByType.arena_duel_completed || 0;
-  const duelQuestTarget = 1;
-  quests.push({
-    id: "daily_duel_victory",
-    type: "daily",
-    title: "דו-קרב של כבוד",
-    description: "פרופסור פליטיק מבקש להוכיח שליטה בזירה.",
-    objectiveLabel: "לנצח דו-קרב אחד היום",
-    progress: clampProgress(dailyDuelWins, duelQuestTarget),
-    target: duelQuestTarget,
-    status: questStatus(dailyDuelWins, duelQuestTarget),
-    reward: { points: 15, galleons: 0 },
-    houseImpactLabel: "ניצחון יומי לזכות הבית",
-  });
+      if (entry.metric.source === "activity_unique_types") {
+        const eventTypes = entry.metric.eventTypes || [];
+        const sourceMap = entry.metric.window === "weekly"
+          ? activity.weeklyByType
+          : activity.dailyByType;
+        progress = eventTypes.reduce((sum, eventType) => (
+          sum + (sourceMap[eventType] && sourceMap[eventType] > 0 ? 1 : 0)
+        ), 0);
+      }
 
-  const weeklyDuels = (activity.weeklyByType.arena_duel_completed || 0) + (activity.weeklyByType.duel_tied || 0);
-  const weeklyTarget = 3;
-  quests.push({
-    id: "weekly_arena_routine",
-    type: "weekly",
-    title: "שגרת אימון בזירה",
-    description: "שלושה קרבות בשבוע מחזקים את מעמד הבית.",
-    objectiveLabel: "להשלים 3 דו-קרבות השבוע",
-    progress: clampProgress(weeklyDuels, weeklyTarget),
-    target: weeklyTarget,
-    status: questStatus(weeklyDuels, weeklyTarget),
-    reward: { points: 30, galleons: 20 },
-    houseImpactLabel: "מומנטום שבועי לבית",
-  });
+      if (entry.metric.source === "profile_number") {
+        const numericField = entry.metric.profileField as keyof ProfileQuestSnapshot | undefined;
+        const rawFieldValue = numericField ? profile[numericField] : 0;
+        const rawValue = typeof rawFieldValue === "number" ? rawFieldValue : Number(rawFieldValue || 0);
+        progress = Number.isFinite(rawValue) ? rawValue : 0;
+      }
 
-  const explorationTarget = 3;
-  quests.push({
-    id: "daily_castle_presence",
-    type: "exploration",
-    title: "הטירה חיה בזכותך",
-    description: "כל פעילות קהילתית מזרימה קסם ברחבי הטירה.",
-    objectiveLabel: "לבצע 3 פעילויות שונות ביום",
-    progress: clampProgress(activity.dailyTotal, explorationTarget),
-    target: explorationTarget,
-    status: questStatus(activity.dailyTotal, explorationTarget),
-    reward: { points: 10, galleons: 10 },
-    houseImpactLabel: "נוכחות פעילה מגדילה השפעה",
-  });
+      const clampedProgress = clampProgress(progress, entry.target);
 
-  const communityEvents = [
-    "story_published",
-    "chapter_published",
-    "forum_thread_created",
-    "forum_reply_created",
-    "news_comment_created",
-    "news_poll_voted",
-    "library_chapter_read",
-  ];
-
-  const dailyCommunityProgress = communityEvents.reduce((sum, eventType) => sum + (activity.dailyByType[eventType] || 0), 0);
-  const dailyCommunityTarget = 2;
-  quests.push({
-    id: "daily_quill_and_owl",
-    type: "exploration",
-    title: "נוצה וינשוף בפעולה",
-    description: "כתיבה, תגובה או קריאה מחברות בין אגפי הטירה.",
-    objectiveLabel: "לבצע 2 אינטראקציות קהילתיות היום",
-    progress: clampProgress(dailyCommunityProgress, dailyCommunityTarget),
-    target: dailyCommunityTarget,
-    status: questStatus(dailyCommunityProgress, dailyCommunityTarget),
-    reward: { points: 10, galleons: 5 },
-    houseImpactLabel: "הפעילות הקהילתית מזינה את כוח הבית",
-  });
-
-  const weeklyHouseMomentum = communityEvents.reduce((sum, eventType) => sum + (activity.weeklyByType[eventType] || 0), 0);
-  const weeklyHouseMomentumTarget = 5;
-  quests.push({
-    id: "weekly_house_momentum",
-    type: "house",
-    title: "מומנטום ביתי",
-    description: "הבית שלך מתרומם כשהקהילה נשארת חיה ופעילה לאורך השבוע.",
-    objectiveLabel: "לצבור 5 פעולות קהילתיות השבוע",
-    progress: clampProgress(weeklyHouseMomentum, weeklyHouseMomentumTarget),
-    target: weeklyHouseMomentumTarget,
-    status: questStatus(weeklyHouseMomentum, weeklyHouseMomentumTarget),
-    reward: { points: 20, galleons: 10 },
-    houseImpactLabel: "מומנטום חיובי ישיר לבית שלך",
-  });
-
-  const mainTarget = 10;
-  const mainProgress = profile.points_contributed || 0;
-  quests.push({
-    id: "main_house_contributor",
-    type: "main",
-    title: "שוליית גביע הבתים",
-    description: "הדרך להפוך לעמוד תווך של הבית מתחילה בתרומה עקבית.",
-    objectiveLabel: "להגיע ל-10 נקודות תרומה אישיות",
-    progress: clampProgress(mainProgress, mainTarget),
-    target: mainTarget,
-    status: questStatus(mainProgress, mainTarget),
-    reward: { points: 0, galleons: 25 },
-    houseImpactLabel: "יעד פתיחה במסע העונתי",
-  });
+      return {
+        id: entry.id,
+        type: entry.type,
+        title: entry.title,
+        description: entry.description,
+        objectiveLabel: entry.objectiveLabel,
+        actionHref: entry.actionHref,
+        actionLabel: entry.actionLabel,
+        progress: clampedProgress,
+        target: entry.target,
+        status: questStatus(progress, entry.target),
+        metricSource: entry.metric.source,
+        metricWindow: entry.metric.window,
+        metricEventTypes: entry.metric.eventTypes || [],
+        reward: entry.reward,
+        houseImpactLabel: entry.houseImpactLabel,
+      };
+    });
 
   return {
     quests,

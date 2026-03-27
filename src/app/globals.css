@@ -57,6 +57,10 @@
    הגדרות בסיס
 ═══════════════════════════════════════════ */
 :root {
+  --font-assistant: "Segoe UI", "Noto Sans Hebrew", "Rubik", "Assistant", sans-serif;
+  --font-cinzel: "Georgia", "Times New Roman", serif;
+  --font-crimson: "Georgia", "Times New Roman", serif;
+  --font-courier: "Courier New", "Courier", monospace;
   --background: #020617;
   --foreground: #f8fafc;
   --selection-bg: rgba(245, 158, 11, 0.4);

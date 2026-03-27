@@ -46,7 +46,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
 
     // ✅ ניקוי נכון של audio
     useEffect(() => {
-        audioRef.current = new Audio("/sounds/magic-ding.mp3");
+        audioRef.current = new Audio("/sounds/notification.mp3");
         audioRef.current.preload = "auto";
         return () => { audioRef.current = null; };
     }, []);

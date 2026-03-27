@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Sparkles, X, Wand2, BookOpen } from "lucide-react";
+import { triggerAudioPlay } from "@/utils/audioTrigger";
 
 /**
  * LUMOS IL - SPELL RITUAL V1.3 (The Type-Safe Update)
@@ -102,7 +103,7 @@ export default function SpellRitual({ spell, onSuccess, onCancel }: any) {
 
     const handleSuccess = () => {
         setStatus('success');
-        window.dispatchEvent(new CustomEvent('play-magic-ding'));
+        triggerAudioPlay();
         setTimeout(onSuccess, 2000);
     };
 

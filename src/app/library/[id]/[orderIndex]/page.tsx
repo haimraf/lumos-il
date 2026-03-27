@@ -314,7 +314,7 @@ export default function ChapterPage() {
                                 >
                                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-transparent border border-amber-500/30 shrink-0 flex items-center justify-center overflow-hidden shadow-lg">
                                         {c.profiles?.avatar_url ? (
-                                            <img src={c.profiles.avatar_url} className="w-full h-full object-cover" alt={c.profiles?.full_name} />
+                          <img src={c.profiles.avatar_url} className="w-full h-full object-cover" alt={c.profiles?.full_name} />
                                         ) : (
                                             <User size={22} className="text-amber-500/40" />
                                         )}
@@ -379,3 +379,4 @@ export default function ChapterPage() {
         </div>
     );
 }
+

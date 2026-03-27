@@ -1,4 +1,4 @@
-import type { NextActionItem } from "@/lib/gameplay/types";
+﻿import type { NextActionItem } from "@/lib/gameplay/types";
 import type { ComputedQuest, ProfileQuestSnapshot, QuestProgressResult } from "@/lib/gameplay/questProgress";
 
 export type NextActionRecommendation = NextActionItem & {
@@ -8,6 +8,7 @@ export type NextActionRecommendation = NextActionItem & {
   gainLabel: string;
   progressLabel: string;
   urgency: "high" | "medium" | "low";
+  ctaLabel: string;
 };
 
 export type NextActionContext = {
@@ -28,46 +29,73 @@ function toProgressLabel(quest: ComputedQuest) {
 }
 
 function urgencyForQuest(quest: ComputedQuest): NextActionRecommendation["urgency"] {
-  if (quest.type === "daily") return "high";
-  if (quest.type === "weekly" || quest.type === "main") return "medium";
+  if (quest.metricWindow === "daily" || quest.type === "daily") return "high";
+  if (quest.metricWindow === "weekly" || quest.type === "weekly" || quest.type === "main") return "medium";
   return "low";
 }
 
 function basePriority(quest: ComputedQuest): number {
-  const typeWeight = quest.type === "daily" ? 100 : quest.type === "weekly" ? 70 : quest.type === "main" ? 60 : 40;
+  const typeWeight = quest.metricWindow === "daily"
+    ? 140
+    : quest.metricWindow === "weekly" || quest.type === "weekly"
+      ? 90
+      : quest.type === "main"
+        ? 70
+        : 40;
   const rewardWeight = (quest.reward.points * 2) + quest.reward.galleons;
   const completionRatio = quest.target > 0 ? quest.progress / quest.target : 0;
   const nearingCompletionBonus = completionRatio >= 0.6 ? 10 : 0;
-  return typeWeight + rewardWeight + nearingCompletionBonus;
+  const actionBonus = quest.actionHref && quest.actionHref !== "/quests" ? 8 : 0;
+  return typeWeight + rewardWeight + nearingCompletionBonus + actionBonus;
 }
 
-function routeForQuest(questId: string): string {
-  if (questId.includes("duel")) return "/arena";
-  if (questId.includes("trivia") || questId.includes("spell") || questId.includes("allowance") || questId.includes("niffler") || questId.includes("snitch")) {
+function routeForQuest(quest: ComputedQuest): string {
+  if (quest.actionHref?.startsWith("/")) return quest.actionHref;
+  if (quest.id.includes("duel")) return "/arena";
+  if (quest.id.includes("quill") || quest.id.includes("forum") || quest.id.includes("reply") || quest.id.includes("thread")) {
+    return "/forums";
+  }
+  if (quest.id.includes("news") || quest.id.includes("prophet") || quest.id.includes("poll")) {
+    return "/news";
+  }
+  if (quest.id.includes("presence")) return "/forums";
+  if (quest.id.includes("trivia") || quest.id.includes("spell") || quest.id.includes("allowance") || quest.id.includes("niffler") || quest.id.includes("snitch")) {
     return "/quests";
   }
-  if (questId.includes("presence") || questId.includes("exploration")) return "/map";
+  if (quest.id.includes("exploration")) return "/map";
   return "/quests";
 }
 
 function buildReason(quest: ComputedQuest, capReached: boolean): string {
+  if (quest.id === "daily_duel_victory") {
+    return "דחוף להיום: היעד הזה ייסגר רק דרך הזירה. ניצחון אחד בדו-קרב ישלים את ההתקדמות היומית וייתן בוסט רציני לבית.";
+  }
+
+  if (quest.id === "daily_castle_presence") {
+    return `התקדמות במסדרונות: ${quest.title} (${toProgressLabel(quest)}). כדי לסגור אותו צריך סוגי פעילות שונים באמת, לא רק לחיצה חוזרת על אותו כפתור.`;
+  }
+
+  if (quest.id === "daily_quill_and_owl") {
+    return `השיח בטירה מחכה לניצוץ שלך. שרשור חדש, תגובה בפורום או תגובה בנביא יקדמו את "${quest.title}" מ-${toProgressLabel(quest)} ויעירו את המסדרונות.`;
+  }
+
   if (capReached && quest.reward.points > 0) {
-    return `היעד "${quest.title}" עדיין פתוח, אבל הגעת לתקרת הנקודות היומית — עדיף להתמקד ביעדים עם גליאונים או התקדמות סיפור.`;
+    return `היעד "${quest.title}" עדיין פתוח, אבל מכסת הנקודות היומית כבר מלאה. עדיף כרגע להתמקד בו אם הגליאונים או ההתקדמות הארוכה שלו חשובים לך.`;
   }
 
-  if (quest.type === "daily") {
-    return `יעד יומי פעיל (${toProgressLabel(quest)}). כדאי לסגור אותו עכשיו כדי לא לאבד את ההתקדמות היומית.`;
+  if (quest.metricWindow === "daily" || quest.type === "daily") {
+    return `היעד היומי "${quest.title}" פתוח על ${toProgressLabel(quest)}. צעד אמיתי אחד עכשיו יסגור עוד חלק משגרת המסדרונות.`;
   }
 
-  if (quest.type === "weekly") {
-    return `יעד שבועי בהתקדמות (${toProgressLabel(quest)}). ביצוע פעולה עכשיו יוריד ממך עומס לקראת סוף השבוע.`;
+  if (quest.metricWindow === "weekly" || quest.type === "weekly") {
+    return `המסלול השבועי "${quest.title}" כבר פתוח על ${toProgressLabel(quest)}. פעולה אחת עכשיו תוריד עומס מסוף השבוע ותשאיר מומנטום חי.`;
   }
 
   if (quest.type === "main") {
-    return `משימת מסע ראשית (${toProgressLabel(quest)}). כל צעד כאן מקדם את המעמד ארוך-הטווח שלך בעולם הטירה.`;
+    return `המסע הראשי "${quest.title}" עומד על ${toProgressLabel(quest)}. כל צעד כאן מחזק את המעמד שלך לאורך זמן, לא רק להיום.`;
   }
 
-  return `פעילות חקירה זמינה (${toProgressLabel(quest)}). היא מחזקת את הנוכחות וההשפעה שלך בעולם.`;
+  return `היעד "${quest.title}" מתקדם כרגע על ${toProgressLabel(quest)}. ${quest.houseImpactLabel}.`;
 }
 
 function toRecommendation(quest: ComputedQuest, capReached: boolean): NextActionRecommendation {
@@ -76,14 +104,15 @@ function toRecommendation(quest: ComputedQuest, capReached: boolean): NextAction
     id: `next-${quest.id}`,
     questId: quest.id,
     questType: quest.type,
-    title: quest.objectiveLabel,
+    title: quest.title,
     reason: buildReason(quest, capReached),
-    href: routeForQuest(quest.id),
+    href: routeForQuest(quest),
     priority,
     houseImpactLabel: quest.houseImpactLabel,
     gainLabel: toGainLabel(quest),
     progressLabel: toProgressLabel(quest),
     urgency: urgencyForQuest(quest),
+    ctaLabel: quest.actionLabel || "להמשיך ליעד",
   };
 }
 

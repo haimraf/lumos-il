@@ -14,10 +14,11 @@ import {
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
+import { isUnsortedHouse } from "@/lib/houses";
 
 /**
  * LUMOS IL - LANDING V15
- * ✅ סדר סקציות תוקן — HotTopics אחרי ה-hero, לפני הכל
+ * ✅ סדר סקציות תוקן • HotTopics אחרי ה-hero, לפני הכל
  * ✅ עיצוב feature cards
  * ✅ ניווט קל לפורומים / ספרייה
  * ✅ כל הלוגיקה הקיימת שמורה
@@ -91,7 +92,7 @@ export default function Home() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setIsCheckingSession(false); return; }
         const { data: profile } = await supabase.from('profiles').select('house').eq('id', session.user.id).single();
-        if (!profile || !profile.house || profile.house === 'Unsorted' || profile.house === 'Unknown') {
+        if (!profile || isUnsortedHouse(profile.house)) {
           router.push('/sorting');
         } else {
           router.push('/home');
@@ -139,11 +140,6 @@ export default function Home() {
           const { data: prof } = await supabase.from('profiles').select('house, role, status').eq('id', user.id).single();
           
           // Re-check if this specific user was already banned by fingerprint
-          const { data: bannedMatches } = await supabase.from('profiles')
-            .select('id, role, status')
-            .eq('fingerprint', fingerprint)
-            .eq('role', 'אסיר אזקבאן')
-            .limit(1);
           const { data: statusBannedMatches } = await supabase.from('profiles')
             .select('id')
             .eq('fingerprint', fingerprint)
@@ -167,16 +163,8 @@ export default function Home() {
               return;
           }
 
-          if (prof?.status === 'banned' || (bannedMatches && bannedMatches.length > 0) || (statusBannedMatches && statusBannedMatches.length > 0)) {
-              // This is a known troll!
-              plantStickyMarker('אסיר אזקבאן');
-              setIsPermanentlyBanned(true);
-              setIsLoading(false);
-              return;
-          }
-
           await new Promise((resolve) => setTimeout(resolve, 150));
-          window.location.assign((!prof?.house || prof.house === 'Unsorted') ? '/sorting' : '/home');
+          window.location.assign(isUnsortedHouse(prof?.house) ? '/sorting' : '/home');
         } else {
           await new Promise((resolve) => setTimeout(resolve, 150));
           window.location.assign('/home');
@@ -256,10 +244,10 @@ export default function Home() {
             גישה נדחתה
         </h1>
         <p className="font-crimson text-white/50 text-lg md:text-xl max-w-lg leading-relaxed italic border-t border-red-900/30 pt-6">
-            משרד הקסמים חסם את הגישה שלך לטירה לצמיתות עקב הפרה חמורה של חוקי הקסם. כל ניסיון עקיפה ייענה בחסימה מיידית.
+            משרד הקסמים חסם את הגישה שלך לטירה לצמיתות עקב הפרה חמורה של חוקי הקסם. כל ניסיון עקיפה ייענש בחסימה מיידית.
         </p>
         <div className="mt-12 text-[10px] font-cinzel text-white/20 uppercase tracking-widest">
-            משרד הקסמים — המחלקה לאכיפת חוקי הקסם
+            משרד הקסמים • המחלקה לאכיפת חוקי הקסם
         </div>
     </div>
   );
@@ -372,7 +360,7 @@ export default function Home() {
         </button>
 
         {/* ══════════════════════════════════════
-                    HERO — Envelope
+                    HERO • Envelope
                 ══════════════════════════════════════ */}
         <section className="relative z-10 flex flex-col items-center justify-center min-h-[92vh] px-4 sm:px-6 py-12" aria-labelledby="landing-hero-title">
 
@@ -503,7 +491,7 @@ export default function Home() {
         </section>
 
         {/* ══════════════════════════════════════
-                    HOT TOPICS — מיד אחרי ה-hero
+                    HOT TOPICS • מיד אחרי ה-hero
                 ══════════════════════════════════════ */}
         <section className="relative z-10 py-16 md:py-20" aria-labelledby="landing-topics-title">
           <div className="magic-divider w-full mb-16" />
@@ -542,7 +530,7 @@ export default function Home() {
                     פתחנו את ספר שאלות ותשובות הטירה!
                   </h3>
                   <p className="font-crimson text-white/40 text-sm md:text-base leading-snug mt-0.5">
-                    כל הפיצ׳רים, הקסמים, בחינות O.W.L ו-N.E.W.T, ושאר סודות הטירה — במקום אחד
+                    כל הפיצ'רים, הקסמים, בחינות O.W.L ו-N.E.W.T, ושאר סודות הטירה • במקום אחד
                   </p>
                 </div>
 
@@ -556,7 +544,7 @@ export default function Home() {
         </section>
 
         {/* ══════════════════════════════════════
-                    FEATURE CARDS — מה יש פה
+                    FEATURE CARDS • מה יש פה
                 ══════════════════════════════════════ */}
         <section className="relative z-10 py-12 px-4 max-w-5xl mx-auto" aria-label="מה מחכה לכם בטירה">
           <div className="text-center mb-10">
@@ -595,7 +583,7 @@ export default function Home() {
               {
                 icon: GraduationCap,
                 title: "בחינות O.W.L & N.E.W.T",
-                desc: "הוכיחו את שליטתכם בקסם המתקדם — לקוסמים בכירים בלבד",
+                desc: "הוכיחו את שליטתכם בקסם המתקדם • לקוסמים בכירים בלבד",
                 href: "/exams/owl",
                 color: "text-purple-400",
                 glow: "rgba(139,92,246,0.08)",
@@ -613,7 +601,7 @@ export default function Home() {
               {
                 icon: HelpCircle,
                 title: "שאלות ותשובות",
-                desc: "כל הסודות, הפיצ׳רים ו-Easter Eggs של הטירה מרוכזים במקום אחד",
+                desc: "כל הסודות, הפיצ'רים ו-Easter Eggs של הטירה מרוכזים במקום אחד",
                 href: "/faq",
                 color: "text-rose-400",
                 glow: "rgba(244,63,94,0.08)",
@@ -622,7 +610,7 @@ export default function Home() {
               {
                 icon: Swords,
                 title: "זירת הקרבות",
-                desc: "אתגרו קוסמים אחרים לדו-קרב לחשים — הטובים ביותר עולים לטבלת האלופים",
+                desc: "אתגרו קוסמים אחרים לדו-קרב לחשים • הטובים ביותר עולים לטבלת האלופים",
                 href: "/arena",
                 color: "text-orange-400",
                 glow: "rgba(251,146,60,0.08)",
@@ -666,12 +654,12 @@ export default function Home() {
         </section>
 
         {/* ══════════════════════════════════════
-                    EMPOWERMENT — בתחתית, לא חוסם
+                    EMPOWERMENT • בתחתית, לא חוסם
                 ══════════════════════════════════════ */}
         <section className="relative z-10 py-16 px-6 max-w-4xl mx-auto text-center">
           <p className="font-crimson text-lg md:text-xl text-white/30 leading-relaxed italic">
             היסטוריית הקסם מעולם לא הייתה שלמה לולא המכשפות המבריקות שעיצבו אותה.<br />
-            ב-Lumos IL בונים קהילה שוויונית, בטוחה ומעצימה — שבה לכל מכשפה וקוסם יש קול ומקום.
+            ב-Lumos IL בונים קהילה שוויונית, בטוחה ומעצימה • שבה לכל מכשפה וקוסם יש קול ומקום.
           </p>
         </section>
 
@@ -738,3 +726,4 @@ export default function Home() {
     </>
   );
 }
+

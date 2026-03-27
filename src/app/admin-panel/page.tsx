@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
@@ -22,9 +22,18 @@ import "suneditor/dist/css/suneditor.min.css";
 import { useAuth } from "@/context/AuthContext";
 import ModerationTab from "@/components/admin/ModerationTab";
 import AdminLogsTab from "@/components/admin/AdminLogsTab";
+import EmailBroadcastCard from "@/components/admin/EmailBroadcastCard";
+import AdminActivityTab from "@/components/admin/AdminActivityTab";
+import AdminPresencePanel from "@/components/admin/AdminPresencePanel";
+import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
+import AdminQuestCatalogTab from "@/components/admin/AdminQuestCatalogTab";
+import AdminSystemHealthPanel from "@/components/admin/AdminSystemHealthPanel";
+import AdminTabGuide, { type AdminTabGuideContent } from "@/components/admin/AdminTabGuide";
 import { getYearFromProfile, getYearTitle } from "@/lib/yearSystem";
 import { logAdminAudit, type AdminAuditInput } from "@/lib/adminAudit";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { triggerAudioPlay } from "@/utils/audioTrigger";
+import { getHouseDisplayIcon, getHouseDisplayLabel, isUnsortedHouse } from "@/lib/houses";
 import {
     compareLiveEventParticipants,
     LIVE_EVENTS_CATALOG_KEY,
@@ -44,11 +53,11 @@ import {
     type LiveEventReward,
 } from "@/lib/liveEvent";
 
-const HOUSE_CONFIG: Record<string, { color: string; accent: string; icon: string }> = {
-    Gryffindor: { color: "text-red-400", accent: "rgba(220,38,38,0.15)", icon: "🦁" },
-    Slytherin: { color: "text-emerald-400", accent: "rgba(5,150,105,0.15)", icon: "🐍" },
-    Ravenclaw: { color: "text-blue-400", accent: "rgba(37,99,235,0.15)", icon: "🦅" },
-    Hufflepuff: { color: "text-amber-400", accent: "rgba(251,191,36,0.15)", icon: "🦡" },
+const HOUSE_CONFIG: Record<string, { color: string; accent: string; icon: string; barColor: string; barGlow: string }> = {
+    Gryffindor: { color: "text-red-400", accent: "rgba(220,38,38,0.15)", icon: "🦁", barColor: "#f87171", barGlow: "0 0 18px rgba(248,113,113,0.45)" },
+    Slytherin: { color: "text-emerald-400", accent: "rgba(5,150,105,0.15)", icon: "🐍", barColor: "#34d399", barGlow: "0 0 18px rgba(52,211,153,0.45)" },
+    Ravenclaw: { color: "text-blue-400", accent: "rgba(37,99,235,0.15)", icon: "🦅", barColor: "#60a5fa", barGlow: "0 0 18px rgba(96,165,250,0.45)" },
+    Hufflepuff: { color: "text-amber-400", accent: "rgba(251,191,36,0.15)", icon: "🦡", barColor: "#fbbf24", barGlow: "0 0 18px rgba(251,191,36,0.45)" },
 };
 
 const REPORT_TARGET_TABLE: Record<string, "comments" | "messages" | "forum_posts"> = {
@@ -57,7 +66,7 @@ const REPORT_TARGET_TABLE: Record<string, "comments" | "messages" | "forum_posts
     forum_post: "forum_posts",
 };
 
-type AdminTab = "house-cup" | "prophet" | "moderation" | "activity" | "logs" | "quests" | "events" | "tournaments" | "library" | "year-system" | "users" | "forums" | "shop" | "exams" | "arena";
+type AdminTab = "house-cup" | "health" | "prophet" | "moderation" | "presence" | "activity" | "logs" | "quests" | "events" | "tournaments" | "library" | "year-system" | "users" | "forums" | "shop" | "exams" | "arena";
 type EventSettings = LiveEventCatalogEntry;
 type ForumCategory = { id: string; name: string; display_order?: number | null };
 type ForumFormState = {
@@ -196,8 +205,10 @@ const getDefaultEventReward = (rank: number): LiveEventReward => ({
 
 const TAB_CONFIG: { id: AdminTab; label: string; icon: any; color: string }[] = [
     { id: "house-cup", label: "גביע הבית", icon: Trophy, color: "text-amber-400" },
+    { id: "health", label: "בריאות מערכת", icon: ShieldCheck, color: "text-cyan-300" },
     { id: "prophet", label: "נביא היומי", icon: Newspaper, color: "text-blue-400" },
     { id: "moderation", label: "מודרציה", icon: Flag, color: "text-red-400" },
+    { id: "presence", label: "נוכחות", icon: Radio, color: "text-cyan-300" },
     { id: "activity", label: "פעילות", icon: Activity, color: "text-cyan-400" },
     { id: "logs", label: "לוגים", icon: ShieldAlert, color: "text-rose-400" },
     { id: "quests", label: "משימות", icon: Zap, color: "text-yellow-400" },
@@ -211,6 +222,181 @@ const TAB_CONFIG: { id: AdminTab; label: string; icon: any; color: string }[] = 
     { id: "exams", label: "בחינות", icon: BookOpenCheck, color: "text-violet-400" },
     { id: "arena", label: "זירת קרבות", icon: Swords, color: "text-orange-400" },
 ];
+
+const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
+    "house-cup": {
+        title: "גביע הבית והדופק הראשי של הטירה",
+        description: "כאן רואים את תמונת העל של הביתים, המיקומים החמים, והאם העונה מתקדמת כמו שצריך או דורשת התערבות שלך.",
+        bullets: [
+            "הנקודות כאן נשענות על points_contributed, אז אם בית נראה חלש צריך לבדוק מי לא מזרים פעילות ולא רק מי מחובר.",
+            "פסי ההתקדמות מראים יחס למוביל הנוכחי, כדי שתראה מיד מי רודף ומי מוביל את המרוץ.",
+            "כרטיסי הסיכום כאן הם נקודת כניסה: משם יורדים למודרציה, נוכחות, משימות או פעילות לפי מה שנראה חריג.",
+        ],
+        footer: "אם משהו נראה תקוע כאן, בדרך כלל הבעיה נמצאת בדאטה שמוזן מהפעילות או מהפרופילים.",
+        tone: "amber",
+    },
+    health: {
+        title: "לוח בריאות מערכת",
+        description: "כאן מרוכזות הבדיקות הכי חשובות של הטירה: קידוד, קווסטים, נוכחות, משתמשים, לוגים ודיוור.",
+        bullets: [
+            "הכרטיסים כאן לא רק מסכמים מצב, אלא גם מקפיצים אותך ישירות לטאב שצריך טיפול.",
+            "זה המקום הכי מהיר להבין אם הבעיה היא בתוכן שבור, בחיבור בין משימות, או פשוט בחוסר תנועה.",
+            "כשמסך הבריאות נראה טוב, אפשר לסמוך הרבה יותר על שאר הנתונים בלוח הבקרה.",
+        ],
+        footer: "כדאי להתחיל כאן בכל פעם שהאתר מרגיש שקט, איטי או לא מסונכרן, לפני שנכנסים לעומק בטאב אחד.",
+        tone: "cyan",
+    },
+    prophet: {
+        title: "שליטה על הנביא היומי והמסרים הציבוריים",
+        description: "הטאב הזה מרכז את התוכן העריכתי והעדכונים שרואים באתר. הוא משפיע על תחושת חיות, אמינות וקצב.",
+        bullets: [
+            "כאן כדאי לחשוב כמו עורך: מה צריך למשוך אנשים לחזור, לא רק מה צריך להתפרסם.",
+            "כתבות וסקרים שנכנסים כאן הם שכבת ההנעה הציבורית, בנפרד ממשימות אישיות או הודעות מערכת.",
+            "אם האתר מרגיש שקט, זה אחד המקומות הראשונים שכדאי לרענן כדי לייצר תנועה טבעית.",
+        ],
+        tone: "cyan",
+    },
+    moderation: {
+        title: "השליטה המשמעתית של המערכת",
+        description: "כאן רואים מי כרגע מוגבל, מי נתן את ההגבלה, למה, ואיך ההיסטוריה של המודרציה נבנתה לאורך זמן.",
+        bullets: [
+            "הסטטוסים הפעילים נשענים על status ו-is_ghost, לא על role ישן כמו אסיר אזקבאן.",
+            "אם משהו לא מופיע כאן אבל אתה בטוח שנתת באן, צריך לבדוק אם זאת חסימת legacy או פעולה בלי audit log.",
+            "רצף הפעולות עוזר להבין לא רק מה קרה, אלא אם יש דפוס חוזר שדורש מדיניות ברורה יותר.",
+        ],
+        tone: "rose",
+    },
+    presence: {
+        title: "ראיית לייב על מי בטירה, איפה, ובאיזה מצב",
+        description: "זה מסך שליטה לנוכחות חיה. הוא מפריד בין פעילים עכשיו, AFK, אורחים, ונצפו לאחרונה כדי שלא תערבב בין לייב להיסטוריה.",
+        bullets: [
+            "פעיל עכשיו מבוסס על חלון זמן קצר, ונצפה לאחרונה שומר לך הקשר גם אם המשתמש כבר לא לייב.",
+            "הנתיב הגולמי והקישור עוזרים לראות איפה אנשים באמת מסתובבים באתר, לא רק כמה יש.",
+            "אם אתה רואה תנועה בלי פעילות, זה סימן שהמסלולים פתוחים אבל אין מספיק טריגרים שמחזירים אנשים לפעולה.",
+        ],
+        tone: "cyan",
+    },
+    activity: {
+        title: "יומן הפעילות של הטירה",
+        description: "כאן בודקים אם האתר באמת מייצר פעולות, מאיפה הן מגיעות, ואיזה חלקים עובדים טוב יותר מהאחרים.",
+        bullets: [
+            "זה המקום להבין אם יש פער בין נוכחות לבין מעשים בפועל, כמו תגובות, קווסטים, זירה או פורומים.",
+            "פעילות חריגה כאן יכולה להסביר גם קפיצות בגביע הבית וגם התראות או עומסים אחרים.",
+            "כשמשהו מרגיש מת, הטאב הזה בדרך כלל יראה אם הבעיה היא באפס תוכן, אפס תגמול או אפס חיבור בין אזורים.",
+        ],
+        tone: "emerald",
+    },
+    logs: {
+        title: "לוגים, עקבות, ומה באמת קרה",
+        description: "זה טאב הבקרה כשצריך להבין עובדות. הוא מיועד למעקב, בדיקות, ואימות שלא הולכים לאיבוד אחרי פעולה אדמינית.",
+        bullets: [
+            "כאן רואים פעולות אדמין, טרייסים של שינויים, ואירועים שצריכים להשאיר עקבה היסטורית.",
+            "אם פעולה נראית תקינה בממשק אבל אין לה עקבה כאן, שווה לבדוק אם חסר audit log או realtime trigger.",
+            "לוגים טובים הם מה שמבדיל בין תחושת בטן לבין ניהול בטוח של האתר.",
+        ],
+        tone: "violet",
+    },
+    quests: {
+        title: "ניהול קטלוג הקווסטים של כל האתר",
+        description: "כאן מגדירים את המשימות עצמן: איך הן נספרות, מה הן מחלקות, ואיך הן נדחפות לדאשבורד, Header ועמוד /quests.",
+        bullets: [
+            "כל קווסט נשען על מקור התקדמות אחד ברור, כדי למנוע מצב שמשימה נראית נכון אבל לא נסגרת בפועל.",
+            "שינוי כאן מתעדכן לכל האזורים המחוברים לקטלוג, כך שהמערכת לא תלויה יותר ברענון ידני.",
+            "הקווסטים הטובים ביותר מחברים בין אזורים באתר, לא רק נותנים עוד נקודות על פעולה בודדת.",
+        ],
+        tone: "amber",
+    },
+    events: {
+        title: "איוונטים עונתיים והפעלת מומנטום קהילתי",
+        description: "כאן שולטים באירועים זמניים, משימות מיוחדות ופרסים שמייצרים שיאים חוזרים בחיים של האתר.",
+        bullets: [
+            "איוונט טוב צריך לייצר סיבה להיכנס עכשיו, לא רק עוד תוכן שנשאר בתפריט.",
+            "כאן כדאי להסתכל על תזמון, בולטות, וריוורדס, כי אלה מה שמבדיל בין אירוע שקט לאירוע שמרים טירה.",
+            "זה טאב שמחבר בין תוכן, פרסים, נקודות, ותזמון חכם לאורך העונה.",
+        ],
+        tone: "violet",
+    },
+    tournaments: {
+        title: "ניהול תחרויות וטורנירים",
+        description: "כאן יושבת שכבת התחרות הרשמית. גם אם חלקים עדיין בבנייה, זה המקום לחשוב על חוקים, ניקוד ופרסים.",
+        bullets: [
+            "טורנירים צריכים להיות ברורים יותר ממשימות רגילות, כי שחקנים משקיעים בהם יותר זמן ורגש.",
+            "כדאי לנהל כאן גם חוקים וגם תצוגת סטטוס, כדי שלא יהיו פערים בין מה שהכרזת לבין מה שהמערכת סופרת.",
+            "אם תרצה להפוך את זה ללב האתר, הטאב הזה צריך להיות מחובר ללוגים, נוכחות ופרסים.",
+        ],
+        tone: "amber",
+    },
+    library: {
+        title: "הספרייה, יצירות ותנועה סביב קריאה",
+        description: "כאן עוקבים אחרי תוכן ארוך, פרקים, ופעולות שמזינות חזרתיות שקטה אבל חשובה באתר.",
+        bullets: [
+            "הספרייה מייצרת עומק, לאו דווקא רעש. לכן מודדים כאן התמדה ולא רק פיקים רגעיים.",
+            "קריאה, פרסום ותגובות בספרייה יכולים להזין גם משימות וגם קצב פעילות כללי.",
+            "אם רוצים שהאתר ירגיש עשיר ולא רק מהיר, זה אחד המוקדים שכדאי לחזק.",
+        ],
+        tone: "emerald",
+    },
+    "year-system": {
+        title: "מערכת השנים והתקדמות לימודית",
+        description: "כאן רואים איך שחקנים מתקדמים במסלול הלימודי, ומה חסר להם כדי לעלות שלב בצורה ברורה ומסודרת.",
+        bullets: [
+            "הטאב הזה חשוב כדי שהאתר ירגיש כמו מסע, לא כמו אוסף דפים בלי התקדמות.",
+            "כששנים ברורות, גם הקווסטים, הלחשים והיעדים האישיים מרגישים משמעותיים יותר.",
+            "אם משתמשים נתקעים, כאן בודקים אם הדרישות ברורות או אם חסר גשר ביניים לשלב הבא.",
+        ],
+        tone: "violet",
+    },
+    users: {
+        title: "ניהול משתמשים, פרופילים ותמונת עומק על הקהילה",
+        description: "כאן נכנסים לרזולוציה של חשבון יחיד: פרטים, בית, דרגה, והקשר הרחב של המשתמש בתוך האתר.",
+        bullets: [
+            "זה הטאב לחקירות נקודתיות: מי המשתמש, מה מצבו, ואיפה הוא משתלב או נתקע.",
+            "כאן רואים דברים שלא נוח לראות דרך נוכחות או לוגים בלבד, כמו פרטים מצטברים על פרופיל.",
+            "כדאי להשתמש בטאב הזה יחד עם מודרציה ונוכחות כדי לקבל תמונה מלאה, לא רק חלקית.",
+        ],
+        tone: "cyan",
+    },
+    forums: {
+        title: "פורומים, חדרי שיח והזרמת שיחה",
+        description: "כאן מנהלים את מבנה השיח, מי יכול לפתוח מה, ואיך המסדרונות נשארים חיים ולא מתפרקים לרעש.",
+        bullets: [
+            "פורום טוב צריך היררכיה ברורה, חופש מספיק, ומעט חיכוך בדרך לפתיחת דיון.",
+            "אם יש הרבה נוכחות אבל מעט כתיבה, שווה לבדוק כאן אם המבנה עצמו מרתיע משתמשים.",
+            "הפורומים הם עוגן מרכזי באתר שלך, ולכן כל החלטה כאן משפיעה על החיות הכללית.",
+        ],
+        tone: "emerald",
+    },
+    shop: {
+        title: "חנות, כלכלה ותמריצים לחזור",
+        description: "הטאב הזה שולט בכל מה שנוגע למשאבים, חפצים ותחושת התגמול של השחקנים לאורך זמן.",
+        bullets: [
+            "תגמול טוב לא חייב להיות גדול, הוא צריך להיות מורגש ומחובר להתנהגות שאתה רוצה לעודד.",
+            "אם שחקנים לא מתלהבים מהחנות, כדאי לבדוק אם יש מספיק מה לקנות ואם המטבע באמת זורם.",
+            "חנות חיה עוזרת למשימות, לדיוור ולהרגלי חזרה לעבוד יחד ולא בנפרד.",
+        ],
+        tone: "amber",
+    },
+    exams: {
+        title: "בחינות, בדיקות ידע והוכחת התקדמות",
+        description: "כאן יושבת שכבת האתגר הרשמית. היא טובה במיוחד כשצריך לתת משמעות להתקדמות, לא רק זמן מסך.",
+        bullets: [
+            "בחינה טובה בודקת מוכנות ויוצרת ציפייה, לא סתם חוסמת גישה.",
+            "הטאב הזה צריך לעבוד עם מערכת השנים והקווסטים כדי שכל הצלחה תרגיש מוצדקת.",
+            "אם בחינות מרגישות מתות, בדרך כלל חסר להן חיבור לפרסים, יוקרה או פתיחת תוכן חדש.",
+        ],
+        tone: "violet",
+    },
+    arena: {
+        title: "הזירה והתחרות הישירה בין קוסמים",
+        description: "הטאב הזה מרכז את הדו-קרבות והמתח התחרותי. הוא טוב במיוחד ליצירת ביקורים קצרים אבל חזרתיים.",
+        bullets: [
+            "ניצחונות, תיקו והיסטוריית קרבות צריכים להיות ברורים כאן כדי שהזירה תרגיש הוגנת ולא אקראית.",
+            "אם הזירה חיה, היא יכולה להזין גם משימות, גם נוכחות וגם גאוות בית.",
+            "זה מקום מצוין לבנות סביבו אירועים קצרים, טורנירים ותגמולים מיוחדים.",
+        ],
+        tone: "rose",
+    },
+};
 
 // Removed old logs injection
 
@@ -235,12 +421,10 @@ export default function AdminPanel() {
     // Data
     const [reports, setReports] = useState<any[]>([]);
     const [news, setNews] = useState<any[]>([]);
-    const [onlineMembers, setOnlineMembers] = useState<any[]>([]);
     const [housePoints, setHousePoints] = useState<any>({});
     const [allProfiles, setAllProfiles] = useState<any[]>([]);
     const [adminLogs, setAdminLogs] = useState<any[]>([]);
     const [activityEvents, setActivityEvents] = useState<any[]>([]);
-    const [questStats, setQuestStats] = useState<any>({ allowance: 0, trivia: 0, niffler: 0, snitch: 0 });
     const [siteSettings, setSiteSettings] = useState<Record<string, any>>({});
 
     // News editor
@@ -271,7 +455,7 @@ export default function AdminPanel() {
 
     // Users management
     const [userSearch, setUserSearch] = useState("");
-    const [userFilter, setUserFilter] = useState<"all" | "מנהל" | "מנחה" | "קוסמ׳">("all");
+    const [userFilter, setUserFilter] = useState<"all" | "מנהל" | "מנחה" | "קוסם/ת" | "unsorted">("all");
     const [editingRole, setEditingRole] = useState<{ id: string; role: string } | null>(null);
     const [isSavingRole, setIsSavingRole] = useState(false);
     const [userGroups, setUserGroups] = useState<any[]>([]);
@@ -366,15 +550,6 @@ export default function AdminPanel() {
         settingsData?.forEach(s => { settingsMap[s.key] = s.value; });
         setSiteSettings(settingsMap);
 
-        const today = new Date().toISOString().split('T')[0];
-        const qStats = {
-            allowance: profilesData?.filter(p => p.last_reward_date === today).length || 0,
-            trivia: profilesData?.filter(p => p.last_trivia_date === today).length || 0,
-            niffler: profilesData?.filter(p => p.last_niffler_date === today).length || 0,
-            snitch: profilesData?.filter(p => p.last_snitch_date === today).length || 0,
-        };
-        setQuestStats(qStats);
-
         const points: Record<string, number> = { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 };
         profilesData?.forEach((row: any) => {
             if (row.house && points[row.house] !== undefined) points[row.house] += row.points_contributed || 0;
@@ -405,17 +580,12 @@ export default function AdminPanel() {
             fetchData();
             setLoading(false);
         }
-        const channel = supabase.channel('lumos_global_presence', { config: { presence: { key: 'wizard' } } });
-        channel.on('presence', { event: 'sync' }, () => {
-            setOnlineMembers(Object.values(channel.presenceState()).flat() as any[]);
-        }).subscribe();
-        return () => { supabase.removeChannel(channel); };
     }, [router, supabase, fetchData, profile, authLoading]);
 
     useEffect(() => {
         if (authLoading || !profile || !['מנהל', 'מנחה'].includes(profile.role || '')) return;
 
-        const shouldRefreshLiveAdminData = () => activeTab === "events" || activeTab === "activity";
+        const shouldRefreshLiveAdminData = () => ["events", "activity", "moderation", "users", "logs", "health"].includes(activeTab);
         const channel = supabase
             .channel('admin_live_event_scoreboard_sync')
             .on(
@@ -426,14 +596,21 @@ export default function AdminPanel() {
 
                     const nextProfile = payload?.new || {};
                     const prevProfile = payload?.old || {};
+                    const shouldRefreshModerationViews = ["moderation", "users", "logs"].includes(activeTab);
                     const pointsChanged = payload?.eventType !== 'UPDATE'
                         || nextProfile.event_points !== prevProfile.event_points
                         || nextProfile.passover_points !== prevProfile.passover_points
                         || nextProfile.group_id !== prevProfile.group_id
                         || nextProfile.full_name !== prevProfile.full_name
                         || nextProfile.house !== prevProfile.house;
+                    const moderationChanged = payload?.eventType !== 'UPDATE'
+                        || nextProfile.status !== prevProfile.status
+                        || nextProfile.is_ghost !== prevProfile.is_ghost
+                        || nextProfile.ban_reason !== prevProfile.ban_reason
+                        || nextProfile.ban_expires_at !== prevProfile.ban_expires_at
+                        || nextProfile.role !== prevProfile.role;
 
-                    if (pointsChanged) {
+                    if ((shouldRefreshModerationViews && moderationChanged) || pointsChanged) {
                         void fetchData();
                     }
                 },
@@ -867,7 +1044,7 @@ export default function AdminPanel() {
             }));
 
             await persistEventCatalog(normalizedCatalog);
-            window.dispatchEvent(new CustomEvent('play-magic-ding'));
+            triggerAudioPlay();
             sendOwl("קסם בוצע!", "הפרסים חולקו בהצלחה, והאיוונט הסתיים.", "magic");
             fetchData();
         }
@@ -889,7 +1066,7 @@ export default function AdminPanel() {
             eventType: "admin_test_event",
             title: "בדיקת מערכת",
             subtitle: "המנהל בדק את תקינות יומן הפעילות",
-            icon: "🛠️"
+            icon: "⚠️"
         });
         fetchData();
         setIsTestingActivity(false);
@@ -903,7 +1080,7 @@ export default function AdminPanel() {
         const { error } = await supabase.rpc('reset_house_cup');
         if (error) { sendOwl("שגיאה", error?.message || "", "error"); }
         else {
-            window.dispatchEvent(new CustomEvent('play-magic-ding'));
+            triggerAudioPlay();
             sendOwl("העונה הסתיימה!", "הנקודות אופסו והגביע הוענק.", "magic");
             fetchData();
         }
@@ -923,7 +1100,7 @@ export default function AdminPanel() {
         });
         if (error) { sendOwl("תקלה", error.message, "error"); }
         else {
-            window.dispatchEvent(new CustomEvent('play-magic-ding'));
+            triggerAudioPlay();
             sendOwl("המענק הועבר", `${selectedUser.full_name} קיבל/ה את המשאבים.`, "success");
             setPointsToAdd(0); setGalleonsToAdd(0);
             setSelectedUser(null); setSearchQuery(""); setUsers([]);
@@ -974,7 +1151,7 @@ export default function AdminPanel() {
             ? await supabase.from('news').update(newArticle).eq('id', editingId).select('id').single()
             : await supabase.from('news').insert([{ ...newArticle, author_id: profile?.id }]).select('id').single();
         if (!error && created) {
-            window.dispatchEvent(new CustomEvent('play-magic-ding'));
+            triggerAudioPlay();
             sendOwl(editingId ? "עודכן!" : "פורסם!", "השינויים נשמרו.", "success");
             if (!editingId && pollQuestion.trim()) {
                 await handleSavePoll(created.id);
@@ -1056,7 +1233,7 @@ export default function AdminPanel() {
     const handleBroadcast = async () => {
         if (!broadcastMsg.trim()) return;
         await supabase.channel('lumos_global_presence').send({ type: 'broadcast', event: 'ministry_announcement', payload: { message: broadcastMsg, from: "הנהלת הטירה" } });
-        window.dispatchEvent(new CustomEvent('play-magic-ding'));
+        triggerAudioPlay();
         sendOwl("שוגר!", "ההכרזה נשלחה.", "magic");
         void audit({
             action: "broadcast_announcement",
@@ -1075,7 +1252,7 @@ export default function AdminPanel() {
         const { error } = await supabase.from('profiles').update({ year }).eq('id', id);
         if (error) { sendOwl("שגיאה", error?.message || "", "error"); }
         else {
-            sendOwl("עודכן", "שנת הקוסמ׳ עודכנה.", "success");
+            sendOwl("עודכן", "שנת הקוסם/ת עודכנה.", "success");
             setAllProfiles(prev => prev.map(p => p.id === id ? { ...p, year } : p));
             setEditingYear(null);
         }
@@ -1090,7 +1267,7 @@ export default function AdminPanel() {
         const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
-            sendOwl("עודכן", `תפקיד הקוסמ׳ שונה ל-${role}.`, "success");
+            sendOwl("עודכן", `תפקיד הקוסם/ת שונה ל-${role}.`, "success");
             setEditingRole(null);
             fetchData();
         }
@@ -1105,7 +1282,7 @@ export default function AdminPanel() {
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
             const grp = userGroups.find(g => g.id === group_id);
-            sendOwl("עודכן", `קבוצת הקוסמ׳ שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
+            sendOwl("עודכן", `קבוצת הקוסם/ת שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
             setEditingGroup(null);
             fetchData();
         }
@@ -1113,14 +1290,39 @@ export default function AdminPanel() {
     };
 
     const handleToggleBan = async (userId: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
+        const currentUserProfile = allProfiles.find((profile) => profile.id === userId);
+        const isCurrentlyRestricted = currentStatus === 'banned' || currentStatus === 'cooling';
+        const newStatus = isCurrentlyRestricted ? 'active' : 'banned';
         const label = newStatus === 'banned' ? 'חסום' : 'פעיל';
-        if (newStatus === 'banned' && !confirm(`לחסום קוסמ׳ זה?`)) return;
-        const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
+        if (newStatus === 'banned' && !confirm(`לחסום קוסם/ת זה?`)) return;
+        const updateData = newStatus === 'banned'
+            ? {
+                status: 'banned',
+                ban_reason: currentUserProfile?.ban_reason?.trim() || 'הורחק ע"י הנהלה',
+                ban_expires_at: null,
+                is_ghost: false,
+            }
+            : {
+                status: 'active',
+                ban_reason: null,
+                ban_expires_at: null,
+                is_ghost: false,
+            };
+
+        const { error } = await supabase.from('profiles').update(updateData).eq('id', userId);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
-            sendOwl("עודכן", `סטטוס הקוסמ׳ שונה ל${label}.`, "success");
-            setAllProfiles(prev => prev.map(p => p.id === userId ? { ...p, status: newStatus } : p));
+            await audit({
+                action: newStatus === 'banned' ? 'set_user_banned' : 'release_user_moderation',
+                targetType: 'profile',
+                targetId: userId,
+                targetLabel: currentUserProfile?.full_name || null,
+                details: newStatus === 'banned'
+                    ? { reason: updateData.ban_reason, previousStatus: currentStatus || null }
+                    : { previousStatus: currentStatus || null },
+            });
+            sendOwl("עודכן", `סטטוס הקוסם/ת שונה ל${label}.`, "success");
+            await fetchData();
         }
     };
 
@@ -1256,21 +1458,41 @@ export default function AdminPanel() {
                 .gte("finished_at", new Date(Date.now() - 7 * 86400000).toISOString()),
         ]);
 
+        const now = Date.now();
+        const stalePendingRows = (pendingData || []).filter((duel: any) => duel.expires_at && new Date(duel.expires_at).getTime() <= now);
+        const livePendingRows = (pendingData || []).filter((duel: any) => !duel.expires_at || new Date(duel.expires_at).getTime() > now);
+
+        if (stalePendingRows.length > 0) {
+            const staleIds = stalePendingRows.map((duel: any) => duel.id);
+            const nowIso = new Date().toISOString();
+
+            const { error } = await supabase
+                .from("duels")
+                .update({ status: "expired" })
+                .in("id", staleIds)
+                .eq("status", "pending")
+                .lt("expires_at", nowIso);
+
+            if (error) {
+                console.error("Failed to auto-expire stale pending duels", error);
+            }
+        }
+
         if (statsData) {
-            const now = Date.now();
             const pendingLive = statsData.filter((d: any) => d.status === "pending" && (!d.expires_at || new Date(d.expires_at).getTime() > now));
             const pendingExpired = statsData.filter((d: any) => d.status === "pending" && d.expires_at && new Date(d.expires_at).getTime() <= now);
+            const autoExpiredCount = stalePendingRows.length;
             setArenaStats({
                 total: statsData.length,
                 finished: statsData.filter((d: any) => d.status === "finished").length,
                 active: statsData.filter((d: any) => d.status === "active").length,
                 pending: pendingLive.length,
-                stalePending: pendingExpired.length,
+                stalePending: stalePendingRows.length > 0 ? Math.max(0, pendingExpired.length - autoExpiredCount) : pendingExpired.length,
                 ties: statsData.filter((d: any) => d.status === "finished" && !d.winner_id).length,
             });
         }
         setArenaRecentDuels(recData || []);
-        setArenaPendingDuels(pendingData || []);
+        setArenaPendingDuels(stalePendingRows.length > 0 ? livePendingRows : (pendingData || []));
 
         // Aggregate suspects client-side
         if (suspData) {
@@ -1389,8 +1611,14 @@ export default function AdminPanel() {
 
     if (loading) return null;
 
-    const maxPoints = Math.max(...Object.values(housePoints).map(Number), 1);
-
+    const unsortedUsersCount = useMemo(
+        () => allProfiles.filter((entry: any) => isUnsortedHouse(entry.house)).length,
+        [allProfiles],
+    );
+    const profilesWithEmailCount = useMemo(
+        () => allProfiles.filter((entry: any) => typeof entry.email === "string" && entry.email.trim().length > 0).length,
+        [allProfiles],
+    );
     // Year distribution
     const yearDist = [1, 2, 3, 4, 5, 6, 7].map(y => ({
         year: y,
@@ -1479,7 +1707,7 @@ export default function AdminPanel() {
                 {/* ── Tab Navigation ── */}
                 <div className="flex gap-2 border-b border-white/[0.06] pb-0">
                     {TAB_CONFIG
-                        .filter(tab => isAdmin || ['house-cup', 'moderation', 'forums', 'logs'].includes(tab.id))
+                        .filter(tab => isAdmin || ['house-cup', 'health', 'moderation', 'forums', 'logs'].includes(tab.id))
                         .map(tab => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
@@ -1508,133 +1736,37 @@ export default function AdminPanel() {
 
                     {/* ── TAB CONTENT ── */}
                     <div className="lg:col-span-2 space-y-6">
+                        <AdminTabGuide content={TAB_GUIDES[activeTab]} />
 
                         {/* ── TAB 1: גביע הבית ── */}
                         {activeTab === "house-cup" && (
-                            <>
-                                {/* House Cup */}
-                                <section className="admin-card rounded-2xl p-6 space-y-4">
-                                    <h3 className="font-cinzel text-xs font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
-                                        <Trophy size={14} className="text-amber-500" /> גביע הבית — נקודות
-                                    </h3>
-                                    <div className="space-y-3">
-                                        {['Gryffindor', 'Slytherin', 'Ravenclaw', 'Hufflepuff'].map(h => {
-                                            const cfg = HOUSE_CONFIG[h];
-                                            const pts = housePoints[h] || 0;
-                                            const pct = Math.round((pts / maxPoints) * 100);
-                                            return (
-                                                <div key={h} className="flex items-center gap-4">
-                                                    <span className="text-lg shrink-0">{cfg.icon}</span>
-                                                    <div className="flex-1 h-2 bg-white/[0.04] rounded-full overflow-hidden">
-                                                        <div className={`house-bar h-full rounded-full ${cfg.color.replace('text-', 'bg-')}`}
-                                                            style={{ width: `${pct}%`, opacity: 0.7 }} />
-                                                    </div>
-                                                    <span className={`font-cinzel font-black text-sm w-14 text-left ${cfg.color}`}>{pts.toLocaleString()}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-
-                                {/* Online Members */}
-                                <section className="admin-card rounded-2xl p-5 space-y-4">
-                                    <h3 className="font-cinzel text-xs font-black text-blue-400 flex items-center gap-2 uppercase tracking-widest">
-                                        <Activity size={13} className="animate-pulse" />
-                                        נוכחים עכשיו ({onlineMembers.length})
-                                    </h3>
-                                    <div className="space-y-2 max-h-52 overflow-y-auto">
-                                        {onlineMembers.length === 0 ? (
-                                            <p className="text-white/15 text-xs text-center py-6 font-cinzel">אין קוסמים מחוברים</p>
-                                        ) : onlineMembers.map((w, i) => {
-                                            const cfg = w.house ? HOUSE_CONFIG[w.house] : null;
-                                            return (
-                                                <div key={i} className="flex items-center justify-between p-2.5 bg-white/[0.02] rounded-lg">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                        <span className="text-xs font-bold text-white/70">{w.user_name}</span>
-                                                    </div>
-                                                    <span className={`text-[9px] font-cinzel uppercase ${cfg?.color || 'text-white/20'}`}>{w.house}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-
-                                {/* Rewards */}
-                                {isAdmin && (
-                                    <section className="admin-card rounded-2xl p-5 space-y-4">
-                                        <h3 className="font-cinzel text-xs font-black text-amber-500 flex items-center gap-2 uppercase tracking-widest">
-                                            <Crown size={13} /> מענקי דמויות
-                                        </h3>
-                                        <div className="relative">
-                                            <input
-                                                value={searchQuery}
-                                                onChange={handleSearchChange}
-                                                onKeyDown={(e) => e.key === 'Enter' && searchUsers(searchQuery)}
-                                                placeholder="הקלד שם דמות..."
-                                                className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-amber-500/30 rounded-xl p-3 text-sm outline-none transition-all pr-10"
-                                                dir="rtl"
-                                            />
-                                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                                                {isSearching
-                                                    ? <div className="w-3.5 h-3.5 border border-amber-500/40 border-t-amber-500 rounded-full animate-spin" />
-                                                    : <Search size={13} className="text-white/20" />
-                                                }
-                                            </div>
-                                        </div>
-                                        {users.length > 0 && (
-                                            <div className="space-y-1 max-h-40 overflow-y-auto">
-                                                {users.map(u => {
-                                                    const cfg = u.house ? HOUSE_CONFIG[u.house] : null;
-                                                    return (
-                                                        <button key={u.id} onClick={() => setSelectedUser(u)}
-                                                            className={`search-result-item w-full flex items-center justify-between p-3 rounded-xl border text-right transition-all
-                                                            ${selectedUser?.id === u.id ? 'selected border-amber-500/30' : 'border-transparent hover:border-white/[0.06]'}`}>
-                                                            <span className="text-sm font-bold text-white/80">{u.full_name}</span>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`text-[9px] font-cinzel uppercase ${cfg?.color || 'text-white/20'}`}>{u.house}</span>
-                                                                <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-sm shrink-0"
-                                                                    style={{ background: cfg ? cfg.accent : "rgba(255,255,255,0.05)" }}>
-                                                                    {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover" /> : cfg?.icon || "🧙"}
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                        {selectedUser && (
-                                            <div className="space-y-4 pt-3 border-t border-white/[0.05] animate-in slide-in-from-top-2 duration-200">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="text-xs text-white/40">מענק עבור:</p>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-bold text-amber-400 font-cinzel">{selectedUser.full_name}</span>
-                                                        <button onClick={() => { setSelectedUser(null); setSearchQuery(""); setUsers([]); }} className="text-white/20 hover:text-white/60 transition-colors">
-                                                            <X size={13} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[9px] text-white/25 block text-center font-black uppercase tracking-wide">נקודות</label>
-                                                        <input type="number" value={pointsToAdd} onChange={(e) => setPointsToAdd(parseInt(e.target.value) || 0)}
-                                                            className="w-full bg-black/40 border border-amber-500/15 focus:border-amber-500/40 rounded-xl p-3 text-center font-cinzel font-black text-amber-400 outline-none transition-all" />
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[9px] text-white/25 block text-center font-black uppercase tracking-wide">גליאונים</label>
-                                                        <input type="number" value={galleonsToAdd} onChange={(e) => setGalleonsToAdd(parseInt(e.target.value) || 0)}
-                                                            className="w-full bg-black/40 border border-amber-500/15 focus:border-amber-500/40 rounded-xl p-3 text-center font-cinzel font-black text-amber-400 outline-none transition-all" />
-                                                    </div>
-                                                </div>
-                                                <button onClick={handleUpdateReward} disabled={isUpdating}
-                                                    className="w-full bg-amber-600 hover:bg-amber-500 py-3.5 rounded-xl text-black font-black text-xs uppercase tracking-widest font-cinzel transition-all active:scale-[0.99] disabled:opacity-40">
-                                                    {isUpdating ? 'מעביר...' : 'שליחת מענק ✨'}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </section>
-                                )}
-                            </>
+                            <AdminOverviewTab
+                                housePoints={housePoints}
+                                houseConfig={HOUSE_CONFIG}
+                                reportsCount={reports.length}
+                                adminLogsCount={adminLogs.length}
+                                activityEvents={activityEvents}
+                                allProfiles={allProfiles}
+                                siteSettings={siteSettings}
+                                newsItems={news}
+                                forumItems={forums}
+                                onOpenTab={setActiveTab}
+                                isAdmin={isAdmin}
+                                searchQuery={searchQuery}
+                                onSearchChange={handleSearchChange}
+                                onSearchSubmit={() => searchUsers(searchQuery)}
+                                isSearching={isSearching}
+                                users={users}
+                                selectedUser={selectedUser}
+                                onSelectUser={setSelectedUser}
+                                onClearSelectedUser={() => { setSelectedUser(null); setSearchQuery(""); setUsers([]); }}
+                                pointsToAdd={pointsToAdd}
+                                onPointsChange={setPointsToAdd}
+                                galleonsToAdd={galleonsToAdd}
+                                onGalleonsChange={setGalleonsToAdd}
+                                onSubmitReward={handleUpdateReward}
+                                isUpdating={isUpdating}
+                            />
                         )}
 
                         {/* ── TAB 2: נביא היומי ── */}
@@ -1761,7 +1893,13 @@ export default function AdminPanel() {
                                     )}
                                 </section>
 
-                                <ModerationTab sendOwl={sendOwl} onAudit={audit} />
+                                <ModerationTab
+                                    sendOwl={sendOwl}
+                                    onAudit={audit}
+                                    profiles={allProfiles}
+                                    logs={adminLogs}
+                                    onRefresh={fetchData}
+                                />
                             </>
                         )}
 
@@ -1877,11 +2015,13 @@ export default function AdminPanel() {
 
                         {/* ── TAB 5: ניהול קוסמים ── */}
                         {activeTab === "users" && (() => {
+                            const unsortedUsers = allProfiles.filter(p => isUnsortedHouse(p.house));
                             const filteredUsers = allProfiles
                                 .filter(p => !userSearch || p.full_name?.toLowerCase().includes(userSearch.toLowerCase()))
                                 .filter(p => {
                                     if (userFilter === "all") return true;
-                                    if (userFilter === "קוסמ׳") return !["מנהל", "מנחה"].includes(p.role || "");
+                                    if (userFilter === "קוסם/ת") return !["מנהל", "מנחה"].includes(p.role || "");
+                                    if (userFilter === "unsorted") return isUnsortedHouse(p.house);
                                     return p.role === userFilter;
                                 });
 
@@ -1906,6 +2046,35 @@ export default function AdminPanel() {
                                         ))}
                                     </section>
 
+                                    {unsortedUsers.length > 0 && (
+                                        <section className="admin-card rounded-2xl border border-cyan-500/15 bg-cyan-500/5 p-5 space-y-3">
+                                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                                <div>
+                                                    <h3 className="font-cinzel text-xs font-black uppercase tracking-widest text-cyan-300">
+                                                        משתמשים שעדיין לא מוינו
+                                                    </h3>
+                                                    <p className="mt-2 text-sm leading-relaxed text-white/50">
+                                                        זו רשימת המשתמשים שהבית שלהם עדיין לא נסגר. אפשר לפתוח כל פרופיל, לבדוק אם חסר טקס מיון, ולפנות אליהם גם דרך דיוור הינשופים.
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-full border border-cyan-400/15 bg-cyan-500/10 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-cyan-100">
+                                                    {unsortedUsers.length} טרם מוינו
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {unsortedUsers.slice(0, 10).map((wizard) => (
+                                                    <Link
+                                                        key={wizard.id}
+                                                        href={`/wizard/${wizard.id}`}
+                                                        className="rounded-full border border-cyan-400/20 bg-white/[0.03] px-3 py-1.5 text-xs text-white/75 transition-all hover:border-cyan-300/40 hover:text-white"
+                                                    >
+                                                        {wizard.full_name || "קוסם/ת ללא שם"}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )}
+
                                     {/* Search */}
                                     <section className="admin-card rounded-2xl p-5 space-y-4">
                                         <h3 className="font-cinzel text-xs font-black text-teal-400 flex items-center gap-2 uppercase tracking-widest">
@@ -1923,7 +2092,7 @@ export default function AdminPanel() {
                                                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
                                             </div>
                                             <div className="flex gap-1">
-                                                {(["all", "מנהל", "מנחה", "קוסמ׳"] as const).map(f => (
+                                                {(["all", "מנהל", "מנחה", "קוסם/ת"] as const).map(f => (
                                                     <button key={f}
                                                         onClick={() => setUserFilter(f)}
                                                         className={`px-3 py-2 rounded-xl font-cinzel text-[10px] uppercase tracking-wide transition-all border
@@ -2004,7 +2173,7 @@ export default function AdminPanel() {
                                                                         onChange={e => setEditingRole({ id: p.id, role: e.target.value })}
                                                                         style={{ backgroundColor: '#0f172a', color: '#e2e8f0', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', border: '1px solid rgba(20,184,166,0.4)', outline: 'none', colorScheme: 'dark' }}
                                                                     >
-                                                                        <option value="קוסמ׳" style={{ backgroundColor: '#0f172a' }}>קוסמ׳</option>
+                                                                        <option value="קוסמ׳" style={{ backgroundColor: '#0f172a' }}>קוסם/ת</option>
                                                                         <option value="מנחה" style={{ backgroundColor: '#0f172a' }}>מנחה</option>
                                                                         <option value="מנהל" style={{ backgroundColor: '#0f172a' }}>מנהל</option>
                                                                     </select>
@@ -2047,7 +2216,7 @@ export default function AdminPanel() {
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleToggleBan(p.id, p.status || 'active')}
-                                                                        title={isBanned ? "בטל חסימה" : "חסום קוסמ׳"}
+                                                                        title={isBanned ? "בטל חסימה" : "חסום קוסם/ת"}
                                                                         className={`p-1.5 rounded-lg transition-all ${isBanned
                                                                             ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'
                                                                             : 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white'
@@ -2406,7 +2575,7 @@ export default function AdminPanel() {
 
                                                 {false && (
                                                 <div className="rounded-[1.5rem] border border-emerald-400/20 bg-emerald-500/10 p-4 space-y-2">
-                                                    <p className="font-cinzel text-[11px] font-black text-emerald-300 uppercase tracking-[0.18em]">דוגמה ל־Slug בלי כאב ראש</p>
+                                                    <p className="font-cinzel text-[11px] font-black text-emerald-300 uppercase tracking-[0.18em]">דוגמה לײ¾Slug בלי כאב ראש</p>
                                                     <p className="text-xs text-emerald-100/85 leading-relaxed">
                                                         אם שם האיוונט הוא <span className="font-black text-white">חג החירות 2026</span>,
                                                         אפשר לתת לו slug כמו <span dir="ltr" className="font-mono text-white">hag-ha-herut-2026</span>.
@@ -2478,7 +2647,7 @@ export default function AdminPanel() {
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-bold text-sm text-white/80 truncate">{item.name}</p>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-[10px] text-amber-400 font-cinzel">{item.price} 🪙</span>
+                                                            <span className="text-[10px] text-amber-400 font-cinzel">{item.price} גליאונים</span>
                                                             <span className="text-[9px] text-white/25 font-cinzel uppercase">{typeLabels[item.category] || item.category}</span>
                                                             {item.is_available !== true && <span className="text-[8px] text-red-400 font-cinzel">לא זמין</span>}
                                                         </div>
@@ -2657,7 +2826,7 @@ export default function AdminPanel() {
                                                 <Clock size={13} /> אתגרים בהמתנה
                                             </h3>
                                             <p className="text-white/35 text-xs mt-1">
-                                                pending = אתגר שנשלח אבל עוד לא אושר. אם פג הזמן שלו, כדאי לנקות אותו כדי שהסטטיסטיקה לא תהיה מנופחת.
+                                                pending = אתגר שנשלח אבל עוד לא אושר. פגי תוקף מתנקים אוטומטית כשנכנסים למסך, ואם נשארו שאריות אפשר לנקות אותן ידנית.
                                             </p>
                                         </div>
                                         <button
@@ -2796,7 +2965,7 @@ export default function AdminPanel() {
                                     <input
                                         value={badgeGrantSearch}
                                         onChange={e => searchBadgeGrantUsers(e.target.value)}
-                                        placeholder="חיפוש קוסמ׳ לפי שם..."
+                                        placeholder="חיפוש קוסם/ת לפי שם..."
                                         className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-amber-500/30 rounded-xl p-3 text-sm outline-none transition-all"
                                         dir="rtl"
                                     />
@@ -2845,123 +3014,43 @@ export default function AdminPanel() {
                             </div>
                         )}
 
+                        {activeTab === "health" && (
+                            <AdminSystemHealthPanel
+                                reportsCount={reports.length}
+                                adminLogsCount={adminLogs.length}
+                                activityEvents={activityEvents}
+                                unsortedUsersCount={unsortedUsersCount}
+                                totalProfiles={allProfiles.length}
+                                profilesWithEmailCount={profilesWithEmailCount}
+                                siteSettings={siteSettings}
+                                newsItems={news}
+                                forumItems={forums}
+                                onOpenTab={setActiveTab}
+                            />
+                        )}
+
+                        {activeTab === "presence" && (
+                            <AdminPresencePanel />
+                        )}
+
                         {/* ── TAB 10: פעילות ── */}
                         {activeTab === "activity" && (
-                            <section className="admin-card rounded-2xl p-5 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="font-cinzel text-xs font-black text-cyan-400 flex items-center gap-2 uppercase tracking-widest">
-                                        <Activity size={13} /> יומן פעילות האתר ({activityEvents.length})
-                                    </h3>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={handleTestActivity} disabled={isTestingActivity} className="px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-lg text-[10px] font-black font-cinzel hover:bg-cyan-500 hover:text-black transition-all">
-                                            {isTestingActivity ? "שולח..." : "שלח לוג בדיקה"}
-                                        </button>
-                                        <button onClick={fetchData} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-all">
-                                            <RotateCcw size={12} className="text-white/30" />
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-right text-xs">
-                                        <thead>
-                                            <tr className="border-b border-white/5 text-white/20 font-cinzel">
-                                                <th className="pb-2 font-black pr-2">זמן</th>
-                                                <th className="pb-2 font-black">קוסם/ת</th>
-                                                <th className="pb-2 font-black">פעולה</th>
-                                                <th className="pb-2 font-black">פרטים</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {activityEvents.map((evt: any) => (
-                                                <tr key={evt.id} className="hover:bg-white/[0.02] transition-colors">
-                                                    <td className="py-3 text-white/40 pr-2">{new Date(evt.created_at).toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</td>
-                                                    <td className="py-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs">{evt.icon || "✨"}</span>
-                                                            <span className="font-bold text-white/70">{evt.actor_name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 text-cyan-400 font-medium">{evt.title}</td>
-                                                    <td className="py-3 text-white/30 text-[10px] italic">{evt.subtitle || evt.description || "—"}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {activityEvents.length === 0 && <p className="text-center text-white/20 font-cinzel py-10">אין פעילות מתועדת</p>}
-                                </div>
-                            </section>
+                            <AdminActivityTab
+                                events={activityEvents}
+                                isTestingActivity={isTestingActivity}
+                                onTestActivity={handleTestActivity}
+                                onRefresh={fetchData}
+                            />
                         )}
 
                         {/* ── TAB 8: לוגים (Admin Audit) ── */}
                         {activeTab === "logs" && (
-                            <section className="admin-card rounded-2xl p-5 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="font-cinzel text-xs font-black text-rose-400 flex items-center gap-2 uppercase tracking-widest">
-                                        <ShieldAlert size={13} /> לוגים של ניהול ({adminLogs.length})
-                                    </h3>
-                                    <button onClick={fetchData} className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-all">
-                                        <RotateCcw size={12} className="text-white/30" />
-                                    </button>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-right text-xs">
-                                        <thead>
-                                            <tr className="border-b border-white/5 text-white/20 font-cinzel">
-                                                <th className="pb-2 font-black pr-2">זמן</th>
-                                                <th className="pb-2 font-black">מבצע</th>
-                                                <th className="pb-2 font-black">פעולה</th>
-                                                <th className="pb-2 font-black">יעד</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {adminLogs.map((log: any) => (
-                                                <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
-                                                    <td className="py-3 text-white/40 pr-2 text-[10px]">{new Date(log.created_at).toLocaleString('he-IL')}</td>
-                                                    <td className="py-3">
-                                                        <span className="font-bold text-white/70">{log.actor_name}</span>
-                                                        <span className="block text-[8px] text-white/20 uppercase">{log.actor_role}</span>
-                                                    </td>
-                                                    <td className="py-3 text-rose-300">{log.action}</td>
-                                                    <td className="py-3 text-white/30 text-[10px]">{log.target_label}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {adminLogs.length === 0 && <p className="text-center text-white/20 font-cinzel py-10">אין לוגים מתועדים</p>}
-                                </div>
-                            </section>
+                            <AdminLogsTab logs={adminLogs} onRefresh={fetchData} />
                         )}
 
                         {/* ── TAB 11: משימות ── */}
                         {activeTab === "quests" && (
-                            <div className="space-y-6">
-                                <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {[
-                                        { label: "קצבה יומית", value: questStats.allowance, color: "text-amber-400", icon: Coins },
-                                        { label: "מבחן לחשים", value: questStats.trivia, color: "text-blue-400", icon: BookOpenCheck },
-                                        { label: "ציד הניפלר", value: questStats.niffler, color: "text-emerald-400", icon: Search },
-                                        { label: "תפיסת סניץ'", value: questStats.snitch, color: "text-violet-400", icon: Zap },
-                                    ].map(q => (
-                                        <div key={q.label} className="admin-card rounded-2xl p-5 text-center space-y-2 border-white/[0.05] border">
-                                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mx-auto mb-2 text-white/40">
-                                                <q.icon size={20} className={q.color} />
-                                            </div>
-                                            <div className={`font-cinzel font-black text-2xl ${q.color}`}>{q.value}</div>
-                                            <div className="font-cinzel text-[9px] text-white/25 uppercase tracking-widest">{q.label} (היום)</div>
-                                        </div>
-                                    ))}
-                                </section>
-                                <section className="admin-card rounded-2xl p-6 text-center space-y-4">
-                                    <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto text-amber-500">
-                                        <Trophy size={32} />
-                                    </div>
-                                    <h3 className="font-cinzel text-lg font-black text-white">מעקב משימות יומי</h3>
-                                    <p className="text-white/40 max-w-md mx-auto text-sm leading-relaxed">
-                                        כאן ניתן לראות את כמות הקוסמים שהשלימו את המשימות היומיות ב-24 השעות האחרונות.
-                                        בעתיד יתווספו כאן כלי ניהול לשינוי סכומי הפרסים ועריכת שאלות הטריוויה.
-                                    </p>
-                                </section>
-                            </div>
+                            <AdminQuestCatalogTab sendOwl={sendOwl} onSaved={fetchData} />
                         )}
 
                         {/* ── TAB 13: טורנירים ── */}
@@ -3143,7 +3232,7 @@ export default function AdminPanel() {
                                             </div>
 
                                             <div className="rounded-[1.5rem] border border-emerald-400/20 bg-emerald-500/10 p-4 space-y-2 mb-6">
-                                                <p className="font-cinzel text-[11px] font-black text-emerald-300 uppercase tracking-[0.18em]">דוגמה ל־Slug בלי כאב ראש</p>
+                                                <p className="font-cinzel text-[11px] font-black text-emerald-300 uppercase tracking-[0.18em]">דוגמה לײ¾Slug בלי כאב ראש</p>
                                                 <p className="text-xs text-emerald-100/85 leading-relaxed">
                                                     אם שם האיוונט הוא <span className="font-black text-white">חג החירות 2026</span>,
                                                     אפשר לתת לו slug כמו <span dir="ltr" className="font-mono text-white">hag-ha-herut-2026</span>.
@@ -3746,6 +3835,7 @@ export default function AdminPanel() {
                     {/* ── RIGHT SIDEBAR — Broadcast (קבועה בכל טאב) ── */}
                     <div className="space-y-6">
                         {isAdmin && (
+                            <>
                             <section className="admin-card rounded-2xl p-5 space-y-4">
                                 <h3 className="font-cinzel text-xs font-black text-purple-400 flex items-center gap-2 uppercase tracking-widest">
                                     <Megaphone size={13} /> הכרזה גלובלית
@@ -3762,6 +3852,8 @@ export default function AdminPanel() {
                                     שיגור ✨
                                 </button>
                             </section>
+                            <EmailBroadcastCard />
+                            </>
                         )}
 
                         {/* Stats summary */}
@@ -3770,7 +3862,7 @@ export default function AdminPanel() {
                             <div className="grid grid-cols-2 gap-3">
                                 {[
                                     { label: "קוסמים", value: allProfiles.length, color: "text-white/60" },
-                                    { label: "מחוברים", value: onlineMembers.length, color: "text-emerald-400" },
+                                    { label: "לוגים", value: adminLogs.length, color: "text-rose-400" },
                                     { label: "דיווחים", value: reports.length, color: "text-red-400" },
                                     { label: "כתבות", value: news.length, color: "text-blue-400" },
                                 ].map(({ label, value, color }) => (
@@ -3787,3 +3879,7 @@ export default function AdminPanel() {
         </div>
     );
 }
+
+
+
+

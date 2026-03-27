@@ -324,7 +324,7 @@ export default function ArenaPage() {
                             {!leaderboard.length && (
                                 <div className="py-10 text-center space-y-2">
                                     <p className="text-3xl">⚔️</p>
-                                    <p className="font-crimson text-white/20 italic">עדיין אין מנצחים — היה הראשון!</p>
+                                    <p className="font-crimson text-white/20 italic">עדיין אין מנצחים • היה הראשון!</p>
                                 </div>
                             )}
                         </div>
@@ -361,7 +361,7 @@ export default function ArenaPage() {
                             {!recentDuels.length && (
                                 <div className="py-10 text-center space-y-2">
                                     <p className="text-3xl">🏰</p>
-                                    <p className="font-crimson text-white/20 italic">הזירה שקטה — אין קרבות אחרונים</p>
+                                    <p className="font-crimson text-white/20 italic">הזירה שקטה • אין קרבות אחרונים</p>
                                 </div>
                             )}
                         </div>
@@ -454,3 +454,5 @@ export default function ArenaPage() {
         </div>
     );
 }
+
+

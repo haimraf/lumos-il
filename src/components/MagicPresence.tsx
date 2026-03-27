@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { AFK_IDLE_MS, isMissingPresenceColumnsError, type PresenceStatus } from "@/lib/presenceStatus";
 
 const LOCATION_LABELS = {
     entrance: "\u05d1\u05e8\u05d7\u05d1\u05ea \u05d4\u05db\u05e0\u05d9\u05e1\u05d4",
@@ -18,12 +19,48 @@ export default function MagicPresence() {
     const [supabase] = useState(() => createClient());
     const pathname = usePathname();
     const { session, profile } = useAuth();
+    const lastActivityRef = useRef(Date.now());
+    const hasPresenceColumnsRef = useRef<boolean | null>(null);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const markActive = () => {
+            lastActivityRef.current = Date.now();
+        };
+
+        const activityEvents: Array<keyof WindowEventMap> = [
+            "pointerdown",
+            "keydown",
+            "scroll",
+            "touchstart",
+            "mousemove",
+        ];
+
+        const handleVisibility = () => {
+            if (!document.hidden) {
+                markActive();
+            }
+        };
+
+        activityEvents.forEach((eventName) => {
+            window.addEventListener(eventName, markActive, { passive: true });
+        });
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            activityEvents.forEach((eventName) => {
+                window.removeEventListener(eventName, markActive);
+            });
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, []);
 
     useEffect(() => {
         const guestId =
             localStorage.getItem("presence_id") ||
             (() => {
-                const id = crypto.randomUUID();
+                const id = `guest_${crypto.randomUUID()}`;
                 localStorage.setItem("presence_id", id);
                 return id;
             })();
@@ -46,9 +83,15 @@ export default function MagicPresence() {
         let cancelled = false;
 
         const updatePresence = async () => {
-            const payload = {
+            const lastActiveAt = new Date(lastActivityRef.current).toISOString();
+            const presenceStatus: PresenceStatus =
+                document.hidden || Date.now() - lastActivityRef.current >= AFK_IDLE_MS
+                    ? "afk"
+                    : "online";
+
+            const basePayload = {
                 id: presenceId,
-                user_name: profile?.full_name || profile?.username || "\u05d0\u05d5\u05e8\u05d7",
+                user_name: profile?.full_name || session?.user?.email?.split("@")[0] || "\u05d0\u05d5\u05e8\u05d7",
                 house: profile?.house || "Guest",
                 current_path: pathname,
                 location_label: getLocationLabel(),
@@ -56,22 +99,36 @@ export default function MagicPresence() {
                 presence_type: presenceType,
             };
 
-            const { error, status, statusText } = await supabase
-                .from("online_users")
-                .upsert(payload, { onConflict: "id" })
-                .select();
+            const advancedPayload = {
+                ...basePayload,
+                presence_status: presenceStatus,
+                last_active_at: lastActiveAt,
+            };
 
-            if (error) {
-                console.error("[MagicPresence] online_users upsert error:", error);
-            } else if (!cancelled) {
-                console.log("[MagicPresence] online_users upsert ok:", status, statusText);
+            const executeUpsert = async (payload: typeof advancedPayload | typeof basePayload) =>
+                supabase.from("online_users").upsert(payload, { onConflict: "id" });
+
+            let response =
+                hasPresenceColumnsRef.current === false
+                    ? await executeUpsert(basePayload)
+                    : await executeUpsert(advancedPayload);
+
+            if (response.error && isMissingPresenceColumnsError(response.error)) {
+                hasPresenceColumnsRef.current = false;
+                response = await executeUpsert(basePayload);
+            } else if (!response.error) {
+                hasPresenceColumnsRef.current = true;
+            }
+
+            if (response.error && !cancelled) {
+                console.error("[MagicPresence] online_users upsert error:", response.error);
             }
         };
 
         void updatePresence();
         const interval = setInterval(() => {
             void updatePresence();
-        }, 10000);
+        }, 15000);
 
         return () => {
             cancelled = true;

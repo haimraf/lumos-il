@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,11 +15,13 @@ import { useUIState } from "@/context/UIContext";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { useAuth } from "@/context/AuthContext";
 import { getNamedRoleColor, getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
-import { getHouseIcon, getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
+import { getHouseDisplayLabel, getHousePalette, withAlpha } from "@/lib/houses";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import MagicTicker from "@/components/MagicTicker";
 import QuestBeacon from "@/components/QuestBeacon";
+import MagicAvatar from "@/components/MagicAvatar";
 import { computeQuestProgress, fetchQuestActivitySummary } from "@/lib/gameplay/questProgress";
+import { fetchQuestCatalog, subscribeToQuestCatalogChanges } from "@/lib/gameplay/questCatalog";
 import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 
 const PAGE_CTA: Record<string, { label: string; href: string }> = {
@@ -100,20 +102,9 @@ export default function Header() {
         session?.user?.email?.split("@")[0] ||
         "Community Member";
     const displayHouse = profile?.house || "Unknown";
-    const displayHouseLabel =
-        displayHouse === "Gryffindor"
-            ? "גריפינדור"
-            : displayHouse === "Slytherin"
-                ? "סלית'רין"
-                : displayHouse === "Ravenclaw"
-                    ? "רייבנקלו"
-                    : displayHouse === "Hufflepuff"
-                        ? "הפלאפאף"
-                        : "לא מוין";
+    const displayHouseLabel = getHouseDisplayLabel(displayHouse, "טרם מוינ/ת");
     const displayGalleons = profile?.galleons?.toLocaleString() || "0";
-    const officialDisplayHouseLabel = getHouseLabel(displayHouse) || null;
     const displayHousePalette = getHousePalette(displayHouse);
-    const displayHouseIcon = getHouseIcon(displayHouse) || "✨";
     const profileGroupId =
         typeof profile?.group_id === "string" || typeof profile?.group_id === "number"
             ? profile.group_id
@@ -165,9 +156,55 @@ export default function Header() {
 
     const identityMeta = [
         displayGroupName,
-        displayHouseLabel !== "לא מוין" ? displayHouseLabel : null,
+        displayHouseLabel,
         profile?.year ? `שנה ${profile.year}` : null,
     ].filter(Boolean).join(" · ");
+
+    const loadNextAction = useCallback(async () => {
+        if (!isAuthenticated || !displayProfileId) {
+            setNextAction(null);
+            setNextActionLoading(false);
+            return;
+        }
+
+        setNextActionLoading(true);
+
+        const [activity, questCatalog] = await Promise.all([
+            fetchQuestActivitySummary(supabase, displayProfileId),
+            fetchQuestCatalog(supabase),
+        ]);
+        const questProgress = computeQuestProgress({
+            id: displayProfileId,
+            house: displayHouse,
+            points_contributed: profilePointsContributed,
+            daily_points_earned: profileDailyPointsEarned,
+            last_reward_date: profileLastRewardDate,
+            last_trivia_date: profileLastTriviaDate,
+            last_niffler_date: profileLastNifflerDate,
+            last_snitch_date: profileLastSnitchDate,
+        }, activity, questCatalog);
+        const recommendations = computeNextActions({
+            profile: {
+                daily_points_earned: profileDailyPointsEarned,
+                house: displayHouse,
+            },
+            questProgress,
+        });
+
+        setNextAction(recommendations[0] ?? null);
+        setNextActionLoading(false);
+    }, [
+        displayHouse,
+        displayProfileId,
+        isAuthenticated,
+        profileDailyPointsEarned,
+        profileLastNifflerDate,
+        profileLastRewardDate,
+        profileLastSnitchDate,
+        profileLastTriviaDate,
+        profilePointsContributed,
+        supabase,
+    ]);
 
     useEffect(() => {
         if (!isAuthenticated || !displayProfileId) {
@@ -177,36 +214,6 @@ export default function Header() {
             });
             return;
         }
-
-        let isMounted = true;
-
-        const loadNextAction = async () => {
-            setNextActionLoading(true);
-
-            const activity = await fetchQuestActivitySummary(supabase, displayProfileId);
-            const questProgress = computeQuestProgress({
-                id: displayProfileId,
-                house: displayHouse,
-                points_contributed: profilePointsContributed,
-                daily_points_earned: profileDailyPointsEarned,
-                last_reward_date: profileLastRewardDate,
-                last_trivia_date: profileLastTriviaDate,
-                last_niffler_date: profileLastNifflerDate,
-                last_snitch_date: profileLastSnitchDate,
-            }, activity);
-            const recommendations = computeNextActions({
-                profile: {
-                    daily_points_earned: profileDailyPointsEarned,
-                    house: displayHouse,
-                },
-                questProgress,
-            });
-
-            if (!isMounted) return;
-
-            setNextAction(recommendations[0] ?? null);
-            setNextActionLoading(false);
-        };
 
         void loadNextAction();
 
@@ -242,21 +249,21 @@ export default function Header() {
             )
             .subscribe();
 
+        const questCatalogChannel = subscribeToQuestCatalogChanges(
+            supabase,
+            `header-${displayProfileId}`,
+            loadNextAction,
+        );
+
         return () => {
-            isMounted = false;
             void supabase.removeChannel(activityChannel);
             void supabase.removeChannel(profileChannel);
+            void supabase.removeChannel(questCatalogChannel);
         };
     }, [
-        displayHouse,
         displayProfileId,
         isAuthenticated,
-        profileDailyPointsEarned,
-        profileLastNifflerDate,
-        profileLastRewardDate,
-        profileLastSnitchDate,
-        profileLastTriviaDate,
-        profilePointsContributed,
+        loadNextAction,
         supabase,
     ]);
 
@@ -514,20 +521,14 @@ export default function Header() {
                                         aria-label="תפריט משתמש"
                                     >
                                         <div className="w-9 h-9 rounded-full border-2 overflow-hidden shadow-2xl transition-transform group-hover:scale-105" style={houseFrameStyle}>
-                                                <div className="w-full h-full bg-slate-900 flex items-center justify-center text-lg">
-                                                    {profile?.avatar_url
-                                                    ? (
-                                                        <Image
-                                                            src={profile.avatar_url}
-                                                            alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"}
-                                                            width={36}
-                                                            height={36}
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    )
-                                                    : displayHouse === 'Gryffindor' ? "🦁" : displayHouse === 'Slytherin' ? "🐍" : displayHouse === 'Ravenclaw' ? "🦅" : "🦡"
-                                                }
-                                            </div>
+                                            <MagicAvatar
+                                                avatarUrl={profile?.avatar_url}
+                                                name={displayName}
+                                                house={profile?.house}
+                                                className="h-full w-full"
+                                                roundedClassName="rounded-full"
+                                                fallbackClassName="text-lg"
+                                            />
                                         </div>
                                         <ChevronDown size={11} className={`text-white/30 transition-transform duration-200 ${avatarMenuOpen ? "rotate-180" : ""}`} />
                                     </button>
@@ -549,18 +550,14 @@ export default function Header() {
                                             <div className="px-5 py-4 border-b border-white/[0.07] flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full border overflow-hidden shrink-0 flex items-center justify-center text-lg"
                                                     style={{ ...houseFrameStyle, background: "rgba(255,255,255,0.04)" }}>
-                                                    {profile?.avatar_url
-                                                        ? (
-                                                            <Image
-                                                                src={profile.avatar_url}
-                                                                alt={profile?.full_name ? `תמונת הפרופיל של ${profile.full_name}` : "תמונת פרופיל"}
-                                                                width={40}
-                                                                height={40}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        )
-                                                        : displayHouse === 'Gryffindor' ? "🦁" : displayHouse === 'Slytherin' ? "🐍" : displayHouse === 'Ravenclaw' ? "🦅" : "🦡"
-                                                    }
+                                                    <MagicAvatar
+                                                        avatarUrl={profile?.avatar_url}
+                                                        name={displayName}
+                                                        house={profile?.house}
+                                                        className="h-full w-full"
+                                                        roundedClassName="rounded-full"
+                                                        fallbackClassName="text-lg"
+                                                    />
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="font-assistant font-bold text-sm truncate" title={identityMeta} style={{ color: nameColor }}>{displayName}</p>

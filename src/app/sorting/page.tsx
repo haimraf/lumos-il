@@ -149,9 +149,9 @@ const QUESTIONS: Question[] = [
     text: "איזה 'דירוג' היית הכי רוצה לשמוע על עצמך בסיום לימודיך?",
     icon: <Trophy className="text-amber-600/25" size={56} />,
     options: [
-      { text: "התלמיד׳ הכי מבריק׳ שהוגוורטס ידעה מעולם", house: "Ravenclaw" },
-      { text: "הקוסמ׳ הכי אמיצ׳ שהוגוורטס חינכה", house: "Gryffindor" },
-      { text: "החבר׳ הטוב׳ ביותר שניתן לבקש", house: "Hufflepuff" },
+      { text: "התלמיד/ה הכי מבריק/ה שהוגוורטס ידעה מעולם", house: "Ravenclaw" },
+      { text: "הקוסם/ת הכי אמיצ/ה שהוגוורטס חינכה", house: "Gryffindor" },
+      { text: "החבר/ה הטוב/ה ביותר שניתן לבקש", house: "Hufflepuff" },
       { text: "מי שעלה לגדולה כנגד כל הסיכויים", house: "Slytherin" }
     ]
   },

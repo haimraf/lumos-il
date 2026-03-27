@@ -1,5 +1,6 @@
 "use client";
 
+import imageCompression from "browser-image-compression";
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -7,7 +8,7 @@ import Link from "next/link";
 import {
   Coins, Trophy, Wand2, Users, ScrollText, ShoppingBag,
   ChevronRight, LogOut, Settings, Mail, Lock, Sparkles, Zap, Home, Bell,
-  Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu, Swords, type LucideIcon
+  Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Menu, Swords, Camera, Loader2, type LucideIcon
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import MaraudersMap from "@/components/MaraudersMap";
@@ -15,6 +16,8 @@ import HouseCupLeaderboard from "@/components/HouseCupLeaderboard";
 import { useAuth } from "@/context/AuthContext";
 import MagicTraitsCard from "../../components/MagicTraitsCard";
 import PatronusQuiz from "@/components/PatronusQuiz";
+import MagicAvatar from "@/components/MagicAvatar";
+import { renderAvatarFrameBlob } from "@/lib/mediaFraming";
 import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 import {
   computeQuestProgress,
@@ -22,6 +25,7 @@ import {
   type ComputedQuest,
   type ProfileQuestSnapshot,
 } from "@/lib/gameplay/questProgress";
+import { fetchQuestCatalog, subscribeToQuestCatalogChanges } from "@/lib/gameplay/questCatalog";
 import { getYearFromProfile, getYearTitle, getYearLabel, getProgressPercentFromProfile, getNextYearRequirements } from "@/lib/yearSystem";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
@@ -250,6 +254,8 @@ function DashboardContent() {
   const prevYearRef = useRef<number | null>(null);
   const [roleColors, setRoleColors] = useState<Record<string, string>>({});
   const [myGroup, setMyGroup] = useState<{ name: string; color: string } | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
   useEffect(() => {
     if (!profile?.group_id) { setMyGroup(null); return; }
@@ -288,6 +294,52 @@ function DashboardContent() {
     } catch (e) { return { companions: [], items: [], cards: [], potions_ingredients: [] }; }
   };
 
+  const handleAvatarUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const userId = session?.user?.id;
+    if (!file || !userId) return;
+
+    setUploadingAvatar(true);
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+        fileType: "image/webp",
+      });
+      const sourcePath = `${userId}/avatar-source.webp`;
+      const { error: sourceError } = await supabase.storage.from("avatars").upload(sourcePath, compressed, { upsert: true });
+      if (sourceError) throw sourceError;
+      const framedAvatar = await renderAvatarFrameBlob(compressed, {
+        position: "50% 50%",
+        zoom: 1,
+      });
+
+      const path = `${userId}/avatar.webp`;
+      const { error } = await supabase.storage.from("avatars").upload(path, framedAvatar, { upsert: true });
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: avatarUrl })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+      await refreshProfile();
+      sendOwl("האווטאר עודכן", "תמונת הפרופיל החדשה נשמרה בהצלחה.", "success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "לא הצלחנו לעדכן את האווטאר.";
+      sendOwl("שגיאת אווטאר", message, "error");
+    } finally {
+      event.target.value = "";
+      setUploadingAvatar(false);
+    }
+  }, [refreshProfile, sendOwl, session?.user?.id, supabase]);
+
   const fetchNotifications = useCallback(async (userId: string) => {
     const { data } = await supabase.from('notifications').select(`*, actor_profile:actor_id (full_name, house)`).eq('user_id', userId).order('created_at', { ascending: false });
     setNotifications(data || []);
@@ -320,8 +372,11 @@ function DashboardContent() {
     };
 
     try {
-      const activity = await fetchQuestActivitySummary(supabase, profile.id);
-      const questProgress = computeQuestProgress(profileSnapshot, activity);
+      const [activity, questCatalog] = await Promise.all([
+        fetchQuestActivitySummary(supabase, profile.id),
+        fetchQuestCatalog(supabase),
+      ]);
+      const questProgress = computeQuestProgress(profileSnapshot, activity, questCatalog);
 
       setMissionQuests(questProgress.quests);
       setMissionActions(
@@ -382,6 +437,20 @@ function DashboardContent() {
 
     return () => {
       supabase.removeChannel(missionChannel);
+    };
+  }, [loadMissionFocus, session?.user?.id, supabase]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const questCatalogChannel = subscribeToQuestCatalogChanges(
+      supabase,
+      `dashboard-${session.user.id}`,
+      loadMissionFocus,
+    );
+
+    return () => {
+      supabase.removeChannel(questCatalogChannel);
     };
   }, [loadMissionFocus, session?.user?.id, supabase]);
 
@@ -572,14 +641,23 @@ function DashboardContent() {
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none rounded-[2.5rem]" />
 
                 <div className="relative z-10 flex flex-col items-center gap-4 border-b border-white/10 pb-6 text-center">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
                   <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br ${theme.colors} p-1 shadow-lg ring-2 ring-white/10`}>
-                    <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center text-3xl md:text-4xl">
-                      {profile?.avatar_url
-                        ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                        : profile?.house === 'Gryffindor' ? "🦁" : profile?.house === 'Slytherin' ? "🐍" : profile?.house === 'Ravenclaw' ? "🦅" : "🦡"
-                    }
+                    <MagicAvatar
+                      avatarUrl={profile?.avatar_url}
+                      name={profile?.full_name}
+                      house={profile?.house}
+                      className="w-full h-full"
+                      roundedClassName="rounded-full"
+                      fallbackClassName="text-3xl md:text-4xl"
+                    />
                   </div>
-                </div>
                   <div>
                     <h3 className="font-cinzel text-xl md:text-2xl font-black tracking-tight mb-1"
                     style={{ color: badgeColor }}>
@@ -610,6 +688,15 @@ function DashboardContent() {
                         </span>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      className="mt-4 inline-flex items-center justify-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[10px] font-cinzel font-black uppercase tracking-[0.18em] text-amber-100 transition-all hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {uploadingAvatar ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />}
+                      {uploadingAvatar ? "מעלה..." : "שנה אווטאר"}
+                    </button>
                   </div>
                 </div>
 

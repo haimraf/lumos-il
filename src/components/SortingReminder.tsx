@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { isUnsortedHouse } from "@/lib/houses";
 
 export default function SortingReminder() {
     const { profile } = useAuth();
@@ -20,7 +21,7 @@ export default function SortingReminder() {
     const excludedPaths = ['/sorting', '/', '/login', '/register'];
     if (excludedPaths.includes(pathname)) return null;
 
-    const isUnsorted = !profile.house || profile.house === 'Unsorted';
+    const isUnsorted = isUnsortedHouse(profile.house);
     if (!isUnsorted) return null;
 
     return (
@@ -64,7 +65,7 @@ export default function SortingReminder() {
                 </Link>
 
                 <p className="mt-8 text-xs text-slate-500 font-assistant tracking-widest uppercase opacity-60">
-                    — משרד הקסמים מאשר מעבר לממוינים בלבד —
+                    • משרד הקסמים מאשר מעבר לממוינים בלבד •
                 </p>
             </div>
 
@@ -88,3 +89,4 @@ export default function SortingReminder() {
         </div>
     );
 }
+
