@@ -29,6 +29,8 @@ import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
 import AdminQuestCatalogTab from "@/components/admin/AdminQuestCatalogTab";
 import AdminSystemHealthPanel from "@/components/admin/AdminSystemHealthPanel";
 import AdminTabGuide, { type AdminTabGuideContent } from "@/components/admin/AdminTabGuide";
+import AdminUsersTab from "@/components/admin/AdminUsersTab";
+import AdminForumsTab from "@/components/admin/AdminForumsTab";
 import { getYearFromProfile, getYearTitle } from "@/lib/yearSystem";
 import { logAdminAudit, type AdminAuditInput } from "@/lib/adminAudit";
 import { logActivityEvent } from "@/lib/activityEvents";
@@ -516,22 +518,34 @@ export default function AdminPanel() {
         });
     }, [profile?.id, profile?.full_name, profile?.role, supabase]);
 
+    const fetchShopItems = useCallback(async () => {
+        const { data } = await supabase.from('shop_items').select('*').order('created_at', { ascending: false });
+        setShopItems(data || []);
+    }, [supabase]);
+
+    const fetchExamQuestions = useCallback(async () => {
+        const { data } = await supabase.from('exam_questions').select('*').order('created_at', { ascending: false });
+        setExamQuestions(data || []);
+    }, [supabase]);
+
+    const fetchStories = useCallback(async () => {
+        const { data } = await supabase.from('stories').select('*').order('created_at', { ascending: false }).limit(20);
+        setStories(data || []);
+    }, [supabase]);
+
     /* ── Fetch ── */
     const fetchData = useCallback(async () => {
         const [{ data: reportData }, { data: newsData }, { data: profilesData },
-            { data: forumsData }, { data: forumCategoriesData }, { data: shopData }, { data: examData }, { data: groupsData },
-            { data: logsData }, { data: activityData }, { data: storiesData }, { data: settingsData }] = await Promise.all([
+            { data: forumsData }, { data: forumCategoriesData }, { data: groupsData },
+            { data: logsData }, { data: activityData }, { data: settingsData }] = await Promise.all([
                 supabase.from('reports').select('*').order('created_at', { ascending: false }),
                 supabase.from('news').select('*').order('created_at', { ascending: false }),
-                supabase.from('profiles').select('*, post_count:forum_posts(count), user_groups(id, name, color)').order('created_at', { ascending: true }),
+                supabase.from('profiles').select('*, user_groups(id, name, color)').order('created_at', { ascending: true }),
                 supabase.from('forums').select('*, thread_count:threads(count)').order('created_at', { ascending: true }),
                 supabase.from('forum_categories').select('*').order('display_order'),
-                supabase.from('shop_items').select('*').order('created_at', { ascending: false }),
-                supabase.from('exam_questions').select('*').order('created_at', { ascending: false }),
                 supabase.from('user_groups').select('*').order('display_order'),
                 supabase.from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(150),
                 supabase.from('activity_events').select('*').order('created_at', { ascending: false }).limit(100),
-                supabase.from('stories').select('*').order('created_at', { ascending: false }).limit(20),
                 supabase.from('site_settings').select('*'),
             ]);
 
@@ -539,12 +553,9 @@ export default function AdminPanel() {
         setNews(newsData || []);
         setForums(forumsData || []);
         setForumCategories((forumCategoriesData as ForumCategory[]) || []);
-        setShopItems(shopData || []);
-        setExamQuestions(examData || []);
         setUserGroups(groupsData || []);
         setAdminLogs(logsData || []);
         setActivityEvents((activityData as any) || []);
-        setStories(storiesData || []);
 
         const settingsMap: Record<string, any> = {};
         settingsData?.forEach(s => { settingsMap[s.key] = s.value; });
@@ -572,6 +583,18 @@ export default function AdminPanel() {
         if (activeTab === "arena" && !arenaLoaded) fetchArenaData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab === "shop" && shopItems.length === 0) {
+            void fetchShopItems();
+        }
+        if (activeTab === "exams" && examQuestions.length === 0) {
+            void fetchExamQuestions();
+        }
+        if (activeTab === "library" && stories.length === 0) {
+            void fetchStories();
+        }
+    }, [activeTab, examQuestions.length, fetchExamQuestions, fetchShopItems, fetchStories, shopItems.length, stories.length]);
 
     useEffect(() => {
         if (!authLoading) {
@@ -1376,7 +1399,7 @@ export default function AdminPanel() {
             sendOwl(editingItem?.id ? "עודכן" : "נוסף", "הפריט נשמר.", "success");
             setEditingItem(null); setIsAddingItem(false);
             setNewItem({ name: "", description: "", price: 0, category: "wands", image_url: "", is_available: true });
-            fetchData();
+            await fetchShopItems();
         }
         setIsSavingItem(false);
     };
@@ -1420,7 +1443,7 @@ export default function AdminPanel() {
             sendOwl(editingQuestion?.id ? "עודכן" : "נוסף", "השאלה נשמרה.", "success");
             setEditingQuestion(null); setIsAddingQuestion(false);
             setNewQuestion({ question: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "a", exam_type: "owl" });
-            fetchData();
+            await fetchExamQuestions();
         }
         setIsSavingQuestion(false);
     };
@@ -1609,16 +1632,12 @@ export default function AdminPanel() {
         }
     };
 
-    if (loading) return null;
+    const unsortedUsersCount = allProfiles.filter((entry: any) => isUnsortedHouse(entry.house)).length;
+    const profilesWithEmailCount = allProfiles.filter(
+        (entry: any) => typeof entry.email === "string" && entry.email.trim().length > 0,
+    ).length;
 
-    const unsortedUsersCount = useMemo(
-        () => allProfiles.filter((entry: any) => isUnsortedHouse(entry.house)).length,
-        [allProfiles],
-    );
-    const profilesWithEmailCount = useMemo(
-        () => allProfiles.filter((entry: any) => typeof entry.email === "string" && entry.email.trim().length > 0).length,
-        [allProfiles],
-    );
+    if (loading) return null;
     // Year distribution
     const yearDist = [1, 2, 3, 4, 5, 6, 7].map(y => ({
         year: y,
@@ -2013,504 +2032,63 @@ export default function AdminPanel() {
                             </>
                         )}
 
-                        {/* ── TAB 5: ניהול קוסמים ── */}
-                        {activeTab === "users" && (() => {
-                            const unsortedUsers = allProfiles.filter(p => isUnsortedHouse(p.house));
-                            const filteredUsers = allProfiles
-                                .filter(p => !userSearch || p.full_name?.toLowerCase().includes(userSearch.toLowerCase()))
-                                .filter(p => {
-                                    if (userFilter === "all") return true;
-                                    if (userFilter === "קוסם/ת") return !["מנהל", "מנחה"].includes(p.role || "");
-                                    if (userFilter === "unsorted") return isUnsortedHouse(p.house);
-                                    return p.role === userFilter;
-                                });
-
-                            const totalUsers = allProfiles.length;
-                            const withGroup = allProfiles.filter(p => p.group_id).length;
-                            const admins = allProfiles.filter(p => p.role === "מנהל").length;
-
-                            return (
-                                <>
-                                    {/* Stats row */}
-                                    <section className="grid grid-cols-3 gap-3">
-                                        {[
-                                            { label: "קוסמים", count: totalUsers, color: "text-white/60", icon: "🧙" },
-                                            { label: "עם דרגה", count: withGroup, color: "text-indigo-400", icon: "👑" },
-                                            { label: "מנהלים", count: admins, color: "text-amber-400", icon: "🛡️" },
-                                        ].map(r => (
-                                            <div key={r.label} className="admin-card rounded-2xl p-4 text-center space-y-1">
-                                                <div className="text-2xl">{r.icon}</div>
-                                                <div className={`font-cinzel font-black text-xl ${r.color}`}>{r.count}</div>
-                                                <div className="font-cinzel text-[9px] text-white/25 uppercase tracking-widest">{r.label}</div>
-                                            </div>
-                                        ))}
-                                    </section>
-
-                                    {unsortedUsers.length > 0 && (
-                                        <section className="admin-card rounded-2xl border border-cyan-500/15 bg-cyan-500/5 p-5 space-y-3">
-                                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                                <div>
-                                                    <h3 className="font-cinzel text-xs font-black uppercase tracking-widest text-cyan-300">
-                                                        משתמשים שעדיין לא מוינו
-                                                    </h3>
-                                                    <p className="mt-2 text-sm leading-relaxed text-white/50">
-                                                        זו רשימת המשתמשים שהבית שלהם עדיין לא נסגר. אפשר לפתוח כל פרופיל, לבדוק אם חסר טקס מיון, ולפנות אליהם גם דרך דיוור הינשופים.
-                                                    </p>
-                                                </div>
-                                                <div className="rounded-full border border-cyan-400/15 bg-cyan-500/10 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-cyan-100">
-                                                    {unsortedUsers.length} טרם מוינו
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {unsortedUsers.slice(0, 10).map((wizard) => (
-                                                    <Link
-                                                        key={wizard.id}
-                                                        href={`/wizard/${wizard.id}`}
-                                                        className="rounded-full border border-cyan-400/20 bg-white/[0.03] px-3 py-1.5 text-xs text-white/75 transition-all hover:border-cyan-300/40 hover:text-white"
-                                                    >
-                                                        {wizard.full_name || "קוסם/ת ללא שם"}
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        </section>
-                                    )}
-
-                                    {/* Search */}
-                                    <section className="admin-card rounded-2xl p-5 space-y-4">
-                                        <h3 className="font-cinzel text-xs font-black text-teal-400 flex items-center gap-2 uppercase tracking-widest">
-                                            <UserCog size={13} /> ניהול קוסמים ודרגות
-                                        </h3>
-                                        <div className="flex gap-3 flex-wrap">
-                                            <div className="relative flex-1 min-w-[160px]">
-                                                <input
-                                                    value={userSearch}
-                                                    onChange={e => setUserSearch(e.target.value)}
-                                                    placeholder="חיפוש לפי שם..."
-                                                    className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-teal-500/30 rounded-xl p-3 pr-10 text-sm outline-none transition-all"
-                                                    dir="rtl"
-                                                />
-                                                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
-                                            </div>
-                                            <div className="flex gap-1">
-                                                {(["all", "מנהל", "מנחה", "קוסם/ת"] as const).map(f => (
-                                                    <button key={f}
-                                                        onClick={() => setUserFilter(f)}
-                                                        className={`px-3 py-2 rounded-xl font-cinzel text-[10px] uppercase tracking-wide transition-all border
-                                                            ${userFilter === f
-                                                                ? 'bg-teal-500/20 border-teal-500/30 text-teal-300'
-                                                                : 'bg-white/[0.02] border-white/[0.05] text-white/30 hover:text-white/60'
-                                                            }`}>
-                                                        {f === "all" ? "הכל" : f}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* User list */}
-                                        <div className="space-y-2 max-h-[480px] overflow-y-auto">
-                                            {filteredUsers.length === 0 && (
-                                                <p className="text-center text-white/20 font-cinzel text-xs py-8">לא נמצאו קוסמים</p>
-                                            )}
-                                            {filteredUsers.map(p => {
-                                                const cfg = p.house ? HOUSE_CONFIG[p.house] : null;
-                                                const isBanned = p.status === 'banned' || p.status === 'cooling';
-                                                const grp = p.user_groups as { name: string; color: string } | null;
-                                                return (
-                                                    <div key={p.id} className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/[0.04] hover:border-white/[0.08] transition-all">
-                                                        {/* Avatar */}
-                                                        <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center shrink-0 text-base"
-                                                            style={{ background: cfg ? cfg.accent : "rgba(255,255,255,0.05)" }}>
-                                                            {p.avatar_url
-                                                                ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
-                                                                : cfg?.icon || "🧙"
-                                                            }
-                                                        </div>
-
-                                                        {/* Name + house + points */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="font-bold text-sm text-white/80 truncate">{p.full_name || "—"}</span>
-                                                                {isBanned && (
-                                                                    <span className="px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/20 text-red-400 font-cinzel text-[8px] uppercase">
-                                                                        {p.status === 'cooling' ? "קירור" : "חסום"}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-2 mt-0.5">
-                                                                <span className={`font-cinzel text-[9px] uppercase ${cfg?.color || 'text-white/20'}`}>{p.house || "—"}</span>
-                                                                <span className="text-white/10 text-[8px]">·</span>
-                                                                <span className="text-white/20 text-[9px] font-cinzel">{p.points_contributed || 0} נק׳</span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Unified group/rank editor */}
-                                                        <div className="shrink-0">
-                                                            {editingGroup?.id === p.id ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <select
-                                                                        value={editingGroup?.group_id ?? ""}
-                                                                        onChange={e => setEditingGroup({ id: p.id, group_id: e.target.value ? parseInt(e.target.value) : null })}
-                                                                        style={{ backgroundColor: '#0f172a', color: '#e2e8f0', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', border: '1px solid rgba(99,102,241,0.4)', outline: 'none', colorScheme: 'dark' }}
-                                                                    >
-                                                                        <option value="" style={{ backgroundColor: '#0f172a' }}>ללא דרגה</option>
-                                                                        {userGroups.map(g => (
-                                                                            <option key={g.id} value={g.id} style={{ backgroundColor: '#0f172a', color: g.color }}>{g.name}</option>
-                                                                        ))}
-                                                                    </select>
-                                                                    <button onClick={handleSaveGroup} disabled={isSavingGroup}
-                                                                        className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500 hover:text-white transition-all disabled:opacity-40">
-                                                                        <Save size={11} />
-                                                                    </button>
-                                                                    <button onClick={() => setEditingGroup(null)}
-                                                                        className="p-1.5 bg-white/5 text-white/30 rounded-lg hover:bg-white/10 transition-all">
-                                                                        <X size={11} />
-                                                                    </button>
-                                                                </div>
-                                                            ) : editingRole?.id === p.id ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <select
-                                                                        value={editingRole?.role ?? "קוסמ׳"}
-                                                                        onChange={e => setEditingRole({ id: p.id, role: e.target.value })}
-                                                                        style={{ backgroundColor: '#0f172a', color: '#e2e8f0', borderRadius: '8px', padding: '4px 8px', fontSize: '11px', border: '1px solid rgba(20,184,166,0.4)', outline: 'none', colorScheme: 'dark' }}
-                                                                    >
-                                                                        <option value="קוסמ׳" style={{ backgroundColor: '#0f172a' }}>קוסם/ת</option>
-                                                                        <option value="מנחה" style={{ backgroundColor: '#0f172a' }}>מנחה</option>
-                                                                        <option value="מנהל" style={{ backgroundColor: '#0f172a' }}>מנהל</option>
-                                                                    </select>
-                                                                    <button onClick={handleSaveRole} disabled={isSavingRole}
-                                                                        className="p-1.5 bg-teal-500/20 text-teal-400 rounded-lg hover:bg-teal-500 hover:text-white transition-all disabled:opacity-40">
-                                                                        <Save size={11} />
-                                                                    </button>
-                                                                    <button onClick={() => setEditingRole(null)}
-                                                                        className="p-1.5 bg-white/5 text-white/30 rounded-lg hover:bg-white/10 transition-all">
-                                                                        <X size={11} />
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    {grp ? (
-                                                                        <span
-                                                                            className="px-2 py-0.5 rounded-full text-[9px] font-cinzel font-black uppercase tracking-wide"
-                                                                            style={{ background: `${grp.color}18`, color: grp.color, border: `1px solid ${grp.color}35` }}
-                                                                        >
-                                                                            {grp.name}
-                                                                        </span>
-                                                                    ) : (() => {
-                                                                        const rc = getRoleColor(p.role, p.house);
-                                                                        return (
-                                                                            <span style={{
-                                                                                fontSize: "9px", fontWeight: 900, fontFamily: "'Cinzel', serif",
-                                                                                textTransform: "uppercase", letterSpacing: "0.1em",
-                                                                                padding: "1px 8px", borderRadius: "999px",
-                                                                                color: rc, background: `${rc}18`, border: `1px solid ${rc}40`,
-                                                                            }}>
-                                                                                {p.role || "ללא דרגה"}
-                                                                            </span>
-                                                                        );
-                                                                    })()}
-                                                                    <button
-                                                                        onClick={() => setEditingGroup({ id: p.id, group_id: p.group_id || null })}
-                                                                        title="שנה דרגה"
-                                                                        className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500 hover:text-white transition-all">
-                                                                        <Crown size={11} />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleToggleBan(p.id, p.status || 'active')}
-                                                                        title={isBanned ? "בטל חסימה" : "חסום קוסם/ת"}
-                                                                        className={`p-1.5 rounded-lg transition-all ${isBanned
-                                                                            ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'
-                                                                            : 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white'
-                                                                            }`}>
-                                                                        <Shield size={11} />
-                                                                    </button>
-                                                                    {isAdmin && (
-                                                                        <button
-                                                                            onClick={() => setEditingRole({ id: p.id, role: p.role || "קוסמ׳" })}
-                                                                            title="שנה תפקיד"
-                                                                            className="p-1.5 bg-teal-500/10 text-teal-400 rounded-lg hover:bg-teal-500 hover:text-white transition-all">
-                                                                            <UserCog size={11} />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </section>
-                                </>
-                            );
-                        })()}
-
-                        {/* ── TAB 6: פורומים ── */}
-                        {/* ── TAB 6: פורומים ── */}
-                        {activeTab === "forums" && (
-                            <>
-                                <section className="grid grid-cols-3 gap-3">
-                                    <div className="admin-card rounded-2xl p-4 text-center space-y-1">
-                                        <div className="font-cinzel font-black text-xl text-orange-400">{forums.length}</div>
-                                        <div className="font-cinzel text-[9px] text-white/25 uppercase tracking-widest">פורומים</div>
-                                    </div>
-                                    <div className="admin-card rounded-2xl p-4 text-center space-y-1">
-                                        <div className="font-cinzel font-black text-xl text-sky-300">{forumCategories.length}</div>
-                                        <div className="font-cinzel text-[9px] text-white/25 uppercase tracking-widest">קטגוריות</div>
-                                    </div>
-                                    <div className="admin-card rounded-2xl p-4 text-center space-y-1">
-                                        <div className="font-cinzel font-black text-xl text-rose-300">{forums.filter(f => f.staff_only_create || f.house_restriction || f.min_year).length}</div>
-                                        <div className="font-cinzel text-[9px] text-white/25 uppercase tracking-widest">מוגבלים</div>
-                                    </div>
-                                </section>
-
-                                {(isAddingForum || editingForumId) && (
-                                    <section className="admin-card rounded-2xl p-5 space-y-4 border border-orange-500/20">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div>
-                                                <h3 className="font-cinzel text-xs font-black text-orange-400 flex items-center gap-2 uppercase tracking-widest">
-                                                    <Plus size={13} /> {editingForumId ? "עריכת פורום" : "פורום חדש"}
-                                                </h3>
-                                                <p className="text-[11px] text-white/35 mt-1">הטופס מחובר ישירות לטבלת `forums` ולקטגוריות הקיימות במסד.</p>
-                                            </div>
-                                            <button
-                                                onClick={closeForumEditor}
-                                                className="px-3 py-2 rounded-xl bg-white/5 text-white/35 hover:bg-white/10 hover:text-white/70 transition-all text-xs font-cinzel"
-                                            >
-                                                ביטול
-                                            </button>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">שם הפורום</label>
-                                                <input
-                                                    value={forumForm.name}
-                                                    onChange={(e) => handleForumNameChange(e.target.value)}
-                                                    className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-sm text-white/80 outline-none focus:border-orange-500/30 transition-all"
-                                                    dir="rtl"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">סלאג / כתובת</label>
-                                                <input
-                                                    value={forumForm.slug}
-                                                    onChange={(e) => setForumForm(prev => ({ ...prev, slug: normalizeForumSlug(e.target.value) }))}
-                                                    className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-sm text-white/80 outline-none focus:border-orange-500/30 transition-all"
-                                                    dir="ltr"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">אייקון</label>
-                                                <input
-                                                    value={forumForm.icon}
-                                                    onChange={(e) => setForumForm(prev => ({ ...prev, icon: e.target.value }))}
-                                                    className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-sm text-white/80 outline-none focus:border-orange-500/30 transition-all"
-                                                    dir="rtl"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">קטגוריה</label>
-                                                <select
-                                                    value={forumForm.category_id}
-                                                    onChange={(e) => setForumForm(prev => ({ ...prev, category_id: e.target.value }))}
-                                                    className="w-full rounded-xl p-3 text-sm outline-none"
-                                                    style={{ backgroundColor: "#0f172a", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.08)", colorScheme: "dark" }}
-                                                >
-                                                    <option value="">ללא קטגוריה</option>
-                                                    {forumCategories.map(category => (
-                                                        <option key={category.id} value={category.id}>{category.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2 md:col-span-2">
-                                                <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">תיאור</label>
-                                                <textarea
-                                                    value={forumForm.description}
-                                                    onChange={(e) => setForumForm(prev => ({ ...prev, description: e.target.value }))}
-                                                    className="w-full h-24 resize-none bg-black/20 border border-white/5 rounded-xl p-3 text-sm text-white/80 outline-none focus:border-orange-500/30 transition-all"
-                                                    dir="rtl"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">הגבלת בית</label>
-                                                <select
-                                                    value={forumForm.house_restriction}
-                                                    onChange={(e) => setForumForm(prev => ({ ...prev, house_restriction: e.target.value }))}
-                                                    className="w-full rounded-xl p-3 text-sm outline-none"
-                                                    style={{ backgroundColor: "#0f172a", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.08)", colorScheme: "dark" }}
-                                                >
-                                                    <option value="">ללא הגבלה</option>
-                                                    {HOUSE_OPTIONS.filter(Boolean).map(house => (
-                                                        <option key={house} value={house}>{house}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">שנת מינימום</label>
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    max={7}
-                                                    value={forumForm.min_year}
-                                                    onChange={(e) => setForumForm(prev => ({ ...prev, min_year: e.target.value }))}
-                                                    className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-sm text-white/80 outline-none focus:border-orange-500/30 transition-all"
-                                                />
-                                            </div>
-                                            <div className="flex items-end">
-                                                <label className="flex items-center gap-2 cursor-pointer text-sm text-white/60">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={forumForm.staff_only_create}
-                                                        onChange={(e) => setForumForm(prev => ({ ...prev, staff_only_create: e.target.checked }))}
-                                                    />
-                                                    יצירה רק לצוות
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-end gap-2">
-                                            <button
-                                                onClick={closeForumEditor}
-                                                className="px-4 py-2 rounded-xl bg-white/5 text-white/40 hover:bg-white/10 transition-all text-xs font-cinzel"
-                                            >
-                                                ביטול
-                                            </button>
-                                            <button
-                                                onClick={handleSaveForum}
-                                                disabled={isSavingForum}
-                                                className="px-4 py-2 rounded-xl bg-orange-500/15 text-orange-300 border border-orange-500/30 hover:bg-orange-500 hover:text-white transition-all text-xs font-cinzel font-black disabled:opacity-40 flex items-center gap-2"
-                                            >
-                                                <Save size={11} /> {isSavingForum ? "שומר..." : editingForumId ? "שמור שינויים" : "צור פורום"}
-                                            </button>
-                                        </div>
-                                    </section>
-                                )}
-
-                                {/* Forums list */}
-                                <section className="admin-card rounded-2xl p-5 space-y-3">
-                                    <div className="flex justify-end">
-                                        <button
-                                            onClick={handleCreateForumDraft}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/15 border border-orange-500/25 text-orange-300 rounded-xl font-cinzel text-[10px] hover:bg-orange-500 hover:text-white transition-all"
-                                        >
-                                            <Plus size={11} /> הוסף פורום
-                                        </button>
-                                    </div>
-                                    <h3 className="font-cinzel text-xs font-black text-orange-400 flex items-center gap-2 uppercase tracking-widest">
-                                        <MessageSquare size={13} /> קטגוריות פורומים ({forums.length})
-                                    </h3>
-                                    <div className="space-y-2">
-                                        {forums.map(f => {
-                                            const threadCount = Array.isArray(f.thread_count) ? f.thread_count[0]?.count ?? 0 : f.thread_count ?? 0;
-                                            const categoryName = f.category_id ? forumCategoryMap[f.category_id] : null;
-                                            return (
-                                                <div key={f.id} className={`group flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer
-                                                    ${selectedForum?.id === f.id ? 'bg-orange-500/10 border-orange-500/30' : 'bg-white/[0.02] border-white/[0.05] hover:border-white/10'}`}
-                                                    onClick={() => { setSelectedForum(f); fetchThreads(f.id); setThreadSearch(""); }}>
-                                                    <span className="text-xl shrink-0">{f.icon || "💬"}</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <p className="font-cinzel text-xs font-black text-white/80 truncate">{f.name}</p>
-                                                            {categoryName && (
-                                                                <span className="px-2 py-0.5 rounded-full text-[9px] bg-sky-400/10 border border-sky-400/20 text-sky-200">
-                                                                    {categoryName}
-                                                                </span>
-                                                            )}
-                                                            {f.staff_only_create && (
-                                                                <span className="px-2 py-0.5 rounded-full text-[9px] bg-rose-400/10 border border-rose-400/20 text-rose-200">
-                                                                    צוות
-                                                                </span>
-                                                            )}
-                                                            {f.house_restriction && (
-                                                                <span className="px-2 py-0.5 rounded-full text-[9px] bg-emerald-400/10 border border-emerald-400/20 text-emerald-200">
-                                                                    {f.house_restriction}
-                                                                </span>
-                                                            )}
-                                                            {f.min_year && (
-                                                                <span className="px-2 py-0.5 rounded-full text-[9px] bg-amber-400/10 border border-amber-400/20 text-amber-200">
-                                                                    שנה {f.min_year}+
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-[10px] text-white/25">/{f.slug} · {threadCount} שרשורים</p>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleEditForumDraft(f); }}
-                                                            className="p-1.5 bg-orange-500/10 text-orange-300 rounded-lg hover:bg-orange-500 hover:text-white transition-all"
-                                                        >
-                                                            <Pencil size={11} />
-                                                        </button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteForum(f.id); }}
-                                                            className="p-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all">
-                                                            <Trash2 size={11} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-
-                                {/* Threads management */}
-                                {selectedForum && (
-                                    <section className="admin-card rounded-2xl p-5 space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="font-cinzel text-xs font-black text-orange-400 flex items-center gap-2 uppercase tracking-widest">
-                                                <Hash size={13} /> שרשורים — {selectedForum.name}
-                                            </h3>
-                                            <button onClick={() => { setSelectedForum(null); setThreads([]); }}
-                                                className="text-white/20 hover:text-white/50 transition-colors">
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                        <div className="relative">
-                                            <input value={threadSearch} onChange={e => setThreadSearch(e.target.value)}
-                                                placeholder="חיפוש שרשור..." dir="rtl"
-                                                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 pr-10 text-sm outline-none focus:border-orange-500/30 transition-all" />
-                                            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
-                                        </div>
-                                        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                                            {threads
-                                                .filter(t => !threadSearch || t.title?.toLowerCase().includes(threadSearch.toLowerCase()))
-                                                .map(t => {
-                                                    const postCount = Array.isArray(t.post_count) ? t.post_count[0]?.count ?? 0 : t.post_count ?? 0;
-                                                    return (
-                                                        <div key={t.id} className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/[0.04] hover:border-white/[0.08] transition-all">
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2 flex-wrap">
-                                                                    {t.is_pinned && <span className="text-amber-400 text-[8px]">📌</span>}
-                                                                    {t.is_locked && <span className="text-red-400 text-[8px]">🔒</span>}
-                                                                    <span className="font-bold text-xs text-white/75 truncate">{t.title}</span>
-                                                                </div>
-                                                                <p className="text-[10px] text-white/25 mt-0.5">{t.profiles?.full_name || "—"} · {postCount} תגובות</p>
-                                                            </div>
-                                                            <div className="flex items-center gap-1 shrink-0">
-                                                                <button onClick={() => handlePinThread(t)} title={t.is_pinned ? "בטל עיגון" : "עגן שרשור"}
-                                                                    className={`p-1.5 rounded-lg transition-all text-xs ${t.is_pinned ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-white/30 hover:text-amber-400'}`}>
-                                                                    <Pin size={11} />
-                                                                </button>
-                                                                <button onClick={() => handleLockThread(t)} title={t.is_locked ? "פתח" : "נעל"}
-                                                                    className={`p-1.5 rounded-lg transition-all ${t.is_locked ? 'bg-red-500/20 text-red-400' : 'bg-white/5 text-white/30 hover:text-red-400'}`}>
-                                                                    <Lock size={11} />
-                                                                </button>
-                                                                <button onClick={() => handleDeleteThread(t.id)}
-                                                                    className="p-1.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all">
-                                                                    <Trash2 size={11} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            {threads.length === 0 && <p className="text-center text-white/20 font-cinzel text-xs py-6">אין שרשורים בפורום זה</p>}
-                                        </div>
-                                    </section>
-                                )}
-                            </>
+                        {activeTab === "users" && (
+                            <AdminUsersTab
+                                allProfiles={allProfiles}
+                                houseConfig={HOUSE_CONFIG}
+                                userSearch={userSearch}
+                                userFilter={userFilter}
+                                onUserSearchChange={setUserSearch}
+                                onUserFilterChange={setUserFilter}
+                                editingGroup={editingGroup}
+                                onEditingGroupChange={setEditingGroup}
+                                isSavingGroup={isSavingGroup}
+                                onSaveGroup={handleSaveGroup}
+                                editingRole={editingRole}
+                                onEditingRoleChange={setEditingRole}
+                                isSavingRole={isSavingRole}
+                                onSaveRole={handleSaveRole}
+                                userGroups={userGroups}
+                                onToggleBan={handleToggleBan}
+                                isAdmin={isAdmin}
+                            />
                         )}
 
+                        {activeTab === "forums" && (
+                            <AdminForumsTab
+                                forums={forums}
+                                forumCategories={forumCategories}
+                                selectedForum={selectedForum}
+                                threads={threads}
+                                threadSearch={threadSearch}
+                                onThreadSearchChange={setThreadSearch}
+                                onSelectForum={(forum) => {
+                                    setSelectedForum(forum);
+                                    fetchThreads(forum.id);
+                                    setThreadSearch("");
+                                }}
+                                onClearSelectedForum={() => {
+                                    setSelectedForum(null);
+                                    setThreads([]);
+                                }}
+                                forumForm={forumForm}
+                                onForumFormChange={(updater) => setForumForm(updater)}
+                                isAddingForum={isAddingForum}
+                                editingForumId={editingForumId}
+                                isSavingForum={isSavingForum}
+                                onForumNameChange={handleForumNameChange}
+                                onCloseForumEditor={closeForumEditor}
+                                onSaveForum={handleSaveForum}
+                                onCreateForumDraft={handleCreateForumDraft}
+                                onEditForumDraft={handleEditForumDraft}
+                                onDeleteForum={handleDeleteForum}
+                                forumCategoryMap={forumCategoryMap}
+                                houseOptions={HOUSE_OPTIONS.filter(Boolean)}
+                                onPinThread={handlePinThread}
+                                onLockThread={handleLockThread}
+                                onDeleteThread={handleDeleteThread}
+                            />
+                        )}
                         {/* ── TAB 7: חנות ── */}
                         {activeTab === "shop" && (() => {
                             const itemTypes = ["all", "wands", "potions", "companion", "cards", "travel"];
@@ -3879,6 +3457,7 @@ export default function AdminPanel() {
         </div>
     );
 }
+
 
 
 

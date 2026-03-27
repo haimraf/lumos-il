@@ -4,18 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { fetchOnlinePresenceRows, type OnlinePresenceRow } from "@/lib/presenceStatus";
 import {
   getHouseDisplayIcon,
   getHouseDisplayLabel,
   getHouseReadableColor,
   withAlpha,
 } from "@/lib/houses";
-
-type OnlineUserRow = {
-  id: string;
-  user_name: string | null;
-  house: string | null;
-};
 
 type ProfileGroupRow = {
   id: string;
@@ -25,7 +20,7 @@ type ProfileGroupRow = {
     | null;
 };
 
-type OnlineUser = OnlineUserRow & {
+type OnlineUser = OnlinePresenceRow & {
   group_color: string | null;
   group_name: string | null;
 };
@@ -43,23 +38,14 @@ export default function WhoIsOnline() {
   useEffect(() => {
     const fetchOnline = async () => {
       const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const [{ data }, { count }] = await Promise.all([
-        supabase
-          .from("online_users")
-          .select("id, user_name, house")
-          .gte("last_seen", cutoff)
-          .order("last_seen", { ascending: false })
-          .limit(20),
-        supabase
-          .from("online_users")
-          .select("id", { count: "exact", head: true })
-          .gte("last_seen", cutoff),
-      ]);
+      const { rows } = await fetchOnlinePresenceRows(supabase, {
+        cutoffIso: cutoff,
+        limit: 20,
+      });
 
-      if (!data) return;
-      setTotalOnline(count ?? data.length);
+      setTotalOnline(rows.length);
 
-      const members = (data as OnlineUserRow[]).filter((user) => !String(user.id).startsWith("guest_"));
+      const members = rows.filter((user) => user.presence_type === "member");
       const userIds = members.map((user) => user.id).filter(Boolean);
       const groupMap: Record<string, { color: string | null; name: string | null }> = {};
 

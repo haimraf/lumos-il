@@ -19,8 +19,8 @@ export default function MagicPresence() {
     const [supabase] = useState(() => createClient());
     const pathname = usePathname();
     const { session, profile, isLoading } = useAuth();
-    const lastActivityRef = useRef(Date.now());
-    const hasPresenceColumnsRef = useRef<boolean | null>(null);
+    const lastActivityRef = useRef(0);
+    const presenceSchemaModeRef = useRef<"full" | "basic" | "minimal">("full");
     const presenceDisabledRef = useRef(false);
     const cleanedLegacyPresenceRef = useRef<string | null>(null);
 
@@ -115,6 +115,12 @@ export default function MagicPresence() {
                 last_seen: new Date().toISOString(),
                 presence_type: presenceType,
             };
+            const minimalPayload = {
+                id: presenceId,
+                user_name: basePayload.user_name,
+                house: basePayload.house,
+                last_seen: basePayload.last_seen,
+            };
 
             const advancedPayload = {
                 ...basePayload,
@@ -122,19 +128,29 @@ export default function MagicPresence() {
                 last_active_at: lastActiveAt,
             };
 
-            const executeUpsert = async (payload: typeof advancedPayload | typeof basePayload) =>
+            const executeUpsert = async (payload: typeof advancedPayload | typeof basePayload | typeof minimalPayload) =>
                 supabase.from("online_users").upsert(payload, { onConflict: "id" });
 
-            let response =
-                hasPresenceColumnsRef.current === false
-                    ? await executeUpsert(basePayload)
-                    : await executeUpsert(advancedPayload);
+            const candidates = [
+                { mode: "full" as const, payload: advancedPayload },
+                { mode: "basic" as const, payload: basePayload },
+                { mode: "minimal" as const, payload: minimalPayload },
+            ];
+            const startIndex = Math.max(
+                0,
+                candidates.findIndex((candidate) => candidate.mode === presenceSchemaModeRef.current),
+            );
 
-            if (response.error && isMissingPresenceColumnsError(response.error)) {
-                hasPresenceColumnsRef.current = false;
-                response = await executeUpsert(basePayload);
-            } else if (!response.error) {
-                hasPresenceColumnsRef.current = true;
+            let response = await executeUpsert(candidates[startIndex].payload);
+            let resolvedMode = candidates[startIndex].mode;
+
+            for (let index = startIndex + 1; response.error && isMissingPresenceColumnsError(response.error) && index < candidates.length; index += 1) {
+                response = await executeUpsert(candidates[index].payload);
+                resolvedMode = candidates[index].mode;
+            }
+
+            if (!response.error) {
+                presenceSchemaModeRef.current = resolvedMode;
             }
 
             if (

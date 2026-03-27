@@ -29,6 +29,7 @@ const PAGE_CTA: Record<string, { label: string; href: string }> = {
     '/forums': { label: 'צור אשכול', href: '/forums/create' },
 };
 
+const NEXT_ACTIONS_ENABLED = false;
 const QUESTS_FAQ_LINK = "/faq";
 
 type LiveResult = { id: string; title: string; type: 'story' | 'news' | 'thread'; href: string };
@@ -161,7 +162,7 @@ export default function Header() {
     ].filter(Boolean).join(" · ");
 
     const loadNextAction = useCallback(async () => {
-        if (!isAuthenticated || !displayProfileId) {
+        if (!NEXT_ACTIONS_ENABLED || !isAuthenticated || !displayProfileId) {
             setNextAction(null);
             setNextActionLoading(false);
             return;
@@ -207,7 +208,7 @@ export default function Header() {
     ]);
 
     useEffect(() => {
-        if (!isAuthenticated || !displayProfileId) {
+        if (!NEXT_ACTIONS_ENABLED || !isAuthenticated || !displayProfileId) {
             queueMicrotask(() => {
                 setNextAction(null);
                 setNextActionLoading(false);

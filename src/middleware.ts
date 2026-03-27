@@ -2,11 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PROTECTED_ROUTES = [
-  "/dashboard",
   "/admin-panel",
-  "/great-hall",
-  "/ollivanders",
-  "/quests",
 ] as const;
 
 function isProtectedPath(pathname: string) {
@@ -89,10 +85,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
     "/admin-panel/:path*",
-    "/great-hall/:path*",
-    "/ollivanders/:path*",
-    "/quests/:path*",
   ],
 };

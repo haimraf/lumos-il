@@ -24,15 +24,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [supabase] = useState(() => createClient());
 
+  const fetchProfileFromServer = useCallback(async () => {
+    const response = await fetch("/api/auth/profile", {
+      method: "GET",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.profile) {
+      return null;
+    }
+
+    return {
+      profile: payload.profile,
+      source: typeof payload.source === "string" ? payload.source : "server",
+    };
+  }, []);
+
   const fetchProfile = useCallback(async (userId: string, userEmail?: string | null) => {
     try {
       setProfileError(null);
 
-      const { data: profileData, source, error: profileQueryError } = await fetchProfileWithFallback<any>(
+      const initialResult = await fetchProfileWithFallback<any>(
         supabase,
         { id: userId, email: userEmail },
         "*",
       );
+      let profileData = initialResult.data;
+      let source = initialResult.source;
+      let profileQueryError = initialResult.error;
+
+      if (!profileData && !initialResult.error) {
+        try {
+          const serverResult = await fetchProfileFromServer();
+          if (serverResult?.profile) {
+            profileData = serverResult.profile;
+            source = serverResult.source;
+            profileQueryError = null;
+          }
+        } catch (serverError) {
+          console.warn("[AuthContext] Server profile fallback failed:", serverError);
+        }
+      }
 
       if (profileQueryError || !profileData) {
         setProfile(null);
@@ -87,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile_lookup_source: source,
       };
 
-      if (source === "email") {
+      if (source === "email" || source === "server-email") {
         console.warn("[AuthContext] Profile resolved by email fallback for legacy account:", userEmail);
       }
 
@@ -99,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileError(message);
       return null;
     }
-  }, [supabase]);
+  }, [fetchProfileFromServer, supabase]);
 
   useEffect(() => {
     const getData = async () => {

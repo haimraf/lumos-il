@@ -22,9 +22,22 @@ type FetchOnlinePresenceOptions = {
 };
 
 type PresenceQueryRow = Partial<OnlinePresenceRow> & Record<string, unknown>;
+type PresenceSelectMode = "full" | "basic" | "minimal";
 
-const BASE_SELECT = "id, user_name, house, current_path, location_label, last_seen, presence_type";
-const EXTENDED_SELECT = `${BASE_SELECT}, presence_status, last_active_at`;
+const SELECT_BY_MODE: Record<PresenceSelectMode, string> = {
+  full: "id, user_name, house, current_path, location_label, last_seen, presence_type, presence_status, last_active_at",
+  basic: "id, user_name, house, current_path, location_label, last_seen, presence_type",
+  minimal: "id, user_name, house, last_seen",
+};
+
+const PRESENCE_FALLBACK_CHAIN: PresenceSelectMode[] = ["full", "basic", "minimal"];
+const MISSING_PRESENCE_COLUMNS = [
+  "presence_status",
+  "last_active_at",
+  "current_path",
+  "location_label",
+  "presence_type",
+];
 
 export const AFK_IDLE_MS = 3 * 60 * 1000;
 
@@ -39,22 +52,34 @@ const LOCATION_LABEL_ALIASES: Record<string, string> = {
 
 export function isMissingPresenceColumnsError(error: unknown) {
   const message = String((error as { message?: string } | null)?.message || "");
-  return message.includes("presence_status") || message.includes("last_active_at");
+  return MISSING_PRESENCE_COLUMNS.some((column) => message.includes(column));
 }
 
 function normalizePresenceStatus(value: unknown): PresenceStatus {
   return typeof value === "string" && value.trim().toLowerCase() === "afk" ? "afk" : "online";
 }
 
+function normalizePresenceType(value: unknown, rowId: string) {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "guest" || normalized === "member") {
+      return normalized;
+    }
+  }
+
+  return rowId.startsWith("guest_") ? "guest" : "member";
+}
+
 function normalizePresenceRow(row: PresenceQueryRow): OnlinePresenceRow {
+  const id = String(row?.id || "");
   return {
-    id: String(row?.id || ""),
+    id,
     user_name: row?.user_name ?? null,
     house: row?.house ?? null,
     current_path: row?.current_path ?? null,
     location_label: row?.location_label ?? null,
     last_seen: row?.last_seen ?? null,
-    presence_type: row?.presence_type ?? null,
+    presence_type: normalizePresenceType(row?.presence_type, id),
     presence_status: normalizePresenceStatus(row?.presence_status),
     last_active_at: row?.last_active_at ?? row?.last_seen ?? null,
   };
@@ -87,16 +112,16 @@ export async function fetchOnlinePresenceRows(
   supabase: SupabaseClient,
   options: FetchOnlinePresenceOptions = {},
 ) {
-  const run = async (selectClause: string) => {
-    let query = supabase.from("online_users").select(selectClause);
+  const run = async (mode: PresenceSelectMode) => {
+    let query = supabase.from("online_users").select(SELECT_BY_MODE[mode]);
 
     if (options.cutoffIso) {
-      query = selectClause === EXTENDED_SELECT
+      query = mode === "full"
         ? query.or(`last_seen.gte.${options.cutoffIso},last_active_at.gte.${options.cutoffIso}`)
         : query.gte("last_seen", options.cutoffIso);
     }
 
-    if (options.memberOnly) {
+    if (options.memberOnly && mode !== "minimal") {
       query = query.eq("presence_type", "member");
     }
 
@@ -109,17 +134,23 @@ export async function fetchOnlinePresenceRows(
     return query;
   };
 
-  let response = await run(EXTENDED_SELECT);
-  let hasPresenceColumns = true;
+  let mode: PresenceSelectMode = "full";
+  let response = await run(mode);
 
-  if (response.error && isMissingPresenceColumnsError(response.error)) {
-    hasPresenceColumns = false;
-    response = await run(BASE_SELECT);
+  for (let index = 1; response.error && isMissingPresenceColumnsError(response.error) && index < PRESENCE_FALLBACK_CHAIN.length; index += 1) {
+    mode = PRESENCE_FALLBACK_CHAIN[index];
+    response = await run(mode);
+  }
+
+  let rows = ((response.data as PresenceQueryRow[] | null) || []).map(normalizePresenceRow);
+
+  if (options.memberOnly && mode === "minimal") {
+    rows = rows.filter((row) => row.presence_type === "member");
   }
 
   return {
-    rows: ((response.data as PresenceQueryRow[] | null) || []).map(normalizePresenceRow),
-    hasPresenceColumns,
+    rows,
+    hasPresenceColumns: mode === "full",
     error: response.error || null,
   };
 }
@@ -149,9 +180,9 @@ export function getPresenceMeta(status: PresenceStatus) {
 }
 
 function normalizePresencePath(currentPath: string | null | undefined) {
-  if (!currentPath || typeof currentPath !== "string") return "/map";
+  if (!currentPath || typeof currentPath !== "string") return "/home";
   const trimmed = currentPath.trim();
-  if (!trimmed) return "/map";
+  if (!trimmed) return "/home";
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
@@ -174,7 +205,7 @@ function getFriendlyLabelFromPath(path: string) {
 
 function prettifyUnknownPath(path: string) {
   const segments = path.split("?")[0].split("#")[0].split("/").filter(Boolean);
-  if (segments.length === 0) return "מפת הקונדסאים";
+  if (segments.length === 0) return "רחבת הכניסה";
 
   const lastSegment = segments[segments.length - 1]
     .replace(/[-_]+/g, " ")

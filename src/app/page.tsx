@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
+import { useAuth } from "@/context/AuthContext";
 import { isUnsortedHouse } from "@/lib/houses";
 import { canBypassSortingRole, fetchProfileWithFallback } from "@/lib/profileAccess";
 
@@ -26,6 +27,7 @@ import { canBypassSortingRole, fetchProfileWithFallback } from "@/lib/profileAcc
  */
 
 const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
+const POST_LOGIN_TIMEOUT_MS = 4500;
 
 const landingStructuredData = {
   "@context": "https://schema.org",
@@ -69,6 +71,67 @@ function createInitialStars() {
   }));
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+function shouldRouteToSorting(profile: { house: string | null; role: string | null } | null | undefined) {
+  return Boolean(profile && !canBypassSortingRole(profile.role) && isUnsortedHouse(profile.house));
+}
+
+function describeAuthError(error: unknown) {
+  if (error instanceof Error && error.message.trim() && error.message.trim() !== "{}") {
+    return error.message;
+  }
+
+  if (typeof error === "string" && error.trim() && error.trim() !== "{}") {
+    return error;
+  }
+
+  if (error && typeof error === "object") {
+    const message = Reflect.get(error, "message");
+    if (typeof message === "string" && message.trim() && message.trim() !== "{}") {
+      return message;
+    }
+
+    const description = Reflect.get(error, "error_description");
+    if (typeof description === "string" && description.trim()) {
+      return description;
+    }
+
+    const code = Reflect.get(error, "code");
+    if (typeof code === "string" && code.trim()) {
+      return `code: ${code}`;
+    }
+
+    try {
+      const serialized = JSON.stringify(error);
+      if (serialized && serialized !== "{}") {
+        return serialized;
+      }
+    } catch {
+      // Ignore serialization failures and fall through to the friendly fallback.
+    }
+  }
+
+  return "ההתחברות נכשלה זמנית. נסו שוב בעוד רגע.";
+}
+
 export default function Home() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -86,29 +149,17 @@ export default function Home() {
 
   const [supabase] = useState(() => createClient());
   const { isMuted, toggleMute } = useUIState();
+  const { session, profile, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setIsCheckingSession(false); return; }
-        const { data: profile } = await fetchProfileWithFallback<{ house: string | null; role: string | null }>(
-          supabase,
-          { id: session.user.id, email: session.user.email },
-          'house, role',
-        );
-        if (profile && !canBypassSortingRole(profile.role) && isUnsortedHouse(profile.house)) {
-          router.push('/sorting');
-        } else {
-          router.push('/home');
-        }
-      } catch (error) {
-        console.error("[Landing] session check failed:", error);
-        setIsCheckingSession(false);
-      }
-    };
-    checkSession();
-  }, [supabase, router]);
+    if (authLoading) return;
+    if (!session) {
+      setIsCheckingSession(false);
+      return;
+    }
+
+    router.push(shouldRouteToSorting(profile) ? "/sorting" : "/home");
+  }, [authLoading, profile, router, session]);
 
   useEffect(() => {
     document.body.style.overflow = isModalOpen ? 'hidden' : 'unset';
@@ -132,90 +183,117 @@ export default function Home() {
     e.preventDefault();
     setIsLoading(true);
     setAuthMessage(null);
-    if (isLoginMode) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) { setAuthMessage({ type: 'error', text: "הלחש נכשל: " + error.message }); }
-      else {
+    try {
+      if (isLoginMode) {
+        const { data, error } = await withTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          POST_LOGIN_TIMEOUT_MS,
+          "Sign in",
+        );
+
+        if (error) {
+          setAuthMessage({ type: "error", text: "הלחש נכשל: " + describeAuthError(error) });
+          return;
+        }
+
         const fingerprint = getMagicFingerprint();
         const user = data.session?.user;
-        if (user) {
-          // Update fingerprint on login
-          await supabase.rpc('sync_profile_fingerprint_secure', { p_fingerprint: fingerprint });
 
-          const { data: prof } = await fetchProfileWithFallback<{ house: string | null; role: string | null; status: string | null }>(
-            supabase,
-            { id: user.id, email: user.email },
-            'house, role, status',
-          );
-          
-          // Re-check if this specific user was already banned by fingerprint
-          const { data: statusBannedMatches } = await supabase.from('profiles')
-            .select('id')
-            .eq('fingerprint', fingerprint)
-            .eq('status', 'banned')
-            .limit(1);
-          const { data: legacyBannedMatches } = await supabase.from('profiles')
-            .select('id')
-            .eq('fingerprint', fingerprint)
-            .eq('role', LEGACY_BANNED_ROLE_HE)
-            .is('status', null)
-            .limit(1);
-          
-          if (
-            prof?.status === 'banned' ||
-            (legacyBannedMatches && legacyBannedMatches.length > 0) ||
-            (statusBannedMatches && statusBannedMatches.length > 0)
-          ) {
-              plantStickyMarker(LEGACY_BANNED_ROLE_HE);
-              setIsPermanentlyBanned(true);
-              setIsLoading(false);
-              return;
+        if (user) {
+          void supabase
+            .rpc("sync_profile_fingerprint_secure", { p_fingerprint: fingerprint })
+            .then(({ error: syncError }) => {
+              if (syncError) {
+                console.warn("[Landing] fingerprint sync failed:", syncError);
+              }
+            })
+            .catch((syncError) => {
+              console.warn("[Landing] fingerprint sync crashed:", syncError);
+            });
+
+          let prof: { house: string | null; role: string | null; status: string | null } | null = null;
+          let isBlocked = false;
+
+          try {
+            const [profileResult, statusBannedResult, legacyBannedResult] = await withTimeout(
+              Promise.all([
+                fetchProfileWithFallback<{ house: string | null; role: string | null; status: string | null }>(
+                  supabase,
+                  { id: user.id, email: user.email },
+                  "house, role, status",
+                ),
+                supabase
+                  .from("profiles")
+                  .select("id")
+                  .eq("fingerprint", fingerprint)
+                  .eq("status", "banned")
+                  .limit(1),
+                supabase
+                  .from("profiles")
+                  .select("id")
+                  .eq("fingerprint", fingerprint)
+                  .eq("role", LEGACY_BANNED_ROLE_HE)
+                  .is("status", null)
+                  .limit(1),
+              ]),
+              POST_LOGIN_TIMEOUT_MS,
+              "Post-login checks",
+            );
+
+            prof = profileResult.data;
+            isBlocked =
+              prof?.status === "banned" ||
+              Boolean(statusBannedResult.data?.length) ||
+              Boolean(legacyBannedResult.data?.length);
+          } catch (error) {
+            console.warn("[Landing] post-login checks timed out, continuing with default redirect:", error);
+          }
+
+          if (isBlocked) {
+            plantStickyMarker(LEGACY_BANNED_ROLE_HE);
+            setIsPermanentlyBanned(true);
+            return;
           }
 
           await new Promise((resolve) => setTimeout(resolve, 150));
-          window.location.assign(
-            prof && !canBypassSortingRole(prof.role) && isUnsortedHouse(prof.house)
-              ? '/sorting'
-              : '/home'
-          );
-        } else {
-          await new Promise((resolve) => setTimeout(resolve, 150));
-          window.location.assign('/home');
+          window.location.assign(shouldRouteToSorting(prof) ? "/sorting" : "/home");
+          return;
         }
+
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        window.location.assign("/home");
+        return;
       }
-    } else {
+
       if (isPermanentlyBanned) {
-        setAuthMessage({ type: 'error', text: "משרד הקסמים חסם את הגישה שלך לטירה לצמיתות." });
-        setIsLoading(false);
+        setAuthMessage({ type: "error", text: "משרד הקסמים חסם את הגישה שלך לטירה לצמיתות." });
         return;
       }
       if (password.length < 6) {
-        setAuthMessage({ type: 'error', text: "סיסמת הקסם חייבת להכיל לפחות 6 תווים." });
-        setIsLoading(false);
+        setAuthMessage({ type: "error", text: "סיסמת הקסם חייבת להכיל לפחות 6 תווים." });
         return;
       }
-      
+
       const fingerprint = getMagicFingerprint();
-      
-      // Check if this fingerprint is already associated with a banned user
-      const { data: existingStatusBanned } = await supabase.from('profiles')
-        .select('id')
-        .eq('fingerprint', fingerprint)
-        .eq('status', 'banned')
+
+      const { data: existingStatusBanned } = await supabase.from("profiles")
+        .select("id")
+        .eq("fingerprint", fingerprint)
+        .eq("status", "banned")
         .limit(1);
-      const { data: existingLegacyBanned } = await supabase.from('profiles')
-        .select('id')
-        .eq('fingerprint', fingerprint)
-        .eq('role', LEGACY_BANNED_ROLE_HE)
-        .is('status', null)
+      const { data: existingLegacyBanned } = await supabase.from("profiles")
+        .select("id")
+        .eq("fingerprint", fingerprint)
+        .eq("role", LEGACY_BANNED_ROLE_HE)
+        .is("status", null)
         .limit(1);
 
       const isMatchingBanned =
         (existingLegacyBanned && existingLegacyBanned.length > 0) ||
         (existingStatusBanned && existingStatusBanned.length > 0);
 
-      const { data, error } = await supabase.auth.signUp({ 
-        email, 
+      const { data, error } = await supabase.auth.signUp({
+        email,
         password,
         options: {
             data: {
@@ -224,23 +302,26 @@ export default function Home() {
             }
         }
       });
-      if (error) setAuthMessage({ type: 'error', text: error.message });
-      else if (data?.user) {
-        // Double down on the profile update to ensure it's locked in
-        await supabase.rpc('sync_profile_fingerprint_secure', {
+      if (error) {
+        setAuthMessage({ type: "error", text: error.message });
+      } else if (data?.user) {
+        await supabase.rpc("sync_profile_fingerprint_secure", {
             p_fingerprint: fingerprint,
             p_is_ghost: isMatchingBanned
         });
-        
+
         if (isMatchingBanned) {
-            plantStickyMarker('GHOST');
+            plantStickyMarker("GHOST");
         }
-        
-        setAuthMessage({ type: 'success', text: "מכתב הקבלה נשלח! בדקו את תיבת המייל שלכם." });
+
+        setAuthMessage({ type: "success", text: "מכתב הקבלה נשלח! בדקו את תיבת המייל שלכם." });
         setIsLoginMode(true);
       }
+    } catch (error) {
+      setAuthMessage({ type: "error", text: `הלחש נכשל: ${describeAuthError(error)}` });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   if (isCheckingSession) return (

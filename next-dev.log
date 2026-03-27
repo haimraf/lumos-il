@@ -12,48 +12,150 @@
 
 ✓ Starting...
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
-✓ Ready in 1285ms
- GET / 200 in 1339ms (compile: 1064ms, render: 274ms)
- GET /home 200 in 166ms (compile: 38ms, render: 128ms)
- GET / 200 in 52ms (compile: 5ms, render: 47ms)
- GET /manifest.webmanifest 200 in 76ms (compile: 63ms, render: 13ms)
- GET / 200 in 47ms (compile: 4ms, render: 42ms)
+✓ Ready in 1306ms
+ GET / 200 in 1475ms (compile: 1208ms, render: 267ms)
+ GET /manifest.webmanifest 200 in 62ms (compile: 51ms, render: 11ms)
+ GET / 200 in 66ms (compile: 7ms, render: 59ms)
+ GET /home 200 in 245ms (compile: 108ms, render: 137ms)
+ GET /home 200 in 90ms (compile: 4ms, render: 86ms)
+ GET /home 200 in 106ms (compile: 5ms, render: 101ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 4ms, render: 5ms)
+ GET /home 200 in 107ms (compile: 4ms, render: 102ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 3ms, render: 3ms)
+ GET /dashboard 200 in 3.8s (compile: 514ms, proxy.ts: 3.2s, render: 47ms)
+ GET /dashboard 200 in 284ms (compile: 4ms, proxy.ts: 259ms, render: 22ms)
+ GET /manifest.webmanifest 200 in 12ms (compile: 4ms, render: 8ms)
+ GET /dashboard?tab=inventory 200 in 696ms (compile: 4ms, proxy.ts: 672ms, render: 20ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 1948µs, render: 4ms)
+ GET /map 200 in 236ms (compile: 215ms, render: 21ms)
  GET /manifest.webmanifest 200 in 10ms (compile: 3ms, render: 7ms)
- GET / 200 in 39ms (compile: 3ms, render: 36ms)
- GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
- GET / 200 in 71ms (compile: 8ms, render: 63ms)
- GET /manifest.webmanifest 200 in 6ms (compile: 2ms, render: 3ms)
-⚠ Fast Refresh had to perform a full reload when ./lumos-il.co.il/src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
-✓ Compiled in 998ms
-⚠ Fast Refresh had to perform a full reload when ./lumos-il.co.il/src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
- GET / 200 in 320ms (compile: 73ms, render: 248ms)
- GET / 200 in 54ms (compile: 6ms, render: 48ms)
- GET /manifest.webmanifest 200 in 9ms (compile: 5ms, render: 5ms)
-✓ Compiled in 168ms
-✓ Finished filesystem cache database compaction in 12.5s
- GET / 200 in 362ms (compile: 73ms, render: 290ms)
+ GET /library 200 in 250ms (compile: 219ms, render: 31ms)
  GET /manifest.webmanifest 200 in 7ms (compile: 3ms, render: 4ms)
-✓ Compiled in 172ms
-✓ Compiled in 264ms
-⨯ ./lumos-il.co.il/src/components/MagicSpells.tsx:44:10
-Ecmascript file had an error
-[0m [90m 42 |[39m     [36mconst[39m [isLumosOn[33m,[39m        setIsLumosOn]        [33m=[39m useState([36mfalse[39m)[33m;[39m
- [90m 43 |[39m     [36mconst[39m [mousePos[33m,[39m         setMousePos]          [33m=[39m useState({ x[33m:[39m [35m0[39m[33m,[39m y[33m:[39m [35m0[39m })[33m;[39m
-[31m[1m>[22m[39m[90m 44 |[39m     [36mconst[39m { profile[33m,[39m session } [33m=[39m useAuth()[33m;[39m
- [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 45 |[39m     [36mconst[39m [isMischiefManaged[33m,[39msetIsMischiefManaged] [33m=[39m useState([36mfalse[39m)[33m;[39m
- [90m 46 |[39m     [36mconst[39m [alohomoraOpen[33m,[39m    setAlohomoraOpen]     [33m=[39m useState([36mfalse[39m)[33m;[39m
- [90m 47 |[39m     [36mconst[39m [protegoActive[33m,[39m    setProtegoActive]     [33m=[39m useState([36mfalse[39m)[33m;[39m[0m
-
-the name `profile` is defined multiple times
-
-Import trace:
-  Server Component:
-    ./lumos-il.co.il/src/components/MagicSpells.tsx
-    ./lumos-il.co.il/src/app/layout.tsx
-
-
- GET / 500 in 564ms (compile: 431ms, render: 133ms)
- GET / 200 in 293ms (compile: 64ms, render: 229ms)
- GET /manifest.webmanifest 200 in 23ms (compile: 19ms, render: 5ms)
-^C
+ GET /quests 200 in 932ms (compile: 492ms, proxy.ts: 421ms, render: 20ms)
+ GET /manifest.webmanifest 200 in 11ms (compile: 3ms, render: 8ms)
+✓ Compiled in 216ms
+✓ Compiled in 689ms
+✓ Compiled in 554ms
+ GET /quests 200 in 686ms (compile: 114ms, proxy.ts: 492ms, render: 80ms)
+ GET /quests 200 in 342ms (compile: 5ms, proxy.ts: 313ms, render: 24ms)
+ GET /quests 200 in 157ms (compile: 4ms, proxy.ts: 120ms, render: 32ms)
+ GET /quests 200 in 153ms (compile: 4ms, proxy.ts: 120ms, render: 30ms)
+ GET /quests 200 in 142ms (compile: 3ms, proxy.ts: 108ms, render: 32ms)
+ GET /quests 200 in 140ms (compile: 3ms, proxy.ts: 120ms, render: 18ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 1823µs, render: 4ms)
+✓ Compiled in 171ms
+✓ Compiled in 94ms
+✓ Compiled in 117ms
+ GET /map 200 in 162ms (compile: 92ms, render: 70ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 3ms, render: 5ms)
+ GET /map 200 in 181ms (compile: 2ms, render: 178ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /map 200 in 65ms (compile: 3ms, render: 63ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 3ms)
+ GET /map 200 in 74ms (compile: 4ms, render: 70ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 2ms)
+✓ Compiled in 134ms
+ GET /map 200 in 395ms (compile: 60ms, render: 335ms)
+ GET /manifest.webmanifest 200 in 10ms (compile: 5ms, render: 4ms)
+ GET /map 200 in 66ms (compile: 3ms, render: 62ms)
+ GET /manifest.webmanifest 200 in 4ms (compile: 2ms, render: 2ms)
+ GET /map 200 in 100ms (compile: 4ms, render: 96ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 3ms)
+ GET /wizard/9707a3e9-0ad8-454a-a045-0b0a9e0b2bcc 200 in 943ms (compile: 643ms, render: 300ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 3ms, render: 4ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 1908µs, render: 3ms)
+ GET /map 200 in 89ms (compile: 4ms, render: 86ms)
+ GET /manifest.webmanifest 200 in 4ms (compile: 1983µs, render: 2ms)
+ GET /map 200 in 73ms (compile: 4ms, render: 69ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 5ms, render: 3ms)
+ GET /map 200 in 69ms (compile: 5ms, render: 64ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 2ms)
+✓ Compiled in 189ms
+ GET /map 200 in 304ms (compile: 58ms, render: 246ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 3ms)
+ GET /home 200 in 201ms (compile: 158ms, render: 43ms)
+ GET /manifest.webmanifest 200 in 4ms (compile: 1840µs, render: 2ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 1806µs, render: 3ms)
+ GET /map 200 in 77ms (compile: 4ms, render: 74ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 2ms)
+ GET /map 200 in 79ms (compile: 4ms, render: 75ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /map 200 in 61ms (compile: 3ms, render: 58ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 2ms)
+ GET /map 200 in 71ms (compile: 3ms, render: 68ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 2ms)
+ GET /map 200 in 74ms (compile: 3ms, render: 71ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 3ms)
+ GET /forums 200 in 383ms (compile: 355ms, render: 28ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 1810µs, render: 4ms)
+ GET /house-cup 200 in 345ms (compile: 318ms, render: 26ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 4ms, render: 2ms)
+ GET /bg-stars.png 404 in 323ms (compile: 75ms, render: 248ms)
+ GET /map 200 in 16ms (compile: 4ms, render: 13ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+ GET /map 200 in 70ms (compile: 4ms, render: 67ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /home 200 in 20ms (compile: 3ms, render: 17ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /dashboard 200 in 2.7s (compile: 118ms, proxy.ts: 2.5s, render: 55ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 3ms, render: 5ms)
+ GET /admin-panel 200 in 876ms (compile: 687ms, proxy.ts: 165ms, render: 23ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /admin-panel 200 in 627ms (compile: 5ms, proxy.ts: 448ms, render: 174ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 3ms, render: 4ms)
+ GET /admin-panel 200 in 8.7s (compile: 12ms, proxy.ts: 8.5s, render: 137ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 3ms)
+ GET /admin-panel 200 in 6.5s (compile: 3ms, proxy.ts: 6.4s, render: 61ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+ GET /admin-panel 200 in 2.8s (compile: 9ms, proxy.ts: 2.7s, render: 71ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 3ms)
+ GET /admin-panel 200 in 3.1s (compile: 5ms, proxy.ts: 3.0s, render: 65ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET / 200 in 261ms (compile: 77ms, render: 184ms)
+ GET /manifest.webmanifest 200 in 10ms (compile: 4ms, render: 6ms)
+ GET / 200 in 36ms (compile: 2ms, render: 34ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 2ms)
+ GET /home 200 in 27ms (compile: 3ms, render: 24ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 1947µs, render: 3ms)
+ GET /home 200 in 21ms (compile: 3ms, render: 18ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 1994µs, render: 4ms)
+ GET /dashboard 200 in 1669ms (compile: 3ms, proxy.ts: 1650ms, render: 15ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 2ms, render: 3ms)
+ GET /admin-panel 200 in 663ms (compile: 86ms, proxy.ts: 521ms, render: 57ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 2ms, render: 4ms)
+✓ Compiled in 301ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /admin-panel 200 in 6.4s (compile: 55ms, proxy.ts: 6.1s, render: 221ms)
+ GET /manifest.webmanifest 200 in 14ms (compile: 11ms, render: 3ms)
+ GET /admin-panel 200 in 719ms (compile: 6ms, proxy.ts: 649ms, render: 64ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /admin-panel 200 in 670ms (compile: 3ms, proxy.ts: 606ms, render: 61ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 225ms
+ GET /admin-panel 200 in 492ms (compile: 63ms, proxy.ts: 189ms, render: 239ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 3ms, render: 6ms)
+✓ Compiled in 223ms
+✓ Compiled in 138ms
+ GET / 200 in 66ms (compile: 5ms, render: 61ms)
+ GET / 200 in 69ms (compile: 9ms, render: 60ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 4ms)
+ GET /admin-panel 200 in 84s (compile: 59ms, proxy.ts: 84s, render: 274ms)
+ GET / 200 in 39ms (compile: 5ms, render: 34ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET / 200 in 48ms (compile: 9ms, render: 40ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 2ms)
+ GET / 200 in 41ms (compile: 2ms, render: 38ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 3ms)
+✓ Compiled in 152ms
+ GET /dashboard 200 in 139ms (compile: 4ms, render: 135ms)
+ GET /quests 200 in 359ms (compile: 86ms, render: 273ms)
+ GET /ollivanders 200 in 358ms (compile: 268ms, render: 89ms)
+ GET / 200 in 39ms (compile: 3ms, render: 35ms)
+ GET /dashboard 200 in 74ms (compile: 4ms, render: 70ms)
+ GET /quests 200 in 83ms (compile: 3ms, render: 80ms)
+ GET /ollivanders 200 in 83ms (compile: 5ms, render: 77ms)
+ GET / 200 in 46ms (compile: 4ms, render: 43ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+ GET / 200 in 38ms (compile: 3ms, render: 35ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 3ms, render: 3ms)

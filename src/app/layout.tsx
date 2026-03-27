@@ -65,7 +65,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className="scroll-smooth">
+    <html lang="he" dir="rtl" className="scroll-smooth" data-scroll-behavior="smooth">
       <body className="antialiased bg-[#020617] text-[#f8fafc] font-assistant selection:bg-amber-500/30 flex flex-col min-h-screen">
 
         {/* Skip link לנגישות מקלדת */}
