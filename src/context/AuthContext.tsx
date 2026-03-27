@@ -5,6 +5,8 @@ import { createClient } from "@/utils/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { fetchProfileWithFallback } from "@/lib/profileAccess";
 
+type ProfileLookupSource = "id" | "email" | "none" | "server" | "server-id" | "server-email";
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -24,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [supabase] = useState(() => createClient());
 
-  const fetchProfileFromServer = useCallback(async () => {
+  const fetchProfileFromServer = useCallback(async (): Promise<{ profile: any; source: ProfileLookupSource } | null> => {
     const response = await fetch("/api/auth/profile", {
       method: "GET",
       cache: "no-store",
@@ -41,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return {
       profile: payload.profile,
-      source: typeof payload.source === "string" ? payload.source : "server",
+      source: typeof payload.source === "string" ? payload.source as ProfileLookupSource : "server",
     };
   }, []);
 
@@ -55,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "*",
       );
       let profileData = initialResult.data;
-      let source = initialResult.source;
+      let source: ProfileLookupSource = initialResult.source;
       let profileQueryError = initialResult.error;
 
       if (!profileData && !initialResult.error) {

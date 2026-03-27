@@ -200,16 +200,19 @@ export default function Home() {
         const user = data.session?.user;
 
         if (user) {
-          void supabase
-            .rpc("sync_profile_fingerprint_secure", { p_fingerprint: fingerprint })
-            .then(({ error: syncError }) => {
+          void (async () => {
+            try {
+              const { error: syncError } = await supabase.rpc("sync_profile_fingerprint_secure", {
+                p_fingerprint: fingerprint,
+              });
+
               if (syncError) {
                 console.warn("[Landing] fingerprint sync failed:", syncError);
               }
-            })
-            .catch((syncError) => {
+            } catch (syncError) {
               console.warn("[Landing] fingerprint sync crashed:", syncError);
-            });
+            }
+          })();
 
           let prof: { house: string | null; role: string | null; status: string | null } | null = null;
           let isBlocked = false;
