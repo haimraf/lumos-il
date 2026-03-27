@@ -10,6 +10,8 @@ import {
 import { useOwlMail } from "@/components/OwlMail";
 import { useAuth } from "@/context/AuthContext";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { isUnsortedHouse } from "@/lib/houses";
+import { canBypassSortingRole } from "@/lib/profileAccess";
 
 /**
  * LUMOS IL - SORTING CEREMONY V3
@@ -203,7 +205,7 @@ export default function SortingPage() {
   const router = useRouter();
   const supabase = createClient();
   const { sendOwl } = useOwlMail();
-  const { session, refreshProfile, isLoading: authLoading } = useAuth();
+  const { session, profile, refreshProfile, isLoading: authLoading } = useAuth();
   const userId = session?.user?.id;
 
   const [wizardName, setWizardName] = useState("");
@@ -220,8 +222,17 @@ export default function SortingPage() {
   const [traits, setTraits] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !session) router.push('/');
-  }, [session, authLoading, router]);
+    if (authLoading) return;
+
+    if (!session) {
+      router.replace('/');
+      return;
+    }
+
+    if (profile && (canBypassSortingRole(profile.role) || !isUnsortedHouse(profile.house))) {
+      router.replace('/home');
+    }
+  }, [session, authLoading, profile, router]);
 
   // Typewriter effect
   const MESSAGES = [

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
+import { fetchProfileWithFallback } from "@/lib/profileAccess";
 
 interface AuthContextType {
   session: Session | null;
@@ -23,27 +24,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [supabase] = useState(() => createClient());
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string, userEmail?: string | null) => {
     try {
       setProfileError(null);
 
-      const [
-        { data: profileData, error: profileQueryError },
-        { count, error: postsCountError },
-      ] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", userId).single(),
-        supabase.from("forum_posts").select("id", { count: "exact", head: true }).eq("user_id", userId),
-      ]);
+      const { data: profileData, source, error: profileQueryError } = await fetchProfileWithFallback<any>(
+        supabase,
+        { id: userId, email: userEmail },
+        "*",
+      );
 
-      if (profileQueryError) {
+      if (profileQueryError || !profileData) {
         setProfile(null);
-        setProfileError(profileQueryError.message);
+        setProfileError(profileQueryError instanceof Error ? profileQueryError.message : "Profile not found");
         return null;
       }
 
       let nextProfile = profileData;
+      const resolvedProfileId = typeof nextProfile.id === "string" ? nextProfile.id : userId;
+
+      const { count, error: postsCountError } = await supabase
+        .from("forum_posts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", resolvedProfileId);
 
       if (
+        resolvedProfileId === userId &&
         nextProfile?.status === "cooling" &&
         nextProfile.ban_expires_at &&
         new Date(nextProfile.ban_expires_at).getTime() <= Date.now()
@@ -78,7 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const hydratedProfile = {
         ...nextProfile,
         post_count: postsCountError ? 0 : count ?? 0,
+        profile_lookup_source: source,
       };
+
+      if (source === "email") {
+        console.warn("[AuthContext] Profile resolved by email fallback for legacy account:", userEmail);
+      }
 
       setProfile(hydratedProfile);
       return hydratedProfile;
@@ -98,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id, session.user.email);
         } else {
           setProfile(null);
           setProfileError(null);
@@ -117,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session?.user ?? null);
 
           if (session?.user) {
-            await fetchProfile(session.user.id);
+            await fetchProfile(session.user.id, session.user.email);
           } else {
             setProfile(null);
             setProfileError(null);
@@ -135,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (user) {
-      await fetchProfile(user.id);
+      await fetchProfile(user.id, user.email);
     } else {
       setProfile(null);
       setProfileError(null);

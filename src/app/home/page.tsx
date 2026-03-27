@@ -20,6 +20,7 @@ import {
     LIVE_EVENT_SETTINGS_KEY,
     type LiveEventSettings,
 } from "@/lib/liveEvent";
+import { fetchProfileWithFallback } from "@/lib/profileAccess";
 
 // הציטוטים הנבחרים - הכי מתאימים ללובי ולהרפתקאות
 const magicalQuotes = [
@@ -60,11 +61,11 @@ export default function HomePage() {
             await refreshHomeEvent();
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('house')
-                    .eq('id', session.user.id)
-                    .single();
+                const { data: profile } = await fetchProfileWithFallback<{ house: string | null }>(
+                    supabase,
+                    { id: session.user.id, email: session.user.email },
+                    'house'
+                );
                 if (profile?.house) setUserHouse(profile.house);
             }
         };

@@ -15,6 +15,7 @@ import {
 import { useUIState } from "@/context/UIContext";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
 import { isUnsortedHouse } from "@/lib/houses";
+import { canBypassSortingRole, fetchProfileWithFallback } from "@/lib/profileAccess";
 
 /**
  * LUMOS IL - LANDING V15
@@ -91,8 +92,12 @@ export default function Home() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setIsCheckingSession(false); return; }
-        const { data: profile } = await supabase.from('profiles').select('house').eq('id', session.user.id).single();
-        if (!profile || isUnsortedHouse(profile.house)) {
+        const { data: profile } = await fetchProfileWithFallback<{ house: string | null; role: string | null }>(
+          supabase,
+          { id: session.user.id, email: session.user.email },
+          'house, role',
+        );
+        if (profile && !canBypassSortingRole(profile.role) && isUnsortedHouse(profile.house)) {
           router.push('/sorting');
         } else {
           router.push('/home');
@@ -137,7 +142,11 @@ export default function Home() {
           // Update fingerprint on login
           await supabase.rpc('sync_profile_fingerprint_secure', { p_fingerprint: fingerprint });
 
-          const { data: prof } = await supabase.from('profiles').select('house, role, status').eq('id', user.id).single();
+          const { data: prof } = await fetchProfileWithFallback<{ house: string | null; role: string | null; status: string | null }>(
+            supabase,
+            { id: user.id, email: user.email },
+            'house, role, status',
+          );
           
           // Re-check if this specific user was already banned by fingerprint
           const { data: statusBannedMatches } = await supabase.from('profiles')
@@ -164,7 +173,11 @@ export default function Home() {
           }
 
           await new Promise((resolve) => setTimeout(resolve, 150));
-          window.location.assign(isUnsortedHouse(prof?.house) ? '/sorting' : '/home');
+          window.location.assign(
+            prof && !canBypassSortingRole(prof.role) && isUnsortedHouse(prof.house)
+              ? '/sorting'
+              : '/home'
+          );
         } else {
           await new Promise((resolve) => setTimeout(resolve, 150));
           window.location.assign('/home');

@@ -1,0 +1,59 @@
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\projects\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\projects\lumos-il.co.il\package-lock.json
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://10.0.0.9:3001
+- Environments: .env.local
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 1285ms
+ GET / 200 in 1339ms (compile: 1064ms, render: 274ms)
+ GET /home 200 in 166ms (compile: 38ms, render: 128ms)
+ GET / 200 in 52ms (compile: 5ms, render: 47ms)
+ GET /manifest.webmanifest 200 in 76ms (compile: 63ms, render: 13ms)
+ GET / 200 in 47ms (compile: 4ms, render: 42ms)
+ GET /manifest.webmanifest 200 in 10ms (compile: 3ms, render: 7ms)
+ GET / 200 in 39ms (compile: 3ms, render: 36ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET / 200 in 71ms (compile: 8ms, render: 63ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 2ms, render: 3ms)
+⚠ Fast Refresh had to perform a full reload when ./lumos-il.co.il/src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+✓ Compiled in 998ms
+⚠ Fast Refresh had to perform a full reload when ./lumos-il.co.il/src/context/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 320ms (compile: 73ms, render: 248ms)
+ GET / 200 in 54ms (compile: 6ms, render: 48ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 5ms, render: 5ms)
+✓ Compiled in 168ms
+✓ Finished filesystem cache database compaction in 12.5s
+ GET / 200 in 362ms (compile: 73ms, render: 290ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 3ms, render: 4ms)
+✓ Compiled in 172ms
+✓ Compiled in 264ms
+⨯ ./lumos-il.co.il/src/components/MagicSpells.tsx:44:10
+Ecmascript file had an error
+[0m [90m 42 |[39m     [36mconst[39m [isLumosOn[33m,[39m        setIsLumosOn]        [33m=[39m useState([36mfalse[39m)[33m;[39m
+ [90m 43 |[39m     [36mconst[39m [mousePos[33m,[39m         setMousePos]          [33m=[39m useState({ x[33m:[39m [35m0[39m[33m,[39m y[33m:[39m [35m0[39m })[33m;[39m
+[31m[1m>[22m[39m[90m 44 |[39m     [36mconst[39m { profile[33m,[39m session } [33m=[39m useAuth()[33m;[39m
+ [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 45 |[39m     [36mconst[39m [isMischiefManaged[33m,[39msetIsMischiefManaged] [33m=[39m useState([36mfalse[39m)[33m;[39m
+ [90m 46 |[39m     [36mconst[39m [alohomoraOpen[33m,[39m    setAlohomoraOpen]     [33m=[39m useState([36mfalse[39m)[33m;[39m
+ [90m 47 |[39m     [36mconst[39m [protegoActive[33m,[39m    setProtegoActive]     [33m=[39m useState([36mfalse[39m)[33m;[39m[0m
+
+the name `profile` is defined multiple times
+
+Import trace:
+  Server Component:
+    ./lumos-il.co.il/src/components/MagicSpells.tsx
+    ./lumos-il.co.il/src/app/layout.tsx
+
+
+ GET / 500 in 564ms (compile: 431ms, render: 133ms)
+ GET / 200 in 293ms (compile: 64ms, render: 229ms)
+ GET /manifest.webmanifest 200 in 23ms (compile: 19ms, render: 5ms)
+^C

@@ -7,7 +7,6 @@ const PROTECTED_ROUTES = [
   "/great-hall",
   "/ollivanders",
   "/quests",
-  "/sorting",
 ] as const;
 
 function isProtectedPath(pathname: string) {
@@ -95,6 +94,5 @@ export const config = {
     "/great-hall/:path*",
     "/ollivanders/:path*",
     "/quests/:path*",
-    "/sorting/:path*",
   ],
 };
