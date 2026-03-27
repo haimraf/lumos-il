@@ -61,18 +61,20 @@ export default function AzkabanGuard({ children }: { children: React.ReactNode }
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
-            void (async () => {
-                if (hasStickyMarker()) {
-                    setIsFingerprintBanned(true);
-                }
+            window.setTimeout(() => {
+                void (async () => {
+                    if (hasStickyMarker()) {
+                        setIsFingerprintBanned(true);
+                    }
 
-                if (session?.user && !isBanned) {
-                    await enforceAzkaban(session.user.id);
-                } else if (!session) {
-                    setIsStaff(false);
-                    setIsBanned(false);
-                }
-            })();
+                    if (session?.user && !isBanned) {
+                        await enforceAzkaban(session.user.id);
+                    } else if (!session) {
+                        setIsStaff(false);
+                        setIsBanned(false);
+                    }
+                })();
+            }, 0);
         });
 
         return () => {

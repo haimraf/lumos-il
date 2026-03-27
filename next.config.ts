@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
       pathname: storagePathname,
     })),
   },
+  turbopack: {
+    root: "C:/projects/lumos-il.co.il",
+  },
 };
 
 export default nextConfig;

@@ -223,7 +223,9 @@ export default function ThreadViewPage() {
         };
         initAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            window.setTimeout(() => {
+                void (async () => {
             if (session?.user) {
                 setCurrentUser(session.user);
                 const { data: profile } = await supabase.from('profiles').select('*, user_groups(name)').eq('id', session.user.id).single();
@@ -236,12 +238,14 @@ export default function ThreadViewPage() {
 
                 const { data: blocks } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", session.user.id);
                 if (blocks) setBlockedUserIds(blocks.map((b: any) => b.blocked_id));
-            } else {
-                setCurrentUser(null);
-                setUserProfile(null);
-                setUserRole(null);
-                setBlockedUserIds([]);
-            }
+                    } else {
+                        setCurrentUser(null);
+                        setUserProfile(null);
+                        setUserRole(null);
+                        setBlockedUserIds([]);
+                    }
+                })();
+            }, 0);
         });
         return () => subscription.unsubscribe();
     }, [supabase]);

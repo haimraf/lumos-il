@@ -27,7 +27,8 @@ import { canBypassSortingRole, fetchProfileWithFallback } from "@/lib/profileAcc
  */
 
 const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
-const POST_LOGIN_TIMEOUT_MS = 4500;
+const SIGN_IN_TIMEOUT_MS = 20000;
+const POST_LOGIN_CHECK_TIMEOUT_MS = 8000;
 
 const landingStructuredData = {
   "@context": "https://schema.org",
@@ -95,6 +96,14 @@ function shouldRouteToSorting(profile: { house: string | null; role: string | nu
 }
 
 function describeAuthError(error: unknown) {
+  if (error instanceof Error && /timed out after \d+ms/i.test(error.message)) {
+    return "ההתחברות מתעכבת מהרגיל בגלל עומס זמני בשרת. נסו שוב בעוד רגע.";
+  }
+
+  if (typeof error === "string" && /timed out after \d+ms/i.test(error)) {
+    return "ההתחברות מתעכבת מהרגיל בגלל עומס זמני בשרת. נסו שוב בעוד רגע.";
+  }
+
   if (error instanceof Error && error.message.trim() && error.message.trim() !== "{}") {
     return error.message;
   }
@@ -187,7 +196,7 @@ export default function Home() {
       if (isLoginMode) {
         const { data, error } = await withTimeout(
           supabase.auth.signInWithPassword({ email, password }),
-          POST_LOGIN_TIMEOUT_MS,
+          SIGN_IN_TIMEOUT_MS,
           "Sign in",
         );
 
@@ -239,7 +248,7 @@ export default function Home() {
                   .is("status", null)
                   .limit(1),
               ]),
-              POST_LOGIN_TIMEOUT_MS,
+              POST_LOGIN_CHECK_TIMEOUT_MS,
               "Post-login checks",
             );
 

@@ -17,6 +17,26 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const PROFILE_ENRICH_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -67,6 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             profileData = serverResult.profile;
             source = serverResult.source;
             profileQueryError = null;
+            console.log("[AuthContext] profile loaded from server fallback, source:", source);
+          } else {
+            console.warn("[AuthContext] server fallback returned no profile");
           }
         } catch (serverError) {
           console.warn("[AuthContext] Server profile fallback failed:", serverError);
@@ -79,50 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      let nextProfile = profileData;
+      const nextProfile = profileData;
       const resolvedProfileId = typeof nextProfile.id === "string" ? nextProfile.id : userId;
-
-      const { count, error: postsCountError } = await supabase
-        .from("forum_posts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", resolvedProfileId);
-
-      if (
-        resolvedProfileId === userId &&
-        nextProfile?.status === "cooling" &&
-        nextProfile.ban_expires_at &&
-        new Date(nextProfile.ban_expires_at).getTime() <= Date.now()
-      ) {
-        const { data: clearedProfile, error: clearError } = await supabase
-          .from("profiles")
-          .update({
-            status: "active",
-            ban_reason: null,
-            ban_expires_at: null,
-          })
-          .eq("id", userId)
-          .eq("status", "cooling")
-          .select("*")
-          .single();
-
-        if (!clearError && clearedProfile) {
-          nextProfile = clearedProfile;
-        }
-      }
-
-      if (!nextProfile) {
-        setProfile(null);
-        setProfileError("Profile not found");
-        return null;
-      }
-
-      if (postsCountError) {
-        setProfileError(postsCountError.message);
-      }
-
       const hydratedProfile = {
         ...nextProfile,
-        post_count: postsCountError ? 0 : count ?? 0,
+        post_count: typeof nextProfile.post_count === "number" ? nextProfile.post_count : 0,
         profile_lookup_source: source,
       };
 
@@ -131,6 +115,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setProfile(hydratedProfile);
+      console.log("[AuthContext] Profile successfully hydrated and set. Source:", source);
+
+      void (async () => {
+        let enrichedProfile = nextProfile;
+        let derivedPostCount = hydratedProfile.post_count;
+        let nextError: string | null = null;
+
+        try {
+          const { count, error } = await withTimeout<{ count: number | null; error: { message: string } | null }>(
+            supabase
+              .from("forum_posts")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", resolvedProfileId),
+            PROFILE_ENRICH_TIMEOUT_MS,
+            "Forum post count",
+          );
+
+          if (error) {
+            nextError = error.message;
+          } else {
+            derivedPostCount = count ?? 0;
+          }
+        } catch (error) {
+          nextError = error instanceof Error ? error.message : "Failed to load forum post count";
+        }
+
+        try {
+          if (
+            resolvedProfileId === userId &&
+            enrichedProfile?.status === "cooling" &&
+            enrichedProfile.ban_expires_at &&
+            new Date(enrichedProfile.ban_expires_at).getTime() <= Date.now()
+          ) {
+            const { data: clearedProfile, error: clearError } = await withTimeout<{ data: any; error: { message: string } | null }>(
+              supabase
+                .from("profiles")
+                .update({
+                  status: "active",
+                  ban_reason: null,
+                  ban_expires_at: null,
+                })
+                .eq("id", userId)
+                .eq("status", "cooling")
+                .select("*")
+                .single(),
+              PROFILE_ENRICH_TIMEOUT_MS,
+              "Cooling status refresh",
+            );
+
+            if (clearError) {
+              nextError = nextError ?? clearError.message;
+            } else if (clearedProfile) {
+              enrichedProfile = clearedProfile;
+            }
+          }
+        } catch (error) {
+          nextError = nextError ?? (error instanceof Error ? error.message : "Failed to refresh cooling status");
+        }
+
+        setProfile((currentProfile: any) => {
+          if (!currentProfile) return currentProfile;
+          const currentProfileId = typeof currentProfile.id === "string" ? currentProfile.id : userId;
+          if (currentProfileId !== resolvedProfileId) return currentProfile;
+
+          return {
+            ...currentProfile,
+            ...enrichedProfile,
+            post_count: derivedPostCount,
+            profile_lookup_source: source,
+          };
+        });
+
+        if (nextError) {
+          setProfileError(nextError);
+        }
+      })();
+
       return hydratedProfile;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load profile";
@@ -140,19 +201,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchProfileFromServer, supabase]);
 
+  const applySessionState = useCallback(async (session: Session | null) => {
+    setSession(session);
+    setUser(session?.user ?? null);
+
+    if (session?.user) {
+      await fetchProfile(session.user.id, session.user.email);
+    } else {
+      setProfile(null);
+      setProfileError(null);
+    }
+
+    setIsLoading(false);
+  }, [fetchProfile]);
+
   useEffect(() => {
     const getData = async () => {
+      console.log("[AuthContext] getData starting (init)...");
       setIsLoading(true);
       try {
+        console.log("[AuthContext] calling supabase.auth.getSession()...");
         const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id, session.user.email);
-        } else {
-          setProfile(null);
-          setProfileError(null);
-        }
+        console.log("[AuthContext] getSession returned, session exists:", !!session);
+        await applySessionState(session);
       } finally {
         setIsLoading(false);
       }
@@ -162,26 +233,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        void (async () => {
-          setSession(session);
-          setUser(session?.user ?? null);
-
-          if (session?.user) {
-            await fetchProfile(session.user.id, session.user.email);
-          } else {
-            setProfile(null);
-            setProfileError(null);
-          }
-
-          setIsLoading(false);
-        })();
+        window.setTimeout(() => {
+          void applySessionState(session);
+        }, 0);
       }
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchProfile, supabase]);
+  }, [applySessionState, supabase]);
 
   const refreshProfile = useCallback(async () => {
     if (user) {
