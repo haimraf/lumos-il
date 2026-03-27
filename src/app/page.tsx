@@ -227,7 +227,7 @@ export default function Home() {
           let isBlocked = false;
 
           try {
-            const [profileResult, statusBannedResult, legacyBannedResult] = await withTimeout(
+            const [profileResult, fingerprintResult] = await withTimeout(
               Promise.all([
                 fetchProfileWithFallback<{ house: string | null; role: string | null; status: string | null }>(
                   supabase,
@@ -236,27 +236,22 @@ export default function Home() {
                 ),
                 supabase
                   .from("profiles")
-                  .select("id")
+                  .select("id, status, role")
                   .eq("fingerprint", fingerprint)
-                  .eq("status", "banned")
-                  .limit(1),
-                supabase
-                  .from("profiles")
-                  .select("id")
-                  .eq("fingerprint", fingerprint)
-                  .eq("role", LEGACY_BANNED_ROLE_HE)
-                  .is("status", null)
-                  .limit(1),
+                  .limit(5),
               ]),
               POST_LOGIN_CHECK_TIMEOUT_MS,
               "Post-login checks",
             );
 
             prof = profileResult.data;
+            const fingerprintProfiles = fingerprintResult.data ?? [];
             isBlocked =
               prof?.status === "banned" ||
-              Boolean(statusBannedResult.data?.length) ||
-              Boolean(legacyBannedResult.data?.length);
+              fingerprintProfiles.some(
+                (p: { status: string | null; role: string | null }) =>
+                  p.status === "banned" || (p.role === LEGACY_BANNED_ROLE_HE && !p.status),
+              );
           } catch (error) {
             console.warn("[Landing] post-login checks timed out, continuing with default redirect:", error);
           }
@@ -288,21 +283,16 @@ export default function Home() {
 
       const fingerprint = getMagicFingerprint();
 
-      const { data: existingStatusBanned } = await supabase.from("profiles")
-        .select("id")
+      const { data: existingBanned } = await supabase
+        .from("profiles")
+        .select("id, status, role")
         .eq("fingerprint", fingerprint)
-        .eq("status", "banned")
-        .limit(1);
-      const { data: existingLegacyBanned } = await supabase.from("profiles")
-        .select("id")
-        .eq("fingerprint", fingerprint)
-        .eq("role", LEGACY_BANNED_ROLE_HE)
-        .is("status", null)
-        .limit(1);
+        .limit(5);
 
-      const isMatchingBanned =
-        (existingLegacyBanned && existingLegacyBanned.length > 0) ||
-        (existingStatusBanned && existingStatusBanned.length > 0);
+      const isMatchingBanned = (existingBanned ?? []).some(
+        (p: { status: string | null; role: string | null }) =>
+          p.status === "banned" || (p.role === LEGACY_BANNED_ROLE_HE && !p.status),
+      );
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -832,4 +822,3 @@ export default function Home() {
     </>
   );
 }
-

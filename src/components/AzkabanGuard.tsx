@@ -4,83 +4,27 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Skull, ShieldAlert } from "lucide-react";
 import { hasStickyMarker } from "@/utils/magic-fingerprint";
+import { useAuth } from "@/context/AuthContext";
 
 const LEGACY_BANNED_ROLE = "אסיר אזקבאן";
 const STAFF_ROLES = ["מייסד", "ראש הוגוורטס", "שומר הטירה", "פרופסור", "צוות Lumos", "מנהל", "מנחה", "מייסדת", "מנהלת"];
 
 export default function AzkabanGuard({ children }: { children: React.ReactNode }) {
+    const { profile, session } = useAuth();
     const [supabase] = useState(() => createClient());
-    const [isBanned, setIsBanned] = useState(false);
-    const [isStaff, setIsStaff] = useState(false);
-    const [isFingerprintBanned, setIsFingerprintBanned] = useState(false);
+    const [isFingerprintBanned] = useState(() => hasStickyMarker());
+
+    const userRole = profile?.role || "";
+    const userStatus = profile?.status || null;
+    const isStaff = STAFF_ROLES.some((role) => userRole.includes(role));
+    const isLegacyBanOnly = userRole === LEGACY_BANNED_ROLE && !userStatus;
+    const isBanned = (userStatus === "banned" || isLegacyBanOnly) && !isStaff;
 
     useEffect(() => {
-        let isChecking = false;
-
-        const enforceAzkaban = async (userId: string) => {
-            if (isChecking) return;
-            isChecking = true;
-
-            try {
-                const { data } = await supabase.from("profiles").select("role, status").eq("id", userId).single();
-                if (!data) return;
-
-                const userRole = data.role || "";
-                const userStatus = data.status || null;
-                const isUserStaff = STAFF_ROLES.some((role) => userRole.includes(role));
-                const isLegacyBanOnly = userRole === LEGACY_BANNED_ROLE && !userStatus;
-                const shouldBlock = userStatus === "banned" || isLegacyBanOnly;
-
-                setIsStaff(isUserStaff);
-
-                if (shouldBlock && !isUserStaff) {
-                    setIsBanned(true);
-                    await supabase.auth.signOut();
-                }
-            } finally {
-                isChecking = false;
-            }
-        };
-
-        const checkAuth = async () => {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-
-            if (hasStickyMarker()) {
-                setIsFingerprintBanned(true);
-            }
-
-            if (session?.user && !isBanned) {
-                await enforceAzkaban(session.user.id);
-            }
-        };
-
-        void checkAuth();
-
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            window.setTimeout(() => {
-                void (async () => {
-                    if (hasStickyMarker()) {
-                        setIsFingerprintBanned(true);
-                    }
-
-                    if (session?.user && !isBanned) {
-                        await enforceAzkaban(session.user.id);
-                    } else if (!session) {
-                        setIsStaff(false);
-                        setIsBanned(false);
-                    }
-                })();
-            }, 0);
-        });
-
-        return () => {
-            subscription.unsubscribe();
-        };
-    }, [isBanned, supabase]);
+        if (isBanned && session) {
+            void supabase.auth.signOut();
+        }
+    }, [isBanned, session, supabase]);
 
     if ((isBanned || isFingerprintBanned) && !isStaff) {
         return (
