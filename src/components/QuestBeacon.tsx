@@ -9,6 +9,7 @@ import type { NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 type QuestBeaconProps = {
     isAuthenticated: boolean;
     hidden?: boolean;
+    className?: string;
     nextAction: NextActionRecommendation | null;
     nextActionLoading?: boolean;
 };
@@ -22,6 +23,7 @@ function urgencyLabel(urgency: NextActionRecommendation["urgency"] | undefined) 
 export default function QuestBeacon({
     isAuthenticated,
     hidden = false,
+    className = "",
     nextAction,
     nextActionLoading = false,
 }: QuestBeaconProps) {
@@ -86,7 +88,7 @@ export default function QuestBeacon({
     return (
         <div
             ref={beaconRef}
-            className="fixed left-4 z-[10003] md:left-6"
+            className={["fixed left-4 z-[10003] md:left-6", className].filter(Boolean).join(" ")}
             style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
             dir="rtl"
         >

@@ -29,7 +29,7 @@ const PAGE_CTA: Record<string, { label: string; href: string }> = {
     '/forums': { label: 'צור אשכול', href: '/forums/create' },
 };
 
-const NEXT_ACTIONS_ENABLED = false;
+const NEXT_ACTIONS_ENABLED = true;
 const QUESTS_FAQ_LINK = "/faq";
 
 type LiveResult = { id: string; title: string; type: 'story' | 'news' | 'thread'; href: string };
@@ -391,6 +391,8 @@ export default function Header() {
         boxShadow: `0 0 22px ${withAlpha(displayHousePalette?.primary || "#D3A625", 0.18)}`,
     };
     const currentCTA = Object.entries(PAGE_CTA).find(([path]) => pathname.startsWith(path))?.[1];
+    const hideQuestBeacon = isOpen || avatarMenuOpen;
+    const questBeaconClassName = pathname.startsWith("/great-hall") ? "hidden md:block" : "";
     const missionHref = nextAction?.href || "/quests";
     const missionTitle = nextActionLoading
         ? "מגבש את הצעד הבא שלך"
@@ -808,7 +810,8 @@ export default function Header() {
 
             <QuestBeacon
                 isAuthenticated={isAuthenticated}
-                hidden={isOpen || avatarMenuOpen}
+                hidden={hideQuestBeacon}
+                className={questBeaconClassName}
                 nextAction={nextAction}
                 nextActionLoading={nextActionLoading}
             />
