@@ -14,6 +14,7 @@ import 'react-quill-new/dist/quill.snow.css';
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getHouseIcon, getHouseLabel, getHousePalette, getHouseReadableColor, resolveHouseId, withAlpha } from "@/lib/houses";
 
 interface Forum {
@@ -63,6 +64,14 @@ function timeAgo(dateString: string) {
     if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שע'`;
     if (diff < 604800) return `לפני ${Math.floor(diff / 86400)} ימים`;
     return date.toLocaleDateString("he-IL");
+}
+
+function safeTimeAgo(dateString: string) {
+    return formatHebrewRelativeTime(dateString, {
+        invalidLabel: "לא ידוע",
+        yesterdayLabel: null,
+        maxRelativeDays: 6,
+    });
 }
 
 interface Category {
@@ -732,7 +741,7 @@ export default function ForumsPage() {
                                                         <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                                                             <span className="text-[9px] font-bold" style={{ color: nameColor }}>{p.poster?.full_name || "קוסם"}</span>
                                                             <span className="text-white/15 text-[9px]">·</span>
-                                                            <span className="text-[9px] text-white/20">{timeAgo(p.created_at)}</span>
+                                                            <span className="text-[9px] text-white/20">{safeTimeAgo(p.created_at)}</span>
                                                         </div>
                                                     </div>
                                                 </Link>
@@ -764,7 +773,7 @@ export default function ForumsPage() {
                                                         <div className="flex items-center gap-1 mt-0.5">
                                                             <span className="text-[9px] font-bold" style={{ color: nameColor }}>{t.author?.full_name || "קוסם"}</span>
                                                             <span className="text-white/15 text-[9px]">·</span>
-                                                            <span className="text-[9px] text-white/20">{timeAgo(t.created_at)}</span>
+                                                            <span className="text-[9px] text-white/20">{safeTimeAgo(t.created_at)}</span>
                                                         </div>
                                                     </div>
                                                 </Link>
@@ -1246,7 +1255,7 @@ export default function ForumsPage() {
                                 )}
                                 <span className="text-white/15">•</span>
                                 <Clock size={9} />
-                                <span>{timeAgo(forum.last_thread.created_at)}</span>
+                                <span>{safeTimeAgo(forum.last_thread.created_at)}</span>
                             </div>
                         </>
                     ) : (

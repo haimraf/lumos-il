@@ -26,6 +26,7 @@ import {
   normalizeLiveEventCatalog,
   LIVE_EVENTS_CATALOG_KEY,
 } from "@/lib/liveEvent";
+import { DEFAULT_OG_IMAGE, DEFAULT_SEO_DESCRIPTION } from "@/lib/siteMetadata";
 import { SITE_CONFIG_KEY, type SiteConfig } from "@/components/admin/AdminSiteSettingsTab";
 
 type AdminHealthTarget =
@@ -360,8 +361,8 @@ export default function AdminSystemHealthPanel({
       })(),
       (() => {
         const cfg = siteSettings[SITE_CONFIG_KEY] as Partial<SiteConfig> | undefined;
-        const hasOgImage = Boolean(cfg?.og_image_url?.trim());
-        const hasSeoDesc = Boolean(cfg?.seo_description?.trim());
+        const hasOgImage = Boolean(cfg?.og_image_url?.trim() || DEFAULT_OG_IMAGE);
+        const hasSeoDesc = Boolean(cfg?.seo_description?.trim() || DEFAULT_SEO_DESCRIPTION);
         const activeBanners = Array.isArray(cfg?.banners) ? cfg.banners.filter(b => b.active) : [];
         const emptyActiveBanner = activeBanners.some(b => !b.text?.trim());
         const issues: string[] = [];

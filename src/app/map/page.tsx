@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Compass, Flame, Footprints, MapPin, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import {
   getPresenceLocationInfo,
   fetchOnlinePresenceRows,
@@ -149,6 +150,13 @@ function timeAgo(dateString: string) {
   if (diff < 3600) return `\u05dc\u05e4\u05e0\u05d9 ${Math.floor(diff / 60)} \u05d3\u05e7'`;
   if (diff < 86400) return `\u05dc\u05e4\u05e0\u05d9 ${Math.floor(diff / 3600)} \u05e9\u05e2\u05d5\u05ea`;
   return `\u05dc\u05e4\u05e0\u05d9 ${Math.floor(diff / 86400)} \u05d9\u05de\u05d9\u05dd`;
+}
+
+function safeTimeAgo(dateString: string) {
+  return formatHebrewRelativeTime(dateString, {
+    invalidLabel: "לא ידוע",
+    yesterdayLabel: null,
+  });
 }
 
 export default function MaraudersMasterMap() {
@@ -562,7 +570,7 @@ export default function MaraudersMasterMap() {
                           <div className="mt-1 truncate text-sm italic text-amber-900/80">&quot;{item.sub}&quot;</div>
                         )
                       )}
-                      <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-amber-950/45">{timeAgo(item.time)}</div>
+                      <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-amber-950/45">{safeTimeAgo(item.time)}</div>
                     </div>
                   );
 

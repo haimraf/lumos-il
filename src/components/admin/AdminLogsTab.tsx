@@ -21,16 +21,18 @@ type Props = {
 };
 
 function timeAgo(dateString: string) {
-  if (!dateString) return "ממש עכשיו";
-  const seconds = Math.round((Date.now() - new Date(dateString).getTime()) / 1000);
-  const minutes = Math.round(seconds / 60);
-  const hours = Math.round(minutes / 60);
-  const days = Math.round(hours / 24);
+  const timestamp = dateString ? new Date(dateString).getTime() : NaN;
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return "לא ידוע";
+
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
 
   if (seconds < 60) return "ממש עכשיו";
   if (minutes < 60) return `לפני ${minutes} דק'`;
   if (hours < 24) return `לפני ${hours} שעות`;
-  return `לפני ${days} ימים`;
+  return days === 1 ? "אתמול" : `לפני ${days} ימים`;
 }
 
 function prettifyAction(action: string) {

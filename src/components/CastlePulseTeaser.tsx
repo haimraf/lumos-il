@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity, ArrowLeft, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getHouseSecondaryColor } from "@/lib/houses";
 
 type PulseEvent = {
@@ -32,6 +33,13 @@ function timeAgo(dateString: string) {
   if (hours < 24) return `לפני ${hours} שעות`;
   if (days === 1) return "אתמול";
   return `לפני ${days} ימים`;
+}
+
+function safeTimeAgo(dateString: string) {
+  return formatHebrewRelativeTime(dateString, {
+    invalidLabel: "...",
+    maxRelativeDays: 14,
+  });
 }
 
 export default function CastlePulseTeaser() {
@@ -129,7 +137,7 @@ export default function CastlePulseTeaser() {
                     {event.icon || "✨"}
                   </div>
                   <div className="text-[10px] font-cinzel uppercase tracking-[0.2em] text-white/25">
-                    {timeAgo(event.created_at)}
+                    {safeTimeAgo(event.created_at)}
                   </div>
                 </div>
 

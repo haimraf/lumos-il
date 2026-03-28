@@ -9,6 +9,11 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import type { EmojiClickData } from "emoji-picker-react";
+import {
+  DEFAULT_OG_IMAGE,
+  DEFAULT_SEO_DESCRIPTION,
+  DEFAULT_SHARE_TITLE,
+} from "@/lib/siteMetadata";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
@@ -39,7 +44,7 @@ export type SiteConfig = {
 const DEFAULT_SITE_CONFIG: SiteConfig = {
   seo_description: "",
   seo_keywords: "",
-  og_image_url: "/images/og-image.png",
+  og_image_url: DEFAULT_OG_IMAGE,
   banners: [],
   registration_open: true,
 };
@@ -150,7 +155,7 @@ const LABEL_PRESETS = ["הכרזה", "איוונט", "דחוף", "גיוס צו�
 
 // ─── Normalize ────────────────────────────────────────────────────────────────
 
-const DEFAULT_SHARE_DESCRIPTION_PREVIEW = "תיאור ברירת המחדל של האתר יוצג בכרטיס השיתוף אם לא הוגדר תיאור מותאם.";
+const DEFAULT_SHARE_DESCRIPTION_PREVIEW = DEFAULT_SEO_DESCRIPTION;
 
 function splitKeywords(value: string) {
   return value
@@ -211,7 +216,7 @@ function normalizeSiteConfig(raw: unknown): SiteConfig {
   return {
     seo_description:  typeof r.seo_description  === "string" ? r.seo_description  : "",
     seo_keywords:     typeof r.seo_keywords     === "string" ? r.seo_keywords     : "",
-    og_image_url:     typeof r.og_image_url     === "string" ? r.og_image_url     : "/images/og-image.png",
+    og_image_url:     typeof r.og_image_url     === "string" ? r.og_image_url     : DEFAULT_OG_IMAGE,
     banners,
     registration_open: typeof r.registration_open === "boolean" ? r.registration_open : true,
   };
@@ -624,7 +629,7 @@ export default function AdminSiteSettingsTab() {
   const activeBannerCount = draft.banners.filter((banner) => banner.active && banner.text.trim()).length;
   const hasCustomSeo = Boolean(draft.seo_description.trim() || keywordList.length > 0);
   const hasCustomOg = Boolean(draft.og_image_url.trim() && draft.og_image_url !== DEFAULT_SITE_CONFIG.og_image_url);
-  const shareTitle = "LUMOS IL | הבית הדיגיטלי של קהילת הקוסמים";
+  const shareTitle = DEFAULT_SHARE_TITLE;
   const shareDescription = draft.seo_description.trim() || DEFAULT_SHARE_DESCRIPTION_PREVIEW;
   const ogPreviewSrc = draft.og_image_url.trim() || DEFAULT_SITE_CONFIG.og_image_url;
 

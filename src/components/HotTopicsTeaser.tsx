@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { formatHebrewRelativeTime } from "@/lib/dateTime";
 
 function timeAgo(dateString: string) {
     if (!dateString) return "...";
@@ -18,6 +19,13 @@ function timeAgo(dateString: string) {
     if (hours < 24) return `לפני ${hours} שעות`;
     if (days === 1) return "אתמול";
     return `לפני ${days} ימים`;
+}
+
+function safeTimeAgo(dateString: string) {
+    return formatHebrewRelativeTime(dateString, {
+        invalidLabel: "...",
+        maxRelativeDays: 14,
+    });
 }
 
 const HOUSE_COLORS: Record<string, { text: string; bg: string; border: string; glow: string }> = {
@@ -327,7 +335,7 @@ export default function HotTopicsTeaser() {
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <Clock size={10} className="text-white/20" />
-                                                <span>{timeAgo(topic.last_activity_at)}</span>
+                                                <span>{safeTimeAgo(topic.last_activity_at)}</span>
                                             </div>
                                         </div>
                                     </div>

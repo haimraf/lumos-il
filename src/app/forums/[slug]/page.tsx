@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const ReactQuill = dynamic(() => import('react-quill-new'), {
@@ -86,6 +87,14 @@ function timeAgo(dateString: string) {
 }
 
 /* ─── Thread Row ─── */
+function safeTimeAgo(dateString: string) {
+    return formatHebrewRelativeTime(dateString, {
+        invalidLabel: "לא ידוע",
+        yesterdayLabel: null,
+        maxRelativeDays: 0,
+    });
+}
+
 function ThreadRow({ thread, canModerate, roleColors, isNew, onPin, onLock, onDelete }: {
     thread: Thread;
     canModerate?: boolean;
@@ -225,7 +234,7 @@ function ThreadRow({ thread, canModerate, roleColors, isNew, onPin, onLock, onDe
                 </Link>
                 <div className="lastpost-time">
                     <Clock size={9} />
-                    {timeAgo(lastAt)}
+                    {safeTimeAgo(lastAt)}
                 </div>
 
                 {/* ── Mod actions — shown on hover for mods/admins ── */}

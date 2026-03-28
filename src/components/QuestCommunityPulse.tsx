@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Activity, ArrowLeft, Flame, Sparkles, Users, WandSparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import {
   HOUSE_IDS,
   getHouseLabel,
@@ -62,6 +63,13 @@ function timeAgo(dateString: string | null) {
   if (minutes < 60) return `לפני ${minutes} דק'`;
   if (hours < 24) return `לפני ${hours} שעות`;
   return "היום";
+}
+
+function safeTimeAgo(dateString: string | null) {
+  return formatHebrewRelativeTime(dateString, {
+    invalidLabel: "לא ידוע",
+    maxRelativeDays: 1,
+  });
 }
 
 function pulseNarration(
@@ -419,7 +427,7 @@ export default function QuestCommunityPulse({ currentHouse }: { currentHouse?: s
                         </div>
                       </div>
                       <div className="shrink-0 text-[10px] font-cinzel uppercase tracking-[0.18em] text-white/25">
-                        {timeAgo(event.created_at)}
+                        {safeTimeAgo(event.created_at)}
                       </div>
                     </div>
                   </Link>

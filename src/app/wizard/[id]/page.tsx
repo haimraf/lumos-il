@@ -19,6 +19,7 @@ import { getYearFromProfile, getYearTitle, getYearLabel } from "@/lib/yearSystem
 import { getItemBoostBadges } from "@/lib/inventoryBoosts";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import { logAdminAudit } from "@/lib/adminAudit";
+import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getHouseDisplayIcon, getHouseDisplayLabel, isUnsortedHouse } from "@/lib/houses";
 import { renderAvatarFrameBlob } from "@/lib/mediaFraming";
 
@@ -106,6 +107,13 @@ function timeAgo(dateString: string) {
     if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שעות`;
     if (diff < 2592000) return `לפני ${Math.floor(diff / 86400)} ימים`;
     return new Date(dateString).toLocaleDateString("he-IL");
+}
+
+function safeTimeAgo(dateString: string) {
+    return formatHebrewRelativeTime(dateString, {
+        invalidLabel: "לא ידוע",
+        maxRelativeDays: 29,
+    });
 }
 
 function getInventory(raw: any) {
@@ -1172,7 +1180,7 @@ export default function WizardProfilePage() {
                                                 </div>
                                                 <div className="flex items-center gap-1 text-[10px] text-white/20 shrink-0 mt-1">
                                                     <Clock size={9} />
-                                                    {timeAgo(post.created_at)}
+                                                    {safeTimeAgo(post.created_at)}
                                                 </div>
                                             </div>
                                         </Link>
@@ -1314,7 +1322,7 @@ export default function WizardProfilePage() {
                                                     {/* Date */}
                                                     <div className="shrink-0 flex items-center gap-1 text-[10px] text-white/20">
                                                         <Clock size={9} />
-                                                        {timeAgo(duel.finished_at || duel.created_at)}
+                                                        {safeTimeAgo(duel.finished_at || duel.created_at)}
                                                     </div>
                                                 </Link>
                                             );

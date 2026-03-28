@@ -11,6 +11,7 @@ import {
   getPresenceLocationInfo,
   type OnlinePresenceRow,
 } from "@/lib/presenceStatus";
+import { formatHebrewRelativeTime, parseAppTimestamp } from "@/lib/dateTime";
 import {
   getHouseDisplayIcon,
   getHouseDisplayLabel,
@@ -42,24 +43,6 @@ type DecoratedPresenceRow = OnlinePresenceRow & {
   lastActiveAgo: string;
 };
 
-function formatRelativeTime(value: string | null, now: number) {
-  if (!value) return "לא ידוע";
-
-  const normalizedValue = /[zZ]$|[+-]\d{2}:\d{2}$/.test(value.trim())
-    ? value.trim()
-    : `${value.trim().replace(" ", "T")}Z`;
-  const diffMs = Math.max(0, now - new Date(normalizedValue).getTime());
-  const diffMinutes = Math.floor(diffMs / 60000);
-
-  if (diffMinutes <= 0) return "הרגע";
-  if (diffMinutes < 60) return `לפני ${diffMinutes} דק'`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `לפני ${diffHours} שעות`;
-
-  return `לפני ${Math.floor(diffHours / 24)} ימים`;
-}
-
 function getGuestDisplayName(row: OnlinePresenceRow) {
   const suffix = row.id ? row.id.slice(-6) : "guest";
   if (row.user_name && row.user_name.trim() && row.user_name.trim() !== "אורח") {
@@ -81,6 +64,9 @@ function decorateRow(row: OnlinePresenceRow, now: number): DecoratedPresenceRow 
     ? getGuestDisplayName(row)
     : (row.user_name || "קוסם ללא שם");
   const freshnessAt = getPresenceFreshnessTimestamp(row);
+  const activitySource = parseAppTimestamp(row.last_active_at) !== null
+    ? row.last_active_at
+    : row.last_seen;
 
   const freshnessIso = freshnessAt > 0 ? new Date(freshnessAt).toISOString() : (row.last_seen || row.last_active_at || null);
 
@@ -94,8 +80,8 @@ function decorateRow(row: OnlinePresenceRow, now: number): DecoratedPresenceRow 
     locationLabel: locationInfo.label,
     locationHref: locationInfo.href,
     rawPath: locationInfo.rawPath,
-    lastSeenAgo: formatRelativeTime(freshnessIso, now),
-    lastActiveAgo: formatRelativeTime(row.last_active_at || row.last_seen, now),
+    lastSeenAgo: formatHebrewRelativeTime(freshnessIso, { now, invalidLabel: "לא ידוע" }),
+    lastActiveAgo: formatHebrewRelativeTime(activitySource, { now, invalidLabel: "אין עדיין פעילות מדווחת" }),
   };
 }
 
@@ -287,7 +273,7 @@ export default function AdminPresencePanel({ mode = "full", onOpenFull }: AdminP
         <div className="flex items-center gap-2">
           {lastSync && (
             <span className="text-[10px] font-cinzel uppercase tracking-[0.18em] text-white/30">
-              עודכן {formatRelativeTime(new Date(lastSync).toISOString(), nowTs)}
+              עודכן {formatHebrewRelativeTime(new Date(lastSync).toISOString(), { now: nowTs, invalidLabel: "לא ידוע" })}
             </span>
           )}
           <button
