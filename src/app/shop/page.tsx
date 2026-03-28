@@ -5,6 +5,8 @@ import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
+import CanonBadge from "@/components/CanonBadge";
+import { DIAGON_ALLEY_GUIDE } from "@/lib/wizardingCanon";
 import { Coins, Sparkles, Shield, Wand2, Users, ScrollText, ChevronRight, ShoppingBag, Zap, Star, Map } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -155,6 +157,7 @@ function ShopContent() {
     const filteredItems = activeCategory === 'all'
         ? items
         : items.filter(item => item.category === activeCategory);
+    const activeGuide = DIAGON_ALLEY_GUIDE.find((entry) => entry.id === activeCategory) || DIAGON_ALLEY_GUIDE[0];
 
     if (loading || authLoading) {
         return (
@@ -170,9 +173,9 @@ function ShopContent() {
                 <div className="max-w-md w-full rounded-[2rem] border border-amber-500/20 bg-black/30 p-8 text-center space-y-5 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
                     <ShoppingBag className="mx-auto text-amber-500" size={42} />
                     <div>
-                        <h1 className="font-cinzel text-2xl font-black text-white mb-2">החיבור הצליח, אבל הפרופיל עוד לא נטען</h1>
+                        <h1 className="font-cinzel text-2xl font-black text-white mb-2">הכניסה נפתחה, אבל דף הקוסם עוד מתארגן</h1>
                         <p className="font-crimson text-white/55 leading-relaxed">
-                            {profileError || "אפשר לנסות לרענן את הפרופיל בלי לנתק את החשבון."}
+                            {profileError || "אפשר לנסות לרענן את הדף האישי בלי לנתק את החשבון."}
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -180,7 +183,7 @@ function ShopContent() {
                             onClick={() => refreshProfile()}
                             className="px-5 py-3 rounded-xl bg-amber-500 text-amber-950 font-cinzel font-black text-sm tracking-widest uppercase"
                         >
-                            רענון פרופיל
+                            רענון הדף האישי
                         </button>
                         <button
                             onClick={async () => {
@@ -235,8 +238,40 @@ function ShopContent() {
                     </h1>
                     <div className="h-px w-40 bg-gradient-to-r from-transparent via-amber-500/40 to-transparent mx-auto mb-6" />
                     <p className="text-lg md:text-xl text-white/40 italic max-w-xl mx-auto leading-relaxed">
-                        "הציוד הנכון הוא ההבדל בין קוסם גדול לקוסם שצריך שיקוי החייאה."
+                        "כאן מתחילים שנת לימודים כמו שצריך: שרביט, רוקחות, ינשוף וקצת מקום במזוודה."
                     </p>
+                </div>
+
+                <div className="mb-8 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-[2.4rem] border border-white/10 bg-black/25 p-6 text-right">
+                        <div className="mb-3 flex flex-wrap justify-end gap-2">
+                            <CanonBadge source={activeGuide.source} />
+                        </div>
+                        <h2 className="font-cinzel text-2xl font-black text-white">{activeGuide.title}</h2>
+                        <p className="mt-3 max-w-3xl text-sm leading-7 text-white/68">
+                            {activeGuide.summary}
+                        </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {DIAGON_ALLEY_GUIDE.filter((entry) => entry.id !== "all").map((entry) => (
+                            <button
+                                key={entry.id}
+                                type="button"
+                                onClick={() => setActiveCategory(entry.id)}
+                                className={`rounded-[2rem] border p-4 text-right transition-all ${
+                                    activeCategory === entry.id
+                                        ? "border-amber-500/35 bg-amber-500/10"
+                                        : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
+                                }`}
+                            >
+                                <div className="mb-3 flex flex-wrap justify-end gap-2">
+                                    <CanonBadge source={entry.source} />
+                                </div>
+                                <p className="font-cinzel text-sm font-black text-white">{entry.title}</p>
+                                <p className="mt-2 text-sm leading-6 text-white/55 line-clamp-2">{entry.summary}</p>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* ✅ קטגוריות — עם מספר פריטים */}
@@ -317,6 +352,7 @@ function ShopContent() {
 
 function ShopCard({ item, profile, onPurchase, purchasingId }: any) {
     const rarity = getRarity(item);
+    const guide = DIAGON_ALLEY_GUIDE.find((entry) => entry.id === item.category);
     const canAfford = profile?.galleons >= item.price;
     const yearMet = profile?.year >= (item.min_year || 1);
     const isPurchasable = canAfford && yearMet;
@@ -335,6 +371,9 @@ function ShopCard({ item, profile, onPurchase, purchasingId }: any) {
                     <span className={`text-[9px] font-cinzel font-black px-2.5 py-1 rounded-full border uppercase tracking-[0.15em] backdrop-blur-sm ${rarity.badge}`}>
                         {rarity.label}
                     </span>
+                    {guide && (
+                        <CanonBadge source={guide.source} className="justify-center backdrop-blur-sm" />
+                    )}
                     {item.min_year > 1 && (
                         <span className="text-[9px] font-cinzel px-2.5 py-1 rounded-full border border-red-500/30 bg-red-950/70 text-red-400 uppercase tracking-widest backdrop-blur-sm flex items-center gap-1">
                             <Shield size={9} /> שנה {item.min_year}+
@@ -351,6 +390,16 @@ function ShopCard({ item, profile, onPurchase, purchasingId }: any) {
                 <p className="text-sm text-white/40 italic mb-4 line-clamp-2 leading-relaxed flex-1">
                     {item.description}
                 </p>
+                {guide && (
+                    <div className="mb-4 rounded-xl border border-white/6 bg-white/[0.03] px-3 py-3 text-right">
+                        <p className="font-cinzel text-[9px] font-black uppercase tracking-[0.18em] text-white/28">
+                            מסגרת קאנונית
+                        </p>
+                        <p className="mt-2 text-xs leading-6 text-white/58">
+                            {guide.summary}
+                        </p>
+                    </div>
+                )}
 
                 {/* בוסטים */}
                 {item.stats_boost && Object.keys(item.stats_boost).length > 0 && (

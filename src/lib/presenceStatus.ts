@@ -198,7 +198,7 @@ function getFriendlyLabelFromPath(path: string) {
   if (path.startsWith("/arena")) return "זירת הדו-קרב";
   if (path.startsWith("/news")) return "הנביא היומי";
   if (path.startsWith("/shop") || path.startsWith("/ollivanders")) return "סמטת דיאגון";
-  if (path.startsWith("/wizard/")) return "פרופיל קוסם";
+  if (path.startsWith("/wizard/")) return "דף קוסם";
   if (path.startsWith("/chat")) return "אולם השיחות";
   return null;
 }

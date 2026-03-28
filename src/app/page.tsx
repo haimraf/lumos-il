@@ -97,11 +97,11 @@ function shouldRouteToSorting(profile: { house: string | null; role: string | nu
 
 function describeAuthError(error: unknown) {
   if (error instanceof Error && /timed out after \d+ms/i.test(error.message)) {
-    return "ההתחברות מתעכבת מהרגיל בגלל עומס זמני בשרת. נסו שוב בעוד רגע.";
+    return "שערי הטירה עמוסים כרגע מהרגיל. נסו שוב בעוד רגע.";
   }
 
   if (typeof error === "string" && /timed out after \d+ms/i.test(error)) {
-    return "ההתחברות מתעכבת מהרגיל בגלל עומס זמני בשרת. נסו שוב בעוד רגע.";
+    return "שערי הטירה עמוסים כרגע מהרגיל. נסו שוב בעוד רגע.";
   }
 
   if (error instanceof Error && error.message.trim() && error.message.trim() !== "{}") {
@@ -138,7 +138,7 @@ function describeAuthError(error: unknown) {
     }
   }
 
-  return "ההתחברות נכשלה זמנית. נסו שוב בעוד רגע.";
+  return "שערי הטירה סירבו להיפתח זמנית. נסו שוב בעוד רגע.";
 }
 
 export default function Home() {
@@ -201,7 +201,7 @@ export default function Home() {
         );
 
         if (error) {
-          setAuthMessage({ type: "error", text: "הלחש נכשל: " + describeAuthError(error) });
+          setAuthMessage({ type: "error", text: "השער סירב להיפתח: " + describeAuthError(error) });
           return;
         }
 
@@ -320,7 +320,7 @@ export default function Home() {
         setIsLoginMode(true);
       }
     } catch (error) {
-      setAuthMessage({ type: "error", text: `הלחש נכשל: ${describeAuthError(error)}` });
+      setAuthMessage({ type: "error", text: `השער סירב להיפתח: ${describeAuthError(error)}` });
     } finally {
       setIsLoading(false);
     }

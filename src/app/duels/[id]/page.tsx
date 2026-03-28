@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2, Swords, Shield } from "lucide-react";
+import { logActivityEvent } from "@/lib/activityEvents";
 
 /* ── Constants ── */
 const MAX_HP = 100;
@@ -139,6 +140,7 @@ export default function DuelPage() {
     const handledExpiryRef = useRef(false);
     const handledTurnTimeoutRef = useRef(false);
     const finalizedDuelRef = useRef(false);
+    const duelWinLoggedRef = useRef(false);
 
     const TURN_TIMEOUT = 60; // 60 seconds per turn
 
@@ -285,6 +287,26 @@ export default function DuelPage() {
             });
         return () => { supabase.removeChannel(channel); };
     }, [id]);
+
+    /* ── Log arena_duel_completed on win ── */
+    useEffect(() => {
+        if (!duel || duel.status !== "finished" || !duel.winner_id) return;
+        if (duel.winner_id !== myId) return;
+        if (duelWinLoggedRef.current) return;
+        duelWinLoggedRef.current = true;
+
+        const opponent = duel.challenger_id === myId ? duel.opponent_id : duel.challenger_id;
+        void logActivityEvent(supabase, {
+            eventType: "arena_duel_completed",
+            icon: "⚔️",
+            title: "ניצחון בזירה",
+            subtitle: "סיים דו-קרב בניצחון",
+            targetType: "duel",
+            targetId: duel.id,
+            targetUrl: `/duels/${duel.id}`,
+            metadata: { opponent_id: opponent },
+        });
+    }, [duel?.status, duel?.winner_id, myId]);
 
     /* ── Auto scroll log ── */
     useEffect(() => {
@@ -442,7 +464,7 @@ export default function DuelPage() {
                         <button onClick={() => router.push(`/wizard/${opponentId}`)}
                             className="px-8 py-3 rounded-xl font-cinzel font-black text-white transition-all hover:bg-white/20"
                             style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}>
-                            פרופיל היריב
+                            דף היריב
                         </button>
                     </div>
                 </div>

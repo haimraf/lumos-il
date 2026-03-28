@@ -37,7 +37,11 @@ const magicalQuotes = [
 
 export default function HomePage() {
     const [userHouse, setUserHouse] = useState<string>("Unknown");
-    const [randomQuote] = useState<string>(() => magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
+    const [randomQuote, setRandomQuote] = useState<string>("");
+    useEffect(() => {
+        setRandomQuote(magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [candles, setCandles] = useState<{ id: number; left: number; delay: number; duration: number }[]>([]);
     const [eventConfig, setEventConfig] = useState<LiveEventSettings | null>(null);
 
@@ -123,7 +127,7 @@ export default function HomePage() {
         {
             id: 'dashboard',
             title: "חדר המועדון",
-            desc: "הפרופיל האישי שלך, סטטיסטיקות והגדרות",
+            desc: "דף הקוסם שלך, נתוני המסע והגדרות הטירה",
             icon: Shield,
             href: "/dashboard",
             className: "col-span-1 lg:col-span-2",

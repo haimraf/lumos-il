@@ -498,7 +498,7 @@ export default function ExamPage({ examType }: { examType: ExamType }) {
                         </div>
                         <p style={{ fontFamily: "'IM Fell English', serif", color: "#54340f", fontSize: "0.85rem" }}>
                             {passed
-                                ? `${config.badge} קיבלת badge "${config.name}" בפרופיל שלך!`
+                        ? `${config.badge} התו "${config.name}" נוסף עכשיו לדף הקוסם שלך!`
                                 : `נדרש ${config.passingScore}% לעבור`}
                         </p>
                     </div>
@@ -509,7 +509,7 @@ export default function ExamPage({ examType }: { examType: ExamType }) {
                                 {config.badge} {config.name} — הושג!
                             </p>
                             <p style={{ fontFamily: "'IM Fell English', serif", fontStyle: "italic", color: "#2d6a2d", fontSize: "0.8rem", marginTop: "0.25rem" }}>
-                                Badge זה מוצג בפרופיל ובפורומים שלך
+                  התו הזה מוצג בדף הקוסם שלך ובפורומים
                             </p>
                         </div>
                     )}

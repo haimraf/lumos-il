@@ -2,33 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Trash2, X } from "lucide-react";
+import { Bell, Check, Trash2, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
+import { fetchUserNotifications, type NotificationActorProfile, type NotificationItem } from "@/lib/userNotifications";
 import { useAuth } from "@/context/AuthContext";
 
 const QUESTS_FAQ_LINK = "/faq";
-
-type NotificationActorProfile = {
-    id?: string;
-    full_name?: string | null;
-    username?: string | null;
-    house?: string | null;
-    role?: string | null;
-    user_groups?: { color?: string | null } | { color?: string | null }[] | null;
-};
-
-type NotificationItem = {
-    id: string;
-    user_id: string;
-    actor_id: string | null;
-    content: string;
-    type: string;
-    target_url: string;
-    is_read: boolean;
-    created_at: string;
-    actor_profile?: NotificationActorProfile | NotificationActorProfile[] | null;
-};
 
 function getUserGroupColor(userGroups: NotificationActorProfile["user_groups"]) {
     if (Array.isArray(userGroups)) {
@@ -61,48 +41,15 @@ export default function NotificationDropdown() {
     };
 
     const fetchNotifications = useCallback(async (uid: string) => {
-        const [
-            { data, error },
-            { count, error: unreadCountError },
-        ] = await Promise.all([
-            supabase
-                .from("notifications")
-                .select("*")
-                .eq("user_id", uid)
-                .order("created_at", { ascending: false })
-                .limit(10),
-            supabase
-                .from("notifications")
-                .select("id", { count: "exact", head: true })
-                .eq("user_id", uid)
-                .eq("is_read", false),
-        ]);
+        const { notifications: nextNotifications, unreadCount: nextUnreadCount, error } = await fetchUserNotifications(supabase, uid);
 
         if (error) {
-            console.error("[NotificationDropdown] fetch failed:", error.message);
+            console.error("[NotificationDropdown] fetch failed:", error);
             return;
         }
 
-        const notifs = (data || []) as NotificationItem[];
-        const actorIds = [...new Set(notifs.map((notification) => notification.actor_id))].filter(Boolean);
-
-        if (actorIds.length > 0) {
-            const { data: profiles } = await supabase
-                .from("profiles")
-                .select("id, full_name, house, role, user_groups(name, color)")
-                .in("id", actorIds);
-
-            if (profiles) {
-                const profileMap = Object.fromEntries(profiles.map((profile) => [profile.id, profile]));
-                notifs.forEach((notification) => {
-                    if (!notification.actor_id) return;
-                    notification.actor_profile = profileMap[notification.actor_id];
-                });
-            }
-        }
-
-        setNotifications(notifs);
-        setUnreadCount(unreadCountError ? notifs.filter((notification) => !notification.is_read).length : count ?? 0);
+        setNotifications(nextNotifications.slice(0, 10));
+        setUnreadCount(nextUnreadCount);
     }, [supabase]);
 
     useEffect(() => {
@@ -218,7 +165,6 @@ export default function NotificationDropdown() {
                 onClick={() => {
                     if (!isOpen) {
                         setIsOpen(true);
-                        void markAllAsReadInDB();
                     } else {
                         setIsOpen(false);
                     }
@@ -250,6 +196,15 @@ export default function NotificationDropdown() {
                         <div className="p-4 border-b border-white/5 flex items-center justify-between gap-2">
                             <h3 className="font-cinzel text-xs text-white uppercase tracking-widest font-black">התראות אחרונות</h3>
                             <div className="flex items-center gap-1">
+                                {unreadCount > 0 && (
+                                    <button
+                                        onClick={() => void markAllAsReadInDB()}
+                                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold text-emerald-300/60 hover:text-emerald-200 hover:bg-emerald-500/10 transition-all"
+                                        title="סמן את כל ההתראות כנקראו"
+                                    >
+                                        <Check size={11} /> סמן הכול כנקרא
+                                    </button>
+                                )}
                                 {notifications.length > 0 && (
                                     <button
                                         onClick={deleteAll}
@@ -332,7 +287,7 @@ export default function NotificationDropdown() {
                                 ))
                             ) : (
                                 <div className="p-12 text-center text-white/20 text-[10px] font-cinzel tracking-widest uppercase">
-                                    אין מכתבים חדשים בנמצא
+                                    אין התראות חדשות כרגע
                                 </div>
                             )}
                         </div>

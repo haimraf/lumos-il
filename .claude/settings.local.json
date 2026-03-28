@@ -16,7 +16,10 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(find src/components -name *ort* -o -name *Hat* -o -name *Sorting*)",
-      "Bash(find /c/projects/lumos-il.co.il/src -name Footer* -o -name footer*)"
+      "Bash(find /c/projects/lumos-il.co.il/src -name Footer* -o -name footer*)",
+      "Bash(npx next:*)",
+      "Bash(cmd /c \"netstat -ano | findstr :3000\" 2>&1)",
+      "Bash(find C:/projects/lumos-il.co.il/public -name logo* -o -name Logo*)"
     ]
   }
 }

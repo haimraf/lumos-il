@@ -40,7 +40,7 @@ type Props = {
   siteSettings: Record<string, unknown>;
   newsItems: Array<{ title?: string | null; subtitle?: string | null; content?: string | null }>;
   forumItems: Array<{ name?: string | null; description?: string | null }>;
-  onOpenTab: (tab: "house-cup" | "health" | "presence" | "activity" | "logs" | "quests" | "users" | "moderation") => void;
+  onOpenTab: (tab: "house-cup" | "health" | "presence" | "activity" | "logs" | "quests" | "users" | "moderation" | "events" | "settings") => void;
   isAdmin: boolean;
   searchQuery: string;
   onSearchChange: (event: ChangeEvent<HTMLInputElement>) => void;

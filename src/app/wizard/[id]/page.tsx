@@ -89,7 +89,7 @@ const RANK_CONFIG: Record<string, { label: string; class: string; icon: string }
     "מנהל": { label: "מנהל", class: "bg-amber-500 text-amber-950 border-amber-400", icon: "👑" },
     "פרופסור": { label: "פרופסור", class: "bg-purple-600/80 text-white border-purple-400", icon: "📚" },
     "מדריך": { label: "מדריך", class: "bg-blue-600/80 text-white border-blue-400", icon: "🪄" },
-    "תלמיד/ה": { label: "תלמיד/ה", class: "bg-white/10 text-white/70 border-white/20", icon: "🧙" },
+    "תלמיד/ה": { label: "לומד בטירה", class: "bg-white/10 text-white/70 border-white/20", icon: "🧙" },
 };
 
 const TRAITS = [
@@ -447,7 +447,7 @@ export default function WizardProfilePage() {
         await applyModerationAction({
             status: "active",
             isGhost: true,
-            reason: "הופעל שאדו באן מפרופיל המשתמש",
+            reason: "הופעל שאדו באן מדף המשתמש",
             expiresAt: null,
             auditAction: "set_user_ghost",
             successTitle: "שאדו באן הופעל",
@@ -547,7 +547,7 @@ export default function WizardProfilePage() {
             const urlWithBust = `${publicUrl}?t=${Date.now()}`;
             await supabase.from("profiles").update({ avatar_url: urlWithBust }).eq("id", currentUser.id);
             setAvatarUrl(urlWithBust);
-            sendOwl("האווטאר הותאם", "תמונת הפרופיל הותאמה אוטומטית למסגרת.", "success");
+            sendOwl("הדיוקן הותאם", "התמונה הותאמה אוטומטית למסגרת של דף הקוסם.", "success");
         } catch (error) {
             const message = error instanceof Error ? error.message : "לא הצלחנו להתאים את האווטאר אוטומטית.";
             sendOwl("שגיאת אווטאר", message, "error");
@@ -589,7 +589,7 @@ export default function WizardProfilePage() {
     const house = HOUSE_CONFIG[profile.house] || null;
     const isUnsortedProfile = isUnsortedHouse(profile.house);
     const grp = profile.user_groups as { name: string; color: string } | null;
-    const badgeLabel = grp?.name || profile.role || "חבר/ה";
+    const badgeLabel = grp?.name || profile.role || "דמות קהילה";
     const badgeColor = grp?.color || getRoleColor(profile.role, profile.house, roleColors);
     const inv = getInventory(profile.inventory);
     const traits = profile.magic_traits || null;
@@ -809,7 +809,7 @@ export default function WizardProfilePage() {
                                     color: grp?.color || getRoleColor(profile.role, profile.house, roleColors),
                                     textShadow: `0 0 30px ${grp?.color || getRoleColor(profile.role, profile.house, roleColors)}40`
                                 }}>
-                                {profile.full_name || "קוסם/ת אנונימי/ת"}
+                                    {profile.full_name || "דמות אלמונית בטירה"}
                             </h1>
                             <div className="flex flex-wrap justify-center md:justify-start items-center gap-2">
                                 <span style={{
@@ -850,7 +850,7 @@ export default function WizardProfilePage() {
                                     </Link>
                                 ) : (
                                     <div className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-400/25 bg-amber-500/10 px-4 py-2 text-xs font-black text-amber-100">
-                                        🎩 הפרופיל הזה עדיין לא עבר מיון לבית
+                                    🎩 דף הקוסם הזה עדיין מחכה למיון לבית
                                     </div>
                                 )
                             )}
@@ -940,7 +940,7 @@ export default function WizardProfilePage() {
                                         }
                                     >
                                         {friendshipLoading ? <Loader2 size={13} className="animate-spin" /> : isFriend ? <UserMinus size={13} /> : <UserPlus size={13} />}
-                                        {friendshipLoading ? "..." : isFriend ? "הסר/י" : "הוסף/י חבר/ה"}
+                                            {friendshipLoading ? "..." : isFriend ? "להסיר מחברים" : "להוסיף לחברים"}
                                     </button>
                                 </>
                             )}
@@ -1255,7 +1255,7 @@ export default function WizardProfilePage() {
                             <div>
                                 {duelsHistory.length === 0 ? (
                                     <div className="py-16 text-center text-white/20 font-crimson italic text-lg">
-                                        הקוסם/ת עוד לא השתתפ/ה בדו-קרבות
+                                        עדיין אין כאן דו-קרבות רשומים
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
@@ -1302,7 +1302,7 @@ export default function WizardProfilePage() {
                                                         <div className="min-w-0">
                                                             <p className="font-cinzel text-xs font-black text-white/70 truncate">
                                                                 {tied ? "תיקו מול " : won ? "ניצחת את " : "הפסדת מול "}
-                                                                <span style={{ color: enemyHouse?.accent || "white" }}>{enemy?.full_name || "קוסם/ת"}</span>
+                                                                <span style={{ color: enemyHouse?.accent || "white" }}>{enemy?.full_name || "יריב לא מזוהה"}</span>
                                                             </p>
                                                             {enemyHouse && (
                                                                 <p className="text-[9px] mt-0.5" style={{ color: enemyHouse.accent }}>
@@ -1329,7 +1329,7 @@ export default function WizardProfilePage() {
                             <div>
                                 {friends.length === 0 ? (
                                     <div className="py-16 text-center text-white/20 font-crimson italic text-lg">
-                                        {isOwnProfile ? "עדיין אין לך חברים. חפש/י קוסמים להתחבר אליהם." : "עדיין אין חברים בפרופיל הזה"}
+                                        {isOwnProfile ? "עדיין אין לך חברים בדף הזה. אפשר לצאת למסדרונות ולמצוא בני לוויה חדשים." : "עדיין אין חברים בדף הקוסם הזה"}
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

@@ -35,9 +35,9 @@ type Props = {
   allProfiles: ProfileRow[];
   houseConfig: Record<string, HouseConfigEntry>;
   userSearch: string;
-  userFilter: "all" | "מנהל" | "מנחה" | "קוסם/ת" | "unsorted";
+  userFilter: "all" | "מנהל" | "מנחה" | "תלמידי טירה" | "unsorted";
   onUserSearchChange: (value: string) => void;
-  onUserFilterChange: (value: "all" | "מנהל" | "מנחה" | "קוסם/ת" | "unsorted") => void;
+  onUserFilterChange: (value: "all" | "מנהל" | "מנחה" | "תלמידי טירה" | "unsorted") => void;
   editingGroup: { id: string; group_id: number | null } | null;
   onEditingGroupChange: (value: { id: string; group_id: number | null } | null) => void;
   isSavingGroup: boolean;
@@ -75,10 +75,11 @@ export default function AdminUsersTab({
     .filter((profile) => !userSearch || profile.full_name?.toLowerCase().includes(userSearch.toLowerCase()))
     .filter((profile) => {
       if (userFilter === "all") return true;
-      if (userFilter === "קוסם/ת") return !["מנהל", "מנחה"].includes(profile.role || "");
+      if (userFilter === "תלמידי טירה") return !["מנהל", "מנחה"].includes(profile.role || "");
       if (userFilter === "unsorted") return isUnsortedHouse(profile.house);
       return profile.role === userFilter;
     });
+  const displayRoleLabel = (role?: string | null) => (role === "קוסמ׳" ? "תלמיד בטירה" : role || "ללא דרגה");
 
   const totalUsers = allProfiles.length;
   const withGroup = allProfiles.filter((profile) => profile.group_id).length;
@@ -108,7 +109,7 @@ export default function AdminUsersTab({
                 משתמשים שעדיין לא מוינו
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-white/50">
-                זו רשימת המשתמשים שהבית שלהם עדיין לא נסגר. אפשר לפתוח כל פרופיל, לבדוק אם חסר טקס מיון, ולפנות אליהם גם דרך דיוור הינשופים.
+                זו רשימת המשתמשים שהבית שלהם עדיין לא נסגר. אפשר לפתוח כל דף קוסם, לבדוק אם חסר טקס מיון, ולפנות אליהם גם דרך דיוור הינשופים.
               </p>
             </div>
             <div className="rounded-full border border-cyan-400/15 bg-cyan-500/10 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-cyan-100">
@@ -122,7 +123,7 @@ export default function AdminUsersTab({
                 href={`/wizard/${wizard.id}`}
                 className="rounded-full border border-cyan-400/20 bg-white/[0.03] px-3 py-1.5 text-xs text-white/75 transition-all hover:border-cyan-300/40 hover:text-white"
               >
-                {wizard.full_name || "קוסם/ת ללא שם"}
+                {wizard.full_name || "דמות ללא שם"}
               </Link>
             ))}
           </div>
@@ -145,7 +146,7 @@ export default function AdminUsersTab({
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
           </div>
           <div className="flex gap-1">
-            {(["all", "מנהל", "מנחה", "קוסם/ת"] as const).map((filter) => (
+            {(["all", "מנהל", "מנחה", "תלמידי טירה"] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => onUserFilterChange(filter)}
@@ -261,7 +262,7 @@ export default function AdminUsersTab({
                           colorScheme: "dark",
                         }}
                       >
-                        <option value="קוסמ׳" style={{ backgroundColor: "#0f172a" }}>קוסם/ת</option>
+                        <option value="קוסמ׳" style={{ backgroundColor: "#0f172a" }}>תלמיד בטירה</option>
                         <option value="מנחה" style={{ backgroundColor: "#0f172a" }}>מנחה</option>
                         <option value="מנהל" style={{ backgroundColor: "#0f172a" }}>מנהל</option>
                       </select>
@@ -305,7 +306,7 @@ export default function AdminUsersTab({
                               border: `1px solid ${roleColor}40`,
                             }}
                           >
-                            {profile.role || "ללא דרגה"}
+                            {displayRoleLabel(profile.role)}
                           </span>
                         );
                       })()}
@@ -318,7 +319,7 @@ export default function AdminUsersTab({
                       </button>
                       <button
                         onClick={() => onToggleBan(profile.id, profile.status || "active")}
-                        title={isBanned ? "בטל חסימה" : "חסום קוסם/ת"}
+                        title={isBanned ? "בטל חסימה" : "חסום את הדמות"}
                         className={`p-1.5 rounded-lg transition-all ${
                           isBanned
                             ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white"

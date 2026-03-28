@@ -18,6 +18,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { useOwlMail } from "@/components/OwlMail";
 import QuestCommunityPulse from "@/components/QuestCommunityPulse";
+import QuickDailyQuestModal, { type QuickDailyQuestMode } from "@/components/QuickDailyQuestModal";
 import { useAuth } from "@/context/AuthContext";
 import { logActivityEvent } from "@/lib/activityEvents";
 import { computeNextActions, type NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
@@ -312,6 +313,7 @@ export default function QuestsPage() {
     const day = new Date().getDate();
     return TRIVIA_POOL[day % TRIVIA_POOL.length] ?? null;
   });
+  const [activeQuickQuest, setActiveQuickQuest] = useState<QuickDailyQuestMode | null>(null);
   const [nifflerLoading, setNifflerLoading] = useState(false);
   const [snitchLoading, setSnitchLoading] = useState(false);
   const [dailyStatus, setDailyStatus] = useState({
@@ -681,6 +683,19 @@ export default function QuestsPage() {
     await refreshProfile();
   };
 
+  const openQuickQuest = (mode: QuickDailyQuestMode) => {
+    if (
+      (mode === "allowance" && isAllowanceDone) ||
+      (mode === "trivia" && isTriviaDone) ||
+      (mode === "niffler" && (isNifflerDone || nifflerLoading)) ||
+      (mode === "snitch" && (isSnitchDone || snitchLoading))
+    ) {
+      return;
+    }
+
+    setActiveQuickQuest(mode);
+  };
+
   const handleTriviaAnswer = async (selected: string) => {
     if (isTriviaDone || !profile || !currentTrivia) return;
 
@@ -856,6 +871,29 @@ export default function QuestsPage() {
     setSnitchLoading(false);
   };
 
+  const handleQuickQuestComplete = async (payload?: string) => {
+    if (!activeQuickQuest) return;
+
+    if (activeQuickQuest === "allowance") {
+      await handleDailyCollect();
+      return;
+    }
+
+    if (activeQuickQuest === "trivia") {
+      if (typeof payload === "string") {
+        await handleTriviaAnswer(payload);
+      }
+      return;
+    }
+
+    if (activeQuickQuest === "niffler") {
+      await handleNifflerHunt();
+      return;
+    }
+
+    await handleSnitchCatch();
+  };
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#020617]">
@@ -872,10 +910,10 @@ export default function QuestsPage() {
           <Gift className="mx-auto text-amber-500" size={42} />
           <div>
             <h1 className="mb-2 font-cinzel text-2xl font-black text-white">
-              החיבור הצליח, אבל הפרופיל עוד לא נטען
+              הכניסה נפתחה, אבל דף הקוסם עוד מתארגן
             </h1>
             <p className="font-crimson leading-relaxed text-white/55">
-              {profileError || "אפשר לנסות לרענן את הפרופיל בלי לנתק את החשבון."}
+              {profileError || "אפשר לנסות לרענן את הדף האישי בלי לנתק את החשבון."}
             </p>
           </div>
           <div className="flex justify-center">
@@ -883,7 +921,7 @@ export default function QuestsPage() {
               onClick={() => refreshProfile()}
               className="rounded-xl bg-amber-500 px-5 py-3 text-sm font-black font-cinzel uppercase tracking-widest text-amber-950"
             >
-              רענון פרופיל
+              רענון הדף האישי
             </button>
           </div>
         </div>
@@ -917,6 +955,15 @@ export default function QuestsPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#020617] pb-20 text-[#f8fafc]" dir="rtl">
+      {activeQuickQuest && (
+        <QuickDailyQuestModal
+          mode={activeQuickQuest}
+          trivia={currentTrivia}
+          onClose={() => setActiveQuickQuest(null)}
+          onComplete={handleQuickQuestComplete}
+        />
+      )}
+
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute left-[-10%] top-[-10%] h-[70vw] w-[70vw] animate-pulse rounded-full bg-indigo-900/5 blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] h-[60vw] w-[60vw] rounded-full bg-amber-900/5 blur-[120px]" />
@@ -1227,9 +1274,9 @@ export default function QuestsPage() {
               icon={<Coins className="text-amber-500" size={32} />}
               completed={isAllowanceDone}
               justCompleted={justCompletedQuestIds.includes("daily_allowance")}
-              statusHint={isAllowanceDone ? "הקופה של היום כבר נאספה." : "משרד הקסמים אישר דמי כיס כדי לפתוח את היום עם מומנטום."}
-              onAction={handleDailyCollect}
-              btnText={allowanceQuest?.actionLabel || "לאסוף קצבה"}
+              statusHint={isAllowanceDone ? "הקופה של היום כבר נאספה." : "הינשוף כבר מחכה. פתח/י את המעטפה והעבר/י את המטבעות לארנק."}
+              onAction={() => openQuickQuest("allowance")}
+              btnText={allowanceQuest?.actionLabel || "לפתוח מעטפה"}
               color="amber"
             />
 
@@ -1250,14 +1297,25 @@ export default function QuestsPage() {
                   </div>
                 </div>
               ) : (
-                <>
-                  <p className="mb-6 h-16 font-crimson text-lg leading-relaxed text-white/75 line-clamp-2">{currentTrivia?.q || "טוען שאלה..."}</p>
-                  <div className="mt-auto grid grid-cols-2 gap-2">
-                    {currentTrivia?.options?.map((opt: string) => (
-                      <button key={opt} onClick={() => handleTriviaAnswer(opt)} className="rounded-xl border border-white/10 py-2 text-xs font-bold transition-all hover:border-blue-500 hover:bg-blue-500/10 hover:text-blue-200">{opt}</button>
+                <div className="mt-auto space-y-5">
+                  <div className="rounded-[1.8rem] border border-blue-400/15 bg-blue-500/[0.06] p-5">
+                    <p className="mb-3 font-cinzel text-[10px] font-black uppercase tracking-[0.24em] text-blue-200/55">השאלה של היום</p>
+                    <p className="font-crimson text-lg leading-relaxed text-white/80 line-clamp-3">{currentTrivia?.q || "טוען שאלה..."}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-white/45">
+                    {(currentTrivia?.options || []).slice(0, 4).map((opt: string) => (
+                      <div key={opt} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-center">
+                        {opt}
+                      </div>
                     ))}
                   </div>
-                </>
+                  <button
+                    onClick={() => openQuickQuest("trivia")}
+                    className="relative w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 py-4 text-lg font-black font-cinzel tracking-widest text-white shadow-lg transition-all hover:from-blue-500 hover:to-blue-700 active:scale-95"
+                  >
+                    להתחיל את המבחן
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1268,9 +1326,9 @@ export default function QuestsPage() {
               icon={<Search className="text-emerald-500" size={32} />}
               completed={isNifflerDone}
               justCompleted={justCompletedQuestIds.includes("daily_niffler_hunt")}
-              statusHint={isNifflerDone ? "הניפלר של היום כבר נתפס." : "משימה מהירה עם בוסט טוב כדי לדחוף את הלוח קדימה."}
-              onAction={handleNifflerHunt}
-              btnText={nifflerLoading ? "מחפש..." : (nifflerQuest?.actionLabel || "לצאת לציד")}
+              statusHint={isNifflerDone ? "הניפלר של היום כבר נתפס." : "מסדרון קטן, שלל נוצץ, ושלוש תפיסות מהירות לפני שהוא בורח."}
+              onAction={() => openQuickQuest("niffler")}
+              btnText={nifflerLoading ? "מחפש..." : (nifflerQuest?.actionLabel || "להיכנס למרדף")}
               color="emerald"
             />
 
@@ -1281,9 +1339,9 @@ export default function QuestsPage() {
               icon={<Zap className="text-violet-400" size={32} />}
               completed={isSnitchDone}
               justCompleted={justCompletedQuestIds.includes("daily_snitch_run")}
-              statusHint={isSnitchDone ? "הסניץ' של היום כבר נתפס." : "תפיסה מהירה אחת יכולה לתת דחיפה חדה לבית שלך."}
-              onAction={handleSnitchCatch}
-              btnText={snitchLoading ? "מזנק..." : (snitchQuest?.actionLabel || "לתפוס סניץ'")}
+              statusHint={isSnitchDone ? "הסניץ' של היום כבר נתפס." : "הסניץ' לא נשאר במקום. צריך שתי תפיסות מדויקות כדי לסגור את האימון."}
+              onAction={() => openQuickQuest("snitch")}
+              btnText={snitchLoading ? "מזנק..." : (snitchQuest?.actionLabel || "להיכנס לאימון")}
               color="violet"
             />
           </div>

@@ -360,7 +360,7 @@ export default function Header() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [avatarMenuOpen]);
 
-    if (pathname === "/") return null;
+    if (pathname === "/" || pathname.startsWith("/dashboard")) return null;
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -411,14 +411,15 @@ export default function Header() {
     return (
         <>
             <header
-                className={`fixed top-0 w-full z-[500] transition-all duration-500 ${isOpen
-                    ? "bg-[#020617] py-3 border-b border-amber-500/30"
+                className={`fixed top-0 w-full z-[500] transition-all duration-500 flex flex-col ${isOpen
+                    ? "bg-[#020617] border-b border-amber-500/30"
                     : isScrolled
-                        ? "bg-[#020617]/95 backdrop-blur-2xl border-b border-white/5 py-2 md:py-3 shadow-2xl"
-                        : "bg-[#020617] py-4 md:py-6 border-b border-amber-500/10"
-                    }`}
+                        ? "bg-[#020617]/95 backdrop-blur-2xl border-b border-white/5 shadow-2xl"
+                        : "bg-[#020617] border-b border-amber-500/10"
+                }`}
                 dir="rtl"
             >
+                <div className={`transition-all duration-300 ${isOpen ? "py-3" : isScrolled ? "py-2 md:py-3" : "py-4 md:py-6"}`}>
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent pointer-events-none" />
 
                 <div className="w-full max-w-[1440px] mx-auto px-3 md:px-10 flex items-center justify-between gap-3">
@@ -650,7 +651,7 @@ export default function Header() {
                                             {/* ── ניווט ── */}
                                             <div className="py-1.5">
                                                 {[
-                                                    { href: `/wizard/${displayProfileId}`, icon: User, label: "הפרופיל שלי" },
+        { href: `/wizard/${displayProfileId}`, icon: User, label: "הדף האישי שלי" },
                                                     { href: "/dashboard", icon: Castle, label: "הטירה שלי" },
                                                     { href: "/dashboard?tab=settings", icon: Settings, label: "הגדרות" },
                                                     ...(profile?.role === "מנהל" ? [{ href: "/admin-panel", icon: Shield, label: "לוח הבקרה" }] : []),
@@ -695,6 +696,7 @@ export default function Header() {
                         nextActionLoading={nextActionLoading}
                     />
                 )}
+                </div>
             </header>
 
             <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl">

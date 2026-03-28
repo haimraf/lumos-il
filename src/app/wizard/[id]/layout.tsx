@@ -29,11 +29,11 @@ export async function generateMetadata(
   const { id } = await params;
   const profile = await getProfile(id);
 
-  if (!profile) return { title: "פרופיל קוסם" };
+  if (!profile) return { title: "דף קוסם" };
 
   const houseHe = HOUSE_HE[profile.house] || profile.house || "";
   const title = `${profile.full_name} — ${houseHe}`;
-  const description = `פרופיל הקוסם ${profile.full_name} מבית ${houseHe} ב-LUMOS IL.${profile.wand_type ? ` שרביט: ${profile.wand_type}.` : ""}`;
+  const description = `דף הקוסם של ${profile.full_name} מבית ${houseHe} ב-LUMOS IL.${profile.wand_type ? ` שרביט: ${profile.wand_type}.` : ""}`;
 
   return {
     title,
@@ -65,7 +65,7 @@ export default async function WizardLayout({ params, children }: Props) {
     "@context": "https://schema.org",
     "@type": "Person",
     "name": profile.full_name,
-    "description": `קוסם/ת מבית ${houseHe} בקהילת LUMOS IL`,
+    "description": `דמות קסומה מבית ${houseHe} בקהילת LUMOS IL`,
     "url": `https://lumos-il.co.il/wizard/${id}`,
     "inLanguage": "he",
     ...(profile.avatar_url ? { "image": profile.avatar_url } : {}),

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SITE_FAQ } from "@/data/site-features-faq";
+import { getFAQItems } from "@/lib/faq";
 
 export const metadata: Metadata = {
     title: "שאלות ותשובות",
@@ -15,14 +15,15 @@ export const metadata: Metadata = {
     },
 };
 
-export default function FAQLayout({ children }: { children: React.ReactNode }) {
+export default async function FAQLayout({ children }: { children: React.ReactNode }) {
+    const faqItems = await getFAQItems();
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "FAQPage",
         "name": "שאלות ותשובות — LUMOS IL",
         "url": "https://lumos-il.co.il/faq",
             "inLanguage": "he-IL",
-        "mainEntity": SITE_FAQ.map((item) => ({
+        "mainEntity": faqItems.map((item) => ({
             "@type": "Question",
             "name": item.q,
             "acceptedAnswer": {

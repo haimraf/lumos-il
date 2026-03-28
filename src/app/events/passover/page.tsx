@@ -266,7 +266,8 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   const userHouseStyles = getEventHouseStyles(userProfile?.house);
   const leadingWizardHouseStyles = getEventHouseStyles(leadingWizard?.house);
   const statusText = eventPhase === "upcoming" ? "פתיחת השערים בעוד:" : "סגירת השערים בעוד:";
-  const progressValue = Math.min(100, Math.max(0, (eventPoints / 500) * 100));
+  const progressTarget = (liveEvent.progress_target as number) || 500;
+  const progressValue = Math.min(100, Math.max(0, (eventPoints / progressTarget) * 100));
   const countdownSummary = `${statusText} ${countdown.days} ימים, ${countdown.hours} שעות, ${countdown.minutes} דקות ו-${countdown.seconds} שניות.`;
   const eventStructuredData = useMemo(() => ({
     "@context": "https://schema.org",
@@ -560,7 +561,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                   יומן המסע שלך
                 </h3>
                 <p className="text-3xl font-black text-white drop-shadow-md">
-                  {userProfile?.full_name || "קוסם/ת אורח/ת"}
+                  {userProfile?.full_name || "אורח מן הטירה"}
                 </p>
               </div>
               <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-900/40 flex items-center justify-center border border-amber-500/30">
@@ -600,16 +601,16 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
             <div className="relative z-10 mt-8">
               <div className="mb-3 flex justify-between text-[11px] text-white/75 uppercase font-black tracking-widest">
                 <span className="text-amber-300">היעד: {rewards[0]?.title || "אלוף האיוונט"}</span>
-                <span>{eventPoints} / 500</span>
+                <span>{eventPoints} / {progressTarget}</span>
               </div>
               <div
                 className="h-3 w-full rounded-full overflow-hidden border border-white/10 bg-white/[0.08] p-0.5"
                 role="progressbar"
                 aria-label="התקדמות ניקוד באיוונט"
                 aria-valuemin={0}
-                aria-valuemax={500}
-                aria-valuenow={Math.min(500, eventPoints)}
-                aria-valuetext={`${eventPoints} מתוך 500 נקודות`}
+                aria-valuemax={progressTarget}
+                aria-valuenow={Math.min(progressTarget, eventPoints)}
+                aria-valuetext={`${eventPoints} מתוך ${progressTarget} נקודות`}
               >
                 <motion.div
                   initial={prefersReducedMotion ? false : { width: 0 }}
@@ -804,6 +805,19 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
                   <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/55">{EVENT_LEADERBOARD_COPY.yourPlace}</div>
                 </div>
               </div>
+              {(() => {
+                if (!currentUserRank || currentUserRank <= 1 || eventPoints <= 0) return null;
+                const personAbove = leaderboard[currentUserRank - 2];
+                if (!personAbove) return null;
+                const pointsAbove = getProfileLiveEventPoints(personAbove);
+                const gap = pointsAbove - eventPoints;
+                if (gap <= 0) return null;
+                return (
+                  <p className="mt-4 text-[11px] text-amber-300/70 font-black uppercase tracking-widest text-center">
+                    עוד {gap} נקודות לעקוף את מקום {currentUserRank - 1}
+                  </p>
+                );
+              })()}
             </div>
 
             <div
@@ -978,7 +992,7 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
               <p className="mt-3 text-sm leading-relaxed text-white/[0.72]">
                 {isUpcoming
                   ? "המאהל כבר מוכן והדף יישאר מסונכרן אוטומטית עם שעת הפתיחה שהוגדרה בלוח הבקרה."
-                  : "האיוונט חי עכשיו והמערכת סופרת נקודות בזמן אמת עד שעת הסיום שהוגדרה."}
+                  : "האיוונט חי עכשיו, ושעון החול של הטירה סופר נקודות בזמן אמת עד שעת הסיום שנקבעה."}
               </p>
             </div>
           </div>

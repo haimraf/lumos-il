@@ -469,6 +469,16 @@ export default function ForumThreadsPage() {
                 targetId: threadId,
                 targetUrl: `/forums/thread/${threadId}`,
             });
+            void logActivityEvent(supabase, {
+                actorId: currentUser.id,
+                eventType: "forum_post_created",
+                icon: "💬",
+                title: "פרסם/ה פוסט בפורום",
+                subtitle: newThreadTitle.trim(),
+                targetType: "thread",
+                targetId: threadId,
+                targetUrl: `/forums/thread/${threadId}`,
+            });
             fetchThreads();
             router.push(`/forums/thread/${threadId}`);
         } catch (err: any) {

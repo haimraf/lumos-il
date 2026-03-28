@@ -39,6 +39,7 @@ export type LiveEventSettings = JsonObject & {
   description: string;
   support_forum_href: string;
   year: number;
+  progress_target: number;
   missions: LiveEventMission[];
   rewards: LiveEventReward[];
 };
@@ -124,6 +125,7 @@ export function getDefaultLiveEventSettings(): LiveEventSettings {
     description: "",
     support_forum_href: "/forums/feedback-and-suggestions",
     year: new Date().getFullYear(),
+    progress_target: 500,
     missions: [],
     rewards: [],
   };
@@ -177,6 +179,7 @@ export function normalizeLiveEventSettings(value: unknown): LiveEventSettings {
     description,
     support_forum_href: supportForumHref,
     year: asNumber(raw.year, defaults.year),
+    progress_target: asNumber(raw.progress_target, defaults.progress_target),
     missions,
     rewards,
   };

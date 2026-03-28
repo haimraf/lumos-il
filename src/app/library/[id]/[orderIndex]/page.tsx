@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { logActivityEvent } from "@/lib/activityEvents";
 import {
     ChevronRight, ChevronLeft, Sparkles,
     MessageSquare, Send, Feather, User, Clock, ShieldAlert,
@@ -43,6 +44,7 @@ export default function ChapterPage() {
     const [isPosting, setIsPosting] = useState(false);
     const [roleColors, setRoleColors] = useState<Record<string, string>>({});
     useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
+    const chapterReadLoggedRef = useRef<string | null>(null);
 
     const currentOrderIndex = parseInt(orderIndex as string);
 
@@ -93,6 +95,23 @@ export default function ChapterPage() {
             if (chapterData) {
                 setChapter(chapterData);
                 fetchComments(chapterData.id);
+
+                const chapterKey = `${id}-${currentOrderIndex}`;
+                if (chapterReadLoggedRef.current !== chapterKey) {
+                    chapterReadLoggedRef.current = chapterKey;
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        void logActivityEvent(supabase, {
+                            eventType: "library_chapter_read",
+                            icon: "📖",
+                            title: `קרא פרק: ${chapterData.title || `פרק ${currentOrderIndex}`}`,
+                            subtitle: chapterData.stories?.title || null,
+                            targetType: "chapter",
+                            targetId: chapterData.id,
+                            targetUrl: `/library/${id}/${currentOrderIndex}`,
+                        });
+                    }
+                }
 
                 const { data: navData } = await supabase
                     .from('chapters')

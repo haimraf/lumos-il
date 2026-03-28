@@ -463,6 +463,16 @@ export default function ForumsPage() {
                     targetId: threadId,
                     targetUrl: `/forums/thread/${threadId}`,
                 });
+                void logActivityEvent(supabase, {
+                    actorId: session.user.id,
+                    eventType: "forum_post_created",
+                    icon: "📬",
+                    title: "פרסם/ה פוסט בפורום",
+                    subtitle: newThreadTitle.trim(),
+                    targetType: "thread",
+                    targetId: threadId,
+                    targetUrl: `/forums/thread/${threadId}`,
+                });
 
                 // 4. הכל עבר בהצלחה! מעבירים את המשתמש לאשכול החדש
                 setIsSubmitting(false);
@@ -620,10 +630,10 @@ export default function ForumsPage() {
                                 aria-expanded={isNewThreadOpen}
                                 aria-controls="new-thread-dialog"
                                 aria-label="פתיחת חלון ליצירת דיון חדש בפורומים"
-                                className="mt-2 md:mt-0 self-start flex items-center gap-2 px-6 py-3 bg-gradient-to-l from-amber-600/30 to-amber-700/10 hover:from-amber-500/40 hover:to-amber-600/20 border border-amber-500/40 hover:border-amber-400 text-amber-500 hover:text-amber-300 rounded-xl font-cinzel font-black transition-all shadow-[0_0_25px_rgba(245,158,11,0.15)] hover:shadow-[0_0_35px_rgba(245,158,11,0.3)] active:scale-95 group"
+                            className="mt-2 md:mt-0 self-start flex items-center gap-2 px-6 py-3 bg-gradient-to-l from-amber-600/30 to-amber-700/10 hover:from-amber-500/40 hover:to-amber-600/20 border border-amber-500/40 hover:border-amber-400 text-amber-500 hover:text-amber-300 rounded-xl font-cinzel font-black transition-all shadow-[0_0_25px_rgba(245,158,11,0.15)] hover:shadow-[0_0_35px_rgba(245,158,11,0.3)] active:scale-95 group"
                             >
                                 <Plus size={18} className="transition-transform group-hover:rotate-90" />
-                                פתח דיון חדש במערכת
+                                פתח אשכול חדש
                             </button>
                         </header>
 
@@ -919,7 +929,7 @@ export default function ForumsPage() {
                                     <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
                                         <Plus size={18} aria-hidden="true" />
                                     </div>
-                                    <h3 id="modal-title" className="font-cinzel font-black text-lg text-white tracking-wide">פתיחת דיון חדש במערכת</h3>
+                                    <h3 id="modal-title" className="font-cinzel font-black text-lg text-white tracking-wide">פתיחת אשכול חדש בהיכל</h3>
                                 </div>
                                 <button onClick={() => setIsNewThreadOpen(false)} aria-label="סגור חלונית" className="text-white/20 hover:text-white/60 transition-colors p-1.5 hover:bg-white/5 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/50">
                                     <X size={22} aria-hidden="true" />

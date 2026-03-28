@@ -163,7 +163,7 @@ export default function GreatHall() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [myId, setMyId] = useState<string | null>(null);
-    const [myName, setMyName] = useState<string>("קוסם/ת");
+    const [myName, setMyName] = useState<string>("אורח בטירה");
     const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
@@ -232,7 +232,7 @@ export default function GreatHall() {
             if (authLoading) return;
             if (!sessionUser || !isMounted) {
                 setMyId(null);
-                setMyName("קוסם/ת");
+                setMyName("אורח בטירה");
                 setMessages([]);
                 setBlockedUserIds([]);
                 setIsLoading(false);
@@ -242,7 +242,7 @@ export default function GreatHall() {
             const userId = sessionUser.id;
             setMyId(userId);
 
-            const extractedName = sessionUser.email ? sessionUser.email.split("@")[0] : "קוסם/ת";
+            const extractedName = sessionUser.email ? sessionUser.email.split("@")[0] : "אורח בטירה";
             const resolvedName = authProfile?.full_name || extractedName;
             setMyName(resolvedName);
 
@@ -291,7 +291,7 @@ export default function GreatHall() {
                         await channel.track({
                             user_id: userId,
                             name: profileCheck?.full_name || resolvedName,
-                            role: profileCheck?.role || "תלמיד/ה",
+                            role: profileCheck?.role || "לומד בטירה",
                             house: profileCheck?.house || "Unknown",
                             group_id: (profileCheck as any)?.group_id || null,
                             group_name: pcGrp?.name || null,
@@ -615,7 +615,7 @@ export default function GreatHall() {
                                     ? { name: msgGrp.name, color: msgGrp.color }
                                     : getRoleDisplay(msg.profiles?.role, roleColors);
 
-                        let displayName = "קוסם/ת";
+                        let displayName = "קול מן הטירה";
                                 if (msg.profiles?.full_name && msg.profiles.full_name !== "Wizard") {
                                     displayName = msg.profiles.full_name;
                                 } else if (msg.profiles?.email) {

@@ -70,7 +70,7 @@ export default function MagicAvatar({
       {currentSrc ? (
         <img
           src={currentSrc}
-          alt={alt || (name ? `תמונת הפרופיל של ${name}` : "תמונת פרופיל")}
+      alt={alt || (name ? `דיוקן הקוסם של ${name}` : "דיוקן קוסם")}
           className={`h-full w-full ${imgClassName}`}
           style={imageStyle}
           onError={() => {

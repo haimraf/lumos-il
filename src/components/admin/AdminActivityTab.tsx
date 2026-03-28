@@ -120,7 +120,7 @@ export default function AdminActivityTab({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="חיפוש לפי קוסם/ת, פעולה או תיאור..."
+            placeholder="חיפוש לפי דמות, פעולה או תיאור..."
             className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-cyan-500/30 rounded-xl p-3 pr-10 text-sm outline-none transition-all"
             dir="rtl"
           />
@@ -134,7 +134,7 @@ export default function AdminActivityTab({
             <thead>
               <tr className="border-b border-white/5 text-white/20 font-cinzel">
                 <th className="pb-2 font-black pr-2">זמן</th>
-                <th className="pb-2 font-black">קוסם/ת</th>
+                <th className="pb-2 font-black">דמות</th>
                 <th className="pb-2 font-black">פעולה</th>
                 <th className="pb-2 font-black">פרטים</th>
               </tr>
@@ -153,7 +153,7 @@ export default function AdminActivityTab({
                   <td className="py-3">
                     <div className="flex items-center gap-2">
                       <span className="text-xs">{event.icon || "✨"}</span>
-                      <span className="font-bold text-white/70">{event.actor_name || "קוסם/ת בטירה"}</span>
+                      <span className="font-bold text-white/70">{event.actor_name || "דמות מן הטירה"}</span>
                     </div>
                   </td>
                   <td className="py-3 text-cyan-400 font-medium">{event.title || "פעילות מערכת"}</td>

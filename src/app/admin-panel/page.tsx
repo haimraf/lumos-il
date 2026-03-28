@@ -9,7 +9,7 @@ import {
     X, AlertCircle, Clock, Zap, RotateCcw, Crown, Users, Coins, Gift,
     TrendingUp, Activity, Eye, Bell, GraduationCap, Pencil, Save,
     UserCog, Shield, ChevronDown as ChevronDownIcon,
-    Store, BookOpenCheck, MessageSquare, Lock, Pin, Plus, Hash, Swords, Ban, BarChart3, Sparkles, ShieldAlert
+    Store, BookOpenCheck, MessageSquare, Lock, Pin, Plus, Hash, Swords, Ban, BarChart3, Sparkles, ShieldAlert, ScrollText, Settings
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { getRoleColor } from "@/lib/roleColor";
@@ -31,6 +31,7 @@ import AdminSystemHealthPanel from "@/components/admin/AdminSystemHealthPanel";
 import AdminTabGuide, { type AdminTabGuideContent } from "@/components/admin/AdminTabGuide";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminForumsTab from "@/components/admin/AdminForumsTab";
+import AdminSiteSettingsTab from "@/components/admin/AdminSiteSettingsTab";
 import { getYearFromProfile, getYearTitle } from "@/lib/yearSystem";
 import { logAdminAudit, type AdminAuditInput } from "@/lib/adminAudit";
 import { logActivityEvent } from "@/lib/activityEvents";
@@ -68,7 +69,7 @@ const REPORT_TARGET_TABLE: Record<string, "comments" | "messages" | "forum_posts
     forum_post: "forum_posts",
 };
 
-type AdminTab = "house-cup" | "health" | "prophet" | "moderation" | "presence" | "activity" | "logs" | "quests" | "events" | "tournaments" | "library" | "year-system" | "users" | "forums" | "shop" | "exams" | "arena";
+type AdminTab = "house-cup" | "health" | "prophet" | "moderation" | "presence" | "activity" | "logs" | "quests" | "events" | "tournaments" | "library" | "year-system" | "users" | "forums" | "shop" | "exams" | "arena" | "settings";
 type EventSettings = LiveEventCatalogEntry;
 type ForumCategory = { id: string; name: string; display_order?: number | null };
 type ForumFormState = {
@@ -206,23 +207,24 @@ const getDefaultEventReward = (rank: number): LiveEventReward => ({
 });
 
 const TAB_CONFIG: { id: AdminTab; label: string; icon: any; color: string }[] = [
-    { id: "house-cup", label: "גביע הבית", icon: Trophy, color: "text-amber-400" },
-    { id: "health", label: "בריאות מערכת", icon: ShieldCheck, color: "text-cyan-300" },
-    { id: "prophet", label: "נביא היומי", icon: Newspaper, color: "text-blue-400" },
-    { id: "moderation", label: "מודרציה", icon: Flag, color: "text-red-400" },
-    { id: "presence", label: "נוכחות", icon: Radio, color: "text-cyan-300" },
-    { id: "activity", label: "פעילות", icon: Activity, color: "text-cyan-400" },
-    { id: "logs", label: "לוגים", icon: ShieldAlert, color: "text-rose-400" },
-    { id: "quests", label: "משימות", icon: Zap, color: "text-yellow-400" },
-    { id: "events", label: "איוונטים", icon: Sparkles, color: "text-pink-400" },
-    { id: "tournaments", label: "טורנירים", icon: Swords, color: "text-orange-400" },
-    { id: "library", label: "הספרייה", icon: FileText, color: "text-blue-400" },
-    { id: "year-system", label: "מערכת שנים", icon: GraduationCap, color: "text-purple-400" },
-    { id: "users", label: "קוסמים", icon: UserCog, color: "text-teal-400" },
-    { id: "forums", label: "פורומים", icon: MessageSquare, color: "text-orange-400" },
-    { id: "shop", label: "חנות", icon: Store, color: "text-emerald-400" },
-    { id: "exams", label: "בחינות", icon: BookOpenCheck, color: "text-violet-400" },
-    { id: "arena", label: "זירת קרבות", icon: Swords, color: "text-orange-400" },
+    { id: "house-cup",   label: "גביע הבית",    icon: Trophy,        color: "text-amber-400"  },
+    { id: "settings",   label: "הגדרות האתר", icon: Settings,      color: "text-violet-400" },
+    { id: "moderation", label: "מודרציה",      icon: Flag,          color: "text-red-400"    },
+    { id: "health",     label: "בריאות מערכת", icon: ShieldCheck,   color: "text-cyan-300"   },
+    { id: "users",      label: "קוסמים",       icon: UserCog,       color: "text-teal-400"   },
+    { id: "events",     label: "איוונטים",     icon: Sparkles,      color: "text-pink-400"   },
+    { id: "quests",     label: "משימות",       icon: Zap,           color: "text-yellow-400" },
+    { id: "forums",     label: "פורומים",      icon: MessageSquare, color: "text-orange-400" },
+    { id: "prophet",    label: "נביא היומי",   icon: Newspaper,     color: "text-blue-400"   },
+    { id: "presence",   label: "נוכחות",       icon: Radio,         color: "text-cyan-300"   },
+    { id: "activity",   label: "פעילות",       icon: Activity,      color: "text-cyan-400"   },
+    { id: "logs",       label: "לוגים",        icon: ShieldAlert,   color: "text-rose-400"   },
+    { id: "tournaments",label: "טורנירים",     icon: Swords,        color: "text-orange-400" },
+    { id: "library",    label: "הספרייה",      icon: FileText,      color: "text-blue-400"   },
+    { id: "year-system",label: "מערכת שנים",  icon: GraduationCap, color: "text-purple-400" },
+    { id: "shop",       label: "חנות",         icon: Store,         color: "text-emerald-400"},
+    { id: "exams",      label: "בחינות",       icon: BookOpenCheck, color: "text-violet-400" },
+    { id: "arena",      label: "זירת קרבות",  icon: Swords,        color: "text-orange-400" },
 ];
 
 const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
@@ -234,7 +236,7 @@ const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
             "פסי ההתקדמות מראים יחס למוביל הנוכחי, כדי שתראה מיד מי רודף ומי מוביל את המרוץ.",
             "כרטיסי הסיכום כאן הם נקודת כניסה: משם יורדים למודרציה, נוכחות, משימות או פעילות לפי מה שנראה חריג.",
         ],
-        footer: "אם משהו נראה תקוע כאן, בדרך כלל הבעיה נמצאת בדאטה שמוזן מהפעילות או מהפרופילים.",
+    footer: "אם משהו נראה תקוע כאן, בדרך כלל הבעיה נמצאת בדאטה שמוזן מהפעילות או מדפי הקוסם.",
         tone: "amber",
     },
     health: {
@@ -259,7 +261,7 @@ const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
         tone: "cyan",
     },
     moderation: {
-        title: "השליטה המשמעתית של המערכת",
+        title: "השליטה המשמעתית של הטירה",
         description: "כאן רואים מי כרגע מוגבל, מי נתן את ההגבלה, למה, ואיך ההיסטוריה של המודרציה נבנתה לאורך זמן.",
         bullets: [
             "הסטטוסים הפעילים נשענים על status ו-is_ghost, לא על role ישן כמו אסיר אזקבאן.",
@@ -303,7 +305,7 @@ const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
         description: "כאן מגדירים את המשימות עצמן: איך הן נספרות, מה הן מחלקות, ואיך הן נדחפות לדאשבורד, Header ועמוד /quests.",
         bullets: [
             "כל קווסט נשען על מקור התקדמות אחד ברור, כדי למנוע מצב שמשימה נראית נכון אבל לא נסגרת בפועל.",
-            "שינוי כאן מתעדכן לכל האזורים המחוברים לקטלוג, כך שהמערכת לא תלויה יותר ברענון ידני.",
+            "שינוי כאן מתעדכן לכל האזורים המחוברים לקטלוג, כך שהטירה לא תלויה יותר ברענון ידני.",
             "הקווסטים הטובים ביותר מחברים בין אזורים באתר, לא רק נותנים עוד נקודות על פעולה בודדת.",
         ],
         tone: "amber",
@@ -323,7 +325,7 @@ const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
         description: "כאן יושבת שכבת התחרות הרשמית. גם אם חלקים עדיין בבנייה, זה המקום לחשוב על חוקים, ניקוד ופרסים.",
         bullets: [
             "טורנירים צריכים להיות ברורים יותר ממשימות רגילות, כי שחקנים משקיעים בהם יותר זמן ורגש.",
-            "כדאי לנהל כאן גם חוקים וגם תצוגת סטטוס, כדי שלא יהיו פערים בין מה שהכרזת לבין מה שהמערכת סופרת.",
+            "כדאי לנהל כאן גם חוקים וגם תצוגת סטטוס, כדי שלא יהיו פערים בין מה שהכרזת לבין מה שיומן הטירה סופר.",
             "אם תרצה להפוך את זה ללב האתר, הטאב הזה צריך להיות מחובר ללוגים, נוכחות ופרסים.",
         ],
         tone: "amber",
@@ -349,11 +351,11 @@ const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
         tone: "violet",
     },
     users: {
-        title: "ניהול משתמשים, פרופילים ותמונת עומק על הקהילה",
+    title: "ניהול משתמשים, דפי קוסם ותמונת עומק על הקהילה",
         description: "כאן נכנסים לרזולוציה של חשבון יחיד: פרטים, בית, דרגה, והקשר הרחב של המשתמש בתוך האתר.",
         bullets: [
             "זה הטאב לחקירות נקודתיות: מי המשתמש, מה מצבו, ואיפה הוא משתלב או נתקע.",
-            "כאן רואים דברים שלא נוח לראות דרך נוכחות או לוגים בלבד, כמו פרטים מצטברים על פרופיל.",
+    "כאן רואים דברים שלא נוח לראות דרך נוכחות או לוגים בלבד, כמו פרטים מצטברים על דף קוסם.",
             "כדאי להשתמש בטאב הזה יחד עם מודרציה ונוכחות כדי לקבל תמונה מלאה, לא רק חלקית.",
         ],
         tone: "cyan",
@@ -397,6 +399,17 @@ const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
             "זה מקום מצוין לבנות סביבו אירועים קצרים, טורנירים ותגמולים מיוחדים.",
         ],
         tone: "rose",
+    },
+    settings: {
+        title: "הגדרות האתר — SEO, באנר והתנהגות כללית",
+        description: "כאן שולטים על ההגדרות הגלובליות שמשפיעות על כל האתר: באנר הודעה, תיאור SEO, תמונת OG ומצב הרשמה.",
+        bullets: [
+            "הגדרות SEO שנשמרות כאן מסונכרנות מהמסד — לא צריך לעדכן קוד בכל שינוי.",
+            "הבאנר פעיל ברגע שמדליקים אותו ויוצג בכל עמוד באתר, המשתמש יכול לסגור.",
+            "כתובת תמונת OG חייבת לצביע לקובץ שאכן קיים ב-/public — בדקו לפני ההפעלה.",
+        ],
+        footer: "שינויים כאן חיים מיידית — אין צורך בפריסה חדשה.",
+        tone: "violet",
     },
 };
 
@@ -457,7 +470,7 @@ export default function AdminPanel() {
 
     // Users management
     const [userSearch, setUserSearch] = useState("");
-    const [userFilter, setUserFilter] = useState<"all" | "מנהל" | "מנחה" | "קוסם/ת" | "unsorted">("all");
+    const [userFilter, setUserFilter] = useState<"all" | "מנהל" | "מנחה" | "תלמידי טירה" | "unsorted">("all");
     const [editingRole, setEditingRole] = useState<{ id: string; role: string } | null>(null);
     const [isSavingRole, setIsSavingRole] = useState(false);
     const [userGroups, setUserGroups] = useState<any[]>([]);
@@ -506,6 +519,8 @@ export default function AdminPanel() {
     const [isCleaningPending, setIsCleaningPending] = useState(false);
     const [isTestingActivity, setIsTestingActivity] = useState(false);
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [rewardPreview, setRewardPreview] = useState<{ rank: number; name: string; galleons: number; points: number; group: string | null }[] | null>(null);
+    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
     const audit = useCallback((entry: Omit<AdminAuditInput, "actorId" | "actorName" | "actorRole">) => {
         if (!profile?.id) return Promise.resolve();
@@ -1019,10 +1034,54 @@ export default function AdminPanel() {
         setIsSavingForum(false);
     };
 
+    const handlePreviewEventRewards = async () => {
+        setIsLoadingPreview(true);
+        setRewardPreview(null);
+
+        const ev = buildEventSettings();
+        const rewards = (ev.rewards || []) as LiveEventReward[];
+        const hasConfiguredRewards = rewards.length > 0;
+
+        const { data: participants } = await supabase
+            .from("profiles")
+            .select("id, full_name, event_points, passover_points")
+            .or("event_points.gt.0,passover_points.gt.0")
+            .limit(250);
+
+        const ranked = [...(participants || [])]
+            .map((p: any) => ({ ...p, total: Math.max(p.event_points || 0, p.passover_points || 0) }))
+            .filter((p: any) => p.total > 0)
+            .sort((a: any, b: any) => b.total - a.total);
+
+        const LEGACY_GALLEONS: Record<number, number> = { 1: 1000, 2: 500, 3: 250 };
+
+        const preview: { rank: number; name: string; galleons: number; points: number; group: string | null }[] = [];
+        let rank = 1;
+        for (const participant of ranked.slice(0, 10)) {
+            const rewardEntry = rewards.find((r: any) => Number(r.rank) === rank);
+            if (hasConfiguredRewards && !rewardEntry) { rank++; continue; }
+
+            const galleons = rewardEntry?.galleons != null ? Number(rewardEntry.galleons) : (LEGACY_GALLEONS[rank] ?? 100);
+            const points = rewardEntry?.points != null ? Number(rewardEntry.points) : 0;
+            const group = (rewardEntry?.group_name as string | undefined) || null;
+
+            preview.push({ rank, name: (participant as any).full_name || "קוסם", galleons, points, group });
+            rank++;
+        }
+
+        setRewardPreview(preview);
+        setIsLoadingPreview(false);
+    };
+
     const handleDistributeEventRewards = async () => {
         if (!confirm("⚠️ האם אתה בטוח שברצונך לסיים את האיוונט ולחלק את כל הפרסים? פעולה זו תחלק גליאונים ודרגות ולא ניתנת לביטול!")) return;
 
         const currentEvent = buildEventSettings();
+        if (currentEvent.rewards_distributed || currentEvent.completed_at) {
+            sendOwl("הפרסים כבר חולקו", "האיוונט הזה כבר נסגר, ולכן לא נבצע חלוקה נוספת.", "info");
+            return;
+        }
+
         const currentCatalog = getEventCatalogFromState(siteSettings);
         const synced = await persistEventCatalog(currentCatalog, currentEvent);
         if (!synced) return;
@@ -1043,6 +1102,19 @@ export default function AdminPanel() {
                 'ה-RPC של חלוקת הפרסים לא זמין למשתמש המחובר. אם כבר הרצת את מיגרציות הפרסים, תריץ גם את 20260325_event_reward_rpc_grants.sql כדי לתת הרשאת EXECUTE ל-admin המחובר.',
                 "error",
             );
+            return;
+        }
+
+        const isAlreadyDistributed = Boolean(
+            error?.message
+            && (
+                /already distributed/i.test(error.message)
+                || /already been distributed/i.test(error.message)
+            ),
+        );
+        if (isAlreadyDistributed) {
+            sendOwl("הפרסים כבר חולקו", "האיוונט כבר סומן כנסגר במסד, ולכן לא נשלחה חלוקה נוספת.", "info");
+            fetchData();
             return;
         }
 
@@ -1124,7 +1196,7 @@ export default function AdminPanel() {
         if (error) { sendOwl("תקלה", error.message, "error"); }
         else {
             triggerAudioPlay();
-            sendOwl("המענק הועבר", `${selectedUser.full_name} קיבל/ה את המשאבים.`, "success");
+            sendOwl("המענק הועבר", `המשאבים הועברו אל ${selectedUser.full_name}.`, "success");
             setPointsToAdd(0); setGalleonsToAdd(0);
             setSelectedUser(null); setSearchQuery(""); setUsers([]);
             fetchData();
@@ -1275,7 +1347,7 @@ export default function AdminPanel() {
         const { error } = await supabase.from('profiles').update({ year }).eq('id', id);
         if (error) { sendOwl("שגיאה", error?.message || "", "error"); }
         else {
-            sendOwl("עודכן", "שנת הקוסם/ת עודכנה.", "success");
+            sendOwl("עודכן", "שנת הלימודים של הדמות עודכנה.", "success");
             setAllProfiles(prev => prev.map(p => p.id === id ? { ...p, year } : p));
             setEditingYear(null);
         }
@@ -1290,7 +1362,7 @@ export default function AdminPanel() {
         const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
-            sendOwl("עודכן", `תפקיד הקוסם/ת שונה ל-${role}.`, "success");
+            sendOwl("עודכן", `תפקיד הדמות שונה ל-${role === "קוסמ׳" ? "תלמיד בטירה" : role}.`, "success");
             setEditingRole(null);
             fetchData();
         }
@@ -1305,7 +1377,7 @@ export default function AdminPanel() {
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
             const grp = userGroups.find(g => g.id === group_id);
-            sendOwl("עודכן", `קבוצת הקוסם/ת שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
+            sendOwl("עודכן", `קבוצת הדמות שונתה ל-${grp?.name || "ללא קבוצה"}.`, "success");
             setEditingGroup(null);
             fetchData();
         }
@@ -1317,7 +1389,7 @@ export default function AdminPanel() {
         const isCurrentlyRestricted = currentStatus === 'banned' || currentStatus === 'cooling';
         const newStatus = isCurrentlyRestricted ? 'active' : 'banned';
         const label = newStatus === 'banned' ? 'חסום' : 'פעיל';
-        if (newStatus === 'banned' && !confirm(`לחסום קוסם/ת זה?`)) return;
+        if (newStatus === 'banned' && !confirm(`לחסום את הדמות הזאת?`)) return;
         const updateData = newStatus === 'banned'
             ? {
                 status: 'banned',
@@ -1344,7 +1416,7 @@ export default function AdminPanel() {
                     ? { reason: updateData.ban_reason, previousStatus: currentStatus || null }
                     : { previousStatus: currentStatus || null },
             });
-            sendOwl("עודכן", `סטטוס הקוסם/ת שונה ל${label}.`, "success");
+            sendOwl("עודכן", `סטטוס הדמות שונה ל${label}.`, "success");
             await fetchData();
         }
     };
@@ -1724,7 +1796,7 @@ export default function AdminPanel() {
                 )}
 
                 {/* ── Tab Navigation ── */}
-                <div className="flex gap-2 border-b border-white/[0.06] pb-0">
+                <div className="flex gap-2 border-b border-white/[0.06] pb-0 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10">
                     {TAB_CONFIG
                         .filter(tab => isAdmin || ['house-cup', 'health', 'moderation', 'forums', 'logs'].includes(tab.id))
                         .map(tab => {
@@ -1734,7 +1806,7 @@ export default function AdminPanel() {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`flex items-center gap-2 px-5 py-3 rounded-t-xl font-cinzel text-xs font-black uppercase tracking-wide transition-all border-b-2
+                                    className={`flex items-center gap-2 px-5 py-3 rounded-t-xl font-cinzel text-xs font-black uppercase tracking-wide transition-all border-b-2 shrink-0 whitespace-nowrap
                                     ${isActive
                                             ? `${tab.color} border-current bg-white/[0.03]`
                                             : 'text-white/30 border-transparent hover:text-white/60 hover:bg-white/[0.02]'
@@ -2164,7 +2236,7 @@ export default function AdminPanel() {
                                                         איוונט עתידי עם תאריך פתיחה עתידי לא מתנגש עם איוונט שחי עכשיו.
                                                     </p>
                                                     <p className="text-xs text-emerald-100/85 leading-relaxed">
-                                                        מה שלא מומלץ זה שני איוונטים שחופפים בזמן ושניהם live. אם זה קורה, המערכת תעדיף להציג את האיוונט המוביל.
+              מה שלא מומלץ זה שני איוונטים שחופפים בזמן ושניהם live. אם זה קורה, לוח הטירה יעדיף להציג את האיוונט המוביל.
                                                     </p>
                                                 </div>
                                                 )}
@@ -2543,7 +2615,7 @@ export default function AdminPanel() {
                                     <input
                                         value={badgeGrantSearch}
                                         onChange={e => searchBadgeGrantUsers(e.target.value)}
-                                        placeholder="חיפוש קוסם/ת לפי שם..."
+                                placeholder="חיפוש דמות לפי שם..."
                                         className="w-full bg-white/[0.03] border border-white/[0.06] focus:border-amber-500/30 rounded-xl p-3 text-sm outline-none transition-all"
                                         dir="rtl"
                                     />
@@ -2590,6 +2662,10 @@ export default function AdminPanel() {
                                     )}
                                 </section>
                             </div>
+                        )}
+
+                        {activeTab === "settings" && (
+                            <AdminSiteSettingsTab />
                         )}
 
                         {activeTab === "health" && (
@@ -2790,7 +2866,7 @@ export default function AdminPanel() {
                                                         },
                                                         {
                                                             title: "4. מסיימים בלחיצה אחת",
-                                                            text: "בסוף האיוונט לוחצים חלוקת פרסים, והמערכת מדרגת מקומות ומסיימת אותו.",
+                      text: "בסוף האיוונט לוחצים חלוקת פרסים, ולוח הטירה מדרג את המקומות ומסיים אותו.",
                                                         },
                                                     ].map((tip) => (
                                                         <div key={tip.title} className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-2">
@@ -2821,7 +2897,7 @@ export default function AdminPanel() {
                                                     איוונט עתידי עם תאריך פתיחה עתידי לא מתנגש עם איוונט שחי עכשיו.
                                                 </p>
                                                 <p className="text-xs text-emerald-100/85 leading-relaxed">
-                                                    מה שלא מומלץ זה שני איוונטים שחופפים בזמן ושניהם live. אם זה קורה, המערכת תעדיף להציג את האיוונט המוביל.
+                מה שלא מומלץ זה שני איוונטים שחופפים בזמן ושניהם live. אם זה קורה, לוח הטירה יעדיף להציג את האיוונט המוביל.
                                                 </p>
                                             </div>
 
@@ -3044,6 +3120,19 @@ export default function AdminPanel() {
                                                             className="w-full h-28 resize-none bg-black/20 border border-white/5 rounded-2xl p-4 text-sm text-white/70 font-crimson outline-none focus:border-pink-500/30 transition-all"
                                                             dir="rtl"
                                                         />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">יעד פרוגרס בר (נקודות)</label>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            value={ev.progress_target ?? 500}
+                                                            onChange={(e) => updateEventSettingsDraft({ progress_target: Math.max(1, Number(e.target.value) || 500) })}
+                                                            onBlur={() => { void persistEventCatalog(); }}
+                                                            className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-sm text-white/70 font-mono outline-none focus:border-pink-500/30 transition-all"
+                                                            dir="ltr"
+                                                        />
+                                                        <p className="text-[10px] text-white/25">הפרוגרס בר בעמוד האיוונט יציג X/[יעד]. ברירת מחדל: 500.</p>
                                                     </div>
                                                 </div>
 
@@ -3381,19 +3470,52 @@ export default function AdminPanel() {
                                             </div>
 
                                             <div className="mt-8 p-6 bg-gradient-to-r from-amber-900/40 to-amber-600/20 border border-amber-500/30 rounded-[2rem] text-center space-y-4 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+                                                {(() => {
+                                                    const rewardsAlreadyDistributed = Boolean(ev.rewards_distributed || ev.completed_at);
+
+                                                    return (
+                                                        <>
                                                 <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto text-amber-400 mb-2">
                                                     <Trophy size={32} />
                                                 </div>
                                                 <h4 className="font-cinzel text-xl font-black text-amber-500">סיום איוונט וחלוקת פרסים</h4>
                                                     <p className="text-white/50 text-sm font-crimson max-w-md mx-auto">
-                                                        בעת הלחיצה המערכת מדרגת את המשתתפים לפי נקודות האיוונט, מזהה מקום 1, 2, 3 וכן הלאה, ומחלקת בדיוק את הפרסים שהוגדרו למעלה במסד.
+                                                        {rewardsAlreadyDistributed
+                                                            ? "האיוונט כבר סומן כסגור והפרסים שלו כבר חולקו. אם צריך חלוקה חוזרת, עדיף לבדוק קודם את נתוני האירוע במסד."
+                                      : "בעת הלחיצה לוח הטירה מדרג את המשתתפים לפי נקודות האיוונט, מזהה מקום 1, 2, 3 וכן הלאה, ומחלק בדיוק את הפרסים שהוגדרו למעלה במסד."}
                                                     </p>
                                                 <button
-                                                    onClick={handleDistributeEventRewards}
-                                                    className="mt-4 w-full md:w-auto px-10 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black font-cinzel rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 mx-auto shadow-lg shadow-amber-500/20"
+                                                    onClick={handlePreviewEventRewards}
+                                                    disabled={isLoadingPreview}
+                                                    className="mt-2 w-full md:w-auto px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 font-cinzel text-sm rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 mx-auto"
                                                 >
-                                                    <Gift size={18} /> חלוקת פרסים למנצחים וסגירת האיוונט
+                                                    <ScrollText size={15} /> {isLoadingPreview ? "טוען..." : "תצוגה מקדימה — מי יקבל מה"}
                                                 </button>
+                                                {rewardPreview !== null && (
+                                                    <div className="mt-3 text-right space-y-2 max-w-sm mx-auto">
+                                                        {rewardPreview.length === 0 ? (
+                                                            <p className="text-white/40 text-xs font-crimson">אין משתתפים עם נקודות עדיין.</p>
+                                                        ) : rewardPreview.map((r) => (
+                                                            <div key={r.rank} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/5 text-xs">
+                                                                <span className="font-cinzel text-amber-400/80 w-5 shrink-0">#{r.rank}</span>
+                                                                <span className="font-crimson text-white/80 flex-1 truncate">{r.name}</span>
+                                                                <span className="text-amber-300/70 shrink-0">{r.galleons} 🪙</span>
+                                                                {r.points > 0 && <span className="text-emerald-400/70 shrink-0">{r.points} ⭐</span>}
+                                                                {r.group && <span className="text-violet-300/60 truncate max-w-[80px] shrink-0 text-[10px]">{r.group}</span>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <button
+                                                    onClick={handleDistributeEventRewards}
+                                                    disabled={rewardsAlreadyDistributed}
+                                                    className="mt-4 w-full md:w-auto px-10 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-black font-cinzel rounded-xl transition-all flex items-center justify-center gap-2 mx-auto shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 active:scale-95 disabled:cursor-not-allowed disabled:from-white/10 disabled:to-white/10 disabled:text-white/35 disabled:shadow-none"
+                                                >
+                                                    <Gift size={18} /> {rewardsAlreadyDistributed ? "הפרסים כבר חולקו" : "חלוקת פרסים למנצחים וסגירת האיוונט"}
+                                                </button>
+                                                        </>
+                                                    );
+                                                })()}
                                             </div>
 
                                             <div className="mt-8 p-6 rounded-[1.5rem] bg-pink-500/5 border border-pink-500/10 flex items-start gap-4">
@@ -3415,19 +3537,24 @@ export default function AdminPanel() {
                         {isAdmin && (
                             <>
                             <section className="admin-card rounded-2xl p-5 space-y-4">
-                                <h3 className="font-cinzel text-xs font-black text-purple-400 flex items-center gap-2 uppercase tracking-widest">
-                                    <Megaphone size={13} /> הכרזה גלובלית
-                                </h3>
+                                <div className="space-y-2">
+                                    <h3 className="font-cinzel text-xs font-black text-purple-400 flex items-center gap-2 uppercase tracking-widest">
+                                        <Megaphone size={13} /> שידור בזמן אמת
+                                    </h3>
+                                    <p className="text-xs leading-6 text-white/35">
+                                        הודעה רגעית למשתמשים שמחוברים עכשיו. זה לא מחליף את הבאנרים הקבועים של ראש האתר.
+                                    </p>
+                                </div>
                                 <textarea
                                     value={broadcastMsg}
                                     onChange={(e) => setBroadcastMsg(e.target.value)}
-                                    placeholder="הודעה לכל הקוסמים המחוברים..."
+                                    placeholder="הודעה לכל הקוסמים המחוברים…"
                                     className="w-full bg-white/[0.02] border border-white/[0.06] focus:border-purple-500/30 rounded-xl p-3.5 text-sm outline-none h-24 resize-none transition-all"
                                     dir="rtl"
                                 />
                                 <button onClick={handleBroadcast}
                                     className="w-full bg-purple-600/15 text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white py-3 rounded-xl font-black text-xs uppercase tracking-widest font-cinzel transition-all">
-                                    שיגור ✨
+                                    שלח שידור חי
                                 </button>
                             </section>
                             <EmailBroadcastCard />

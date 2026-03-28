@@ -112,7 +112,7 @@ function houseStatusLine(houseId: HouseId, momentum: number) {
 
 function getDisplayActorName(actorName: string | null) {
   if (!actorName) return "מישהו בטירה";
-  if (actorName.includes("קוסמ")) return "קוסם/ת בטירה";
+  if (actorName.includes("קוסמ")) return "דמות מן הטירה";
   return actorName;
 }
 

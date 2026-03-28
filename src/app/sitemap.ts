@@ -19,10 +19,21 @@ type NewsSitemapRow = {
   created_at: string | null;
 };
 
+type StorySitemapRow = {
+  id: string;
+  updated_at: string | null;
+};
+
+type ChapterSitemapRow = {
+  story_id: string;
+  order_index: number;
+  updated_at: string | null;
+};
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();
 
-  const [{ data: forums }, { data: threads }, { data: newsArticles }, liveEvents] = await Promise.all([
+  const [{ data: forums }, { data: threads }, { data: newsArticles }, { data: stories }, { data: chapters }, liveEvents] = await Promise.all([
     supabase.from("forums").select("slug, updated_at"),
     supabase
       .from("threads")
@@ -34,6 +45,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .select("id, created_at")
       .order("created_at", { ascending: false })
       .limit(200),
+    supabase
+      .from("stories")
+      .select("id, updated_at")
+      .eq("published", true)
+      .order("updated_at", { ascending: false })
+      .limit(300),
+    supabase
+      .from("chapters")
+      .select("story_id, order_index, updated_at")
+      .eq("published", true)
+      .order("updated_at", { ascending: false })
+      .limit(1000),
     fetchLiveEventCatalog(supabase),
   ]);
 
@@ -92,9 +115,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const newsRoutes: MetadataRoute.Sitemap = ((newsArticles || []) as NewsSitemapRow[]).map((n) => ({
     url: `${BASE}/news?article=${n.id}`,
     lastModified: n.created_at ? new Date(n.created_at) : new Date(),
-    changeFrequency: "daily" as const, // עודכן מ-monthly ל-daily
-    priority: 0.8, // עודכן מ-0.65 ל-0.8
+    changeFrequency: "daily" as const,
+    priority: 0.8,
   }));
 
-  return [...staticRoutes, ...eventRoutes, ...forumRoutes, ...threadRoutes, ...newsRoutes];
+  const storyRoutes: MetadataRoute.Sitemap = ((stories || []) as StorySitemapRow[]).map((s) => ({
+    url: `${BASE}/library/${s.id}`,
+    lastModified: s.updated_at ? new Date(s.updated_at) : new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.75,
+  }));
+
+  const chapterRoutes: MetadataRoute.Sitemap = ((chapters || []) as ChapterSitemapRow[]).map((c) => ({
+    url: `${BASE}/library/${c.story_id}/${c.order_index}`,
+    lastModified: c.updated_at ? new Date(c.updated_at) : new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
+  return [...staticRoutes, ...eventRoutes, ...forumRoutes, ...threadRoutes, ...newsRoutes, ...storyRoutes, ...chapterRoutes];
 }

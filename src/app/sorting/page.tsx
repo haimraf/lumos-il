@@ -82,7 +82,7 @@ const QUESTIONS: Question[] = [
   // ── מקוריות (7) ──
   {
     id: 1,
-    text: "נניח שזכית בבקבוק קטן של 'פליקס פליציס' — מזל נוזלי טהור. מה תעשה/י בו?",
+    text: "נניח שזכית בבקבוק קטן של 'פליקס פליציס' — מזל נוזלי טהור. מה יהיה הצעד הראשון שלך איתו?",
     icon: <Flame className="text-amber-500/25" size={56} />,
     options: [
       { text: "אשמור אותו לרגע שבו אצטרך להשיג מטרה שאיש לא הצליח לפניי", house: "Slytherin" },
@@ -93,7 +93,7 @@ const QUESTIONS: Question[] = [
   },
   {
     id: 2,
-    text: "עומדת לפניך תיבה קסומה עתיקה. איזו מהן תבחר/י לפתוח?",
+    text: "מולך מונחות תיבות קסומות עתיקות. איזו מהן תמשוך אותך ראשונה?",
     icon: <Key className="text-purple-500/25" size={56} />,
     options: [
       { text: "תיבת זהב מעוטרת בנחשים, המבטיחה כוח והשפעה", house: "Slytherin" },
@@ -115,7 +115,7 @@ const QUESTIONS: Question[] = [
   },
   {
     id: 4,
-    text: "הגעת לנהר שוצף ואין גשר. כיצד תחצה/י אותו?",
+    text: "הגעת לנהר שוצף ואין גשר. איך בוחרים לעבור אותו?",
     icon: <Compass className="text-emerald-500/25" size={56} />,
     options: [
       { text: "אקפוץ למים ואלחם בזרם עד שאגיע לצד השני", house: "Gryffindor" },
@@ -141,9 +141,9 @@ const QUESTIONS: Question[] = [
     icon: <Skull className="text-red-600/25" size={56} />,
     options: [
       { text: "להיות אדם רגיל וחסר השפעה", house: "Slytherin" },
-      { text: "להיחשב לחסר/ת בינה בעיני אחרים", house: "Ravenclaw" },
-      { text: "להיות בודד/ת ללא נאמנות של איש", house: "Hufflepuff" },
-      { text: "להתגלות כפחדן/ית ברגע האמת", house: "Gryffindor" }
+      { text: "שיראו בי אדם חסר בינה", house: "Ravenclaw" },
+      { text: "להישאר לבד בלי נאמנות אמיתית לצידי", house: "Hufflepuff" },
+      { text: "להירתע ברגע האמת", house: "Gryffindor" }
     ]
   },
   {
@@ -151,9 +151,9 @@ const QUESTIONS: Question[] = [
     text: "איזה 'דירוג' היית הכי רוצה לשמוע על עצמך בסיום לימודיך?",
     icon: <Trophy className="text-amber-600/25" size={56} />,
     options: [
-      { text: "התלמיד/ה הכי מבריק/ה שהוגוורטס ידעה מעולם", house: "Ravenclaw" },
-      { text: "הקוסם/ת הכי אמיצ/ה שהוגוורטס חינכה", house: "Gryffindor" },
-      { text: "החבר/ה הטוב/ה ביותר שניתן לבקש", house: "Hufflepuff" },
+      { text: "אחד המוחות המבריקים שידעה הוגוורטס", house: "Ravenclaw" },
+      { text: "מן האמיצים שידעה הוגוורטס", house: "Gryffindor" },
+      { text: "הלב הנאמן ביותר שאפשר לבקש לצידך", house: "Hufflepuff" },
       { text: "מי שעלה לגדולה כנגד כל הסיכויים", house: "Slytherin" }
     ]
   },
@@ -166,13 +166,13 @@ const QUESTIONS: Question[] = [
     options: [
       { text: "המורה לחינוך גופני המבשר עליי כישלון בפני כל הכיתה", house: "Ravenclaw" },
       { text: "ידידי הטוב ביותר מפנה לי עורף בשעת מצוקה", house: "Hufflepuff" },
-      { text: "אני עומד/ת לבד, נחשל/ת, בלי שום דרך לנצח", house: "Gryffindor" },
+      { text: "אני עומד לבד, בלי שום דרך לנצח", house: "Gryffindor" },
       { text: "מישהו חכם ממני שמגלה את תכניתי לפני הזמן", house: "Slytherin" }
     ]
   },
   {
     id: 9,
-    text: "גילית ב'ספרייה האסורה' ספר שמכיל ידע עצום — אך קריאתו כרוכה בסיכון. מה תעשה/י?",
+    text: "גילית ב'ספרייה האסורה' ספר שמכיל ידע עצום — אך קריאתו כרוכה בסיכון. לאן ייטה הלב שלך?",
     icon: <Scroll className="text-amber-400/25" size={56} />,
     options: [
       { text: "אקרא אותו בחשאי, המידע חשוב יותר מהכלל", house: "Slytherin" },
@@ -240,7 +240,7 @@ export default function SortingPage() {
     "אני רואה חכמה... או שאולי זו תעוזה?",
     "מעניין מאוד... ליבך מספר לי סיפור...",
     "קשה... קשה מאוד להחליט...",
-    "אני מרגיש/ה את הכוח הטמון בך...",
+    "אני חש בכוח הטמון בך...",
     "האם יש כאן שאפתנות... או נאמנות?",
   ];
 
@@ -306,12 +306,12 @@ export default function SortingPage() {
             actorId: userId,
             eventType: 'house_sorted',
             icon: primary.emoji,
-            title: `שובצ/ה לבית ${primary.name}`,
+            title: `המצנפת קראה אל ${primary.name}`,
             subtitle: secondary ? `כמעט ${secondary.name}` : null,
             description: bonusGalleons > 0 ? `${bonusGalleons} גליאונים הוענקו בטקס המיון` : 'טקס המיון הושלם בהצלחה',
             targetType: 'profile',
             targetId: userId,
-            targetUrl: '/dashboard',
+            targetUrl: '/ollivanders',
           });
           refreshProfile();
         } catch (e) {
@@ -405,6 +405,17 @@ export default function SortingPage() {
           <p className="text-white/30 text-base font-crimson italic mt-4">"{secondaryHouse?.secondaryFlavor}"</p>
         </div>
 
+        <div className="w-full max-w-2xl rounded-[2.2rem] border border-amber-400/15 bg-black/25 p-8 text-center">
+          <p className="font-cinzel text-[10px] uppercase tracking-[0.45em] text-amber-400/50">
+            השלב הבא
+          </p>
+          <h3 className="mt-3 font-cinzel text-2xl text-white">אחרי המיון הולכים לאוליבנדר</h3>
+          <p className="mt-4 font-crimson text-xl leading-relaxed text-white/65">
+            השרביט שילווה אותך לאורך כל הדרך מחכה שם. מיד אחרי בחירת השם נעבור אל הסדנה
+            כדי לקבל את השרביט הראשון שלך.
+          </p>
+        </div>
+
         {/* Name input for new wizards */}
         <div className="w-full max-w-md space-y-4">
             <div className="text-center">
@@ -415,7 +426,7 @@ export default function SortingPage() {
                 type="text"
                 value={wizardName}
                 onChange={(e) => setWizardName(e.target.value)}
-                placeholder="הקלד/י את שמך..."
+                placeholder="איך יקראו לך בטירה?"
                 maxLength={30}
                 dir="rtl"
                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-center text-white text-lg font-cinzel outline-none focus:border-amber-500/50 transition-all placeholder:text-white/20"
@@ -428,12 +439,16 @@ export default function SortingPage() {
                         await supabase.from('profiles').update({ full_name: name }).eq('id', userId);
                         refreshProfile();
                     }
-                    router.push('/dashboard');
+                    router.push('/ollivanders');
                 }}
                 disabled={!wizardName.trim()}
-                className="group relative w-full px-16 py-6 rounded-full bg-white text-black font-cinzel font-black text-xl hover:scale-105 transition-all shadow-2xl flex items-center justify-center gap-4 disabled:opacity-30 disabled:hover:scale-100"
+                aria-label="להמשיך לאוליבנדר"
+                className="group relative flex w-full items-center justify-center gap-4 overflow-hidden rounded-full bg-white px-16 py-6 font-cinzel text-xl font-black text-transparent shadow-2xl transition-all hover:scale-105 disabled:opacity-30 disabled:hover:scale-100"
             >
-                לחדר המועדון <Wand2 className="group-hover:rotate-45 transition-transform" />
+                <span className="absolute inset-0 flex items-center justify-center gap-4 rounded-full bg-white text-black">
+                    להמשיך לאוליבנדר <Wand2 className="transition-transform group-hover:rotate-45" />
+                </span>
+                להמשיך לאוליבנדר <Wand2 className="group-hover:rotate-45 transition-transform" />
             </button>
         </div>
       </div>

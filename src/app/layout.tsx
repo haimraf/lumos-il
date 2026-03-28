@@ -1,5 +1,7 @@
 import "./globals.css";
-import Header from "@/components/Header";
+import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
+import AppShell from "@/components/AppShell";
 import Footer from "@/components/Footer";
 import { OwlMailProvider } from "@/components/OwlMail";
 import MagicSpells from "@/components/MagicSpells";
@@ -13,6 +15,9 @@ import { AuthProvider } from "@/context/AuthContext";
 import CoolingRoomBanner from "@/components/CoolingRoomBanner";
 import SortingReminder from "@/components/SortingReminder";
 import AzkabanGuard from "@/components/AzkabanGuard";
+import { createClient } from "@/utils/supabase/server";
+import { SITE_CONFIG_KEY } from "@/components/admin/AdminSiteSettingsTab";
+import type { SiteConfig } from "@/components/admin/AdminSiteSettingsTab";
 /**
  * LUMOS IL - ROOT LAYOUT V3.1 FIXED
  */
@@ -20,48 +25,82 @@ import AzkabanGuard from "@/components/AzkabanGuard";
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover", // safe-area-inset לטלפונים עם notch (iPhone X+)
+  viewportFit: "cover",
 };
 
-export const metadata = {
-  metadataBase: new URL("https://lumos-il.co.il"),
-  title: {
-    default: "LUMOS IL | הבית הדיגיטלי של קהילת הקוסמים",
-    template: "%s | LUMOS IL",
+const BASE_URL = "https://lumos-il.co.il";
+const DEFAULT_DESCRIPTION = "LUMOS IL היא קהילת הארי פוטר הישראלית עם חוויית דפדפן משחקית: לוח משימות, גביע הבתים, זירת דו-קרב, איוונטים חיים, פורומים, ספריית פאנפיקים ועולם קסום בעברית מלאה.";
+const DEFAULT_KEYWORDS = [
+  "הארי פוטר", "פורום הארי פוטר", "קהילת הארי פוטר",
+  "הארי פוטר ישראל", "קהילה", "ישראל",
+  "lumos", "lumos IL", "LUMOS IL",
+  "גריפינדור", "סלית'רין", "רייבנקלו", "הפלפאף",
+  "הוגוורטס", "מיון לבתים", "גביע הבתים", "לוח משימות", "קווסטים",
+  "זירת דו-קרב", "איוונטים חיים", "דפדפן RPG", "קהילת הארי פוטר בעברית",
+  "פאנפיק הארי פוטר", "פאנפיקים",
+  "Harry Potter Israel", "Harry Potter Hebrew", "HP Israel",
+  "Harry Potter forum", "Harry Potter quests", "Harry Potter fan community", "קסמים", "אוהדי הארי פוטר",
+];
+const DEFAULT_OG_IMAGE = "/images/og-image.png";
+
+// Cached for 60s — avoids a DB hit on every page render
+const getCachedSiteConfig = unstable_cache(
+  async (): Promise<Partial<SiteConfig>> => {
+    try {
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from("site_settings")
+        .select("value")
+        .eq("key", SITE_CONFIG_KEY)
+        .maybeSingle();
+      return (data?.value as Partial<SiteConfig>) || {};
+    } catch {
+      return {};
+    }
   },
-  description: "LUMOS IL היא קהילת הארי פוטר הישראלית עם חוויית דפדפן משחקית: לוח משימות, גביע הבתים, זירת דו-קרב, איוונטים חיים, פורומים, ספריית פאנפיקים ועולם קסום בעברית מלאה.",
-  keywords: [
-    "הארי פוטר", "פורום הארי פוטר", "קהילת הארי פוטר",
-    "הארי פוטר ישראל", "קהילה", "ישראל",
-    "lumos", "lumos IL", "LUMOS IL",
-    "גריפינדור", "סלית'רין", "רייבנקלו", "הפלפאף",
-    "הוגוורטס", "מיון לבתים", "גביע הבתים", "לוח משימות", "קווסטים",
-    "זירת דו-קרב", "איוונטים חיים", "דפדפן RPG", "קהילת הארי פוטר בעברית",
-    "פאנפיק הארי פוטר", "פאנפיקים",
-    "Harry Potter Israel", "Harry Potter Hebrew", "HP Israel",
-    "Harry Potter forum", "Harry Potter quests", "Harry Potter fan community", "קסמים", "אוהדי הארי פוטר",
-  ],
-  authors: [{ name: "LUMOS IL", url: "https://lumos-il.co.il" }],
-  creator: "LUMOS IL",
-  publisher: "LUMOS IL",
-  openGraph: {
-    type: "website",
-    locale: "he_IL",
-    url: "https://lumos-il.co.il",
-    siteName: "LUMOS IL",
-    title: "LUMOS IL — קהילת הארי פוטר של ישראל",
-    description: "קהילת הארי פוטר הישראלית עם לוח משימות, גביע הבתים, דו-קרבות, איוונטים חיים, פורומים, פאנפיקים ועולם קסום בעברית.",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "LUMOS IL — קהילת הארי פוטר הישראלית" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "LUMOS IL — קהילת הארי פוטר של ישראל",
-    description: "קהילת הארי פוטר הישראלית עם קווסטים, גביע הבתים, דו-קרבות, איוונטים חיים, פאנפיקים ופורומים.",
-    images: ["/images/og-image.png"],
-  },
-  robots: { index: true, follow: true },
-  alternates: { canonical: "https://lumos-il.co.il" },
-};
+  ["site_config_layout"],
+  { revalidate: 60 },
+);
+
+export async function generateMetadata(): Promise<Metadata> {
+  const cfg = await getCachedSiteConfig();
+
+  const description = cfg.seo_description?.trim() || DEFAULT_DESCRIPTION;
+  const ogImage = cfg.og_image_url?.trim() || DEFAULT_OG_IMAGE;
+  const keywords = cfg.seo_keywords?.trim()
+    ? cfg.seo_keywords.split(",").map((k) => k.trim()).filter(Boolean)
+    : DEFAULT_KEYWORDS;
+
+  return {
+    metadataBase: new URL(BASE_URL),
+    title: {
+      default: "LUMOS IL | הבית הדיגיטלי של קהילת הקוסמים",
+      template: "%s | LUMOS IL",
+    },
+    description,
+    keywords,
+    authors: [{ name: "LUMOS IL", url: BASE_URL }],
+    creator: "LUMOS IL",
+    publisher: "LUMOS IL",
+    openGraph: {
+      type: "website",
+      locale: "he_IL",
+      url: BASE_URL,
+      siteName: "LUMOS IL",
+      title: "LUMOS IL — קהילת הארי פוטר של ישראל",
+      description,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: "LUMOS IL — קהילת הארי פוטר הישראלית" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "LUMOS IL — קהילת הארי פוטר של ישראל",
+      description,
+      images: [ogImage],
+    },
+    robots: { index: true, follow: true },
+    alternates: { canonical: BASE_URL },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -91,15 +130,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <MagicSpells />
                 <DuelChallenge />
 
-                {/* Header */}
-                <Header />
-
-                <div className="pt-[100px] md:pt-[120px] flex flex-col flex-1 w-full relative">
-                  <main id="main-content" className="flex-1 w-full flex flex-col pt-16 md:pt-20">
-                    {children}
-                  </main>
-
-                </div>
+                <AppShell>{children}</AppShell>
 
                 {/* Footer + UI */}
                 <Footer />

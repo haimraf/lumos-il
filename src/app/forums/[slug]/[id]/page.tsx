@@ -620,6 +620,16 @@ export default function ThreadViewPage() {
                     targetId: threadId,
                     targetUrl: `/forums/thread/${threadId}`,
                 });
+                void logActivityEvent(supabase, {
+                    actorId: currentUser.id,
+                    eventType: "forum_post_created",
+                    icon: "🦉",
+                    title: "פרסם/ה פוסט בפורום",
+                    subtitle: thread?.title || null,
+                    targetType: "thread",
+                    targetId: threadId,
+                    targetUrl: `/forums/thread/${threadId}`,
+                });
                 setReplyContent("");
                 fetchData(false);
             }

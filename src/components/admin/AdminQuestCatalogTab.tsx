@@ -26,11 +26,11 @@ const QUEST_TYPE_OPTIONS = [
 ] as const;
 
 const METRIC_SOURCE_OPTIONS: Array<{ value: QuestMetricSource; label: string }> = [
-  { value: "profile_flag", label: "דגל פרופיל" },
+  { value: "profile_flag", label: "דגל דף קוסם" },
   { value: "activity_total", label: "סך פעילות" },
   { value: "activity_types", label: "סוגי פעילות" },
   { value: "activity_unique_types", label: "סוגי פעילות ייחודיים" },
-  { value: "profile_number", label: "שדה מספרי בפרופיל" },
+  { value: "profile_number", label: "שדה מספרי בדף הקוסם" },
 ];
 
 const WINDOW_OPTIONS: Array<{ value: QuestMetricWindow; label: string }> = [
@@ -220,7 +220,7 @@ export default function AdminQuestCatalogTab({ sendOwl, onSaved }: AdminQuestCat
           {[
             {
               title: "מה קובע התקדמות",
-              body: "מקור ההתקדמות מחליט אם הקווסט נסגר משדה פרופיל, מסך פעילויות כולל, או מסוגי אירועים מסוימים.",
+    body: "מקור ההתקדמות מחליט אם הקווסט נסגר משדה בדף הקוסם, ממסך פעילויות כולל, או מסוגי אירועים מסוימים.",
             },
             {
               title: "מתי המשתמש רואה שינוי",
@@ -531,7 +531,7 @@ export default function AdminQuestCatalogTab({ sendOwl, onSaved }: AdminQuestCat
 
                 {entry.metric.source === "profile_flag" && (
                   <label className="space-y-1 text-xs text-white/45 md:col-span-2 xl:col-span-2">
-                    <span className="font-cinzel uppercase tracking-widest text-white/30">שדה פרופיל</span>
+                                <span className="font-cinzel uppercase tracking-widest text-white/30">שדה בדף הקוסם</span>
                     <select
                       value={entry.metric.profileField || "last_reward_date"}
                       onChange={(event) => updateEntry(entry.id, (current) => ({

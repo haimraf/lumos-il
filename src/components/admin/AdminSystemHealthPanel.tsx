@@ -19,6 +19,14 @@ import {
   type OnlinePresenceRow,
 } from "@/lib/presenceStatus";
 import { normalizeQuestCatalog, QUEST_CATALOG_KEY } from "@/lib/gameplay/questCatalog";
+import {
+  getLiveEventCatalogStatus,
+  getLiveEventLabel,
+  getLiveEventPhase,
+  normalizeLiveEventCatalog,
+  LIVE_EVENTS_CATALOG_KEY,
+} from "@/lib/liveEvent";
+import { SITE_CONFIG_KEY, type SiteConfig } from "@/components/admin/AdminSiteSettingsTab";
 
 type AdminHealthTarget =
   | "health"
@@ -28,7 +36,9 @@ type AdminHealthTarget =
   | "logs"
   | "quests"
   | "users"
-  | "moderation";
+  | "moderation"
+  | "events"
+  | "settings";
 
 type HealthMode = "full" | "compact";
 
@@ -313,11 +323,11 @@ export default function AdminSystemHealthPanel({
       {
         id: "broadcast",
         label: "מוכנות לדיוור",
-        value: `${profilesWithEmailCount}/${totalProfiles} פרופילים עם מייל`,
+      value: `${profilesWithEmailCount}/${totalProfiles} דפי קוסם עם מייל`,
         hint:
           totalProfiles > 0 && profilesWithEmailCount >= totalProfiles * 0.8
-            ? "קהל הדיוור מכוסה יפה בצד הפרופילים."
-            : "יש עדיין פער בין הרשומים לבין המיילים שמסונכרנים לפרופילים.",
+        ? "קהל הדיוור מכוסה יפה בצד דפי הקוסם."
+        : "יש עדיין פער בין הרשומים לבין המיילים שמסונכרנים לדפי הקוסם.",
         severity:
           totalProfiles > 0 && profilesWithEmailCount >= totalProfiles * 0.8
             ? "good"
@@ -326,6 +336,49 @@ export default function AdminSystemHealthPanel({
               : "critical",
         tab: "house-cup",
       },
+      (() => {
+        const catalog = normalizeLiveEventCatalog(siteSettings[LIVE_EVENTS_CATALOG_KEY]);
+        const liveEvent = catalog.find((e) => getLiveEventCatalogStatus(e) === "live");
+        const upcomingEvent = catalog.find((e) => getLiveEventCatalogStatus(e) === "upcoming");
+        const activeEvent = liveEvent || upcomingEvent;
+        const label = activeEvent ? getLiveEventLabel(activeEvent) : null;
+        const phase = activeEvent ? getLiveEventPhase(activeEvent) : null;
+        return {
+          id: "event",
+          label: "אירוע פעיל",
+          value: label
+            ? `${label} — ${phase === "live" ? "פעיל" : "בקרוב"}`
+            : "אין אירוע פעיל",
+          hint: label
+            ? phase === "live"
+              ? "האיוונט פועל עכשיו ומקבל ניקוד חי."
+              : "האיוונט עדיין לא נפתח — בדקו את תאריך הפתיחה."
+            : "אין איוונט מוגדר עם סטטוס live או upcoming.",
+          severity: (label && phase === "live" ? "good" : label ? "warn" : "warn") as "good" | "warn" | "critical",
+          tab: "events" as AdminHealthTarget,
+        };
+      })(),
+      (() => {
+        const cfg = siteSettings[SITE_CONFIG_KEY] as Partial<SiteConfig> | undefined;
+        const hasOgImage = Boolean(cfg?.og_image_url?.trim());
+        const hasSeoDesc = Boolean(cfg?.seo_description?.trim());
+        const activeBanners = Array.isArray(cfg?.banners) ? cfg.banners.filter(b => b.active) : [];
+        const emptyActiveBanner = activeBanners.some(b => !b.text?.trim());
+        const issues: string[] = [];
+        if (!hasOgImage) issues.push("תמונת OG לא מוגדרת");
+        if (!hasSeoDesc) issues.push("תיאור SEO לא מוגדר");
+        if (emptyActiveBanner) issues.push("הכרזה פעילה ללא טקסט");
+        return {
+          id: "seo",
+          label: "הגדרות SEO",
+          value: issues.length === 0 ? "תצורת SEO תקינה" : `${issues.length} בעיות`,
+          hint: issues.length === 0
+            ? "תמונת OG ותיאור האתר מוגדרים."
+            : issues.join(" · "),
+          severity: (issues.length === 0 ? "good" : issues.length === 1 ? "warn" : "critical") as "good" | "warn" | "critical",
+          tab: "settings" as AdminHealthTarget,
+        };
+      })(),
     ],
     [
       adminLogsCount,
@@ -345,6 +398,7 @@ export default function AdminSystemHealthPanel({
       reportsCount,
       totalProfiles,
       unsortedUsersCount,
+      siteSettings,
     ],
   );
 
@@ -418,7 +472,7 @@ export default function AdminSystemHealthPanel({
               </span>
             ) : (
               <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.18em] text-emerald-100">
-                המערכת נראית יציבה כרגע
+          הטירה נראית יציבה כרגע
               </span>
             )}
           </div>
@@ -516,7 +570,7 @@ export default function AdminSystemHealthPanel({
         <div className="admin-card rounded-2xl p-5 space-y-4">
           <div>
             <p className="font-cinzel text-[10px] uppercase tracking-[0.18em] text-white/30">תזכורות מערכת</p>
-            <h4 className="mt-1 font-cinzel text-lg font-black text-white">מה המערכת מנסה לרמוז</h4>
+            <h4 className="mt-1 font-cinzel text-lg font-black text-white">מה הטירה מנסה לרמוז</h4>
           </div>
 
           <div className="space-y-3 text-sm text-white/60">

@@ -42,7 +42,7 @@ export default function SecretQuestWord({ word }: { word: string }) {
             if (updateError) throw updateError;
 
             if (!data?.success) {
-                sendOwl("הקלף כבר נאסף", "הקסם הזה כבר נספר אצלך בפרופיל.", "info");
+  sendOwl("הקלף כבר נאסף", "הקסם הזה כבר נספר בדף הקוסם שלך.", "info");
                 setIsFound(true);
                 return;
             }
