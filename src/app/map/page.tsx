@@ -155,7 +155,7 @@ function timeAgo(dateString: string) {
 function safeTimeAgo(dateString: string) {
   return formatHebrewRelativeTime(dateString, {
     invalidLabel: "לא ידוע",
-    yesterdayLabel: null,
+    yesterdayLabel: "אתמול",
   });
 }
 
