@@ -187,7 +187,7 @@ export default function QuickDailyQuestModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120000] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4"
+      className="fixed inset-0 z-[120000] flex items-start justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-xl sm:items-center sm:p-4"
       dir="rtl"
       role="dialog"
       aria-modal="true"
@@ -196,12 +196,12 @@ export default function QuickDailyQuestModal({
         if (event.target === event.currentTarget && !submitting) onClose();
       }}
     >
-      <div className={`relative w-full max-w-3xl overflow-hidden rounded-[2.8rem] border p-6 md:p-8 shadow-[0_0_80px_rgba(15,23,42,0.45)] ${accentStyles.shell}`}>
+      <div className={`relative my-auto w-full max-w-3xl overflow-y-auto overscroll-contain rounded-[2.8rem] border p-5 shadow-[0_0_80px_rgba(15,23,42,0.45)] max-h-[calc(100dvh-1.5rem)] md:p-8 sm:max-h-[calc(100dvh-2rem)] ${accentStyles.shell}`}>
         <button
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className="absolute left-5 top-5 rounded-full bg-white/5 p-2 text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-30"
+          className="absolute left-4 top-4 rounded-full bg-white/5 p-2.5 text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-30 sm:left-5 sm:top-5"
           aria-label="סגור את החוויה"
         >
           <X size={18} />
@@ -224,11 +224,11 @@ export default function QuickDailyQuestModal({
                 {!allowanceOpened ? (
                   <>
                     <div className="text-7xl md:text-8xl">🦉</div>
-                    <p className="font-crimson text-2xl italic text-white/80">המעטפה נחתה על שולחן המועדון.</p>
+                  <p className="font-crimson text-2xl italic text-white/80">המעטפה נחתה על שולחן המועדון.</p>
                     <button
                       type="button"
                       onClick={() => setAllowanceOpened(true)}
-                      className={`rounded-full bg-gradient-to-r px-8 py-4 font-cinzel text-sm font-black uppercase tracking-[0.2em] transition-all active:scale-95 ${accentStyles.button}`}
+                      className={`touch-manipulation rounded-full bg-gradient-to-r px-8 py-4 font-cinzel text-sm font-black uppercase tracking-[0.2em] transition-all active:scale-95 ${accentStyles.button}`}
                     >
                       לפתוח את המעטפה
                     </button>
@@ -246,7 +246,7 @@ export default function QuickDailyQuestModal({
                       type="button"
                       disabled={submitting}
                       onClick={() => void runCompletion()}
-                      className={`rounded-full bg-gradient-to-r px-8 py-4 font-cinzel text-sm font-black uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 ${accentStyles.button}`}
+                      className={`touch-manipulation rounded-full bg-gradient-to-r px-8 py-4 font-cinzel text-sm font-black uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50 ${accentStyles.button}`}
                     >
                       {submitting ? "מעביר את הדמי כיס..." : "להעביר לארנק"}
                     </button>
@@ -274,7 +274,7 @@ export default function QuickDailyQuestModal({
                     type="button"
                     disabled={Boolean(selectedAnswer) || submitting}
                     onClick={() => void handleTriviaPick(option)}
-                    className={`rounded-[1.5rem] border px-5 py-4 text-right text-sm font-bold transition-all ${
+                    className={`touch-manipulation rounded-[1.5rem] border px-5 py-4 text-right text-sm font-bold transition-all ${
                       isSelected
                         ? isCorrect
                           ? "border-emerald-300/35 bg-emerald-500/15 text-emerald-100"
@@ -296,7 +296,7 @@ export default function QuickDailyQuestModal({
               <span className={accentStyles.accentText}>הניפלר מזהה כל דבר נוצץ. תגיע אליו קודם.</span>
               <span>{nifflerProgress}/{nifflerGoal} נאספו</span>
             </div>
-            <div className="relative h-[360px] overflow-hidden rounded-[2.4rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.12),transparent_45%),linear-gradient(180deg,#08111a_0%,#05070e_100%)]">
+            <div className="relative h-[280px] overflow-hidden rounded-[2.4rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.12),transparent_45%),linear-gradient(180deg,#08111a_0%,#05070e_100%)] sm:h-[360px]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.08),transparent_28%),radial-gradient(circle_at_82%_22%,rgba(255,255,255,0.05),transparent_18%),radial-gradient(circle_at_56%_78%,rgba(255,255,255,0.06),transparent_24%)]" />
               <div className="absolute right-[12%] top-[12%] text-6xl md:text-7xl">🦦</div>
               {NIFFLER_TREASURES.map((treasure) => {
@@ -308,7 +308,7 @@ export default function QuickDailyQuestModal({
                     type="button"
                     disabled={found || submitting}
                     onClick={() => void handleTreasurePick(treasure.id)}
-                    className={`absolute flex h-14 w-14 items-center justify-center rounded-full border text-2xl transition-all ${
+                    className={`touch-manipulation absolute flex h-14 w-14 items-center justify-center rounded-full border text-2xl transition-all sm:h-16 sm:w-16 ${
                       found
                         ? "scale-75 border-emerald-300/30 bg-emerald-500/20 opacity-40"
                         : "border-emerald-300/25 bg-emerald-500/10 shadow-[0_0_24px_rgba(16,185,129,0.28)] hover:scale-110"
@@ -330,14 +330,14 @@ export default function QuickDailyQuestModal({
               <span className={accentStyles.accentText}>הסניץ' לא נשאר באותו מקום. תתפוס אותו פעמיים.</span>
               <span>{snitchHits}/{snitchGoal} תפיסות</span>
             </div>
-            <div className="relative h-[360px] overflow-hidden rounded-[2.4rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.16),transparent_45%),linear-gradient(180deg,#070912_0%,#05070e_100%)]">
+            <div className="relative h-[280px] overflow-hidden rounded-[2.4rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.16),transparent_45%),linear-gradient(180deg,#070912_0%,#05070e_100%)] sm:h-[360px]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(255,255,255,0.08),transparent_20%),radial-gradient(circle_at_78%_30%,rgba(255,255,255,0.06),transparent_22%),radial-gradient(circle_at_52%_72%,rgba(255,255,255,0.05),transparent_24%)]" />
               <div className="absolute right-[10%] top-[14%] text-sm font-cinzel uppercase tracking-[0.18em] text-white/35">Pitch 04</div>
               <button
                 type="button"
                 disabled={submitting}
                 onClick={() => void handleSnitchCatch()}
-                className="absolute flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-amber-300/35 bg-amber-400/15 text-3xl shadow-[0_0_28px_rgba(251,191,36,0.36)] transition-all duration-500 hover:scale-110"
+                className="touch-manipulation absolute flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-amber-300/35 bg-amber-400/15 text-3xl shadow-[0_0_28px_rgba(251,191,36,0.36)] transition-all duration-500 hover:scale-110 sm:h-16 sm:w-16"
                 style={{ top: snitchPosition.top, right: snitchPosition.right }}
                 aria-label="לתפוס את הסניץ'"
               >
