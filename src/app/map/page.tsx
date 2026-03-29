@@ -17,6 +17,7 @@ import {
   isUnsortedHouse,
   withAlpha,
 } from "@/lib/houses";
+import { getProfileDisplayName } from "@/lib/profileNames";
 
 type PresenceChip = OnlinePresenceRow & {
   group_color: string | null;
@@ -38,6 +39,7 @@ type ProfileGroupRow = {
 type ForumProfileRow = {
   id?: string | null;
   full_name?: string | null;
+  email?: string | null;
   house?: string | null;
 };
 
@@ -77,6 +79,7 @@ type HouseSortedEventRow = {
 type ActivityProfileRow = {
   id: string;
   full_name: string | null;
+  email: string | null;
   house: string | null;
   user_groups: { color?: string | null } | { color?: string | null }[] | null;
 };
@@ -242,12 +245,12 @@ export default function MaraudersMasterMap() {
     const [postsResponse, threadsResponse, sortedResponse] = await Promise.all([
       supabase
         .from("forum_posts")
-        .select("id, created_at, user_id, thread_id, threads(id, title), profiles(id, full_name, house)")
+        .select("id, created_at, user_id, thread_id, threads(id, title), profiles(id, full_name, email, house)")
         .order("created_at", { ascending: false })
         .limit(4),
       supabase
         .from("threads")
-        .select("id, title, created_at, forums(slug), profiles(id, full_name, house)")
+        .select("id, title, created_at, forums(slug), profiles(id, full_name, email, house)")
         .order("created_at", { ascending: false })
         .limit(3),
       supabase
@@ -266,7 +269,7 @@ export default function MaraudersMasterMap() {
         id: `post_${post.id}`,
         type: "post",
         icon: "\ud83d\udcdc",
-        actorName: profile?.full_name || "\u05e7\u05d5\u05e1\u05de\u05f3",
+        actorName: getProfileDisplayName(profile, "\u05e7\u05d5\u05e1\u05de\u05f3"),
         description: STRINGS.newForumReply,
         profileId: profile?.id || null,
         house: profile?.house || null,
@@ -285,7 +288,7 @@ export default function MaraudersMasterMap() {
         id: `thread_${threadRow.id}`,
         type: "thread",
         icon: "\ud83d\udd2e",
-        actorName: profile?.full_name || "\u05e7\u05d5\u05e1\u05de\u05f3",
+        actorName: getProfileDisplayName(profile, "\u05e7\u05d5\u05e1\u05de\u05f3"),
         description: STRINGS.newForumThread,
         profileId: profile?.id || null,
         house: profile?.house || null,
@@ -316,14 +319,14 @@ export default function MaraudersMasterMap() {
     if (profileIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, house, user_groups(color)")
+        .select("id, full_name, email, house, user_groups(color)")
         .in("id", profileIds);
 
-      const profileMap = new Map<string, { fullName: string | null; house: string | null; groupColor: string | null }>();
+      const profileMap = new Map<string, { displayName: string; house: string | null; groupColor: string | null }>();
       ((profiles as ActivityProfileRow[] | null) || []).forEach((profile) => {
         const group = Array.isArray(profile.user_groups) ? profile.user_groups[0] : profile.user_groups;
         profileMap.set(profile.id, {
-          fullName: profile.full_name || null,
+          displayName: getProfileDisplayName(profile, STRINGS.mysteriousGuest),
           house: profile.house || null,
           groupColor: group?.color || null,
         });
@@ -335,7 +338,7 @@ export default function MaraudersMasterMap() {
         if (!currentProfile) return;
 
         item.groupColor = currentProfile.groupColor;
-        item.actorName = currentProfile.fullName || item.actorName;
+        item.actorName = currentProfile.displayName || item.actorName;
         item.house = currentProfile.house || item.house;
       });
     }

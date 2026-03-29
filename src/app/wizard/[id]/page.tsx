@@ -22,6 +22,7 @@ import { logAdminAudit } from "@/lib/adminAudit";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getHouseDisplayIcon, getHouseDisplayLabel, isUnsortedHouse } from "@/lib/houses";
 import { renderAvatarFrameBlob } from "@/lib/mediaFraming";
+import { getProfileDisplayName } from "@/lib/profileNames";
 
 const ANIMALS_MAP: Record<string, { emoji: string; nameHe: string; nameEn: string }> = {
     stag: { emoji: "🦌", nameHe: "צבי", nameEn: "Stag" },
@@ -214,7 +215,7 @@ export default function WizardProfilePage() {
                 .single();
 
             if (!p) { router.push("/forums"); return; }
-            setProfile(p);
+            setProfile({ ...p, full_name: getProfileDisplayName(p) });
             setAvatarUrl(p.avatar_url || null);
             setCoverUrl(p.cover_url || null);
             setCoverPosition(typeof p.cover_position === "string" ? p.cover_position : "50% 50%");
@@ -599,6 +600,7 @@ export default function WizardProfilePage() {
     const grp = profile.user_groups as { name: string; color: string } | null;
     const badgeLabel = grp?.name || profile.role || "דמות קהילה";
     const badgeColor = grp?.color || getRoleColor(profile.role, profile.house, roleColors);
+    const displayName = getProfileDisplayName(profile);
     const inv = getInventory(profile.inventory);
     const traits = profile.magic_traits || null;
     const allItems = [...inv.items, ...inv.companions, ...inv.cards];
@@ -794,7 +796,7 @@ export default function WizardProfilePage() {
                             <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                             <MagicAvatar
                                 avatarUrl={avatarUrl}
-                                name={profile.full_name}
+                                name={displayName}
                                 house={profile.house}
                                 className="w-24 h-24 md:w-32 md:h-32 border-4 border-[#060910] shadow-2xl"
                                 roundedClassName="rounded-2xl"

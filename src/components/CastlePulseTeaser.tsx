@@ -7,11 +7,13 @@ import { createClient } from "@/utils/supabase/client";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getHouseSecondaryColor } from "@/lib/houses";
 import { normalizeLegacyDisplayText } from "@/lib/legacyText";
+import { getProfileDisplayName } from "@/lib/profileNames";
 
 type PulseEvent = {
   id: string;
   event_type: string;
-  actor_name: string;
+  actor_id: string | null;
+  actor_name: string | null;
   actor_house: string | null;
   actor_group_color: string | null;
   icon: string | null;
@@ -20,6 +22,12 @@ type PulseEvent = {
   description: string | null;
   target_url: string | null;
   created_at: string;
+};
+
+type PulseProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
 };
 
 function timeAgo(dateString: string) {
@@ -65,7 +73,7 @@ export default function CastlePulseTeaser() {
     async function fetchEvents() {
       const { data, error } = await supabase
         .from("activity_events")
-        .select("id, event_type, actor_name, actor_house, actor_group_color, icon, title, subtitle, description, target_url, created_at")
+        .select("id, event_type, actor_id, actor_name, actor_house, actor_group_color, icon, title, subtitle, description, target_url, created_at")
         .eq("visibility", "public")
         .neq("event_type", "admin_test_event")
         .order("created_at", { ascending: false })
@@ -76,7 +84,30 @@ export default function CastlePulseTeaser() {
           console.warn("[castle-pulse] failed to fetch activity events", error);
           setEvents([]);
         } else {
-          setEvents((((data as PulseEvent[]) || []).map(normalizePulseEvent)));
+          const rawEvents = (data as PulseEvent[]) || [];
+          const actorIds = [...new Set(rawEvents.map((event) => event.actor_id).filter(Boolean))] as string[];
+          const profileMap = new Map<string, PulseProfileRow>();
+
+          if (actorIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, full_name, email")
+              .in("id", actorIds);
+
+            ((profiles as PulseProfileRow[] | null) || []).forEach((profile) => {
+              profileMap.set(profile.id, profile);
+            });
+          }
+
+          setEvents(
+            rawEvents.map((event) => {
+              const actorProfile = event.actor_id ? profileMap.get(event.actor_id) : null;
+              return normalizePulseEvent({
+                ...event,
+                actor_name: getProfileDisplayName(actorProfile, event.actor_name || "קוסמ׳"),
+              });
+            }),
+          );
         }
         setIsLoading(false);
       }
