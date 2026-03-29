@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getNewsArticlePath } from "@/lib/seo";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
@@ -54,6 +55,7 @@ export default function NewsPage() {
    MAIN CONTENT
 ═══════════════════════════════════════════════════ */
 function NewsContent() {
+  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [news, setNews] = useState<NewsItem[]>([]);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
@@ -103,6 +105,10 @@ function NewsContent() {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
+
+  const openArticlePage = useCallback((articleId: string) => {
+    router.push(getNewsArticlePath(articleId));
+  }, [router]);
 
   if (isLoading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
@@ -196,10 +202,10 @@ function NewsContent() {
             {featured && (
               <article
                 className="news-card group cursor-pointer rounded-2xl overflow-hidden border border-white/[0.06] bg-[#e8d5a3] relative"
-                onClick={() => setSelectedNews(featured)}
+                onClick={() => openArticlePage(featured.id)}
                 aria-label={`קרא את הכתבה: ${featured.title}`}
                 tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && setSelectedNews(featured)}
+                onKeyDown={(e) => e.key === "Enter" && openArticlePage(featured.id)}
                 role="button"
               >
                 <div className="flex flex-col md:flex-row min-h-[320px]">
@@ -271,10 +277,10 @@ function NewsContent() {
                 <article
                   key={item.id}
                   className="news-card group cursor-pointer rounded-xl overflow-hidden border border-white/[0.06] bg-[#e8d5a3] flex flex-col"
-                  onClick={() => setSelectedNews(item)}
+                  onClick={() => openArticlePage(item.id)}
                   aria-label={`קרא את הכתבה: ${item.title}`}
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && setSelectedNews(item)}
+                  onKeyDown={(e) => e.key === "Enter" && openArticlePage(item.id)}
                   role="button"
                 >
                   {item.image_url && (
