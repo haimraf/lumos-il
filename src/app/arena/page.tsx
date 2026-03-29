@@ -248,6 +248,60 @@ export default function ArenaPage() {
                     )}
                 </div>
 
+                <section
+                    aria-labelledby="arena-intro-title"
+                    className="grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_0.85fr]"
+                >
+                    <div
+                        className="rounded-2xl p-7 md:p-8"
+                        style={{ background: "rgba(127,29,29,0.14)", border: "1px solid rgba(220,38,38,0.18)" }}
+                    >
+                        <p className="mb-3 font-cinzel text-[10px] font-black uppercase tracking-[0.32em] text-red-300/55">
+                            לפני שהשרביטים נשלפים
+                        </p>
+                        <h2 id="arena-intro-title" className="mb-5 font-cinzel text-3xl font-black text-white">
+                            מה מחכה בזירת הקרבות של לומוס
+                        </h2>
+                        <div className="space-y-4 font-crimson text-lg leading-relaxed text-white/72">
+                            <p>
+                                זירת הקרבות היא המקום שבו הקסם של הקהילה נהיה חד, מהיר ומלא אדרנלין. כאן קוסמים וקוסמות
+                                יכולים לאתגר זה את זה לדו-קרב, לבדוק מי שומר על קור רוח תחת לחץ, ומי יודע מתי לשלוף לחש
+                                מדויק ברגע הנכון.
+                            </p>
+                            <p>
+                                מעבר לניצחון עצמו, הזירה מספרת סיפור חי של יריבויות, רצפי ניצחונות, דרגות שמטפסות לאט,
+                                ואת הכבוד שכל בית מביא איתו לקרב. לוח המובילים, הסטטיסטיקות והקרבות האחרונים יוצרים יחד
+                                כרוניקה קטנה של אלופים, אתגרים והפתעות שלא נשארות שקטות להרבה זמן.
+                            </p>
+                            <p>
+                                חשוב לנו שגם מבקרים חדשים וגם גוגל יבינו מיד מה יש כאן: עמוד דו-קרב פעיל של קהילת הארי
+                                פוטר בישראל, עם אתגרים אקראיים, חיפוש יריבים, דירוג שחקנים והיסטוריית קרבות שממשיכה
+                                להתעדכן ככל שהטירה סוערת יותר.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div
+                        className="rounded-2xl p-7 md:p-8"
+                        style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}
+                    >
+                        <h3 className="mb-4 font-cinzel text-xl font-black text-red-200">קוד הכבוד של הדו-קרב</h3>
+                        <div className="space-y-4 font-crimson text-base leading-relaxed text-white/65">
+                            <p>
+                                אתגר אקראי מתאים למי שרוצים להיכנס ישר לעשן ולניצוצות, בלי להתלבט יותר מדי מול מי יעמדו.
+                            </p>
+                            <p>
+                                חיפוש לפי שם נועד למי שכבר יודעים את מי הם רוצים לאתגר, אולי בשביל תיקו ישן, אולי בשביל
+                                נקמה קטנה ומכובדת במסדרונות.
+                            </p>
+                            <p>
+                                ובסוף, גם כשנלחמים על תהילה, הדרגות והמדליות כאן הן חלק מהסיפור הקהילתי: עוד דרך לשמור
+                                את אש הבתים דולקת בלי לאבד את החיוך.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
                 {/* ── My stats ── */}
                 {myStats && profile && (
                     <div className="rounded-2xl p-6"

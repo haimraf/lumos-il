@@ -208,6 +208,56 @@ export default function LibraryPage() {
                     </motion.div>
                 </header>
 
+                <section
+                    aria-labelledby="library-story-intro"
+                    className="mb-20 grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_0.9fr]"
+                >
+                    <div className="rounded-[2.5rem] border border-amber-500/15 bg-gradient-to-br from-amber-500/[0.08] via-[#0d0d0f] to-[#08080a] p-8 md:p-10 shadow-[0_0_70px_rgba(245,158,11,0.08)]">
+                        <p className="mb-3 font-cinzel text-[10px] font-black uppercase tracking-[0.32em] text-amber-500/55">
+                            בין המדפים של לומוס
+                        </p>
+                        <h2 id="library-story-intro" className="mb-5 font-cinzel text-3xl font-black text-white">
+                            לא רק ספרייה, אלא אגף של סיפורים חיים
+                        </h2>
+                        <div className="space-y-4 font-crimson text-lg leading-relaxed text-white/72">
+                            <p>
+                                הספרייה של LUMOS IL היא המקום שבו פאנפיקים על הארי פוטר מקבלים בית משלהם. בין המדפים שלה
+                                מחכים סיפורי הוגוורטס, מסעות בין הבתים, דרמות של ידידות ואהבה, וגם הרפתקאות חדשות שמרחיבות
+                                את העולם הקסום הרבה מעבר למה שנכתב בספרים.
+                            </p>
+                            <p>
+                                יש כאן מקום גם לכותבים שמעדיפים לחש עדין של נוסטלגיה וגם למי שאוהבים סערה של עלילה, סודות,
+                                יריבויות ומסתורין. כל עמוד שנפתח בספרייה מזמין את הקורא לעצור רגע, לשכוח מהמוגלגים בחוץ,
+                                ולהיסחף לתוך עולם שבו עט נוצה אחד יכול לשנות גורל שלם.
+                            </p>
+                            <p>
+                                חשוב לנו שגם קוראים חדשים וגם גוגל יבינו מיד מה מסתתר כאן: אוסף מתחדש של סיפורי הארי פוטר
+                                בעברית, יצירות מקוריות של חברי הקהילה, ודלת פתוחה לכל מי שרוצה לקרוא, להגיב, לגלות סגנון
+                                חדש או לפרסם סיפור משלו בין מדפי הטירה.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[2.2rem] border border-white/10 bg-white/[0.03] p-7 md:p-8">
+                        <h3 className="mb-4 font-cinzel text-xl font-black text-amber-300">
+                            לחש קטן למדפדף הסקרן
+                        </h3>
+                        <div className="space-y-4 font-crimson text-base leading-relaxed text-white/65">
+                            <p>
+                                אם הגעתם כדי למצוא פאנפיק הארי פוטר חדש לקריאה, התחילו מהמדפים האחרונים ותנו לכריכות להוביל אתכם.
+                            </p>
+                            <p>
+                                אם באתם לכתוב, הספרייה הזו נבנתה בדיוק בשביל זה: מקום שבו קול חדש לא נשמע כמו הד, אלא כמו
+                                קסם שמצטרף למדף קיים ומאיר אותו מחדש.
+                            </p>
+                            <p>
+                                ואם חיפשתם רק עוד סיפור אחד לפני השינה, מוטב שתדעו מראש שזה בדרך כלל מתחיל כך ונגמר בשעה
+                                מאוחרת מאוד, עם עוד שלושה פרקים פתוחים ולב שנשאר בהוגוורטס.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
                 <section aria-labelledby="library-stories-title">
                     <div className="mb-8 flex items-center justify-between gap-4">
                         <h2 id="library-stories-title" className="font-cinzel text-2xl font-black text-white tracking-wide">מדפי הסיפורים</h2>

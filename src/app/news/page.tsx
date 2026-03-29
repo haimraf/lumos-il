@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { getNewsArticlePath } from "@/lib/seo";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
@@ -55,7 +54,6 @@ export default function NewsPage() {
    MAIN CONTENT
 ═══════════════════════════════════════════════════ */
 function NewsContent() {
-  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [news, setNews] = useState<NewsItem[]>([]);
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
@@ -105,10 +103,6 @@ function NewsContent() {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
-
-  const openArticlePage = useCallback((articleId: string) => {
-    router.push(getNewsArticlePath(articleId));
-  }, [router]);
 
   if (isLoading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
@@ -201,13 +195,13 @@ function NewsContent() {
             {/* ── FEATURED ARTICLE ── */}
             {featured && (
               <article
-                className="news-card group cursor-pointer rounded-2xl overflow-hidden border border-white/[0.06] bg-[#e8d5a3] relative"
-                onClick={() => openArticlePage(featured.id)}
-                aria-label={`קרא את הכתבה: ${featured.title}`}
-                tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && openArticlePage(featured.id)}
-                role="button"
+                className="news-card group rounded-2xl overflow-hidden border border-white/[0.06] bg-[#e8d5a3] relative"
               >
+                <Link
+                  href={getNewsArticlePath(featured.id)}
+                  aria-label={`קרא את הכתבה: ${featured.title}`}
+                  className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020617]"
+                />
                 <div className="flex flex-col md:flex-row min-h-[320px]">
                   {featured.image_url && (
                     <div className="w-full md:w-2/5 h-56 md:h-auto overflow-hidden flex-shrink-0">
@@ -234,7 +228,7 @@ function NewsContent() {
                     </div>
                     <div className="flex items-center justify-between pt-4 border-t border-[#1e0e04]/10">
                       <div className="flex items-center gap-4 text-xs text-[#5d2a00]/55 font-bold">
-                        <span className="flex items-center gap-1.5">
+                        <span className="relative z-20 flex items-center gap-1.5">
                           <User size={11} aria-hidden="true" />
                           {featured.author_profile?.id ? (
                             <Link
@@ -276,13 +270,13 @@ function NewsContent() {
               {rest.map((item) => (
                 <article
                   key={item.id}
-                  className="news-card group cursor-pointer rounded-xl overflow-hidden border border-white/[0.06] bg-[#e8d5a3] flex flex-col"
-                  onClick={() => openArticlePage(item.id)}
-                  aria-label={`קרא את הכתבה: ${item.title}`}
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && openArticlePage(item.id)}
-                  role="button"
+                  className="news-card group rounded-xl overflow-hidden border border-white/[0.06] bg-[#e8d5a3] flex flex-col relative"
                 >
+                  <Link
+                    href={getNewsArticlePath(item.id)}
+                    aria-label={`קרא את הכתבה: ${item.title}`}
+                    className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020617]"
+                  />
                   {item.image_url && (
                     <div className="w-full h-44 overflow-hidden flex-shrink-0">
                       <img
@@ -304,7 +298,7 @@ function NewsContent() {
                     <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#1e0e04]/10">
                       <div className="flex items-center gap-3 text-[10px] text-[#5d2a00]/45 font-bold flex-wrap">
                         {item.author_profile?.id ? (
-                          <span className="flex items-center gap-1">
+                          <span className="relative z-20 flex items-center gap-1">
                             <User size={9} aria-hidden="true" />
                             <Link
                               href={`/wizard/${item.author_profile.id}`}
