@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
     title: 'האולם הגדול | לומוס IL - קהילת הקוסמים של ישראל',
   description: "לומוס IL הוא הבית הדיגיטלי של קהילת הארי פוטר בישראל. מכאן אפשר להגיע לספריית הפאנפיקים, לפורומים, לנביא היומי ולחדר המועדון האישי.",
     keywords: ['הארי פוטר', 'לומוס', 'קהילת קוסמים', 'פאנפיקים', 'הוגוורטס', 'פורומים הארי פוטר', 'קסמים', 'Lumos IL'],
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
         siteName: 'LUMOS IL',
         type: 'website',
     }
-};
+}, "/home");
 
 export default function HomeLayout({ children }: { children: React.ReactNode }) {
     // Schema.org - מסביר לבינה מלאכותית שזו קהילה מקוונת

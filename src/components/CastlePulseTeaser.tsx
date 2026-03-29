@@ -6,6 +6,7 @@ import { Activity, ArrowLeft, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getHouseSecondaryColor } from "@/lib/houses";
+import { normalizeLegacyDisplayText } from "@/lib/legacyText";
 
 type PulseEvent = {
   id: string;
@@ -42,6 +43,17 @@ function safeTimeAgo(dateString: string) {
   });
 }
 
+function normalizePulseEvent(event: PulseEvent): PulseEvent {
+  return {
+    ...event,
+    actor_name: normalizeLegacyDisplayText(event.actor_name),
+    icon: normalizeLegacyDisplayText(event.icon),
+    title: normalizeLegacyDisplayText(event.title),
+    subtitle: event.subtitle ? normalizeLegacyDisplayText(event.subtitle) : null,
+    description: event.description ? normalizeLegacyDisplayText(event.description) : null,
+  };
+}
+
 export default function CastlePulseTeaser() {
   const [events, setEvents] = useState<PulseEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +76,7 @@ export default function CastlePulseTeaser() {
           console.warn("[castle-pulse] failed to fetch activity events", error);
           setEvents([]);
         } else {
-          setEvents((data as PulseEvent[]) || []);
+          setEvents((((data as PulseEvent[]) || []).map(normalizePulseEvent)));
         }
         setIsLoading(false);
       }

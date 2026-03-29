@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
     title: "ספריית הפאנפיקים",
     description: "ספריית הפאנפיקים של LUMOS IL מחברת בין קריאה, כתיבה והצבעה כחלק מהעולם הקסום של הקהילה הישראלית.",
     keywords: ["פאנפיק", "ספרייה", "סיפורים", "הארי פוטר", "כתיבה יצירתית", "משימות קריאה", "lumos IL", "עברית"],
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
         title: "ספריית הפאנפיקים | LUMOS IL",
         description: "קראו וכתבו פאנפיקים בעברית לעולם הארי פוטר.",
     },
-};
+}, "/library");
 
 export default function LibraryLayout({ children }: { children: React.ReactNode }) {
     const jsonLd = {

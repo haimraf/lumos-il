@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import type { NextActionRecommendation } from "@/lib/gameplay/nextActionEngine";
 import { HOUSE_IDS, getHousePalette, withAlpha, type HouseId } from "@/lib/houses";
+import { getNewsArticlePath } from "@/lib/seo";
 
 type HouseMeta = {
   label: string;
@@ -122,7 +123,7 @@ export default function MagicTicker({ nextAction = null, nextActionLoading = fal
     const nextItems: { id: string; title: string; href: string }[] = ((news as NewsTickerRow[] | null) || []).map((article) => ({
       id: article.id,
       title: article.title,
-      href: `/news?article=${article.id}`,
+      href: getNewsArticlePath(article.id),
     }));
 
     ((recentDuels as DuelTickerRow[] | null) || []).forEach((duel) => {

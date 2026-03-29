@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
   title: 'הנביא היומי',
   description: 'כל מה שקורה בטירת לומוס ישראל. כתבות, סקרים ועדכונים חיים מהקהילה.',
   keywords: ['הנביא היומי', 'חדשות', 'כתבות', 'הארי פוטר', 'lumos IL', 'עיתון קוסמים'],
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     description: 'עיתון הקוסמים הרשמי של הקהילה.',
     images: ['/images/og-image.png'],
   },
-};
+}, "/news");
 
 export default function NewsLayout({ children }: { children: React.ReactNode }) {
   const jsonLd = {

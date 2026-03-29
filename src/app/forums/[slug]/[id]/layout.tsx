@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
+import { getCanonicalUrl } from "@/lib/seo";
 
 interface Props {
     params: Promise<{ slug: string; id: string }>;
@@ -28,6 +29,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     return {
         title,
         description,
+        alternates: {
+            canonical: getCanonicalUrl(`/forums/${slug}/${id}`),
+        },
         openGraph: {
             title: `${title} | LUMOS IL`,
             description,

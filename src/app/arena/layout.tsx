@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
     title: "זירת הקרבות",
     description: "דו-קרבות לחשים בזמן אמת בין קוסמי ישראל. אתגר קוסמים אחרים, הגיע לראש לוח המובילים וזכה בתואר אלוף הזירה.",
     keywords: ["דו-קרב", "קרב לחשים", "זירה", "הארי פוטר", "קרב", "אלוף הזירה", "lumos IL"],
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
         title: "זירת הקרבות | LUMOS IL",
         description: "דו-קרבות לחשים בזמן אמת בין קוסמי ישראל.",
     },
-};
+}, "/arena");
 
 export default function ArenaLayout({ children }: { children: React.ReactNode }) {
     const jsonLd = {

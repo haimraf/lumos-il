@@ -14,6 +14,17 @@ function isProtectedPath(pathname: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/news") {
+    const articleId = request.nextUrl.searchParams.get("article");
+
+    if (articleId) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/news/${articleId}`;
+      url.search = "";
+      return NextResponse.redirect(url, 308);
+    }
+  }
+
   if (!isProtectedPath(pathname)) {
     return NextResponse.next();
   }
@@ -85,6 +96,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/news",
     "/admin-panel/:path*",
   ],
 };

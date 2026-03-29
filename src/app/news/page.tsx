@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, Suspense, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { getNewsArticlePath } from "@/lib/seo";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import {
   ScrollText, ArrowRight, X, MessageSquare,
@@ -61,8 +61,6 @@ function NewsContent() {
   const [isMuted, setIsMuted] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [roleColors, setRoleColors] = useState<Record<string, string>>({});
-  const initialCheckDone = useRef(false);
-  const searchParams = useSearchParams();
   useEffect(() => { getRoleColorFromDB(supabase).then(setRoleColors); }, [supabase]);
 
   useEffect(() => { setMounted(true); }, []);
@@ -84,30 +82,19 @@ function NewsContent() {
       const newsData = (data || []) as unknown as NewsItem[];
       setNews(newsData);
       setIsLoading(false);
-      if (!initialCheckDone.current) {
-        const articleId = searchParams.get("article");
-        if (articleId) {
-          const found = newsData.find((n: NewsItem) => n.id === articleId);
-          if (found) setSelectedNews(found);
-        }
-        initialCheckDone.current = true;
-      }
     };
     fetchNews();
-  }, [supabase, searchParams]);
+  }, [supabase]);
 
   useEffect(() => {
     if (selectedNews) {
       document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
       document.title = selectedNews.meta_title || selectedNews.title;
-      window.history.replaceState({}, "", `${window.location.pathname}?article=${selectedNews.id}`);
     } else {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
       document.title = "הנביא היומי | LUMOS IL";
-      if (initialCheckDone.current && window.location.search.includes("article=")) {
-        window.history.replaceState({}, "", window.location.pathname);
-      }
     }
   }, [selectedNews]);
 

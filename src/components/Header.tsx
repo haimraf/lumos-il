@@ -16,6 +16,7 @@ import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { useAuth } from "@/context/AuthContext";
 import { getNamedRoleColor, getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import { getHouseDisplayLabel, getHousePalette, withAlpha } from "@/lib/houses";
+import { getNewsArticlePath } from "@/lib/seo";
 import NotificationDropdown from "@/components/NotificationDropdown";
 import MagicTicker from "@/components/MagicTicker";
 import QuestBeacon from "@/components/QuestBeacon";
@@ -329,7 +330,7 @@ export default function Header() {
                 found.push({ id: story.id, title: story.title, type: 'story', href: `/library/${story.id}` });
             });
             ((news as NewsSearchRow[] | null) || []).forEach((article) => {
-                found.push({ id: article.id, title: article.title, type: 'news', href: `/news?article=${article.id}` });
+                found.push({ id: article.id, title: article.title, type: 'news', href: getNewsArticlePath(article.id) });
             });
             ((threads as ThreadSearchRow[] | null) || []).forEach((thread) => {
                 const forumMeta = Array.isArray(thread.forums) ? thread.forums[0] : thread.forums;

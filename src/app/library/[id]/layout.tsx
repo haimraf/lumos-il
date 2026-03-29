@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { getCanonicalUrl } from "@/lib/seo";
 import React from 'react'; // הוספנו את זה
 // יצירת קליינט שרת בטוח שלא תלוי ב-Auth (לשליפת נתונים ציבוריים בלבד לטובת SEO)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -45,6 +46,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title: `${story.title} | לומוס IL`,
         description: cleanDescription,
         authors: [{ name: authorName }],
+        alternates: {
+            canonical: getCanonicalUrl(`/library/${id}`),
+        },
         openGraph: {
             title: `${story.title} | לומוס IL`,
             description: cleanDescription,

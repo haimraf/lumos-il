@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
     title: "משימות יומיות",
     description: "השלימו משימות יומיות ב-LUMOS IL וזכו בגליאונים ונקודות בית. התחברו כל יום לפעילויות חדשות.",
     keywords: ["משימות יומיות", "גליאונים", "נקודות בית", "פעילויות", "הארי פוטר", "lumos IL"],
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
         type: "website",
         images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "משימות יומיות — LUMOS IL" }],
     },
-};
+}, "/quests");
 
 export default function QuestsLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;

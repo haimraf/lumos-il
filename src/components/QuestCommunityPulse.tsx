@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Activity, ArrowLeft, Flame, Sparkles, Users, WandSparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
+import { normalizeLegacyDisplayText } from "@/lib/legacyText";
 import {
   HOUSE_IDS,
   getHouseLabel,
@@ -124,6 +125,16 @@ function getDisplayActorName(actorName: string | null) {
   return actorName;
 }
 
+function normalizePulseEvent(event: PulseEvent): PulseEvent {
+  return {
+    ...event,
+    actor_name: event.actor_name ? normalizeLegacyDisplayText(event.actor_name) : null,
+    title: event.title ? normalizeLegacyDisplayText(event.title) : null,
+    subtitle: event.subtitle ? normalizeLegacyDisplayText(event.subtitle) : null,
+    icon: event.icon ? normalizeLegacyDisplayText(event.icon) : null,
+  };
+}
+
 export default function QuestCommunityPulse({ currentHouse }: { currentHouse?: string | null }) {
   const [supabase] = useState(() => createClient());
   const [isLoading, setIsLoading] = useState(true);
@@ -179,10 +190,14 @@ export default function QuestCommunityPulse({ currentHouse }: { currentHouse?: s
           .map((profile) => [profile.id, profile.full_name] as [string, string]),
       );
 
-      recentEventsResolved = recentEventsRaw.map((event) => ({
-        ...event,
-        actor_name: (event.actor_id && nameById.get(event.actor_id)) || event.actor_name,
-      }));
+      recentEventsResolved = recentEventsRaw.map((event) =>
+        normalizePulseEvent({
+          ...event,
+          actor_name: (event.actor_id && nameById.get(event.actor_id)) || event.actor_name,
+        }),
+      );
+    } else {
+      recentEventsResolved = recentEventsRaw.map(normalizePulseEvent);
     }
 
     setRecentEvents(recentEventsResolved);

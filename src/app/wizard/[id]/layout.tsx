@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
+import { getCanonicalUrl } from "@/lib/seo";
 
 const HOUSE_HE: Record<string, string> = {
   Gryffindor: "גריפינדור",
@@ -38,6 +39,9 @@ export async function generateMetadata(
   return {
     title,
     description,
+    alternates: {
+      canonical: getCanonicalUrl(`/wizard/${id}`),
+    },
     openGraph: {
       title: `${title} | LUMOS IL`,
       description,

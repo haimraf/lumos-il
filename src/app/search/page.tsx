@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { getNewsArticlePath } from "@/lib/seo";
 import {
     Search, BookOpen, ScrollText, MessageSquare, Sparkles,
     X, User, Loader2, Wand2, ChevronRight
@@ -112,7 +113,7 @@ function SearchContent() {
             excerpt: s.description?.replace(/<[^>]*>/g, '').slice(0, 150),
         }));
         (news || []).forEach(n => found.push({
-            id: n.id, title: n.title, type: 'news', href: `/news?article=${n.id}`,
+            id: n.id, title: n.title, type: 'news', href: getNewsArticlePath(n.id),
             excerpt: n.content?.replace(/<[^>]*>/g, '').slice(0, 150),
         }));
         (threads || []).forEach((t: any) => found.push({

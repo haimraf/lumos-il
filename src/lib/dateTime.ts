@@ -5,6 +5,10 @@ type RelativeTimeOptions = {
   maxRelativeDays?: number;
 };
 
+function formatHebrewCount(value: number, singular: string, plural: string) {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
 function normalizeTimestampInput(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -46,10 +50,10 @@ export function formatHebrewRelativeTime(
   if (diffSeconds < 60) return "ממש עכשיו";
 
   const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) return `לפני ${diffMinutes} דק'`;
+  if (diffMinutes < 60) return `לפני ${formatHebrewCount(diffMinutes, "דקה", "דקות")}`;
 
   const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `לפני ${diffHours} שעות`;
+  if (diffHours < 24) return `לפני ${formatHebrewCount(diffHours, "שעה", "שעות")}`;
 
   const diffDays = Math.floor(diffHours / 24);
   if (yesterdayLabel && diffDays === 1) return yesterdayLabel;
@@ -58,5 +62,5 @@ export function formatHebrewRelativeTime(
     return new Date(timestamp).toLocaleDateString("he-IL");
   }
 
-  return `לפני ${diffDays} ימים`;
+  return `לפני ${formatHebrewCount(diffDays, "יום", "ימים")}`;
 }

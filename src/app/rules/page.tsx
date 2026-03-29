@@ -1,11 +1,12 @@
 import { Metadata } from "next";
 import { Shield, Hammer, Eye, MessageSquareX, Gavel, ScrollText } from "lucide-react";
+import { withCanonical } from "@/lib/seo";
 import SecretQuestWord from "@/components/SecretQuestWord"; // <-- ייבוא המילה הסודית
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
   title: "חוקי הטירה | LUMOS IL - משרד הקסמים",
   description: "הכללים לשמירה על סדר וביטחון בטירת לומוס ישראל. קראו את חוקי הקהילה הרשמיים.",
-};
+}, "/rules");
 
 export default function RulesPage() {
   const rules = [

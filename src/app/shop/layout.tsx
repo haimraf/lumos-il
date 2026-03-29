@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
     title: "סמטת דיאגון",
     description: "החנות הקסומה של LUMOS IL — רכשו שרביטים, חיות מחמד, אבקת פלו ועוד פריטים קסומים בגליאונים.",
     keywords: ["חנות קסומה", "גליאונים", "שרביט", "סמטת דיאגון", "הארי פוטר", "חיות מחמד קסומות"],
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
         type: "website",
         images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "סמטת דיאגון — LUMOS IL" }],
     },
-};
+}, "/shop");
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
     const jsonLd = {

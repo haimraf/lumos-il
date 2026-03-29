@@ -2,8 +2,9 @@ import { Metadata } from "next";
 import { Sparkles, Star, Zap, Users, ShieldCheck, Wand2, Compass, Scroll, Flame } from "lucide-react";
 import Link from "next/link";
 import Script from "next/script";
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
   title: "הסיפור מאחורי האור",
   description: "איך הפכנו את החלום לטירה? גלו את הסיפור של LUMOS IL — הבית הדיגיטלי האינטראקטיבי של קהילת הקוסמים והקוסמות בישראל.",
   keywords: ["אודות", "LUMOS IL", "קהילת הארי פוטר", "ישראל", "הסיפור שלנו"],
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "LUMOS IL — הסיפור שלנו" }],
   },
-};
+}, "/about");
 
 const orgJsonLd = {
   "@context": "https://schema.org",

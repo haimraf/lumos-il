@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@/utils/supabase/server";
+import { getNewsArticleUrl } from "@/lib/seo";
 import {
   fetchLiveEventCatalog,
   getLiveEventCatalogStatus,
@@ -113,7 +114,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }}).filter((route) => !route.url.includes("undefined"));
 
   const newsRoutes: MetadataRoute.Sitemap = ((newsArticles || []) as NewsSitemapRow[]).map((n) => ({
-    url: `${BASE}/news?article=${n.id}`,
+    url: getNewsArticleUrl(n.id),
     lastModified: n.created_at ? new Date(n.created_at) : new Date(),
     changeFrequency: "daily" as const,
     priority: 0.8,

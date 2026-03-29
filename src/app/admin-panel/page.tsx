@@ -37,6 +37,7 @@ import { logAdminAudit, type AdminAuditInput } from "@/lib/adminAudit";
 import { logActivityEvent } from "@/lib/activityEvents";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { getHouseDisplayIcon, getHouseDisplayLabel, isUnsortedHouse } from "@/lib/houses";
+import { getNewsArticlePath } from "@/lib/seo";
 import {
     compareLiveEventParticipants,
     LIVE_EVENTS_CATALOG_KEY,
@@ -1267,7 +1268,7 @@ export default function AdminPanel() {
                     description: newArticle.meta_description || null,
                     targetType: "news",
                     targetId: created.id,
-                    targetUrl: `/news?article=${created.id}`,
+                    targetUrl: getNewsArticlePath(created.id),
                 });
             }
             setNewArticle(prev => ({ ...prev, title: "", content: "", image_url: "" }));

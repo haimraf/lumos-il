@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
     title: "גביע הבתים",
     description: "גביע הבתים של LUMOS IL מציג מירוץ חי בין הבתים עם פערים, מומנטום, תרומה אישית ועדכונים שוטפים מתוך עולם הקהילה.",
     keywords: ["גביע הבתים", "גריפינדור", "סלית'רין", "רייבנקלו", "הפלפאף", "נקודות", "מומנטום", "תרומה לבית", "lumos IL"],
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
         title: "גביע הבתים | LUMOS IL",
         description: "מירוץ גביע הבתים החי של LUMOS IL עם פערים, מומנטום ותרומת שחקנים.",
     },
-};
+}, "/house-cup");
 
 export default function HouseCupLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;

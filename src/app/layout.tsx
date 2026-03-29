@@ -98,7 +98,6 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [ogImage],
     },
     robots: { index: true, follow: true },
-    alternates: { canonical: BASE_URL },
   };
 }
 

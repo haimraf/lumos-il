@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getFAQItems } from "@/lib/faq";
+import { withCanonical } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withCanonical({
     title: "שאלות ותשובות",
     description: "שאלות ותשובות על LUMOS IL: מערכת הקווסטים, מה כדאי לעשות עכשיו, גביע הבתים, האיוונטים, זירת הדו-קרב, הספרייה, הפורומים ועוד.",
     keywords: ["שאלות ותשובות", "FAQ", "עזרה", "מערכת הקווסטים", "מה כדאי לעשות עכשיו", "הארי פוטר", "lumos IL", "מדריך"],
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
         type: "website",
         images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "שאלות ותשובות — LUMOS IL" }],
     },
-};
+}, "/faq");
 
 export default async function FAQLayout({ children }: { children: React.ReactNode }) {
     const faqItems = await getFAQItems();
