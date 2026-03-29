@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { createClient } from "@/utils/supabase/client";
+import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import { useAuth } from "@/context/AuthContext";
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
@@ -164,6 +165,16 @@ function ShopContent() {
             <div className="min-h-screen bg-[#020617] flex items-center justify-center">
                 <div className="w-10 h-10 border-t-2 border-amber-500 rounded-full animate-spin" />
             </div>
+        );
+    }
+
+    if (!session) {
+        return (
+            <MemberOnlyNotice
+                title="סמטת דיאגון מחכה רק לקוסמים מחוברים"
+                description="אפשר להציץ בחלונות הראווה גם כאורח, אבל כדי לראות מאזן אמיתי, שנת לימוד נכונה ולרכוש חפצים בלי אפסים מטעים, צריך קודם להיכנס לחשבון שלך בטירה."
+                icon={ShoppingBag}
+            />
         );
     }
 

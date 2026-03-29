@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import { useAuth } from "@/context/AuthContext";
+import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { getRoleColor, getRoleDisplay, getRoleColorFromDB } from "@/lib/roleColor";
 import { getHouseIcon, getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
@@ -380,6 +381,16 @@ export default function GreatHall() {
     );
 
     /* ───────── MuteToggle • replaces hidden footer FAB ───────── */
+    if (!sessionUser) {
+        return (
+            <MemberOnlyNotice
+                title="האולם הגדול לוחש רק לקוסמים מחוברים"
+                description="כדי לראות את השיח החי, את מי שיושב עכשיו באולם ולשלוח הודעות בלי מסך ריק ומטעה, צריך קודם להיכנס לחשבון שלך בטירה."
+                icon={Users}
+            />
+        );
+    }
+
     function MuteToggle() {
         const { isMuted, toggleMute } = useUIState();
         const handleClick = () => {

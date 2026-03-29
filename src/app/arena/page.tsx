@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import { useOwlMail } from "@/components/OwlMail";
 import { Loader2, Search, Swords, Trophy, Shield, Target, Circle } from "lucide-react";
 import Link from "next/link";
@@ -29,7 +30,7 @@ const HOUSE_COLOR: Record<string, string> = {
 
 export default function ArenaPage() {
     const router = useRouter();
-    const { profile } = useAuth();
+    const { session, profile, isLoading: authLoading } = useAuth();
     const { sendOwl } = useOwlMail();
     const [supabase] = useState(() => createClient());
 
@@ -47,6 +48,12 @@ export default function ArenaPage() {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
+        if (authLoading) return;
+        if (!session) {
+            setLoading(false);
+            return;
+        }
+
         const load = async () => {
             const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
@@ -115,9 +122,25 @@ export default function ArenaPage() {
         document.addEventListener("visibilitychange", handleVisibility);
         return () => document.removeEventListener("visibilitychange", handleVisibility);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [profile?.id]);
+    }, [authLoading, profile?.id, session]);
 
-    const runSearch = useCallback(async (q: string) => {
+    if (authLoading) return (
+        <div className="min-h-screen bg-[#060910] flex items-center justify-center">
+            <Loader2 className="text-red-400 animate-spin" size={32} />
+        </div>
+    );
+
+    if (!session) {
+        return (
+            <MemberOnlyNotice
+                title="הזירה נפתחת רק לקוסמים מחוברים"
+                description="כדי לראות את הנתונים האישיים שלך, לחפש יריבים זמינים, ולשלוח אתגר בלי מספרים מטעים, צריך קודם להיכנס לחשבון שלך בטירה."
+                icon={Swords}
+            />
+        );
+    }
+
+    const runSearch = async (q: string) => {
         if (q.length < 1) { setSearchResults([]); setSearching(false); return; }
         setSearching(true);
         const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
@@ -136,7 +159,7 @@ export default function ArenaPage() {
         setOnlineIds(liveIds);
         setSearchResults(users || []);
         setSearching(false);
-    }, [supabase, profile?.id]);
+    };
 
     const handleSearch = (q: string) => {
         setSearchQuery(q);

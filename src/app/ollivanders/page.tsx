@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useOwlMail } from "@/components/OwlMail";
+import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import { useAuth } from "@/context/AuthContext";
 import CanonBadge from "@/components/CanonBadge";
 import { logActivityEvent } from "@/lib/activityEvents";
@@ -445,6 +446,16 @@ export default function OllivandersPage() {
         <div className="h-12 w-12 animate-spin rounded-full border-t-2 border-amber-500" />
         <p className="animate-pulse font-cinzel tracking-widest text-amber-500">טוען את הסדנה...</p>
       </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <MemberOnlyNotice
+        title="אוליבנדר בוחר שרביטים רק לקוסמים מחוברים"
+        description="כדי שהשרביט יבחר בך באמת, יישמר בדף הקוסם שלך ויתחבר למאזן הגליאונים שלך בלי מספרים מטעים, צריך קודם להיכנס לטירה."
+        icon={Wand2}
+      />
     );
   }
 

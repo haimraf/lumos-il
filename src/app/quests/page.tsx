@@ -16,6 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import { useOwlMail } from "@/components/OwlMail";
 import QuestCommunityPulse from "@/components/QuestCommunityPulse";
 import QuickDailyQuestModal, { type QuickDailyQuestMode } from "@/components/QuickDailyQuestModal";
@@ -900,6 +901,16 @@ export default function QuestsPage() {
         <div className="h-12 w-12 animate-spin rounded-full border-t-2 border-amber-500" />
         <p className="animate-pulse font-cinzel tracking-widest text-amber-500">רוקח שיקוי...</p>
       </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <MemberOnlyNotice
+        title="לוח המשימות מתעורר רק לקוסמים מחוברים"
+        description="כדי לראות את הקווסטים האישיים שלך, הגליאונים, ההתקדמות היומית וההמלצות החיות של הטירה בלי מספרי אפס מטעים, צריך קודם להיכנס לחשבון שלך."
+        icon={Gift}
+      />
     );
   }
 
