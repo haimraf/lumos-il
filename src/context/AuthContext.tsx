@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, ReactNode 
 import { createClient } from "@/utils/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { fetchProfileWithFallback } from "@/lib/profileAccess";
+import { getProfileDisplayName, getSyncableProfileName } from "@/lib/profileNames";
 
 type ProfileLookupSource = "id" | "email" | "none" | "server" | "server-id" | "server-email";
 
@@ -67,7 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const fetchProfile = useCallback(async (userId: string, userEmail?: string | null) => {
+  const fetchProfile = useCallback(async (
+    userId: string,
+    userEmail?: string | null,
+    userMetadata?: Record<string, unknown> | null,
+  ) => {
     try {
       setProfileError(null);
 
@@ -102,10 +107,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      const nextProfile = profileData;
+      let nextProfile = {
+        ...profileData,
+        email: profileData?.email || userEmail || null,
+        user_metadata: userMetadata || null,
+      };
       const resolvedProfileId = typeof nextProfile.id === "string" ? nextProfile.id : userId;
+
+      if (resolvedProfileId === userId) {
+        const syncName = getSyncableProfileName(nextProfile);
+
+        if (syncName) {
+          try {
+            const { data: syncedProfile, error: syncError } = await supabase
+              .from("profiles")
+              .update({ full_name: syncName })
+              .eq("id", userId)
+              .select("*")
+              .single();
+
+            if (syncError) {
+              console.warn("[AuthContext] failed to sync profile full_name:", syncError.message);
+            } else if (syncedProfile) {
+              nextProfile = {
+                ...syncedProfile,
+                email: syncedProfile?.email || userEmail || null,
+                user_metadata: userMetadata || null,
+              };
+            }
+          } catch (syncError) {
+            console.warn("[AuthContext] profile full_name sync failed:", syncError);
+          }
+        }
+      }
+
       const hydratedProfile = {
         ...nextProfile,
+        full_name: getProfileDisplayName(nextProfile),
         post_count: typeof nextProfile.post_count === "number" ? nextProfile.post_count : 0,
         profile_lookup_source: source,
       };
@@ -167,7 +205,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (clearError) {
               nextError = nextError ?? clearError.message;
             } else if (clearedProfile) {
-              enrichedProfile = clearedProfile;
+              enrichedProfile = {
+                ...clearedProfile,
+                email: clearedProfile?.email || userEmail || null,
+                user_metadata: userMetadata || null,
+              };
             }
           }
         } catch (error) {
@@ -182,6 +224,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return {
             ...currentProfile,
             ...enrichedProfile,
+            full_name: getProfileDisplayName({
+              ...currentProfile,
+              ...enrichedProfile,
+              email: enrichedProfile?.email || currentProfile?.email || userEmail || null,
+              user_metadata: userMetadata || currentProfile?.user_metadata || null,
+            }),
+            email: enrichedProfile?.email || currentProfile?.email || userEmail || null,
+            user_metadata: userMetadata || currentProfile?.user_metadata || null,
             post_count: derivedPostCount,
             profile_lookup_source: source,
           };
@@ -206,7 +256,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(session?.user ?? null);
 
     if (session?.user) {
-      await fetchProfile(session.user.id, session.user.email);
+      await fetchProfile(
+        session.user.id,
+        session.user.email,
+        (session.user.user_metadata as Record<string, unknown> | undefined) || null,
+      );
     } else {
       setProfile(null);
       setProfileError(null);
@@ -246,7 +300,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (user) {
-      await fetchProfile(user.id, user.email);
+      await fetchProfile(
+        user.id,
+        user.email,
+        (user.user_metadata as Record<string, unknown> | undefined) || null,
+      );
     } else {
       setProfile(null);
       setProfileError(null);

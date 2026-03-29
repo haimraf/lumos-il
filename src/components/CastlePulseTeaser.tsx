@@ -8,6 +8,7 @@ import { formatHebrewRelativeTime } from "@/lib/dateTime";
 import { getHouseSecondaryColor } from "@/lib/houses";
 import { normalizeLegacyDisplayText } from "@/lib/legacyText";
 import { getProfileDisplayName } from "@/lib/profileNames";
+import { getHouseSortedTitle } from "@/lib/activityEventCopy";
 
 type PulseEvent = {
   id: string;
@@ -29,20 +30,6 @@ type PulseProfileRow = {
   full_name: string | null;
   email: string | null;
 };
-
-function timeAgo(dateString: string) {
-  if (!dateString) return "...";
-  const seconds = Math.round((Date.now() - new Date(dateString).getTime()) / 1000);
-  const minutes = Math.round(seconds / 60);
-  const hours = Math.round(minutes / 60);
-  const days = Math.round(hours / 24);
-
-  if (seconds < 60) return "ממש עכשיו";
-  if (minutes < 60) return `לפני ${minutes} דק'`;
-  if (hours < 24) return `לפני ${hours} שעות`;
-  if (days === 1) return "אתמול";
-  return `לפני ${days} ימים`;
-}
 
 function safeTimeAgo(dateString: string) {
   return formatHebrewRelativeTime(dateString, {
@@ -79,38 +66,45 @@ export default function CastlePulseTeaser() {
         .order("created_at", { ascending: false })
         .limit(5);
 
-      if (!cancelled) {
-        if (error) {
-          console.warn("[castle-pulse] failed to fetch activity events", error);
-          setEvents([]);
-        } else {
-          const rawEvents = (data as PulseEvent[]) || [];
-          const actorIds = [...new Set(rawEvents.map((event) => event.actor_id).filter(Boolean))] as string[];
-          const profileMap = new Map<string, PulseProfileRow>();
+      if (cancelled) return;
 
-          if (actorIds.length > 0) {
-            const { data: profiles } = await supabase
-              .from("profiles")
-              .select("id, full_name, email")
-              .in("id", actorIds);
-
-            ((profiles as PulseProfileRow[] | null) || []).forEach((profile) => {
-              profileMap.set(profile.id, profile);
-            });
-          }
-
-          setEvents(
-            rawEvents.map((event) => {
-              const actorProfile = event.actor_id ? profileMap.get(event.actor_id) : null;
-              return normalizePulseEvent({
-                ...event,
-                actor_name: getProfileDisplayName(actorProfile, event.actor_name || "קוסמ׳"),
-              });
-            }),
-          );
-        }
+      if (error) {
+        console.warn("[castle-pulse] failed to fetch activity events", error);
+        setEvents([]);
         setIsLoading(false);
+        return;
       }
+
+      const rawEvents = (data as PulseEvent[]) || [];
+      const actorIds = [...new Set(rawEvents.map((event) => event.actor_id).filter(Boolean))] as string[];
+      const profileMap = new Map<string, PulseProfileRow>();
+
+      if (actorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", actorIds);
+
+        ((profiles as PulseProfileRow[] | null) || []).forEach((profile) => {
+          profileMap.set(profile.id, profile);
+        });
+      }
+
+      setEvents(
+        rawEvents.map((event) => {
+          const actorProfile = event.actor_id ? profileMap.get(event.actor_id) : null;
+          const normalizedTitle = event.event_type === "house_sorted"
+            ? getHouseSortedTitle(event.actor_house, event.title)
+            : event.title;
+
+          return normalizePulseEvent({
+            ...event,
+            actor_name: getProfileDisplayName(actorProfile, event.actor_name || "קוסמ׳"),
+            title: normalizedTitle,
+          });
+        }),
+      );
+      setIsLoading(false);
     }
 
     void fetchEvents();

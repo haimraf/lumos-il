@@ -18,6 +18,7 @@ import {
   withAlpha,
 } from "@/lib/houses";
 import { getProfileDisplayName } from "@/lib/profileNames";
+import { getHouseSortedTitle } from "@/lib/activityEventCopy";
 
 type PresenceChip = OnlinePresenceRow & {
   group_color: string | null;
@@ -305,7 +306,7 @@ export default function MaraudersMasterMap() {
         type: "join",
         icon: event.icon || "\u2728",
         actorName: event.actor_name || "\u05e7\u05d5\u05e1\u05de\u05f3",
-        description: event.title || STRINGS.houseSorting,
+        description: getHouseSortedTitle(event.actor_house, event.title || STRINGS.houseSorting),
         profileId: event.actor_id || null,
         house: event.actor_house || null,
         time: event.created_at,

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
 import { getCanonicalUrl } from "@/lib/seo";
+import { getProfileDisplayName } from "@/lib/profileNames";
 
 const HOUSE_HE: Record<string, string> = {
   Gryffindor: "גריפינדור",
-  Slytherin:  "סלית'רין",
-  Ravenclaw:  "רייבנקלו",
+  Slytherin: "סלית'רין",
+  Ravenclaw: "רייבנקלו",
   Hufflepuff: "הפלפאף",
 };
 
@@ -18,14 +19,14 @@ async function getProfile(id: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("full_name, house, avatar_url, role, wand_type, patronus")
+    .select("full_name, email, house, avatar_url, role, wand_type, patronus")
     .eq("id", id)
     .single();
   return data;
 }
 
 export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<Metadata> {
   const { id } = await params;
   const profile = await getProfile(id);
@@ -33,8 +34,9 @@ export async function generateMetadata(
   if (!profile) return { title: "דף קוסם" };
 
   const houseHe = HOUSE_HE[profile.house] || profile.house || "";
-  const title = `${profile.full_name} — ${houseHe}`;
-  const description = `דף הקוסם של ${profile.full_name} מבית ${houseHe} ב-LUMOS IL.${profile.wand_type ? ` שרביט: ${profile.wand_type}.` : ""}`;
+  const displayName = getProfileDisplayName(profile, "קוסמ/ת בטירה");
+  const title = `${displayName} — ${houseHe}`;
+  const description = `דף הקוסם של ${displayName} מבית ${houseHe} ב-LUMOS IL.${profile.wand_type ? ` שרביט: ${profile.wand_type}.` : ""}`;
 
   return {
     title,
@@ -45,7 +47,7 @@ export async function generateMetadata(
     openGraph: {
       title: `${title} | LUMOS IL`,
       description,
-      images: profile.avatar_url ? [{ url: profile.avatar_url, alt: `אווטאר של ${profile.full_name}` }] : [{ url: "/images/og-image.png" }],
+      images: profile.avatar_url ? [{ url: profile.avatar_url, alt: `אווטאר של ${displayName}` }] : [{ url: "/images/og-image.png" }],
       type: "profile",
       url: `https://lumos-il.co.il/wizard/${id}`,
     },
@@ -65,18 +67,19 @@ export default async function WizardLayout({ params, children }: Props) {
   if (!profile) return <>{children}</>;
 
   const houseHe = HOUSE_HE[profile.house] || profile.house || "";
+  const displayName = getProfileDisplayName(profile, "קוסמ/ת בטירה");
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Person",
-    "name": profile.full_name,
-    "description": `דמות קסומה מבית ${houseHe} בקהילת LUMOS IL`,
-    "url": `https://lumos-il.co.il/wizard/${id}`,
-    "inLanguage": "he",
-    ...(profile.avatar_url ? { "image": profile.avatar_url } : {}),
-    "memberOf": {
+    name: displayName,
+    description: `דמות קסומה מבית ${houseHe} בקהילת LUMOS IL`,
+    url: `https://lumos-il.co.il/wizard/${id}`,
+    inLanguage: "he",
+    ...(profile.avatar_url ? { image: profile.avatar_url } : {}),
+    memberOf: {
       "@type": "Organization",
-      "name": `בית ${houseHe} — LUMOS IL`,
-      "url": "https://lumos-il.co.il",
+      name: `בית ${houseHe} — LUMOS IL`,
+      url: "https://lumos-il.co.il",
     },
   };
 
