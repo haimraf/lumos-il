@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, Clock, ScrollText, User } from "lucide-react";
+import NewsArticleEngagement from "@/components/news/NewsArticleEngagement";
 import { createClient } from "@/utils/supabase/server";
 import { getNewsArticlePath, getNewsArticleUrl, withCanonical } from "@/lib/seo";
 
@@ -245,6 +246,8 @@ export default async function NewsArticlePage({ params }: PageProps) {
             className="news-article-prose mt-8 text-base"
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
+
+          <NewsArticleEngagement newsId={article.id} />
         </div>
       </div>
     </article>
