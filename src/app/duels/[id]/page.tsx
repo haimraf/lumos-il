@@ -291,6 +291,8 @@ export default function DuelPage() {
     /* ── Log arena_duel_completed on win ── */
     useEffect(() => {
         if (!duel || duel.status !== "finished" || !duel.winner_id) return;
+        // Duel completion is already logged on the server during finalization.
+        return;
         if (duel.winner_id !== myId) return;
         if (duelWinLoggedRef.current) return;
         duelWinLoggedRef.current = true;

@@ -1045,14 +1045,13 @@ export default function AdminPanel() {
 
         const { data: participants } = await supabase
             .from("profiles")
-            .select("id, full_name, event_points, passover_points")
+            .select("id, full_name, created_at, event_points, passover_points")
             .or("event_points.gt.0,passover_points.gt.0")
             .limit(250);
 
         const ranked = [...(participants || [])]
-            .map((p: any) => ({ ...p, total: Math.max(p.event_points || 0, p.passover_points || 0) }))
-            .filter((p: any) => p.total > 0)
-            .sort((a: any, b: any) => b.total - a.total);
+            .filter((p: any) => getProfileLiveEventPoints(p) > 0)
+            .sort(compareLiveEventParticipants);
 
         const LEGACY_GALLEONS: Record<number, number> = { 1: 1000, 2: 500, 3: 250 };
 
