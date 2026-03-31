@@ -18,7 +18,7 @@ export default function SortingReminder() {
     if (!mounted || !profile) return null;
     
     // הגנה: לא מציגים בדף המיון, בדף הנחיתה או בדף התחברות
-    const excludedPaths = ['/sorting', '/', '/login', '/register'];
+    const excludedPaths = ['/sorting', '/'];
     if (excludedPaths.includes(pathname)) return null;
 
     const isUnsorted = isUnsortedHouse(profile.house);

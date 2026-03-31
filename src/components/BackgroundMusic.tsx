@@ -46,20 +46,24 @@ export default function BackgroundMusic() {
     }
 
     // מנגן רק אם לא מושתק
+    let playOnInteraction: (() => void) | null = null;
+
     audio.play()
       .then(() => fadeVolume(0.25))
       .catch(() => {
         // הדפדפן חסם — ממתינים ללחיצה ראשונה
-        const playOnInteraction = () => {
+        playOnInteraction = () => {
           if (!isMuted) {
             audio.play().then(() => fadeVolume(0.25));
           }
-          document.removeEventListener("click", playOnInteraction);
+          document.removeEventListener("click", playOnInteraction!);
+          playOnInteraction = null;
         };
         document.addEventListener("click", playOnInteraction);
       });
 
     return () => {
+      if (playOnInteraction) document.removeEventListener("click", playOnInteraction);
       if (fadeInterval.current) clearInterval(fadeInterval.current);
     };
   }, [isMuted, isInitialized, fadeVolume]);

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { sanitizeHtml } from "@/utils/sanitize";
 import Link from "next/link";
 
 interface NewsItem {
@@ -368,7 +369,7 @@ function ArticleReader({ article, roleColors, onClose }: { article: NewsItem; ro
 
   return (
     <div
-      className="fixed inset-0 z-[99999] bg-[#020617]/95 backdrop-blur-md flex items-start justify-center overflow-hidden"
+      className="fixed inset-0 z-[7000] bg-[#020617]/95 backdrop-blur-md flex items-start justify-center overflow-hidden"
       role="dialog"
       aria-modal="true"
       aria-label={article.title}
@@ -455,7 +456,7 @@ function ArticleReader({ article, roleColors, onClose }: { article: NewsItem; ro
             {/* article body */}
             <div
               className="prose-article font-crimson text-xl leading-relaxed text-right"
-              dangerouslySetInnerHTML={{ __html: article.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
             />
 
             {/* poll */}
@@ -863,7 +864,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
                       }}
                     >
                       {c.profiles?.avatar_url
-                        ? <img src={c.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ? <img src={c.profiles.avatar_url} alt={c.profiles.full_name || "אווטאר"} className="w-full h-full object-cover" />
                         : house === "Gryffindor" ? "🦁"
                         : house === "Slytherin"  ? "🐍"
                         : house === "Ravenclaw"  ? "🦅"

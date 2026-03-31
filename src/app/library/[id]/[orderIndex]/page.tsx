@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { sanitizeHtml } from "@/utils/sanitize";
 import {
     ChevronRight, ChevronLeft, Sparkles,
     MessageSquare, Send, Feather, User, Clock, ShieldAlert,
@@ -85,44 +86,48 @@ export default function ChapterPage() {
         const fetchChapterData = async () => {
             if (!id || isNaN(currentOrderIndex)) return;
 
-            const { data: chapterData } = await supabase
-                .from('chapters')
-                .select(`*, stories!inner (title, house_theme, rating, summary)`)
-                .eq('story_id', id)
-                .eq('order_index', currentOrderIndex)
-                .single();
+            try {
+                const { data: chapterData } = await supabase
+                    .from('chapters')
+                    .select(`*, stories!inner (title, house_theme, rating, summary)`)
+                    .eq('story_id', id)
+                    .eq('order_index', currentOrderIndex)
+                    .single();
 
-            if (chapterData) {
-                setChapter(chapterData);
-                fetchComments(chapterData.id);
+                if (chapterData) {
+                    setChapter(chapterData);
+                    fetchComments(chapterData.id);
 
-                const chapterKey = `${id}-${currentOrderIndex}`;
-                if (chapterReadLoggedRef.current !== chapterKey) {
-                    chapterReadLoggedRef.current = chapterKey;
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (user) {
-                        void logActivityEvent(supabase, {
-                            eventType: "library_chapter_read",
-                            icon: "📖",
-                            title: `קרא פרק: ${chapterData.title || `פרק ${currentOrderIndex}`}`,
-                            subtitle: chapterData.stories?.title || null,
-                            targetType: "chapter",
-                            targetId: chapterData.id,
-                            targetUrl: `/library/${id}/${currentOrderIndex}`,
-                        });
+                    const chapterKey = `${id}-${currentOrderIndex}`;
+                    if (chapterReadLoggedRef.current !== chapterKey) {
+                        chapterReadLoggedRef.current = chapterKey;
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user) {
+                            void logActivityEvent(supabase, {
+                                eventType: "library_chapter_read",
+                                icon: "📖",
+                                title: `קרא פרק: ${chapterData.title || `פרק ${currentOrderIndex}`}`,
+                                subtitle: chapterData.stories?.title || null,
+                                targetType: "chapter",
+                                targetId: chapterData.id,
+                                targetUrl: `/library/${id}/${currentOrderIndex}`,
+                            });
+                        }
+                    }
+
+                    const { data: navData } = await supabase
+                        .from('chapters')
+                        .select('id, order_index, title')
+                        .eq('story_id', id)
+                        .in('order_index', [currentOrderIndex - 1, currentOrderIndex + 1]);
+
+                    if (navData) {
+                        setPrevChapter(navData.find(ch => ch.order_index === currentOrderIndex - 1));
+                        setNextChapter(navData.find(ch => ch.order_index === currentOrderIndex + 1));
                     }
                 }
-
-                const { data: navData } = await supabase
-                    .from('chapters')
-                    .select('id, order_index, title')
-                    .eq('story_id', id)
-                    .in('order_index', [currentOrderIndex - 1, currentOrderIndex + 1]);
-
-                if (navData) {
-                    setPrevChapter(navData.find(ch => ch.order_index === currentOrderIndex - 1));
-                    setNextChapter(navData.find(ch => ch.order_index === currentOrderIndex + 1));
-                }
+            } catch {
+                // Query failed — page will show empty state instead of infinite spinner
             }
 
             const confirmed = localStorage.getItem('lumos_adult_confirmed') === 'true';
@@ -252,7 +257,7 @@ export default function ChapterPage() {
                         viewport={{ once: true }}
                         transition={{ duration: 1 }}
                         className="font-crimson text-2xl md:text-3xl text-amber-50/90 leading-[2] chapter-content-view space-y-12 drop-shadow-sm"
-                        dangerouslySetInnerHTML={{ __html: chapter?.content || 'התוכן אבד בערפל... נסו שוב מאוחר יותר.' }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(chapter?.content || 'התוכן אבד בערפל... נסו שוב מאוחר יותר.') }}
                     />
                 </article>
 

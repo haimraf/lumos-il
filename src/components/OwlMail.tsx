@@ -170,7 +170,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
             {children}
 
             <div
-                className="fixed bottom-6 left-6 z-[9999999] flex flex-col gap-3 pointer-events-none"
+                className="fixed bottom-6 left-6 z-[9000] flex flex-col gap-3 pointer-events-none"
                 dir="rtl"
                 aria-live="polite"
                 aria-atomic="false"

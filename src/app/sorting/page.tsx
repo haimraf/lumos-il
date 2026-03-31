@@ -224,15 +224,10 @@ export default function SortingPage() {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!session) {
-      router.replace('/');
-      return;
-    }
-
     if (profile && (canBypassSortingRole(profile.role) || !isUnsortedHouse(profile.house))) {
       router.replace('/home');
     }
-  }, [session, authLoading, profile, router]);
+  }, [authLoading, profile, router]);
 
   // Typewriter effect
   const MESSAGES = [
@@ -325,6 +320,36 @@ export default function SortingPage() {
   };
 
   const progress = ((currentQuestionIndex) / QUESTIONS.length) * 100;
+
+  if (authLoading) return (
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center" dir="rtl">
+      <div className="text-center space-y-4">
+        <Wand2 className="mx-auto text-amber-500 animate-pulse" size={48} />
+        <p className="font-crimson text-white/40 text-sm">טוען את טקס המיון...</p>
+      </div>
+    </div>
+  );
+
+  if (!session) return (
+    <div className="flex min-h-screen items-center justify-center bg-[#020617] px-6" dir="rtl">
+      <div className="w-full max-w-lg space-y-5 rounded-[2rem] border border-amber-500/20 bg-black/30 p-8 text-center shadow-[0_0_40px_rgba(245,158,11,0.08)]">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10">
+          <Wand2 className="text-amber-400" size={28} />
+        </div>
+        <div>
+          <h1 className="mb-2 font-cinzel text-2xl font-black text-white">כובע המיון ממתין רק לקוסמים מחוברים</h1>
+          <p className="font-crimson leading-relaxed text-white/55">כדי לעבור את טקס המיון ולגלות את הבית שלך, צריך קודם להתחבר לטירה.</p>
+        </div>
+        <a
+          href="/"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-cinzel font-black uppercase tracking-widest text-amber-950"
+        >
+          כניסה לטירה
+          <Compass size={15} />
+        </a>
+      </div>
+    </div>
+  );
 
   // ── Loading ──
   if (isCalculating) return (

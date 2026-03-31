@@ -763,7 +763,7 @@ export default function Home() {
                     AUTH MODAL
                 ══════════════════════════════════════ */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="fixed inset-0 z-[7000] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
             <div className="fixed inset-0 bg-black/85 backdrop-blur-md" onClick={() => setIsModalOpen(false)} aria-hidden="true" />
             <div id="landing-auth-dialog" className="modal-enter relative w-full max-h-[90vh] overflow-y-auto custom-scrollbar rounded-[2.5rem] border border-amber-500/20 shadow-[0_0_50px_rgba(245,158,11,0.1)] bg-[#050505] p-8 md:p-10 z-10 my-auto"
               role="dialog" aria-modal="true" aria-label="שערי הטירה" style={{ maxWidth: '420px' }}>

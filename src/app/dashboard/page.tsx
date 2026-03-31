@@ -492,7 +492,14 @@ function DashboardContent() {
     setNotifications([]);
   };
 
-  if (authLoading) return <div className="min-h-screen bg-[#020617] flex items-center justify-center animate-pulse"><Wand2 className="text-amber-500" size={48} /></div>;
+  if (authLoading) return (
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center" dir="rtl">
+      <div className="text-center space-y-4">
+        <Wand2 className="mx-auto text-amber-500 animate-pulse" size={48} />
+        <p className="font-crimson text-white/40 text-sm">טוען את הדף האישי...</p>
+      </div>
+    </div>
+  );
 
   if (!session) {
     return (

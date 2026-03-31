@@ -19,7 +19,15 @@
       "Bash(find /c/projects/lumos-il.co.il/src -name Footer* -o -name footer*)",
       "Bash(npx next:*)",
       "Bash(cmd /c \"netstat -ano | findstr :3000\" 2>&1)",
-      "Bash(find C:/projects/lumos-il.co.il/public -name logo* -o -name Logo*)"
+      "Bash(find C:/projects/lumos-il.co.il/public -name logo* -o -name Logo*)",
+      "Bash(xargs ls:*)",
+      "Bash(find . -type f -name *event*)",
+      "Bash(find ./supabase/migrations -type f -name *event*)",
+      "Bash(done)",
+      "Bash(npm ls:*)",
+      "Bash(npm install:*)",
+      "Bash(tail -200 /c/projects/lumos-il.co.il/src/app/forums/[slug]/[id]/page.tsx)",
+      "Bash(tail -300 /c/projects/lumos-il.co.il/src/app/duels/[id]/page.tsx)"
     ]
   }
 }

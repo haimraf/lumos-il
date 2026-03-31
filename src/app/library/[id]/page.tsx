@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "../../../utils/supabase/client";
+import { sanitizeHtml } from "@/utils/sanitize";
 import {
     ShieldAlert, BookOpen, ChevronLeft, User, Plus,
     Sparkles, Lock, Flame, Eye, Share2, Home, Book as BookIcon
@@ -93,7 +94,7 @@ export default function StoryViewPage() {
     const isLocked = isAdult && !isAdultConfirmed;
 
     const AdultModal = mounted && isLocked ? createPortal(
-        <div className="fixed inset-0 z-[99999] bg-black/98 backdrop-blur-3xl flex items-center justify-center p-6" dir="rtl">
+        <div className="fixed inset-0 z-[7000] bg-black/98 backdrop-blur-3xl flex items-center justify-center p-6" dir="rtl">
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -191,7 +192,7 @@ export default function StoryViewPage() {
 
                         <div className="p-8 bg-[#0d0d0f]/80 backdrop-blur-md border-r-4 border-amber-500/40 rounded-l-3xl shadow-2xl">
                             <div className="font-crimson text-2xl text-white/70 italic leading-relaxed story-description"
-                                dangerouslySetInnerHTML={{ __html: story?.description || 'התקציר אבד במרתפי הוגוורטס...' }} />
+                                dangerouslySetInnerHTML={{ __html: sanitizeHtml(story?.description || 'התקציר אבד במרתפי הוגוורטס...') }} />
                         </div>
 
                         <div className="flex items-center gap-5 justify-end bg-white/[0.02] p-5 rounded-[2rem] border border-white/5 self-end">

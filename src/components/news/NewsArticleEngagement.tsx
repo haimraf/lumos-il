@@ -504,7 +504,7 @@ function CommentsSection({
                       }}
                     >
                       {comment.profiles?.avatar_url ? (
-                        <img src={comment.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                        <img src={comment.profiles.avatar_url} alt={comment.profiles.full_name || "אווטאר"} className="h-full w-full object-cover" />
                       ) : house === "Gryffindor" ? (
                         "🦁"
                       ) : house === "Slytherin" ? (

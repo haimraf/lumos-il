@@ -192,7 +192,7 @@ export default function AdminOverviewTab({
                         className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-sm shrink-0"
                         style={{ background: cfg ? cfg.accent : "rgba(255,255,255,0.05)" }}
                       >
-                        {user.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" /> : cfg?.icon || "🧙"}
+                        {user.avatar_url ? <img src={user.avatar_url} alt={user.full_name || "אווטאר"} className="w-full h-full object-cover" /> : cfg?.icon || "🧙"}
                       </div>
                     </div>
                   </button>

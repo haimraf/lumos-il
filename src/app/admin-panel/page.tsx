@@ -551,27 +551,28 @@ export default function AdminPanel() {
 
     /* ── Fetch ── */
     const fetchData = useCallback(async () => {
-        const [{ data: reportData }, { data: newsData }, { data: profilesData },
-            { data: forumsData }, { data: forumCategoriesData }, { data: groupsData },
-            { data: logsData }, { data: activityData }, { data: settingsData }] = await Promise.all([
-                supabase.from('reports').select('*').order('created_at', { ascending: false }),
-                supabase.from('news').select('*').order('created_at', { ascending: false }),
-                supabase.from('profiles').select('*, user_groups(id, name, color)').order('created_at', { ascending: true }),
-                supabase.from('forums').select('*, thread_count:threads(count)').order('created_at', { ascending: true }),
-                supabase.from('forum_categories').select('*').order('display_order'),
-                supabase.from('user_groups').select('*').order('display_order'),
-                supabase.from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(150),
-                supabase.from('activity_events').select('*').order('created_at', { ascending: false }).limit(100),
-                supabase.from('site_settings').select('*'),
-            ]);
+        try {
+            const [{ data: reportData }, { data: newsData }, { data: profilesData },
+                { data: forumsData }, { data: forumCategoriesData }, { data: groupsData },
+                { data: logsData }, { data: activityData }, { data: settingsData }] = await Promise.all([
+                    supabase.from('reports').select('*').order('created_at', { ascending: false }),
+                    supabase.from('news').select('*').order('created_at', { ascending: false }),
+                    supabase.from('profiles').select('*, user_groups(id, name, color)').order('created_at', { ascending: true }),
+                    supabase.from('forums').select('*, thread_count:threads(count)').order('created_at', { ascending: true }),
+                    supabase.from('forum_categories').select('*').order('display_order'),
+                    supabase.from('user_groups').select('*').order('display_order'),
+                    supabase.from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(150),
+                    supabase.from('activity_events').select('*').order('created_at', { ascending: false }).limit(100),
+                    supabase.from('site_settings').select('*'),
+                ]);
 
-        setReports(reportData || []);
-        setNews(newsData || []);
-        setForums(forumsData || []);
-        setForumCategories((forumCategoriesData as ForumCategory[]) || []);
-        setUserGroups(groupsData || []);
-        setAdminLogs(logsData || []);
-        setActivityEvents((activityData as any) || []);
+            setReports(reportData || []);
+            setNews(newsData || []);
+            setForums(forumsData || []);
+            setForumCategories((forumCategoriesData as ForumCategory[]) || []);
+            setUserGroups(groupsData || []);
+            setAdminLogs(logsData || []);
+            setActivityEvents((activityData as any) || []);
 
         const settingsMap: Record<string, any> = {};
         settingsData?.forEach(s => { settingsMap[s.key] = s.value; });
@@ -583,6 +584,9 @@ export default function AdminPanel() {
         });
         setHousePoints(points);
         setAllProfiles(profilesData || []);
+        } catch {
+            // Fetch failed — admin panel will show stale data until next refresh
+        }
     }, [supabase]);
 
     const fetchThreads = useCallback(async (forumId: string) => {
@@ -2292,7 +2296,7 @@ export default function AdminPanel() {
                                         <div className="space-y-2 max-h-[420px] overflow-y-auto">
                                             {filtered.map(item => (
                                                 <div key={item.id} className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/[0.04] hover:border-white/[0.08] transition-all">
-                                                    {item.image_url && <img src={item.image_url} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 bg-white/5" />}
+                                                    {item.image_url && <img src={item.image_url} alt={item.name || "פריט"} className="w-10 h-10 rounded-lg object-cover shrink-0 bg-white/5" />}
                                                     {!item.image_url && <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-lg shrink-0">🛒</div>}
                                                     <div className="flex-1 min-w-0">
                                                         <p className="font-bold text-sm text-white/80 truncate">{item.name}</p>

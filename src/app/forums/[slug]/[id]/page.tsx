@@ -13,6 +13,7 @@ import {
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
 import { enrichContent } from "@/utils/enrichContent";
+import { sanitizeHtml } from "@/utils/sanitize";
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false }) as any;
 
@@ -128,7 +129,7 @@ function Avatar({
 /* ─────────────────── PostContent ─────────────────── */
 // memo + useMemo: מונע re-render של iframe יוטיוב כשמקלידים בתיבת התגובות
 const PostContent = memo(function PostContent({ content }: { content: string }) {
-    const html = useMemo(() => enrichContent(content), [content]);
+    const html = useMemo(() => sanitizeHtml(enrichContent(content)), [content]);
     return (
         <div
             className="post-body flex-1 text-white/80 text-base leading-relaxed break-words whitespace-pre-wrap"
@@ -1241,7 +1242,7 @@ export default function ThreadViewPage() {
                     </div>
                 ) : (
                     <div className="mt-12 rounded-2xl border border-white/[0.06] bg-white/[0.01] p-8 text-center text-white/30 text-sm">
-                        <Link href="/login" className="text-amber-500 hover:underline">התחבר</Link> כדי להשתתף בשיחה
+                        <Link href="/" className="text-amber-500 hover:underline">התחבר</Link> כדי להשתתף בשיחה
                     </div>
                 )}
             </div>

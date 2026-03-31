@@ -281,7 +281,7 @@ export default function HotTopicsTeaser() {
                                                 <CornerDownLeft size={10} className="text-white/30" />
                                                 <div className="w-5 h-5 rounded-md overflow-hidden bg-black/40 border border-white/10 shrink-0">
                                                     {topic.last_post.author_avatar ? (
-                                                        <img src={topic.last_post.author_avatar} alt="" className="w-full h-full object-cover" />
+                                                        <img src={topic.last_post.author_avatar} alt={topic.last_post.author_name || "אווטאר"} className="w-full h-full object-cover" />
                                                     ) : (
                                                         <User size={10} className="text-white/30 mx-auto mt-1" />
                                                     )}
@@ -318,7 +318,7 @@ export default function HotTopicsTeaser() {
                                         <div className="flex items-center gap-2.5">
                                             <div className="w-7 h-7 rounded-xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center shrink-0">
                                                 {topic.profiles?.avatar_url ? (
-                                                    <img src={topic.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                    <img src={topic.profiles.avatar_url} alt={topic.profiles.full_name || "אווטאר"} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <User size={12} className="text-white/20" />
                                                 )}

@@ -2,6 +2,7 @@
 
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { sanitizeInline } from "@/utils/sanitize";
 import Link from "next/link";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import {
@@ -662,7 +663,7 @@ export default function GreatHall() {
                                                 title={h.label}
                                             >
                                                 {msg.profiles?.avatar_url
-                                                    ? <img src={msg.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                    ? <img src={msg.profiles.avatar_url} alt={msg.profiles.full_name || "אווטאר"} className="w-full h-full object-cover" />
                                                     : h.icon
                                                 }
                                             </div>
@@ -708,7 +709,7 @@ export default function GreatHall() {
                                                         <div className="mt-3 pt-3 border-t border-white/[0.07] flex items-end justify-between gap-3">
                                                             <div className="flex-1 text-white/30 text-xs">
                                                                 {msg.profiles?.signature ? (
-                                                                    <span className="italic font-crimson" dangerouslySetInnerHTML={{ __html: msg.profiles.signature }} />
+                                                                    <span className="italic font-crimson" dangerouslySetInnerHTML={{ __html: sanitizeInline(msg.profiles.signature) }} />
                                                                 ) : (
                                                                     <span className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest">
                                                                         <Wand2 size={9} className="text-amber-500/30" aria-hidden="true" />

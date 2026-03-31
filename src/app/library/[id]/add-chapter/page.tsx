@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import { BookOpen, Wand2, ChevronRight, PenTool, Hash, AlertCircle } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
@@ -21,6 +23,7 @@ export default function AddChapterPage() {
     const router = useRouter();
     const supabase = createClient();
     const { sendOwl } = useOwlMail();
+    const { session, isLoading: authLoading } = useAuth();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [story, setStory] = useState<any>(null);
@@ -106,6 +109,23 @@ export default function AddChapterPage() {
         Hufflepuff: "rgba(251,191,36,0.3)",
         Neutral: "rgba(245,158,11,0.1)"
     };
+
+    if (authLoading) return (
+        <div className="min-h-screen bg-[#060608] flex items-center justify-center" dir="rtl">
+            <div className="text-center space-y-4">
+                <Wand2 className="mx-auto text-amber-500 animate-pulse" size={48} />
+                <p className="font-crimson text-white/40 text-sm">טוען...</p>
+            </div>
+        </div>
+    );
+
+    if (!session) return (
+        <MemberOnlyNotice
+            title="הספרייה פתוחה רק לקוסמים מחוברים"
+            description="כדי להוסיף פרק לסיפור, צריך קודם להתחבר לחשבון שלך בטירה."
+            icon={BookOpen}
+        />
+    );
 
     return (
         <div className="relative min-h-screen py-24 px-6 bg-[#060608] overflow-hidden selection:bg-amber-500/30" dir="rtl">

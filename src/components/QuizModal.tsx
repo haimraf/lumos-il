@@ -128,7 +128,7 @@ export default function QuizModal({ onClose }: { onClose: () => void }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="quiz-modal-title"
-            className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 overflow-y-auto"
+            className="fixed inset-0 z-[8000] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 sm:p-6 overflow-y-auto"
             dir="rtl"
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >

@@ -181,7 +181,7 @@ export default function AdminUsersTab({
                   style={{ background: cfg ? cfg.accent : "rgba(255,255,255,0.05)" }}
                 >
                   {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img src={profile.avatar_url} alt={profile.full_name || "אווטאר"} className="w-full h-full object-cover" />
                   ) : (
                     cfg?.icon || "🧙"
                   )}

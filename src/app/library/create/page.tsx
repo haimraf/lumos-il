@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import {
     ScrollText, Sparkles, ShieldAlert, BookOpen, Wand2,
     Image as ImageIcon, ChevronRight, AlertTriangle,
@@ -24,6 +26,7 @@ export default function CreateStoryPage() {
     const router = useRouter();
     const supabase = createClient();
     const { sendOwl } = useOwlMail();
+    const { session, isLoading: authLoading } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -54,7 +57,7 @@ export default function CreateStoryPage() {
 
         if (!user) {
             sendOwl("גישה נחסמה", "רק קוסמים רשומים יכולים לפרסם בספרייה.", "error");
-            router.push('/login');
+            router.push('/');
             return;
         }
 
@@ -87,6 +90,23 @@ export default function CreateStoryPage() {
     };
 
     const currentStyle = houseStyles[formData.house_theme];
+
+    if (authLoading) return (
+        <div className="min-h-screen bg-[#060608] flex items-center justify-center" dir="rtl">
+            <div className="text-center space-y-4">
+                <Wand2 className="mx-auto text-amber-500 animate-pulse" size={48} />
+                <p className="font-crimson text-white/40 text-sm">טוען...</p>
+            </div>
+        </div>
+    );
+
+    if (!session) return (
+        <MemberOnlyNotice
+            title="הספרייה פתוחה רק לקוסמים מחוברים"
+            description="כדי לפרסם סיפור בספריית הוגוורטס, צריך קודם להתחבר לחשבון שלך בטירה."
+            icon={BookOpen}
+        />
+    );
 
     return (
         <div className="relative min-h-screen py-24 px-6 bg-[#060608] overflow-hidden selection:bg-amber-500/30" dir="rtl">

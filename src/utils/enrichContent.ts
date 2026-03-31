@@ -8,6 +8,10 @@ const YT_REGEX = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be
 
 const URL_REGEX = /(?<![="'>])\b(https?:\/\/[^\s<>"']+)/g;
 
+function escapeAttr(value: string): string {
+    return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function extractYouTubeId(url: string): string | null {
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
     return match ? match[1] : null;
@@ -40,7 +44,7 @@ export function enrichContent(html: string): string {
             const display = url.length > 55 ? url.slice(0, 52) + "…" : url;
             const isYouTube = /(?:youtube\.com|youtu\.be)/.test(url);
             if (isYouTube) return url; // כבר טופל
-            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="post-link">${display}</a>`;
+            return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" class="post-link">${display}</a>`;
         });
         return `>${linked}<`;
     });

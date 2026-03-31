@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronRight, Clock, ScrollText, User } from "lucide-react";
 import NewsArticleEngagement from "@/components/news/NewsArticleEngagement";
 import { createClient } from "@/utils/supabase/server";
+import { sanitizeHtml } from "@/utils/sanitize";
 import { getNewsArticlePath, getNewsArticleUrl, withCanonical } from "@/lib/seo";
 
 type NewsArticle = {
@@ -244,7 +245,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
 
           <div
             className="news-article-prose mt-8 text-base"
-            dangerouslySetInnerHTML={{ __html: article.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
           />
 
           <NewsArticleEngagement newsId={article.id} />

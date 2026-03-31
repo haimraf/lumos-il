@@ -323,7 +323,7 @@ export default function PatronusQuiz({ profileId, currentYear, onComplete }: Pat
 
     const modal = (
         <div
-            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 overflow-hidden"
+            className="fixed inset-0 z-[8000] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 overflow-hidden"
             dir="rtl"
             role="dialog"
             aria-modal="true"

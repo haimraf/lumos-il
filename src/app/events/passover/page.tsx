@@ -217,7 +217,7 @@ function getEventHouseStyles(house: string | null | undefined) {
     };
   }
 
-  const readableColor = palette.id === "Hufflepuff" ? palette.secondary : palette.secondary;
+  const readableColor = palette.id === "Hufflepuff" ? palette.contrast : palette.secondary;
   return {
     label: getHouseLabel(house) || palette.label,
     icon: getHouseIcon(house) || palette.icon,
@@ -299,71 +299,75 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
   }), [eventDescription, eventEnd, eventLabel, eventPhase, eventStart, eventUrl]);
 
   const refreshLeaderboardData = useCallback(async () => {
-    const [
-      {
-        data: { user },
-      },
-      { data: leaderboardProfiles },
-    ] = await Promise.all([
-      supabase.auth.getUser(),
-      supabase
-        .from("profiles")
-        .select("id, full_name, house, created_at, event_points, passover_points")
-        .or("event_points.gt.0,passover_points.gt.0")
-        .limit(250),
-    ]);
+    try {
+      const [
+        {
+          data: { user },
+        },
+        { data: leaderboardProfiles },
+      ] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase
+          .from("profiles")
+          .select("id, full_name, house, created_at, event_points, passover_points")
+          .or("event_points.gt.0,passover_points.gt.0")
+          .limit(250),
+      ]);
 
-    const rankedParticipants = [...(leaderboardProfiles || [])]
-      .filter((profile) => getProfileLiveEventPoints(profile) > 0)
-      .sort(compareLiveEventParticipants);
+      const rankedParticipants = [...(leaderboardProfiles || [])]
+        .filter((profile) => getProfileLiveEventPoints(profile) > 0)
+        .sort(compareLiveEventParticipants);
 
-    setParticipantCount(rankedParticipants.length);
-    setLeaderboard(rankedParticipants.slice(0, 10));
-    setCurrentUserRank(
-      user ? rankedParticipants.findIndex((profile) => profile.id === user.id) + 1 || null : null,
-    );
+      setParticipantCount(rankedParticipants.length);
+      setLeaderboard(rankedParticipants.slice(0, 10));
+      setCurrentUserRank(
+        user ? rankedParticipants.findIndex((profile) => profile.id === user.id) + 1 || null : null,
+      );
 
-    if (user) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      setUserProfile(data);
-      return;
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        setUserProfile(data);
+        return;
+      }
+
+      setUserProfile(null);
+    } catch {
+      // Silently handle — the 30-second refresh cycle will retry automatically
     }
-
-    setUserProfile(null);
   }, [supabase]);
 
   const refreshEventConfig = useCallback(async () => {
-    if (initialEventConfig?.slug) {
-      const refreshedEvent = await fetchLiveEventBySlug(supabase, initialEventConfig.slug);
-      if (refreshedEvent) {
-        setEventConfig(refreshedEvent);
-        return refreshedEvent;
+    try {
+      if (initialEventConfig?.slug) {
+        const refreshedEvent = await fetchLiveEventBySlug(supabase, initialEventConfig.slug);
+        if (refreshedEvent) {
+          setEventConfig(refreshedEvent);
+          return refreshedEvent;
+        }
+
+        setEventConfig(initialEventConfig);
+        return initialEventConfig;
       }
 
-      setEventConfig(initialEventConfig);
-      return initialEventConfig;
+      const featuredEvent = await fetchLiveEventSettings(supabase);
+      setEventConfig(featuredEvent);
+
+      if (featuredEvent?.slug && featuredEvent.slug !== "passover") {
+        router.replace(`/events/${featuredEvent.slug}`);
+      }
+
+      return featuredEvent;
+    } catch {
+      return eventConfig;
     }
+  }, [initialEventConfig, eventConfig, router, supabase]);
 
-    const featuredEvent = await fetchLiveEventSettings(supabase);
-    setEventConfig(featuredEvent);
-
-    if (featuredEvent?.slug && featuredEvent.slug !== "passover") {
-      router.replace(`/events/${featuredEvent.slug}`);
-    }
-
-    return featuredEvent;
-  }, [initialEventConfig, router, supabase]);
-
-// הוסף את הבלוק הזה מתחת להגדרת ה-countdown
   useEffect(() => {
-    // אם הטיימר הגיע לאפס, והאירוע עדיין לא מוגדר כ"הסתיים"
     if (countdown.isDone && eventPhase !== "ended") {
-      console.log("Timer ended! Transitioning event phase...");
-      // קריאה מחדש לשרת ולפונקציות שמחשבות את השלב הנוכחי
       void refreshEventConfig();
     }
   }, [countdown.isDone, eventPhase, refreshEventConfig]);
