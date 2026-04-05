@@ -36,9 +36,16 @@ import { getYearFromProfile, getYearTitle } from "@/lib/yearSystem";
 import { logAdminAudit, type AdminAuditInput } from "@/lib/adminAudit";
 import { logActivityEvent } from "@/lib/activityEvents";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
+import { sanitizeHtml } from "@/utils/sanitize";
 import { getHouseDisplayIcon, getHouseDisplayLabel, isUnsortedHouse } from "@/lib/houses";
 import { getNewsArticlePath } from "@/lib/seo";
 import { getContactTopicLabel } from "@/lib/contactTopics";
+import {
+    appendContactReplyEntry,
+    buildDefaultContactReplyBody,
+    buildDefaultContactReplySubject,
+    getContactReplyEntries,
+} from "@/lib/contactReplies";
 import {
     compareLiveEventParticipants,
     LIVE_EVENTS_CATALOG_KEY,
@@ -127,6 +134,30 @@ const formatEventDateLabel = (value: string) => {
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" });
 };
+
+type ContactReplyDraft = {
+    subject: string;
+    body: string;
+};
+
+const CONTACT_REPLY_EDITOR_OPTIONS = {
+    buttonList: [['undo', 'redo'], ['formatBlock', 'fontSize'], ['bold', 'underline', 'italic'], ['fontColor', 'hiliteColor'], ['align', 'list', 'link'], ['fullScreen', 'codeView']],
+    rtl: true,
+    width: '100%',
+    height: 260,
+} as any;
+
+const getContactReplyDraftDefaults = (submission: any): ContactReplyDraft => ({
+    subject: buildDefaultContactReplySubject(submission?.subject),
+    body: buildDefaultContactReplyBody(submission?.name),
+});
+
+const hasRichTextContent = (value: string) => value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .length > 0;
 
 const EVENT_ICON_OPTIONS = [
     { value: "Sparkles", label: "ניצוצות" },
@@ -438,6 +469,9 @@ export default function AdminPanel() {
     // Data
     const [reports, setReports] = useState<any[]>([]);
     const [contactSubmissions, setContactSubmissions] = useState<any[]>([]);
+    const [openContactReplyId, setOpenContactReplyId] = useState<string | null>(null);
+    const [contactReplyDrafts, setContactReplyDrafts] = useState<Record<string, ContactReplyDraft>>({});
+    const [sendingContactReplyId, setSendingContactReplyId] = useState<string | null>(null);
     const [news, setNews] = useState<any[]>([]);
     const [housePoints, setHousePoints] = useState<any>({});
     const [allProfiles, setAllProfiles] = useState<any[]>([]);
@@ -1371,6 +1405,98 @@ export default function AdminPanel() {
         fetchData();
     };
 
+    const handleToggleContactReply = (submission: any) => {
+        setContactReplyDrafts((previous) => (
+            previous[submission.id]
+                ? previous
+                : { ...previous, [submission.id]: getContactReplyDraftDefaults(submission) }
+        ));
+        setOpenContactReplyId((previous) => previous === submission.id ? null : submission.id);
+    };
+
+    const handleContactReplyDraftChange = (
+        submissionId: string,
+        field: keyof ContactReplyDraft,
+        value: string,
+    ) => {
+        setContactReplyDrafts((previous) => ({
+            ...previous,
+            [submissionId]: {
+                ...(previous[submissionId] || { subject: "", body: "" }),
+                [field]: value,
+            },
+        }));
+    };
+
+    const handleResetContactReplyDraft = (submission: any) => {
+        setContactReplyDrafts((previous) => ({
+            ...previous,
+            [submission.id]: getContactReplyDraftDefaults(submission),
+        }));
+    };
+
+    const handleSendContactReply = async (submission: any) => {
+        const draft = contactReplyDrafts[submission.id] || getContactReplyDraftDefaults(submission);
+        const subject = draft.subject.trim();
+        const body = draft.body.trim();
+
+        if (!subject || !hasRichTextContent(body)) {
+            sendOwl("חסר תוכן", "צריך למלא נושא ותוכן לפני השליחה.", "error");
+            return;
+        }
+
+        setSendingContactReplyId(submission.id);
+
+        try {
+            const response = await fetch("/api/admin/contact-reply", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    submissionId: submission.id,
+                    subject,
+                    body,
+                }),
+            });
+
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || !payload?.reply) {
+                throw new Error(payload?.error || "שליחת המענה נכשלה.");
+            }
+
+            const nextMetadata = appendContactReplyEntry(submission.metadata, payload.reply);
+
+            setContactSubmissions((previous) => previous.map((item) => (
+                item.id === submission.id
+                    ? {
+                        ...item,
+                        metadata: nextMetadata,
+                        status: item.status === "resolved" ? "resolved" : "in_progress",
+                        handled_by: profile?.id || item.handled_by || null,
+                        updated_at: payload.reply.sent_at,
+                    }
+                    : item
+            )));
+            setContactReplyDrafts((previous) => ({
+                ...previous,
+                [submission.id]: getContactReplyDraftDefaults(submission),
+            }));
+            setOpenContactReplyId(submission.id);
+
+            sendOwl("המענה נשלח", "הינשוף יצא מהטירה ונרשם בהיסטוריית הפנייה.", "success");
+            void fetchData();
+        } catch (error) {
+            sendOwl(
+                "שליחה נכשלה",
+                error instanceof Error ? error.message : "לא הצלחנו לשלוח את המענה כרגע.",
+                "error",
+            );
+        } finally {
+            setSendingContactReplyId(null);
+        }
+    };
+
     /* ── Broadcast ── */
     const handleBroadcast = async () => {
         if (!broadcastMsg.trim()) return;
@@ -2046,57 +2172,154 @@ export default function AdminPanel() {
                                         </div>
                                     ) : (
                                         <div className="space-y-3 max-h-[32rem] overflow-y-auto">
-                                            {contactSubmissions.map((submission) => (
-                                                <div key={submission.id} className="bg-white/[0.02] border border-amber-500/[0.12] rounded-xl p-4 space-y-3">
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="text-right space-y-2 min-w-0">
-                                                            <div className="flex flex-wrap items-center justify-end gap-2">
-                                                                <span className="text-[9px] bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full font-black">
-                                                                    {getContactTopicLabel(submission.topic)}
-                                                                </span>
-                                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black ${
-                                                                    submission.status === "in_progress"
-                                                                        ? "bg-blue-500/15 text-blue-300"
-                                                                        : "bg-white/5 text-white/50"
-                                                                }`}>
-                                                                    {submission.status === "in_progress" ? "בטיפול" : "חדש"}
-                                                                </span>
-                                                                <span className="text-[9px] bg-white/5 text-white/40 px-2 py-0.5 rounded-full font-black">
-                                                                    {formatEventDateLabel(submission.created_at)}
-                                                                </span>
+                                            {contactSubmissions.map((submission) => {
+                                                const replyHistory = getContactReplyEntries(submission.metadata);
+                                                const isReplyOpen = openContactReplyId === submission.id;
+                                                const replyDraft = contactReplyDrafts[submission.id] || getContactReplyDraftDefaults(submission);
+                                                const isSendingReply = sendingContactReplyId === submission.id;
+
+                                                return (
+                                                    <div key={submission.id} className="bg-white/[0.02] border border-amber-500/[0.12] rounded-xl p-4 space-y-3">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="text-right space-y-2 min-w-0">
+                                                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                                                    <span className="text-[9px] bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full font-black">
+                                                                        {getContactTopicLabel(submission.topic)}
+                                                                    </span>
+                                                                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-black ${
+                                                                        submission.status === "in_progress"
+                                                                            ? "bg-blue-500/15 text-blue-300"
+                                                                            : "bg-white/5 text-white/50"
+                                                                    }`}>
+                                                                        {submission.status === "in_progress" ? "בטיפול" : "חדש"}
+                                                                    </span>
+                                                                    {replyHistory.length > 0 && (
+                                                                        <span className="text-[9px] bg-violet-500/15 text-violet-200 px-2 py-0.5 rounded-full font-black">
+                                                                            {replyHistory.length} מענים
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-[9px] bg-white/5 text-white/40 px-2 py-0.5 rounded-full font-black">
+                                                                        {formatEventDateLabel(submission.created_at)}
+                                                                    </span>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-white font-semibold text-sm">{submission.subject || "פנייה ללא כותרת"}</p>
+                                                                    <p className="text-white/45 text-xs mt-1">
+                                                                        {submission.name || "ללא שם"} · {submission.email || "ללא אימייל"}
+                                                                    </p>
+                                                                    {submission.path && (
+                                                                        <p className="text-white/30 text-[11px] mt-1 font-mono break-all">{submission.path}</p>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <p className="text-white font-semibold text-sm">{submission.subject || "פנייה ללא כותרת"}</p>
-                                                                <p className="text-white/45 text-xs mt-1">
-                                                                    {submission.name || "ללא שם"} · {submission.email || "ללא אימייל"}
-                                                                </p>
-                                                                {submission.path && (
-                                                                    <p className="text-white/30 text-[11px] mt-1 font-mono break-all">{submission.path}</p>
+                                                            <div className="flex gap-2 shrink-0">
+                                                                {submission.status !== "in_progress" && (
+                                                                    <button
+                                                                        onClick={() => handleUpdateContactSubmissionStatus(submission, "in_progress")}
+                                                                        className="p-2.5 bg-blue-500/10 text-blue-300 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
+                                                                        title="סמן כבטיפול"
+                                                                    >
+                                                                        <Clock size={14} />
+                                                                    </button>
                                                                 )}
+                                                                <button
+                                                                    onClick={() => handleUpdateContactSubmissionStatus(submission, "resolved")}
+                                                                    className="p-2.5 bg-emerald-500/10 text-emerald-300 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
+                                                                    title="סמן כנפתר"
+                                                                >
+                                                                    <CheckCircle size={14} />
+                                                                </button>
                                                             </div>
                                                         </div>
-                                                        <div className="flex gap-2 shrink-0">
-                                                            {submission.status !== "in_progress" && (
+
+                                                        <p className="text-sm leading-7 text-white/75 whitespace-pre-wrap">{submission.message}</p>
+
+                                                        <div className="rounded-2xl border border-white/8 bg-[#020617]/55 p-4 space-y-3">
+                                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/45">
+                                                                    <span>מענה נשלח למייל של הפונה</span>
+                                                                    {submission.reporter_id && (
+                                                                        <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-200">
+                                                                            מחובר/ת גם להתראות
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 <button
-                                                                    onClick={() => handleUpdateContactSubmissionStatus(submission, "in_progress")}
-                                                                    className="p-2.5 bg-blue-500/10 text-blue-300 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
-                                                                    title="סמן כבטיפול"
+                                                                    onClick={() => handleToggleContactReply(submission)}
+                                                                    className="inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] font-black text-amber-100 transition-all hover:bg-amber-500 hover:text-slate-950"
                                                                 >
-                                                                    <Clock size={14} />
+                                                                    <MessageSquare size={14} />
+                                                                    {isReplyOpen ? "סגור מענה" : "פתח מענה"}
+                                                                    <ChevronDownIcon size={13} className={`transition-transform ${isReplyOpen ? "rotate-180" : ""}`} />
                                                                 </button>
+                                                            </div>
+
+                                                            {replyHistory.length > 0 && (
+                                                                <div className="space-y-2">
+                                                                    {replyHistory.map((reply) => (
+                                                                        <div key={reply.id} className="rounded-xl border border-violet-500/10 bg-violet-500/[0.04] p-3 text-right">
+                                                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                                <p className="text-sm font-semibold text-white">{reply.subject}</p>
+                                                                                <span className="text-[11px] text-white/35">{formatEventDateLabel(reply.sent_at)}</span>
+                                                                            </div>
+                                                                            <p className="mt-1 text-[11px] text-white/40">
+                                                                                {reply.actor_name || "צוות הטירה"} · {reply.recipient_email || submission.email || "ללא אימייל"}
+                                                                            </p>
+                                                                            <div
+                                                                                className="mt-3 text-sm leading-7 text-white/75 [&_a]:text-amber-200 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:list-disc [&_ul]:pr-5 [&_ol]:list-decimal [&_ol]:pr-5"
+                                                                                dangerouslySetInnerHTML={{ __html: sanitizeHtml(reply.html) }}
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
                                                             )}
-                                                            <button
-                                                                onClick={() => handleUpdateContactSubmissionStatus(submission, "resolved")}
-                                                                className="p-2.5 bg-emerald-500/10 text-emerald-300 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
-                                                                title="סמן כנפתר"
-                                                            >
-                                                                <CheckCircle size={14} />
-                                                            </button>
+
+                                                            {isReplyOpen && (
+                                                                <div className="rounded-2xl border border-amber-500/15 bg-slate-950/60 p-4 space-y-3">
+                                                                    <div className="flex flex-wrap items-end justify-between gap-3">
+                                                                        <div className="flex-1 min-w-[220px] space-y-1">
+                                                                            <label className="text-[10px] font-cinzel uppercase tracking-[0.18em] text-white/35">נושא המענה</label>
+                                                                            <input
+                                                                                value={replyDraft.subject}
+                                                                                onChange={(event) => handleContactReplyDraftChange(submission.id, "subject", event.target.value)}
+                                                                                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-amber-400/40"
+                                                                                placeholder="מענה מצוות הטירה"
+                                                                            />
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={() => handleResetContactReplyDraft(submission)}
+                                                                            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/65 transition-colors hover:text-white hover:border-white/20"
+                                                                        >
+                                                                            אפס לנוסח מוצע
+                                                                        </button>
+                                                                    </div>
+
+                                                                    <div dir="ltr" className="rounded-xl overflow-hidden">
+                                                                        <SunEditor
+                                                                            setContents={replyDraft.body}
+                                                                            onChange={(content) => handleContactReplyDraftChange(submission.id, "body", content)}
+                                                                            setOptions={CONTACT_REPLY_EDITOR_OPTIONS}
+                                                                        />
+                                                                    </div>
+
+                                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                        <p className="text-[11px] leading-6 text-white/40">
+                                                                            המענה נשלח בדוא&quot;ל, נשמר בהיסטוריית הפנייה, ואם יש משתמש מחובר מאחורי הפנייה הוא יקבל גם התראה בטירה.
+                                                                        </p>
+                                                                        <button
+                                                                            onClick={() => handleSendContactReply(submission)}
+                                                                            disabled={isSendingReply}
+                                                                            className="rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-orange-300 px-4 py-2 text-sm font-black text-slate-950 shadow-[0_16px_30px_rgba(251,191,36,0.18)] transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+                                                                        >
+                                                                            {isSendingReply ? "שולח ינשוף..." : "שלח ינשוף"}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <p className="text-sm leading-7 text-white/75 whitespace-pre-wrap">{submission.message}</p>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </section>
