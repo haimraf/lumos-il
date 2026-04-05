@@ -1,3 +1,7 @@
+
+> lumos-il.co.il@0.1.0 dev
+> next dev -p 3001
+
 ▲ Next.js 16.1.6 (Turbopack)
 - Local:         http://localhost:3001
 - Network:       http://10.0.0.9:3001
@@ -5,6 +9,41 @@
 
 ✓ Starting...
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
-✓ Ready in 800ms
- GET / 200 in 954ms (compile: 693ms, render: 262ms)
- GET /sorting 200 in 1090ms (compile: 1015ms, render: 76ms)
+✓ Ready in 948ms
+ GET /wizards 200 in 992ms (compile: 412ms, render: 580ms)
+ GET / 200 in 1057ms (compile: 735ms, render: 322ms)
+ GET /home 200 in 1024ms (compile: 730ms, render: 294ms)
+ GET /wizards 200 in 1361ms (compile: 986ms, render: 375ms)
+○ Compiling /manifest.webmanifest ...
+ GET /manifest.webmanifest 200 in 3.7s (compile: 3.7s, render: 14ms)
+ GET /wizard/724c146d-7e6d-420c-8732-b82dae3ceb6c 200 in 57s (compile: 544ms, render: 56s)
+ GET /home 200 in 86s (compile: 3.9s, render: 83s)
+ GET /home 200 in 91s (compile: 3.8s, render: 87s)
+ GET /home 200 in 92s (compile: 4.4s, render: 88s)
+ GET /manifest.webmanifest 200 in 4.8s (compile: 4.7s, render: 17ms)
+✓ Compiled in 19.6s
+○ Compiling /_not-found/page ...
+ GET /wizard/864578e2-0ed6-4d1c-b283-2c2b059dc617 200 in 4.3min (compile: 4.9s, render: 4.3min)
+ GET /manifest.webmanifest 200 in 10.0s (compile: 10.0s, render: 18ms)
+ GET /wizard/864578e2-0ed6-4d1c-b283-2c2b059dc617 404 in 2.9min (compile: 15.4s, render: 2.7min)
+ GET /manifest.webmanifest 404 in 4.1min (compile: 15.6s, render: 3.8min)
+✓ Compiled in 52s
+ GET /manifest.webmanifest 200 in 7.9s (compile: 7.9s, render: 8ms)
+⚠ Server is approaching the used memory threshold, restarting...
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://10.0.0.9:3001
+- Environments: .env.local
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 2.4s
+ GET /wizards 200 in 1393ms (compile: 957ms, render: 436ms)
+ GET /manifest.webmanifest 200 in 786ms (compile: 766ms, render: 19ms)
+✓ Compiled in 4s
+✓ Compiled in 39.2s
+✓ Compiled in 45.7s
+✓ Compiled in 87.6s
+✓ Compiled in 5.4s
+✓ Compiled in 40.9s
+^C^C

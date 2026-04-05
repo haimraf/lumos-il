@@ -230,6 +230,20 @@ export default function HomePage() {
             hoverText: "group-hover:text-teal-400"
         },
         {
+            id: 'wizards',
+            title: "ספר הקוסמים",
+            desc: "כל המשתתפים במקום אחד: שם, בית, אווטאר, דרגה ומי מחובר ממש עכשיו",
+            icon: Users,
+            href: "/wizards",
+            className: "col-span-1",
+            customGradient: "from-emerald-950/30",
+            hoverBorder: "group-hover:border-emerald-500/50",
+            hoverShadow: "hover:shadow-[0_0_50px_rgba(16,185,129,0.25)]",
+            iconColor: "text-emerald-400/70",
+            hoverText: "group-hover:text-emerald-300",
+            badge: "חדש"
+        },
+        {
             id: 'great-hall',
             title: "האולם הגדול (צ'אט חי)",
             desc: "שיחה אינטראקטיבית מיידית עם חברי הקהילה",

@@ -48,6 +48,18 @@ const TYPE_META = {
     thread: { label: 'אשכול',  icon: MessageSquare,color: '#f59e0b' },
 };
 
+const HEADER_NAV_LINKS = [
+    { name: "רחבת הכניסה", href: "/home", icon: Sparkles },
+    { name: "הטירה", href: "/dashboard", icon: Castle },
+    { name: "מסדרונות", href: "/forums", icon: LayoutGrid },
+    { name: "האולם הגדול", href: "/great-hall", icon: MessageSquare },
+    { name: "דיאגון", href: "/shop", icon: ShoppingBag },
+    { name: "אוליבנדר", href: "/ollivanders", icon: Flame },
+    { name: "הנביא היומי", href: "/news", icon: ScrollText },
+    { name: "משימות", href: "/quests", icon: Zap },
+    { name: "ספרייה", href: "/library", icon: Library },
+] as const;
+
 function LiveDropdown({ results, onSelect }: { results: LiveResult[]; onSelect: () => void }) {
     return (
         <div
@@ -399,18 +411,6 @@ export default function Header() {
         ? "מגבש את הצעד הבא שלך"
         : nextAction?.title || "פתח/י את לוח המשימות";
     const missionHint = nextAction?.gainLabel || "התקדמות, תגמול והשפעה על הבית במקום אחד";
-    const navLinks = [
-        { name: "רחבת הכניסה", href: "/home", icon: Sparkles },
-        { name: "הטירה", href: "/dashboard", icon: Castle },
-        { name: "מסדרונות", href: "/forums", icon: LayoutGrid },
-        { name: "האולם הגדול", href: "/great-hall", icon: MessageSquare },
-        { name: "דיאגון", href: "/shop", icon: ShoppingBag },
-        { name: "אוליבנדר", href: "/ollivanders", icon: Flame },
-        { name: "הנביא היומי", href: "/news", icon: ScrollText },
-        { name: "משימות", href: "/quests", icon: Zap },
-        { name: "ספרייה", href: "/library", icon: Library },
-    ];
-
     return (
         <>
             <header
@@ -466,19 +466,21 @@ export default function Header() {
                             </div>
                         ) : (
                             <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 glass-panel p-1.5 rounded-2xl border border-white/10 bg-white/5">
-                                {navLinks.map((link) => (
+                                {HEADER_NAV_LINKS.map((link) => {
+                                    const isActive = pathname === link.href || (link.href !== "/home" && pathname.startsWith(`${link.href}/`));
+                                    return (
                                     <Link
-                                        key={link.name}
+                                        key={link.href}
                                         href={link.href}
-                                        className={`flex items-center gap-1.5 px-2 xl:px-3.5 py-2 rounded-xl font-cinzel text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${pathname === link.href
+                                        className={`flex items-center gap-1.5 px-2 xl:px-3.5 py-2 rounded-xl font-cinzel text-[10px] font-bold tracking-widest uppercase transition-all duration-300 ${isActive
                                             ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
                                             : "text-white/40 hover:text-white hover:bg-white/5"
                                             }`}
                                     >
-                                        <link.icon size={13} className={pathname === link.href ? "text-black" : "text-amber-500/40"} />
+                                        <link.icon size={13} className={isActive ? "text-black" : "text-amber-500/40"} />
                                         <span className="hidden xl:inline">{link.name}</span>
                                     </Link>
-                                ))}
+                                )})}
                             </nav>
                         )}
 
@@ -783,8 +785,8 @@ export default function Header() {
                         )}
                     </div>
 
-                    {navLinks.map((link, i) => (
-                        <Link key={link.name} href={link.href} onClick={() => setIsOpen(false)} className="flex items-center gap-6 text-2xl font-cinzel font-black text-white/50 hover:text-amber-500 transition-all uppercase tracking-[0.1em] py-4 w-full justify-center group border-b border-white/5 last:border-0" style={{ transitionDelay: isOpen ? `${i * 30}ms` : '0ms' }}>
+                    {HEADER_NAV_LINKS.map((link, i) => (
+                        <Link key={link.href} href={link.href} onClick={() => setIsOpen(false)} className="flex items-center gap-6 text-2xl font-cinzel font-black text-white/50 hover:text-amber-500 transition-all uppercase tracking-[0.1em] py-4 w-full justify-center group border-b border-white/5 last:border-0" style={{ transitionDelay: isOpen ? `${i * 30}ms` : '0ms' }}>
                             <link.icon size={20} className="text-amber-500/40 group-hover:text-amber-500 transition-colors" /> {link.name}
                         </Link>
                     ))}

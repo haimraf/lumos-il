@@ -103,6 +103,7 @@ export default function Footer() {
                         <nav className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3 w-full">
                             <FooterLink href="/dashboard" icon={Castle} label="הטירה" />
                             <FooterLink href="/forums" icon={Users} label="מסדרונות" />
+                            <FooterLink href="/wizards" icon={Sparkles} label="ספר הקוסמים" />
                             <FooterLink href="/great-hall" icon={MessageSquare} label="האולם הגדול" />
                             <FooterLink href="/library" icon={Library} label="הספרייה" />
                             <FooterLink href="/news" icon={ScrollText} label="הנביא היומי" />
