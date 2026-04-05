@@ -124,13 +124,13 @@ export default function Footer() {
                         <p className="font-crimson text-lg leading-relaxed text-white/55 max-w-[240px] text-center md:text-right">
                             יש לכם שאלה? שליחת ינשוף תענה בלחש חוזר בהקדם.
                         </p>
-                        <a
-                            href="mailto:owls@lumos-il.com"
+                        <Link
+                            href="/contact"
                             className="group flex items-center gap-3 bg-gradient-to-r from-amber-600 to-amber-500 text-amber-950 px-7 py-3.5 rounded-2xl font-cinzel font-black text-[11px] uppercase tracking-widest shadow-[0_8px_25px_rgba(245,158,11,0.2)] hover:shadow-[0_12px_35px_rgba(245,158,11,0.35)] hover:-translate-y-1 transition-all duration-300 active:scale-95"
                         >
                             <Feather size={18} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
                             דואר ינשופים
-                        </a>
+                        </Link>
                     </div>
                 </div>
 

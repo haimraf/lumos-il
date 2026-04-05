@@ -313,7 +313,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 
           <button
             onClick={() => {
-              window.location.href = "mailto:support@lumos-il.co.il";
+              window.location.href = "/contact?topic=moderation";
             }}
             style={{
               fontSize: "10px",

@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense, useRef } from "react";
+import { useEffect, useState, useCallback, Suspense, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { createClient } from "@/utils/supabase/client";
 import { getNewsArticlePath } from "@/lib/seo";
+import {
+  insertNewsCommentQuote,
+  parseNewsCommentQuote,
+  stripNewsCommentQuote,
+} from "@/lib/newsCommentQuotes";
+import { renderLinkedText } from "@/lib/renderLinkedText";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import {
   ScrollText, ArrowRight, X, MessageSquare,
   BarChart3, Flag, AlertTriangle, EyeOff, Eye,
-  Volume2, VolumeX, Sparkles, Clock, User, ChevronRight
+  Volume2, VolumeX, Sparkles, Clock, User, ChevronRight, Reply
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
@@ -463,7 +469,7 @@ function ArticleReader({ article, roleColors, onClose }: { article: NewsItem; ro
             <PollComponent key={article.id} newsId={article.id} />
 
             {/* comments */}
-            <div className="mt-10 pt-8 border-t-2 border-[#1e0e04]/10">
+            <div id={`news-comments-${article.id}`} className="mt-10 pt-8 border-t-2 border-[#1e0e04]/10">
               <CommentsSection newsId={article.id} roleColors={roleColors} />
             </div>
           </div>
@@ -611,12 +617,19 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [reportingComment, setReportingComment] = useState<any | null>(null);
+  const [replyTarget, setReplyTarget] = useState<any | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const cooldownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const { sendOwl } = useOwlMail();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const activeQuote = parseNewsCommentQuote(newComment);
+  const commentBodyLength = stripNewsCommentQuote(newComment).trim().length;
+  const commentsById = useMemo(
+    () => new Map(comments.map((comment: any) => [comment.id, comment])),
+    [comments],
+  );
 
   // Cooldown ticker
   useEffect(() => {
@@ -650,18 +663,41 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const handleQuoteComment = (comment: any) => {
+    setReplyTarget(comment);
+    const nextValue = insertNewsCommentQuote(newComment, comment);
+    setNewComment(nextValue);
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(nextValue.length, nextValue.length);
+    });
+  };
+
+  const handleClearQuote = () => {
+    setNewComment((current) => stripNewsCommentQuote(current));
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const handleClearReplyTarget = () => {
+    setReplyTarget(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const handlePost = async () => {
     const trimmed = newComment.trim();
+    const strippedBody = stripNewsCommentQuote(trimmed).trim();
+    const quoteMeta = parseNewsCommentQuote(trimmed);
 
     if (!trimmed) {
       sendOwl("תגובה ריקה 📭", "לא ניתן לשלוח תגובה ריקה.", "error");
       return;
     }
 
-    if (trimmed.length < MIN_COMMENT_LENGTH) {
+    if (strippedBody.length < MIN_COMMENT_LENGTH) {
       sendOwl(
         "הלחש קצר מדי 📜",
-        `תגובה איכותית דורשת לפחות ${MIN_COMMENT_LENGTH} תווים. כתבת ${trimmed.length} • עוד ${MIN_COMMENT_LENGTH - trimmed.length} תווים נדרשים.`,
+        `תגובה איכותית דורשת לפחות ${MIN_COMMENT_LENGTH} תווים. כתבת ${strippedBody.length} • עוד ${Math.max(0, MIN_COMMENT_LENGTH - strippedBody.length)} תווים נדרשים.`,
         "error"
       );
       return;
@@ -676,8 +712,8 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     if (!user) { sendOwl("לא מחובר 🔒", "יש להתחבר לטירה כדי להגיב.", "error"); return; }
 
     // בדיקה שהמשתמש לא כבר הגיב על אותה כתבה
-    const alreadyCommented = comments.some(c => c.user_id === user.id);
-    if (alreadyCommented) {
+    const alreadyCommented = comments.some(c => c.user_id === user.id && !c.parent_comment_id);
+    if (!replyTarget && alreadyCommented) {
       sendOwl(
         "כבר הגבת 🦉",
         "כבר שלחת תגובה לכתבה זו. הנקודות מוענקות רק על תגובה ראשונה ואיכותית.",
@@ -690,6 +726,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     const { error } = await supabase.rpc("create_news_comment_secure", {
       p_news_id: newsId,
       p_content: trimmed,
+      p_parent_comment_id: replyTarget?.id || null,
     });
 
     if (error) {
@@ -703,8 +740,29 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
     }
 
     setNewComment("");
+    setReplyTarget(null);
     fetchData();
     setCooldownRemaining(COOLDOWN_MS);
+
+    if (replyTarget && replyTarget.user_id && replyTarget.user_id !== user.id) {
+      await supabase.from("notifications").insert({
+        user_id: replyTarget.user_id,
+        actor_id: user.id,
+        type: "reply",
+        target_url: `${getNewsArticlePath(newsId)}#comment-${replyTarget.id}`,
+        content: quoteMeta ? "השיב/ה וציטט/ה אותך בתגובות לנביא היומי" : "השיב/ה לתגובה שלך בנביא היומי",
+        is_read: false,
+      });
+    } else if (quoteMeta && quoteMeta.userId !== user.id) {
+      await supabase.from("notifications").insert({
+        user_id: quoteMeta.userId,
+        actor_id: user.id,
+        type: "quote",
+        target_url: `${getNewsArticlePath(newsId)}#news-comments-${newsId}`,
+        content: "ציטט/ה אותך בתגובות לנביא היומי",
+        is_read: false,
+      });
+    }
     
     // Log activity for Passover points
     void logActivityEvent(supabase, {
@@ -712,7 +770,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
       eventType: "news_comment_created",
       icon: "📜",
       title: "הגיב/ה לכתבה בנביא",
-      subtitle: trimmed.slice(0, 40) + "...",
+      subtitle: `${strippedBody.slice(0, 40)}${strippedBody.length > 40 ? "..." : ""}`,
       targetType: "news",
       targetId: newsId
     });
@@ -764,6 +822,48 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
 
       {/* comment input */}
       <div className="space-y-3 mb-8">
+        {replyTarget && (
+          <div className="rounded-2xl border border-sky-500/15 bg-sky-50/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-900/80">
+                  משיב/ה ל{replyTarget.profiles?.full_name || "תגובה"}
+                </p>
+                <p className="text-sm leading-7 text-sky-950/70 whitespace-pre-wrap">
+                  {stripNewsCommentQuote(replyTarget.content || "").trim().slice(0, 160)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearReplyTarget}
+                className="shrink-0 rounded-full border border-sky-900/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-sky-900/75 transition hover:bg-sky-900/5"
+              >
+                בטל תשובה
+              </button>
+            </div>
+          </div>
+        )}
+        {activeQuote && (
+          <div className="rounded-2xl border border-amber-900/15 bg-amber-50/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#92400e]">
+                  מצטט/ת את {activeQuote.author}
+                </p>
+                <p className="text-sm leading-7 text-[#5d2a00]/75 whitespace-pre-wrap">
+                  {activeQuote.body}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearQuote}
+                className="shrink-0 rounded-full border border-[#92400e]/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#92400e]/80 transition hover:bg-[#92400e]/5"
+              >
+                הסר ציטוט
+              </button>
+            </div>
+          </div>
+        )}
         <textarea
           ref={inputRef}
           value={newComment}
@@ -780,16 +880,16 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
             <span
               className="text-[10px] font-bold"
               style={{
-                color: newComment.trim().length >= MIN_COMMENT_LENGTH
+                color: commentBodyLength >= MIN_COMMENT_LENGTH
                   ? "rgba(5,150,105,0.7)"
-                  : newComment.trim().length > 0
+                  : commentBodyLength > 0
                     ? "rgba(180,83,9,0.7)"
                     : "rgba(93,42,0,0.35)",
               }}
             >
-              {newComment.trim().length} / {MIN_COMMENT_LENGTH} תווים מינימום
-              {newComment.trim().length >= MIN_COMMENT_LENGTH && " ✓"}
-              {currentUserId && comments.some(c => c.user_id === currentUserId) && (
+              {commentBodyLength} / {MIN_COMMENT_LENGTH} תווים מינימום
+              {commentBodyLength >= MIN_COMMENT_LENGTH && " ✓"}
+              {currentUserId && !replyTarget && comments.some(c => c.user_id === currentUserId && !c.parent_comment_id) && (
                 <span className="mr-2" style={{ color: "rgba(180,83,9,0.6)" }}>• כבר הגבת לכתבה זו</span>
               )}
             </span>
@@ -802,7 +902,7 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
           </div>
           <button
             onClick={handlePost}
-            disabled={isPosting || cooldownRemaining > 0 || newComment.trim().length < MIN_COMMENT_LENGTH}
+            disabled={isPosting || cooldownRemaining > 0 || commentBodyLength < MIN_COMMENT_LENGTH}
             className="px-6 py-2.5 bg-[#1e0e04] hover:bg-[#3d1500] text-[#e8d5a3] font-cinzel font-black text-xs rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed tracking-wide shrink-0"
             aria-label="שלח תגובה"
           >
@@ -822,6 +922,10 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
           const isMuted = blockedUserIds.includes(c.user_id);
           const house = c.profiles?.house;
           const houseStyle = house ? HOUSE_ACCENT[house] : null;
+          const parentComment = c.parent_comment_id ? commentsById.get(c.parent_comment_id) ?? null : null;
+          const isReply = Boolean(parentComment);
+          const quotedComment = parseNewsCommentQuote(c.content || "");
+          const visibleContent = quotedComment?.remainder || c.content;
 
           if (isMuted) return (
             <div
@@ -843,10 +947,11 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
           return (
             <div
               key={c.id}
-              className="group relative rounded-xl p-4 border-r-4 transition-all"
+              id={`comment-${c.id}`}
+              className={`group relative rounded-xl p-4 border-r-4 transition-all ${isReply ? "mr-6" : ""}`}
               style={{
                 borderRightColor: houseStyle?.border || "rgba(146,64,14,0.4)",
-                background: houseStyle?.bg || "rgba(255,255,255,0.3)",
+                background: isReply ? "rgba(255,248,235,0.92)" : houseStyle?.bg || "rgba(255,255,255,0.3)",
                 border: `1px solid rgba(146,64,14,0.1)`,
                 borderRight: `4px solid ${houseStyle?.border || "rgba(146,64,14,0.4)"}`,
               }}
@@ -913,6 +1018,14 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
                   {currentUserId && currentUserId !== c.user_id && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-1">
                       <button
+                        onClick={() => handleQuoteComment(c)}
+                        className="p-1 rounded text-[#5d2a00]/30 hover:text-[#5d2a00]/70 transition-colors"
+                        title="השב/צטט"
+                        aria-label={`השב ל${c.profiles?.full_name || "התגובה"} עם ציטוט`}
+                      >
+                        <Reply size={13} aria-hidden="true" />
+                      </button>
+                      <button
                         onClick={() => handleToggleMute(c.user_id, false)}
                         className="p-1 rounded text-[#5d2a00]/30 hover:text-[#5d2a00]/70 transition-colors"
                         title="השתקה"
@@ -933,7 +1046,31 @@ function CommentsSection({ newsId, roleColors }: { newsId: string; roleColors: R
                 </div>
               </div>
 
-              <p className="text-sm text-[#1e0e04]/80 leading-relaxed font-assistant">{c.content}</p>
+              <div className="space-y-3">
+                {parentComment && (
+                  <div className="rounded-2xl border border-sky-900/10 bg-sky-50/70 px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-900/70">
+                      בתגובה ל{parentComment.profiles?.full_name || "תגובה קודמת"}
+                    </p>
+                    <p className="mt-2 text-sm text-sky-950/65 leading-relaxed whitespace-pre-wrap font-assistant">
+                      {renderLinkedText(stripNewsCommentQuote(parentComment.content || "").trim().slice(0, 140))}
+                    </p>
+                  </div>
+                )}
+                {quotedComment && (
+                  <div className="rounded-2xl border border-[#92400e]/10 bg-[#fff8eb] px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#92400e]/70">
+                      ציטוט מתוך תגובה של {quotedComment.author}
+                    </p>
+                    <p className="mt-2 text-sm text-[#5d2a00]/75 leading-relaxed whitespace-pre-wrap font-assistant">
+                      {renderLinkedText(quotedComment.body)}
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-[#1e0e04]/80 leading-relaxed whitespace-pre-wrap font-assistant">
+                  {renderLinkedText(visibleContent)}
+                </p>
+              </div>
             </div>
           );
         })}

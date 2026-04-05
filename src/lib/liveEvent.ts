@@ -123,7 +123,7 @@ export function getDefaultLiveEventSettings(): LiveEventSettings {
     eventName: "",
     tagline: "",
     description: "",
-    support_forum_href: "/forums/feedback-and-suggestions",
+    support_forum_href: "/contact",
     year: new Date().getFullYear(),
     progress_target: 500,
     missions: [],

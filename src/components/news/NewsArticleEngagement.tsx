@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -10,10 +10,18 @@ import {
   EyeOff,
   Flag,
   MessageSquare,
+  Reply,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useOwlMail } from "@/components/OwlMail";
 import { logActivityEvent } from "@/lib/activityEvents";
+import { getNewsArticlePath } from "@/lib/seo";
+import {
+  insertNewsCommentQuote,
+  parseNewsCommentQuote,
+  stripNewsCommentQuote,
+} from "@/lib/newsCommentQuotes";
+import { renderLinkedText } from "@/lib/renderLinkedText";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 
 const HOUSE_ACCENT: Record<string, { border: string; bg: string }> = {
@@ -224,12 +232,19 @@ function CommentsSection({
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [reportingComment, setReportingComment] = useState<any | null>(null);
+  const [replyTarget, setReplyTarget] = useState<any | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const cooldownInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { sendOwl } = useOwlMail();
+  const activeQuote = parseNewsCommentQuote(newComment);
+  const commentBodyLength = stripNewsCommentQuote(newComment).trim().length;
+  const commentsById = useMemo(
+    () => new Map(comments.map((comment: any) => [comment.id, comment])),
+    [comments],
+  );
 
   useEffect(() => {
     if (cooldownRemaining <= 0) {
@@ -283,18 +298,41 @@ function CommentsSection({
     void fetchData();
   }, [fetchData]);
 
+  const handleQuoteComment = (comment: any) => {
+    setReplyTarget(comment);
+    const nextValue = insertNewsCommentQuote(newComment, comment);
+    setNewComment(nextValue);
+
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(nextValue.length, nextValue.length);
+    });
+  };
+
+  const handleClearQuote = () => {
+    setNewComment((current) => stripNewsCommentQuote(current));
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const handleClearReplyTarget = () => {
+    setReplyTarget(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const handlePost = async () => {
     const trimmed = newComment.trim();
+    const strippedBody = stripNewsCommentQuote(trimmed).trim();
+    const quoteMeta = parseNewsCommentQuote(trimmed);
 
     if (!trimmed) {
       sendOwl("תגובה ריקה", "לא ניתן לשלוח תגובה ריקה.", "error");
       return;
     }
 
-    if (trimmed.length < MIN_COMMENT_LENGTH) {
+    if (strippedBody.length < MIN_COMMENT_LENGTH) {
       sendOwl(
         "הלחש קצר מדי",
-        `תגובה איכותית דורשת לפחות ${MIN_COMMENT_LENGTH} תווים. כרגע יש ${trimmed.length}.`,
+        `תגובה איכותית דורשת לפחות ${MIN_COMMENT_LENGTH} תווים. כרגע יש ${strippedBody.length}.`,
         "error",
       );
       return;
@@ -314,8 +352,8 @@ function CommentsSection({
       return;
     }
 
-    const alreadyCommented = comments.some((comment) => comment.user_id === user.id);
-    if (alreadyCommented) {
+    const alreadyCommented = comments.some((comment) => comment.user_id === user.id && !comment.parent_comment_id);
+    if (!replyTarget && alreadyCommented) {
       sendOwl("כבר הגבת", "לכתבה הזו נספרת רק תגובה אחת לכל קוסם.", "error");
       return;
     }
@@ -324,6 +362,7 @@ function CommentsSection({
     const { error } = await supabase.rpc("create_news_comment_secure", {
       p_news_id: newsId,
       p_content: trimmed,
+      p_parent_comment_id: replyTarget?.id || null,
     });
 
     if (error) {
@@ -333,15 +372,36 @@ function CommentsSection({
     }
 
     setNewComment("");
+    setReplyTarget(null);
     await fetchData();
     setCooldownRemaining(COOLDOWN_MS);
+
+    if (replyTarget && replyTarget.user_id && replyTarget.user_id !== user.id) {
+      await supabase.from("notifications").insert({
+        user_id: replyTarget.user_id,
+        actor_id: user.id,
+        type: "reply",
+        target_url: `${getNewsArticlePath(newsId)}#comment-${replyTarget.id}`,
+        content: quoteMeta ? "השיב/ה וציטט/ה אותך בתגובות לנביא היומי" : "השיב/ה לתגובה שלך בנביא היומי",
+        is_read: false,
+      });
+    } else if (quoteMeta && quoteMeta.userId !== user.id) {
+      await supabase.from("notifications").insert({
+        user_id: quoteMeta.userId,
+        actor_id: user.id,
+        type: "quote",
+        target_url: `${getNewsArticlePath(newsId)}#news-comments-${newsId}`,
+        content: "ציטט/ה אותך בתגובות לנביא היומי",
+        is_read: false,
+      });
+    }
 
     void logActivityEvent(supabase, {
       actorId: user.id,
       eventType: "news_comment_created",
       icon: "💬",
       title: "הגיב/ה לכתבה בנביא",
-      subtitle: `${trimmed.slice(0, 40)}${trimmed.length > 40 ? "..." : ""}`,
+      subtitle: `${strippedBody.slice(0, 40)}${strippedBody.length > 40 ? "..." : ""}`,
       targetType: "news",
       targetId: newsId,
     });
@@ -388,7 +448,7 @@ function CommentsSection({
   };
 
   return (
-    <section aria-label="תגובות הקהילה">
+    <section id={`news-comments-${newsId}`} aria-label="תגובות הקהילה">
       <h2 className="mb-5 flex items-center gap-2 font-cinzel text-xl font-black text-[#3d1500]">
         <MessageSquare size={20} className="text-amber-800" />
         תגובות הקהילה
@@ -396,6 +456,48 @@ function CommentsSection({
       </h2>
 
       <div className="mb-8 space-y-3">
+        {replyTarget && (
+          <div className="rounded-2xl border border-sky-500/15 bg-sky-50/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-900/80">
+                  משיב/ה ל{replyTarget.profiles?.full_name || "תגובה"}
+                </p>
+                <p className="text-sm leading-7 text-sky-950/70 whitespace-pre-wrap">
+                  {stripNewsCommentQuote(replyTarget.content || "").trim().slice(0, 160)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearReplyTarget}
+                className="shrink-0 rounded-full border border-sky-900/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-sky-900/75 transition hover:bg-sky-900/5"
+              >
+                בטל תשובה
+              </button>
+            </div>
+          </div>
+        )}
+        {activeQuote && (
+          <div className="rounded-2xl border border-amber-900/15 bg-amber-50/70 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#92400e]">
+                  מצטט/ת את {activeQuote.author}
+                </p>
+                <p className="text-sm leading-7 text-[#5d2a00]/75 whitespace-pre-wrap">
+                  {activeQuote.body}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearQuote}
+                className="shrink-0 rounded-full border border-[#92400e]/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#92400e]/80 transition hover:bg-[#92400e]/5"
+              >
+                הסר ציטוט
+              </button>
+            </div>
+          </div>
+        )}
         <textarea
           ref={inputRef}
           value={newComment}
@@ -414,15 +516,17 @@ function CommentsSection({
               className="text-[10px] font-bold"
               style={{
                 color:
-                  newComment.trim().length >= MIN_COMMENT_LENGTH
+                  commentBodyLength >= MIN_COMMENT_LENGTH
                     ? "rgba(5,150,105,0.7)"
-                    : newComment.trim().length > 0
+                    : commentBodyLength > 0
                       ? "rgba(180,83,9,0.7)"
                       : "rgba(93,42,0,0.35)",
               }}
             >
-              {newComment.trim().length} / {MIN_COMMENT_LENGTH} תווים מינימום
-              {currentUserId && comments.some((comment) => comment.user_id === currentUserId) && (
+              {commentBodyLength} / {MIN_COMMENT_LENGTH} תווים מינימום
+              {currentUserId &&
+                !replyTarget &&
+                comments.some((comment) => comment.user_id === currentUserId && !comment.parent_comment_id) && (
                 <span className="mr-2" style={{ color: "rgba(180,83,9,0.6)" }}>
                   כבר הגבת לכתבה הזו
                 </span>
@@ -436,7 +540,7 @@ function CommentsSection({
           </div>
           <button
             onClick={() => void handlePost()}
-            disabled={isPosting || cooldownRemaining > 0 || newComment.trim().length < MIN_COMMENT_LENGTH}
+            disabled={isPosting || cooldownRemaining > 0 || commentBodyLength < MIN_COMMENT_LENGTH}
             className="shrink-0 rounded-lg bg-[#1e0e04] px-6 py-2.5 text-xs font-cinzel font-black tracking-wide text-[#e8d5a3] transition-all hover:bg-[#3d1500] disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="שלח תגובה"
           >
@@ -456,6 +560,10 @@ function CommentsSection({
           const isMuted = blockedUserIds.includes(comment.user_id);
           const house = comment.profiles?.house;
           const houseStyle = house ? HOUSE_ACCENT[house] : null;
+          const parentComment = comment.parent_comment_id ? commentsById.get(comment.parent_comment_id) ?? null : null;
+          const isReply = Boolean(parentComment);
+          const quotedComment = parseNewsCommentQuote(comment.content || "");
+          const visibleContent = quotedComment?.remainder || comment.content;
 
           if (isMuted) {
             return (
@@ -485,9 +593,10 @@ function CommentsSection({
           return (
             <div
               key={comment.id}
-              className="group relative rounded-xl border p-4 transition-all"
+              id={`comment-${comment.id}`}
+              className={`group relative rounded-xl border p-4 transition-all ${isReply ? "mr-6" : ""}`}
               style={{
-                background: houseStyle?.bg || "rgba(255,255,255,0.3)",
+                background: isReply ? "rgba(255,248,235,0.92)" : houseStyle?.bg || "rgba(255,255,255,0.3)",
                 borderColor: "rgba(146,64,14,0.1)",
                 borderRight: `4px solid ${houseStyle?.border || "rgba(146,64,14,0.4)"}`,
               }}
@@ -559,6 +668,14 @@ function CommentsSection({
                   {currentUserId && currentUserId !== comment.user_id && (
                     <div className="mr-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
+                        onClick={() => handleQuoteComment(comment)}
+                        className="rounded p-1 text-[#5d2a00]/30 transition-colors hover:text-[#5d2a00]/70"
+                        title="השב/צטט"
+                        aria-label={`השב ל${comment.profiles?.full_name || "התגובה"} עם ציטוט`}
+                      >
+                        <Reply size={13} />
+                      </button>
+                      <button
                         onClick={() => void handleToggleMute(comment.user_id, false)}
                         className="rounded p-1 text-[#5d2a00]/30 transition-colors hover:text-[#5d2a00]/70"
                         title="השתקה"
@@ -579,7 +696,31 @@ function CommentsSection({
                 </div>
               </div>
 
-              <p className="font-assistant text-sm leading-relaxed text-[#1e0e04]/80">{comment.content}</p>
+              <div className="space-y-3">
+                {parentComment && (
+                  <div className="rounded-2xl border border-sky-900/10 bg-sky-50/70 px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-900/70">
+                      ׳‘׳×׳’׳•׳‘׳” ׳{parentComment.profiles?.full_name || "׳×׳’׳•׳‘׳” ׳§׳•׳“׳׳×"}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap font-assistant text-sm leading-relaxed text-sky-950/65">
+                      {renderLinkedText(stripNewsCommentQuote(parentComment.content || "").trim().slice(0, 140))}
+                    </p>
+                  </div>
+                )}
+                {quotedComment && (
+                  <div className="rounded-2xl border border-[#92400e]/10 bg-[#fff8eb] px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#92400e]/70">
+                      ציטוט מתוך תגובה של {quotedComment.author}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap font-assistant text-sm leading-relaxed text-[#5d2a00]/75">
+                      {renderLinkedText(quotedComment.body)}
+                    </p>
+                  </div>
+                )}
+                <p className="whitespace-pre-wrap font-assistant text-sm leading-relaxed text-[#1e0e04]/80">
+                  {renderLinkedText(visibleContent)}
+                </p>
+              </div>
             </div>
           );
         })}

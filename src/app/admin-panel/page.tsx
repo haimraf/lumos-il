@@ -38,6 +38,7 @@ import { logActivityEvent } from "@/lib/activityEvents";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { getHouseDisplayIcon, getHouseDisplayLabel, isUnsortedHouse } from "@/lib/houses";
 import { getNewsArticlePath } from "@/lib/seo";
+import { getContactTopicLabel } from "@/lib/contactTopics";
 import {
     compareLiveEventParticipants,
     LIVE_EVENTS_CATALOG_KEY,
@@ -436,6 +437,7 @@ export default function AdminPanel() {
 
     // Data
     const [reports, setReports] = useState<any[]>([]);
+    const [contactSubmissions, setContactSubmissions] = useState<any[]>([]);
     const [news, setNews] = useState<any[]>([]);
     const [housePoints, setHousePoints] = useState<any>({});
     const [allProfiles, setAllProfiles] = useState<any[]>([]);
@@ -554,7 +556,7 @@ export default function AdminPanel() {
         try {
             const [{ data: reportData }, { data: newsData }, { data: profilesData },
                 { data: forumsData }, { data: forumCategoriesData }, { data: groupsData },
-                { data: logsData }, { data: activityData }, { data: settingsData }] = await Promise.all([
+                { data: logsData }, { data: activityData }, { data: settingsData }, { data: contactData }] = await Promise.all([
                     supabase.from('reports').select('*').order('created_at', { ascending: false }),
                     supabase.from('news').select('*').order('created_at', { ascending: false }),
                     supabase.from('profiles').select('*, user_groups(id, name, color)').order('created_at', { ascending: true }),
@@ -564,9 +566,11 @@ export default function AdminPanel() {
                     supabase.from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(150),
                     supabase.from('activity_events').select('*').order('created_at', { ascending: false }).limit(100),
                     supabase.from('site_settings').select('*'),
+                    supabase.from('contact_submissions').select('*').neq('status', 'resolved').order('created_at', { ascending: false }),
                 ]);
 
             setReports(reportData || []);
+            setContactSubmissions(contactData || []);
             setNews(newsData || []);
             setForums(forumsData || []);
             setForumCategories((forumCategoriesData as ForumCategory[]) || []);
@@ -1328,6 +1332,45 @@ export default function AdminPanel() {
         fetchData();
     };
 
+    const handleUpdateContactSubmissionStatus = async (
+        submission: any,
+        status: "in_progress" | "resolved",
+    ) => {
+        const timestamp = new Date().toISOString();
+        const { error } = await supabase
+            .from("contact_submissions")
+            .update({
+                status,
+                handled_by: profile?.id || null,
+                updated_at: timestamp,
+                resolved_at: status === "resolved" ? timestamp : null,
+            })
+            .eq("id", submission.id);
+
+        if (error) {
+            sendOwl("שגיאה", error.message, "error");
+            return;
+        }
+
+        sendOwl(
+            status === "resolved" ? "הפנייה נסגרה" : "הפנייה סומנה",
+            status === "resolved" ? "הפנייה הועברה לארכיון המטופל." : "הפנייה סומנה כבטיפול.",
+            "success",
+        );
+        void audit({
+            action: status === "resolved" ? "resolve_contact_submission" : "start_contact_submission",
+            targetType: "contact_submission",
+            targetId: submission.id,
+            targetLabel: submission.subject || null,
+            details: {
+                email: submission.email || null,
+                topic: submission.topic || null,
+                status,
+            },
+        });
+        fetchData();
+    };
+
     /* ── Broadcast ── */
     const handleBroadcast = async () => {
         if (!broadcastMsg.trim()) return;
@@ -1722,6 +1765,7 @@ export default function AdminPanel() {
     }));
     const maxYearCount = Math.max(...yearDist.map(d => d.count), 1);
     const forumCategoryMap = Object.fromEntries(forumCategories.map(category => [category.id, category.name]));
+    const moderationInboxCount = reports.length + contactSubmissions.length;
 
     return (
         <div className="admin-readable min-h-screen bg-[#08111f] text-white py-12 px-4 md:px-6 font-assistant text-[15px] md:text-base" dir="rtl">
@@ -1818,8 +1862,8 @@ export default function AdminPanel() {
                                 >
                                     <Icon size={13} />
                                     {tab.label}
-                                    {tab.id === "moderation" && reports.length > 0 && (
-                                        <span className="bg-red-500/20 text-red-400 text-[9px] px-1.5 py-0.5 rounded-full">{reports.length}</span>
+                                    {tab.id === "moderation" && moderationInboxCount > 0 && (
+                                        <span className="bg-red-500/20 text-red-400 text-[9px] px-1.5 py-0.5 rounded-full">{moderationInboxCount}</span>
                                     )}
                                 </button>
                             );
@@ -1982,6 +2026,75 @@ export default function AdminPanel() {
                                                         <button onClick={() => handleDeleteContent(r)} className="p-2.5 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all"><Trash2 size={14} /></button>
                                                         <button onClick={() => handleDismissReport(r.id)} className="p-2.5 bg-white/5 text-white/40 rounded-lg hover:bg-white/10 transition-all"><CheckCircle size={14} /></button>
                                                     </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </section>
+
+                                <section className="admin-card rounded-2xl p-6 space-y-4">
+                                    <h3 className="font-cinzel text-sm font-black text-amber-300 flex items-center gap-2 uppercase tracking-widest">
+                                        <MessageSquare size={15} /> פניות צור קשר
+                                        {contactSubmissions.length > 0 && (
+                                            <span className="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-black">{contactSubmissions.length}</span>
+                                        )}
+                                    </h3>
+                                    {contactSubmissions.length === 0 ? (
+                                        <div className="py-10 text-center">
+                                            <CheckCircle size={32} className="mx-auto text-white/10 mb-3" />
+                                            <p className="text-white/20 text-sm font-crimson italic">אין כרגע פניות פתוחות בטופס.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3 max-h-[32rem] overflow-y-auto">
+                                            {contactSubmissions.map((submission) => (
+                                                <div key={submission.id} className="bg-white/[0.02] border border-amber-500/[0.12] rounded-xl p-4 space-y-3">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="text-right space-y-2 min-w-0">
+                                                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                                                <span className="text-[9px] bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full font-black">
+                                                                    {getContactTopicLabel(submission.topic)}
+                                                                </span>
+                                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black ${
+                                                                    submission.status === "in_progress"
+                                                                        ? "bg-blue-500/15 text-blue-300"
+                                                                        : "bg-white/5 text-white/50"
+                                                                }`}>
+                                                                    {submission.status === "in_progress" ? "בטיפול" : "חדש"}
+                                                                </span>
+                                                                <span className="text-[9px] bg-white/5 text-white/40 px-2 py-0.5 rounded-full font-black">
+                                                                    {formatEventDateLabel(submission.created_at)}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-white font-semibold text-sm">{submission.subject || "פנייה ללא כותרת"}</p>
+                                                                <p className="text-white/45 text-xs mt-1">
+                                                                    {submission.name || "ללא שם"} · {submission.email || "ללא אימייל"}
+                                                                </p>
+                                                                {submission.path && (
+                                                                    <p className="text-white/30 text-[11px] mt-1 font-mono break-all">{submission.path}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2 shrink-0">
+                                                            {submission.status !== "in_progress" && (
+                                                                <button
+                                                                    onClick={() => handleUpdateContactSubmissionStatus(submission, "in_progress")}
+                                                                    className="p-2.5 bg-blue-500/10 text-blue-300 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
+                                                                    title="סמן כבטיפול"
+                                                                >
+                                                                    <Clock size={14} />
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleUpdateContactSubmissionStatus(submission, "resolved")}
+                                                                className="p-2.5 bg-emerald-500/10 text-emerald-300 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
+                                                                title="סמן כנפתר"
+                                                            >
+                                                                <CheckCircle size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-sm leading-7 text-white/75 whitespace-pre-wrap">{submission.message}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -3106,9 +3219,9 @@ export default function AdminPanel() {
                                                             <label className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">קישור לפורום תמיכה</label>
                                                             <input
                                                                 type="text"
-                                                                value={ev.support_forum_href || "/forums/feedback-and-suggestions"}
-                                                                onChange={(e) => updateEventSettingsDraft({ support_forum_href: e.target.value })}
-                                                                placeholder="/forums/feedback-and-suggestions"
+                                                            value={ev.support_forum_href || "/contact"}
+                                                            onChange={(e) => updateEventSettingsDraft({ support_forum_href: e.target.value })}
+                                                            placeholder="/contact"
                                                                 dir="ltr"
                                                                 className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-sm text-white/70 font-mono outline-none focus:border-pink-500/30 transition-all"
                                                             />
@@ -3572,7 +3685,7 @@ export default function AdminPanel() {
                                 {[
                                     { label: "קוסמים", value: allProfiles.length, color: "text-white/60" },
                                     { label: "לוגים", value: adminLogs.length, color: "text-rose-400" },
-                                    { label: "דיווחים", value: reports.length, color: "text-red-400" },
+                                    { label: "דיווחים", value: moderationInboxCount, color: "text-red-400" },
                                     { label: "כתבות", value: news.length, color: "text-blue-400" },
                                 ].map(({ label, value, color }) => (
                                     <div key={label} className="bg-white/[0.02] rounded-xl p-3 text-center">
