@@ -564,6 +564,10 @@ function CommentsSection({
           const isReply = Boolean(parentComment);
           const quotedComment = parseNewsCommentQuote(comment.content || "");
           const visibleContent = quotedComment?.remainder || comment.content;
+          const isQuotedParentReply =
+            Boolean(parentComment) &&
+            Boolean(quotedComment) &&
+            quotedComment?.userId === parentComment?.user_id;
 
           if (isMuted) {
             return (
@@ -699,7 +703,11 @@ function CommentsSection({
               <div className="space-y-3">
                 {parentComment && (
                   <div className="rounded-2xl border border-sky-900/10 bg-sky-50/70 px-4 py-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-900/70">
+                    <p className="text-[0px] leading-none">
+                      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-900/70">
+                        {"\u05d1\u05ea\u05d2\u05d5\u05d1\u05d4 \u05dc"}
+                        {parentComment.profiles?.full_name || "\u05ea\u05d2\u05d5\u05d1\u05d4 \u05e7\u05d5\u05d3\u05de\u05ea"}
+                      </span>
                       ׳‘׳×׳’׳•׳‘׳” ׳{parentComment.profiles?.full_name || "׳×׳’׳•׳‘׳” ׳§׳•׳“׳׳×"}
                     </p>
                     <p className="mt-2 whitespace-pre-wrap font-assistant text-sm leading-relaxed text-sky-950/65">
@@ -707,7 +715,7 @@ function CommentsSection({
                     </p>
                   </div>
                 )}
-                {quotedComment && (
+                {quotedComment && !isQuotedParentReply && (
                   <div className="rounded-2xl border border-[#92400e]/10 bg-[#fff8eb] px-4 py-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#92400e]/70">
                       ציטוט מתוך תגובה של {quotedComment.author}
