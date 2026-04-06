@@ -263,10 +263,10 @@ export default function GreatHall() {
             const { data } = await supabase
                 .from("messages")
                 .select("*, profiles(house, role, wand_type, full_name, email, signature, avatar_url, is_ghost, user_groups(name, color))")
-                .order("created_at", { ascending: true })
+                .order("created_at", { ascending: false })
                 .limit(50);
 
-            if (data && isMounted) setMessages(data as any);
+            if (data && isMounted) setMessages((data as any).reverse());
             if (isMounted) setIsLoading(false);
 
             channel
