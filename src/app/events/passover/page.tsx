@@ -42,6 +42,7 @@ import {
   LIVE_EVENT_SETTINGS_KEY,
   type LiveEventSettings,
 } from "@/lib/liveEvent";
+import { canBypassSortingRole } from "@/lib/profileAccess";
 import { useReducedMotion } from "framer-motion";
 import { getHouseIcon, getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
 
@@ -309,13 +310,13 @@ export function LiveEventExperience({ initialEventConfig = null }: LiveEventExpe
         supabase.auth.getUser(),
         supabase
           .from("profiles")
-          .select("id, full_name, house, created_at, event_points, passover_points")
+          .select("id, full_name, house, created_at, event_points, passover_points, role")
           .or("event_points.gt.0,passover_points.gt.0")
           .limit(250),
       ]);
 
       const rankedParticipants = [...(leaderboardProfiles || [])]
-        .filter((profile) => getProfileLiveEventPoints(profile) > 0)
+        .filter((profile) => getProfileLiveEventPoints(profile) > 0 && !canBypassSortingRole(profile.role))
         .sort(compareLiveEventParticipants);
 
       setParticipantCount(rankedParticipants.length);
