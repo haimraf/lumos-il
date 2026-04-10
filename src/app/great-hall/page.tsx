@@ -611,8 +611,9 @@ export default function GreatHall() {
                         >
 
                             {messages.length === 0 && (
-                                <div className="h-full flex items-center justify-center opacity-20 font-cinzel text-xl text-white text-center px-4">
-                                    האולם שקט... היה הראשון להטיל לחש! ✨
+                                <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-4">
+                                    <p className="font-cinzel text-xl text-white/70">האולם שקט...</p>
+                                    <p className="font-crimson text-base text-white/40">היה הראשון להטיל לחש וישבר הדממה ✨</p>
                                 </div>
                             )}
 

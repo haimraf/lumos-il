@@ -724,7 +724,11 @@ export default function ForumsPage() {
                                         <span className="font-cinzel text-[9px] font-black uppercase tracking-widest text-white/35">תגובות אחרונות</span>
                                     </div>
                                     <div className="space-y-0.5">
-                                        {recentPosts.length === 0 && <p className="text-[10px] text-white/20 italic text-center py-3">אין תגובות עדיין</p>}
+                                        {recentPosts.length === 0 && (
+                                            <Link href="/forums" className="block text-[10px] text-amber-400/50 italic text-center py-3 hover:text-amber-400 transition-colors">
+                                                פתח את המסדרון הראשון →
+                                            </Link>
+                                        )}
                                         {recentPosts.map((p: any) => {
                                             const houseKey = p.poster?.house || "Unknown";
                                             const houseConf = HOUSE_THEMES[houseKey] || HOUSE_THEMES["Unknown"];
