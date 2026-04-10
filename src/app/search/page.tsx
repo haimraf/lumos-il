@@ -108,11 +108,11 @@ function SearchContent() {
                 .limit(6),
         ]);
 
-        (stories || []).forEach(s => found.push({
+        (stories || []).forEach((s: any) => found.push({
             id: s.id, title: s.title, type: 'story', href: `/library/${s.id}`,
             excerpt: s.description?.replace(/<[^>]*>/g, '').slice(0, 150),
         }));
-        (news || []).forEach(n => found.push({
+        (news || []).forEach((n: any) => found.push({
             id: n.id, title: n.title, type: 'news', href: getNewsArticlePath(n.id),
             excerpt: n.content?.replace(/<[^>]*>/g, '').slice(0, 150),
         }));

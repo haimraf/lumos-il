@@ -200,7 +200,7 @@ function DashboardContent() {
   useEffect(() => {
     if (!profile?.group_id) { setMyGroup(null); return; }
     supabase.from('user_groups').select('name, color').eq('id', profile.group_id).single()
-      .then(({ data }) => setMyGroup(data || null));
+      .then(({ data }: { data: { name: string; color: string } | null }) => setMyGroup(data || null));
   }, [profile?.group_id, supabase]);
 
   const formatNotificationContent = (content: string, type: string) => {

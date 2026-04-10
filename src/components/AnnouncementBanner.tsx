@@ -54,7 +54,7 @@ export default function AnnouncementBanner() {
     const supabase = supabaseRef.current;
     supabase.from("site_settings").select("value")
       .eq("key", SITE_CONFIG_KEY).maybeSingle()
-      .then(({ data }) => applyBanners(data?.value));
+      .then(({ data }: { data: { value?: unknown } | null }) => applyBanners(data?.value));
 
     const channel = supabase.channel("announcement_banners")
       .on("postgres_changes",

@@ -180,7 +180,7 @@ export default function GreatHall() {
     useEffect(() => {
         getRoleColorFromDB(supabase).then(setRoleColors);
         supabase.from('user_groups').select('name, color').order('display_order')
-            .then(({ data }) => { if (data) setUserGroups(data); });
+            .then(({ data }: { data: { name: string; color: string }[] | null }) => { if (data) setUserGroups(data); });
     }, [supabase]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);

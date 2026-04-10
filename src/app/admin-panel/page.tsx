@@ -613,7 +613,7 @@ export default function AdminPanel() {
             setActivityEvents((activityData as any) || []);
 
         const settingsMap: Record<string, any> = {};
-        settingsData?.forEach(s => { settingsMap[s.key] = s.value; });
+        settingsData?.forEach((s: { key: string; value: any }) => { settingsMap[s.key] = s.value; });
         setSiteSettings(settingsMap);
 
         const points: Record<string, number> = { Gryffindor: 0, Slytherin: 0, Ravenclaw: 0, Hufflepuff: 0 };
