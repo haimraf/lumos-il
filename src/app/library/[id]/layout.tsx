@@ -1,11 +1,8 @@
 import { Metadata } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from "@/utils/supabase/server";
 import { getCanonicalUrl } from "@/lib/seo";
 import React from 'react'; // הוספנו את זה
 // יצירת קליינט שרת בטוח שלא תלוי ב-Auth (לשליפת נתונים ציבוריים בלבד לטובת SEO)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 type Props = {
     // התיקון: params הוא עכשיו Promise
@@ -16,6 +13,7 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // התיקון: חילוץ ה-id מתוך ה-Promise
     const { id } = await params;
+    const supabase = await createServerClient();
 
     const { data: story } = await supabase
         .from('stories')
@@ -78,6 +76,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StoryLayout({ children, params }: { children: React.ReactNode, params: Promise<{ id: string }> }) {
     // התיקון: חילוץ ה-id מתוך ה-Promise
     const { id } = await params;
+    const supabase = await createServerClient();
 
     // שליפת הנתונים פעם נוספת עבור ה-JSON-LD (Next.js חכם מספיק לעשות Cache מאחורי הקלעים)
     const { data: story } = await supabase
