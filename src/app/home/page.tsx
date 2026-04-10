@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
     BookOpen, ScrollText, Users, Store, Wand2,
     Trophy, Map, Shield, Footprints, Hourglass, MessageSquare,
-    HelpCircle, GraduationCap, Swords
+    HelpCircle, GraduationCap, Swords, X
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { motion } from "framer-motion";
@@ -38,9 +38,16 @@ const magicalQuotes = [
 export default function HomePage() {
     const [userHouse, setUserHouse] = useState<string>("Unknown");
     const [randomQuote, setRandomQuote] = useState<string>("");
+    const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
     useEffect(() => {
         setRandomQuote(magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        if (!localStorage.getItem("lumos_welcomed")) {
+            setShowWelcomeBanner(true);
+        }
     }, []);
     const [candles, setCandles] = useState<{ id: number; left: number; delay: number; duration: number }[]>([]);
     const [eventConfig, setEventConfig] = useState<LiveEventSettings | null>(null);
@@ -322,6 +329,36 @@ export default function HomePage() {
             <div className="absolute bottom-0 right-[-10%] w-[600px] h-[600px] bg-blue-900/8 rounded-full blur-[180px] pointer-events-none z-0" />
 
             <div className="relative z-10" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
+
+                {/* באנר ברוך הבא — מוצג פעם אחת בלבד */}
+                {showWelcomeBanner && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-950/30 px-5 py-4 backdrop-blur-sm"
+                    >
+                        <div className="flex flex-col gap-1">
+                            <p className="font-cinzel text-sm font-black text-amber-300 tracking-wide">
+                                ברוך הבא לטירה, קוסם! ✨
+                            </p>
+                            <p className="font-crimson text-white/60 text-sm">
+                                המשימה הראשונה שלך: עבור ל
+                                <Link href="/quests" className="text-amber-400 hover:text-amber-300 underline underline-offset-2 mx-1">לוח המשימות</Link>
+                                והשלם אתגר יומי אחד.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setShowWelcomeBanner(false);
+                                localStorage.setItem("lumos_welcomed", "1");
+                            }}
+                            aria-label="סגור באנר ברוך הבא"
+                            className="shrink-0 text-white/30 hover:text-white/70 transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </motion.div>
+                )}
 
                 {/* כותרת ובאנר היכרות */}
                 <motion.header
