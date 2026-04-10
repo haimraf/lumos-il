@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Activity, ArrowLeft, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
+import { getSafeInternalHref } from "@/lib/hrefs";
 import { getHouseSecondaryColor } from "@/lib/houses";
 import { normalizeLegacyDisplayText } from "@/lib/legacyText";
 import { getProfileDisplayName } from "@/lib/profileNames";
@@ -161,7 +162,7 @@ export default function CastlePulseTeaser() {
         ) : (
           events.map((event) => {
             const actorColor = event.actor_group_color || (event.actor_house ? getHouseSecondaryColor(event.actor_house) : "rgba(255,255,255,0.8)");
-            const href = event.target_url || "/map";
+            const href = getSafeInternalHref(event.target_url, "/map");
 
             return (
               <Link

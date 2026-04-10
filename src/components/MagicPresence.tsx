@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { AFK_IDLE_MS, isMissingPresenceColumnsError, type PresenceStatus } from "@/lib/presenceStatus";
+import { getSafeInternalHref } from "@/lib/hrefs";
 
 const LOCATION_LABELS = {
     entrance: "\u05d1\u05e8\u05d7\u05d1\u05ea \u05d4\u05db\u05e0\u05d9\u05e1\u05d4",
@@ -77,16 +78,17 @@ export default function MagicPresence() {
             session?.user?.id && profile?.id && profile.id !== session.user.id
                 ? session.user.id
                 : null;
+        const safePathname = getSafeInternalHref(pathname, "/home");
 
         const getLocationLabel = () => {
-            if (!pathname || pathname === "/" || pathname.includes("/home") || pathname.includes("/great-hall")) {
+            if (safePathname === "/" || safePathname.includes("/home") || safePathname.includes("/great-hall")) {
                 return LOCATION_LABELS.entrance;
             }
-            if (pathname.includes("/map")) return LOCATION_LABELS.map;
-            if (pathname.includes("/news")) return LOCATION_LABELS.news;
-            if (pathname.includes("/profile") || pathname.includes("/dashboard")) return LOCATION_LABELS.dashboard;
-            if (pathname.includes("/shop") || pathname.includes("/ollivanders")) return LOCATION_LABELS.shop;
-            if (pathname.includes("/forums")) return LOCATION_LABELS.forums;
+            if (safePathname.includes("/map")) return LOCATION_LABELS.map;
+            if (safePathname.includes("/news")) return LOCATION_LABELS.news;
+            if (safePathname.includes("/profile") || safePathname.includes("/dashboard")) return LOCATION_LABELS.dashboard;
+            if (safePathname.includes("/shop") || safePathname.includes("/ollivanders")) return LOCATION_LABELS.shop;
+            if (safePathname.includes("/forums")) return LOCATION_LABELS.forums;
             return LOCATION_LABELS.forums;
         };
 
@@ -110,7 +112,7 @@ export default function MagicPresence() {
                     session?.user?.email?.split("@")[0] ||
                     "\u05d0\u05d5\u05e8\u05d7",
                 house: profile?.house || "Guest",
-                current_path: pathname,
+                current_path: safePathname,
                 location_label: getLocationLabel(),
                 last_seen: new Date().toISOString(),
                 presence_type: presenceType,

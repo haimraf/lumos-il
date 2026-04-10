@@ -1,5 +1,8 @@
 "use client";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSafeInternalHref } from "@/lib/hrefs";
+
 export type NotificationActorProfile = {
   id?: string;
   full_name?: string | null;
@@ -27,6 +30,10 @@ type NotificationLoadResult = {
   error: string | null;
 };
 
+type NotificationProfileRow = NotificationActorProfile & {
+  id: string;
+};
+
 function buildNotificationFingerprint(notification: NotificationItem) {
   const targetUrl = notification.target_url?.trim() || "";
   const content = notification.content?.trim() || "";
@@ -52,7 +59,7 @@ function collapseDuplicateNotifications(notifications: NotificationItem[]) {
 }
 
 export async function fetchUserNotifications(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
 ): Promise<NotificationLoadResult> {
   const { data, error } = await supabase
@@ -70,17 +77,21 @@ export async function fetchUserNotifications(
   }
 
   const baseNotifications = collapseDuplicateNotifications((data || []) as NotificationItem[]);
+  const sanitizedNotifications = baseNotifications.map((notification) => ({
+    ...notification,
+    target_url: getSafeInternalHref(notification.target_url, "/dashboard?tab=notifications"),
+  }));
   const actorIds = [
     ...new Set(
-      baseNotifications.filter((notification) => typeof notification.actor_id === "string" && notification.actor_id.length > 0)
+      sanitizedNotifications.filter((notification) => typeof notification.actor_id === "string" && notification.actor_id.length > 0)
         .map((notification) => notification.actor_id as string),
     ),
   ];
 
   if (actorIds.length === 0) {
     return {
-      notifications: baseNotifications,
-      unreadCount: baseNotifications.filter((notification) => !notification.is_read).length,
+      notifications: sanitizedNotifications,
+      unreadCount: sanitizedNotifications.filter((notification) => !notification.is_read).length,
       error: null,
     };
   }
@@ -92,14 +103,16 @@ export async function fetchUserNotifications(
 
   if (profilesError) {
     return {
-      notifications: baseNotifications,
-      unreadCount: baseNotifications.filter((notification) => !notification.is_read).length,
+      notifications: sanitizedNotifications,
+      unreadCount: sanitizedNotifications.filter((notification) => !notification.is_read).length,
       error: null,
     };
   }
 
-  const profileMap = Object.fromEntries((profiles || []).map((profile: any) => [profile.id, profile]));
-  const notifications = baseNotifications.map((notification) => (
+  const profileMap = Object.fromEntries(
+    ((profiles || []) as NotificationProfileRow[]).map((profile) => [profile.id, profile]),
+  );
+  const notifications = sanitizedNotifications.map((notification) => (
     notification.actor_id
       ? { ...notification, actor_profile: profileMap[notification.actor_id] || null }
       : notification

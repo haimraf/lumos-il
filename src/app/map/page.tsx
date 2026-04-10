@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Compass, Flame, Footprints, MapPin, Users } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
+import { asSafeInternalHref } from "@/lib/hrefs";
 import {
   getPresenceLocationInfo,
   fetchOnlinePresenceRows,
@@ -146,14 +147,6 @@ function getZoneKey(path: string) {
   if (path.startsWith("/dashboard") || path.startsWith("/profile")) return "/dashboard";
   if (path.startsWith("/map")) return "/map";
   return "/forums";
-}
-
-function timeAgo(dateString: string) {
-  const diff = Math.max(0, Math.floor((Date.now() - new Date(dateString).getTime()) / 1000));
-  if (diff < 60) return "\u05de\u05de\u05e9 \u05e2\u05db\u05e9\u05d9\u05d5";
-  if (diff < 3600) return `\u05dc\u05e4\u05e0\u05d9 ${Math.floor(diff / 60)} \u05d3\u05e7'`;
-  if (diff < 86400) return `\u05dc\u05e4\u05e0\u05d9 ${Math.floor(diff / 3600)} \u05e9\u05e2\u05d5\u05ea`;
-  return `\u05dc\u05e4\u05e0\u05d9 ${Math.floor(diff / 86400)} \u05d9\u05de\u05d9\u05dd`;
 }
 
 function safeTimeAgo(dateString: string) {
@@ -311,7 +304,7 @@ export default function MaraudersMasterMap() {
         house: event.actor_house || null,
         time: event.created_at,
         sub: event.subtitle || null,
-        targetHref: event.target_url || null,
+        targetHref: asSafeInternalHref(event.target_url),
         groupColor: null,
       });
     });

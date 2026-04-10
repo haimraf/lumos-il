@@ -5,6 +5,7 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { SITE_CONFIG_KEY, BANNER_PALETTE, type BannerItem, type SiteConfig } from "@/components/admin/AdminSiteSettingsTab";
+import { resolveSafeHref } from "@/lib/hrefs";
 
 const LS_KEY_PREFIX = "lumos_banner_dismissed_";
 
@@ -45,13 +46,11 @@ function parseActiveBanners(value: unknown): BannerItem[] {
 
 export default function AnnouncementBanner() {
   const [banners, setBanners] = useState<BannerItem[]>([]);
-  const [mounted, setMounted] = useState(false);
   const supabaseRef = useRef(createClient());
 
   const applyBanners = (value: unknown) => setBanners(parseActiveBanners(value));
 
   useEffect(() => {
-    setMounted(true);
     const supabase = supabaseRef.current;
     supabase.from("site_settings").select("value")
       .eq("key", SITE_CONFIG_KEY).maybeSingle()
@@ -64,10 +63,9 @@ export default function AnnouncementBanner() {
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!mounted || banners.length === 0) return null;
+  if (banners.length === 0) return null;
 
   const dismiss = (banner: BannerItem) => {
     try { localStorage.setItem(LS_KEY_PREFIX + hashText(banner.text.slice(0, 40)), "1"); } catch { /* ignore */ }
@@ -78,6 +76,7 @@ export default function AnnouncementBanner() {
     <>
       {banners.map((banner) => {
         const p = BANNER_PALETTE[banner.color] ?? BANNER_PALETTE.amber;
+        const destination = resolveSafeHref(banner.link);
 
         const inner = (
           <div className={`relative w-full border-b overflow-hidden backdrop-blur-md ${p.wrapper}`}>
@@ -123,9 +122,17 @@ export default function AnnouncementBanner() {
           </div>
         );
 
-        if (banner.link) {
+        if (destination?.isExternal) {
           return (
-            <Link key={banner.id} href={banner.link} className="block w-full">
+            <a key={banner.id} href={destination.href} rel="noreferrer" className="block w-full">
+              {inner}
+            </a>
+          );
+        }
+
+        if (destination) {
+          return (
+            <Link key={banner.id} href={destination.href} className="block w-full">
               {inner}
             </Link>
           );

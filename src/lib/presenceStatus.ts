@@ -1,5 +1,6 @@
 ﻿import type { SupabaseClient } from "@supabase/supabase-js";
 
+
 export type PresenceStatus = "online" | "afk";
 
 export type OnlinePresenceRow = {
@@ -181,9 +182,19 @@ export function getPresenceMeta(status: PresenceStatus) {
 
 function normalizePresencePath(currentPath: string | null | undefined) {
   if (!currentPath || typeof currentPath !== "string") return "/home";
+
   const trimmed = currentPath.trim();
-  if (!trimmed) return "/home";
-  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  if (
+    !trimmed
+    || trimmed.startsWith("//")
+    || trimmed.includes("$")
+    || /\s/.test(trimmed)
+    || !/^\/[A-Za-z0-9\-._~%/?#[\]@!&'()*+,;=:]*$/.test(trimmed)
+  ) {
+    return "/home";
+  }
+
+  return trimmed;
 }
 
 function getFriendlyLabelFromPath(path: string) {

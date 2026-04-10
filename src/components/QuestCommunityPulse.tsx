@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Activity, ArrowLeft, Flame, Sparkles, Users, WandSparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
+import { getSafeInternalHref } from "@/lib/hrefs";
 import { normalizeLegacyDisplayText } from "@/lib/legacyText";
 import {
   HOUSE_IDS,
@@ -53,18 +54,6 @@ const MOMENTUM_EVENT_TYPES = new Set([
   "quest_niffler_found",
   "quest_snitch_caught",
 ]);
-
-function timeAgo(dateString: string | null) {
-  if (!dateString) return "עכשיו";
-  const seconds = Math.max(0, Math.round((Date.now() - new Date(dateString).getTime()) / 1000));
-  const minutes = Math.round(seconds / 60);
-  const hours = Math.round(minutes / 60);
-
-  if (seconds < 60) return "ממש עכשיו";
-  if (minutes < 60) return `לפני ${minutes} דק'`;
-  if (hours < 24) return `לפני ${hours} שעות`;
-  return "היום";
-}
 
 function safeTimeAgo(dateString: string | null) {
   return formatHebrewRelativeTime(dateString, {
@@ -412,7 +401,7 @@ export default function QuestCommunityPulse({ currentHouse }: { currentHouse?: s
               {recentEvents.map((event) => {
                 const eventHouseId = resolveHouseId(event.actor_house);
                 const eventTheme = eventHouseId ? getHouseVisualTheme(eventHouseId) : null;
-                const href = event.target_url || "/map";
+                const href = getSafeInternalHref(event.target_url, "/map");
                 const actorName = getDisplayActorName(event.actor_name);
 
                 return (

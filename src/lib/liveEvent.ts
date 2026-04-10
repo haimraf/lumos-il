@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { asSafeInternalHref, getSafeInternalHref } from "@/lib/hrefs";
 
 export const LIVE_EVENT_SETTINGS_KEY = "passover_event";
 export const LIVE_EVENTS_CATALOG_KEY = "live_events_catalog";
@@ -155,10 +156,19 @@ export function normalizeLiveEventSettings(value: unknown): LiveEventSettings {
   const slug = asString(raw.slug) || toEventSlug(eventName || title) || defaults.slug;
   const tagline = asString(raw.tagline);
   const description = asString(raw.description);
-  const supportForumHref = asString(raw.support_forum_href) || defaults.support_forum_href;
+  const supportForumHref = getSafeInternalHref(
+    asString(raw.support_forum_href),
+    defaults.support_forum_href,
+  );
 
   const missions = Array.isArray(raw.missions)
-    ? raw.missions.map((entry) => asObject(entry) as LiveEventMission)
+    ? raw.missions.map((entry) => {
+        const mission = asObject(entry) as LiveEventMission;
+        return {
+          ...mission,
+          href: asSafeInternalHref(asString(mission.href)) ?? undefined,
+        };
+      })
     : defaults.missions;
 
   const rewards = Array.isArray(raw.rewards)

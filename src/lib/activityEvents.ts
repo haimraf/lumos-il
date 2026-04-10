@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { asSafeInternalHref } from "@/lib/hrefs";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -34,7 +35,7 @@ export async function logActivityEvent(
       p_description: input.description || null,
       p_target_type: input.targetType || null,
       p_target_id: input.targetId != null ? String(input.targetId) : null,
-      p_target_url: input.targetUrl || null,
+      p_target_url: asSafeInternalHref(input.targetUrl),
       p_icon: input.icon || null,
       p_metadata: input.metadata || {},
       p_visibility: input.visibility || "public",
