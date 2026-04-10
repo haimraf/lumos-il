@@ -15,7 +15,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import CoolingRoomBanner from "@/components/CoolingRoomBanner";
 import SortingReminder from "@/components/SortingReminder";
 import AzkabanGuard from "@/components/AzkabanGuard";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, hasSupabaseServerEnv } from "@/utils/supabase/server";
 import { SITE_CONFIG_KEY } from "@/components/admin/AdminSiteSettingsTab";
 import type { SiteConfig } from "@/components/admin/AdminSiteSettingsTab";
 /**
@@ -46,6 +46,10 @@ const DEFAULT_OG_IMAGE = "/images/og-image.png";
 // Cached for 60s — avoids a DB hit on every page render
 const getCachedSiteConfig = unstable_cache(
   async (): Promise<Partial<SiteConfig>> => {
+    if (!hasSupabaseServerEnv()) {
+      return {};
+    }
+
     try {
       const supabase = await createClient();
       const { data } = await supabase

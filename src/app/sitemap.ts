@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { createClient } from "@/utils/supabase/server";
+import { createClient, hasSupabaseServerEnv } from "@/utils/supabase/server";
 import { getNewsArticleUrl } from "@/lib/seo";
 import {
   fetchLiveEventCatalog,
@@ -32,6 +32,29 @@ type ChapterSitemapRow = {
 };
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const staticRoutes: MetadataRoute.Sitemap = [
+    { url: BASE,                         lastModified: new Date(), changeFrequency: "daily",   priority: 1.0 },
+    { url: `${BASE}/home`,               lastModified: new Date(), changeFrequency: "daily",   priority: 0.9 },
+    { url: `${BASE}/forums`,             lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
+    { url: `${BASE}/news`,               lastModified: new Date(), changeFrequency: "daily",   priority: 0.85 },
+    { url: `${BASE}/library`,            lastModified: new Date(), changeFrequency: "weekly",  priority: 0.8 },
+    { url: `${BASE}/house-cup`,          lastModified: new Date(), changeFrequency: "daily",   priority: 0.8 },
+    { url: `${BASE}/arena`,              lastModified: new Date(), changeFrequency: "hourly",  priority: 0.75 },
+    { url: `${BASE}/great-hall`,         lastModified: new Date(), changeFrequency: "weekly",  priority: 0.7 },
+    { url: `${BASE}/map`,                lastModified: new Date(), changeFrequency: "hourly",  priority: 0.65 },
+    { url: `${BASE}/quests`,             lastModified: new Date(), changeFrequency: "daily",   priority: 0.65 },
+    { url: `${BASE}/shop`,               lastModified: new Date(), changeFrequency: "weekly",  priority: 0.6 },
+    { url: `${BASE}/ollivanders`,        lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE}/faq`,                lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE}/contact`,            lastModified: new Date(), changeFrequency: "monthly", priority: 0.68 },
+    { url: `${BASE}/about`,              lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE}/rules`,              lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+  ];
+
+  if (!hasSupabaseServerEnv()) {
+    return staticRoutes;
+  }
+
   const supabase = await createClient();
 
   const [{ data: forums }, { data: threads }, { data: newsArticles }, { data: stories }, { data: chapters }, liveEvents] = await Promise.all([
@@ -60,25 +83,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .limit(1000),
     fetchLiveEventCatalog(supabase),
   ]);
-
-  const staticRoutes: MetadataRoute.Sitemap = [
-    { url: BASE,                         lastModified: new Date(), changeFrequency: "daily",   priority: 1.0 },
-    { url: `${BASE}/home`,               lastModified: new Date(), changeFrequency: "daily",   priority: 0.9 },
-    { url: `${BASE}/forums`,             lastModified: new Date(), changeFrequency: "hourly",  priority: 0.9 },
-    { url: `${BASE}/news`,               lastModified: new Date(), changeFrequency: "daily",   priority: 0.85 },
-    { url: `${BASE}/library`,            lastModified: new Date(), changeFrequency: "weekly",  priority: 0.8 },
-    { url: `${BASE}/house-cup`,          lastModified: new Date(), changeFrequency: "daily",   priority: 0.8 },
-    { url: `${BASE}/arena`,              lastModified: new Date(), changeFrequency: "hourly",  priority: 0.75 },
-    { url: `${BASE}/great-hall`,         lastModified: new Date(), changeFrequency: "weekly",  priority: 0.7 },
-    { url: `${BASE}/map`,                lastModified: new Date(), changeFrequency: "hourly",  priority: 0.65 },
-    { url: `${BASE}/quests`,             lastModified: new Date(), changeFrequency: "daily",   priority: 0.65 },
-    { url: `${BASE}/shop`,               lastModified: new Date(), changeFrequency: "weekly",  priority: 0.6 },
-    { url: `${BASE}/ollivanders`,        lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
-    { url: `${BASE}/faq`,                lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-    { url: `${BASE}/contact`,            lastModified: new Date(), changeFrequency: "monthly", priority: 0.68 },
-    { url: `${BASE}/about`,              lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
-    { url: `${BASE}/rules`,              lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
-  ];
 
   const eventRoutes: MetadataRoute.Sitemap = (liveEvents || [])
     .filter((event) => {
