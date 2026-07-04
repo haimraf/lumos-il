@@ -428,13 +428,16 @@ export default function Header() {
                 <div className="w-full max-w-[1440px] mx-auto px-3 md:px-10 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 xl:gap-8 flex-1 min-w-0">
                         <div className="flex items-center shrink-0">
-                            <Link href="/home" className="group relative transition-transform hover:scale-105 block">
+                            <Link
+                                href="/home"
+                                className="group relative block h-[52px] w-[96px] transition-transform hover:scale-105 md:h-[72px] md:w-[132px] lg:h-[92px] lg:w-[168px]"
+                            >
                                 <Image
                                     src="/logo.png"
                                     alt="Lumos IL Logo"
-                                    width={220}
-                                    height={220}
-                                    className="h-[60px] md:h-[90px] lg:h-[120px] w-auto object-contain drop-shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                                    fill
+                                    sizes="(min-width: 1024px) 168px, (min-width: 768px) 132px, 96px"
+                                    className="object-contain drop-shadow-[0_0_20px_rgba(245,158,11,0.4)]"
                                     priority
                                 />
                             </Link>
@@ -572,7 +575,7 @@ export default function Header() {
                                                 </div>
                                             </div>
 
-                                            {false && !isGuest && (
+                                            {!isGuest && (
                                                 <div className="px-4 py-4 border-b border-white/[0.07]">
                                                     <div className="rounded-[1.6rem] border border-amber-500/15 bg-amber-500/[0.06] p-4 shadow-[0_0_24px_rgba(245,158,11,0.06)]">
                                                         <div className="flex items-start justify-between gap-4">
@@ -707,7 +710,7 @@ export default function Header() {
             <div className={`fixed inset-0 z-[9999] bg-[#020617] transition-all duration-500 ${isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"}`} dir="rtl">
                 <div className="font-cinzel text-white/[0.02] text-[18vw] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none font-black z-0">LUMOS</div>
 
-                <nav className="relative z-10 flex flex-col items-center gap-1 w-full px-10 pt-28 pb-32 h-full overflow-y-auto">
+                <nav className="relative z-10 flex flex-col items-center gap-1 w-full px-4 sm:px-10 pt-24 sm:pt-28 pb-32 h-full overflow-y-auto">
                     <button onClick={() => setIsOpen(false)} className="absolute top-5 left-5 p-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-colors z-20">
                         <X size={22} />
                     </button>
@@ -717,7 +720,7 @@ export default function Header() {
                         </Link>
                     )}
 
-                    {false && !isGuest && (
+                    {!isGuest && (
                         <div className="w-full mb-5 rounded-3xl border border-amber-500/15 bg-amber-500/[0.06] px-5 py-4 shadow-[0_0_36px_rgba(245,158,11,0.08)]">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -786,7 +789,7 @@ export default function Header() {
                     </div>
 
                     {HEADER_NAV_LINKS.map((link, i) => (
-                        <Link key={link.href} href={link.href} onClick={() => setIsOpen(false)} className="flex items-center gap-6 text-2xl font-cinzel font-black text-white/50 hover:text-amber-500 transition-all uppercase tracking-[0.1em] py-4 w-full justify-center group border-b border-white/5 last:border-0" style={{ transitionDelay: isOpen ? `${i * 30}ms` : '0ms' }}>
+                        <Link key={link.href} href={link.href} onClick={() => setIsOpen(false)} className="flex items-center gap-4 sm:gap-6 text-xl sm:text-2xl font-cinzel font-black text-white/50 hover:text-amber-500 transition-all uppercase tracking-[0.08em] sm:tracking-[0.1em] py-3.5 sm:py-4 w-full justify-center group border-b border-white/5 last:border-0" style={{ transitionDelay: isOpen ? `${i * 30}ms` : '0ms' }}>
                             <link.icon size={20} className="text-amber-500/40 group-hover:text-amber-500 transition-colors" /> {link.name}
                         </Link>
                     ))}

@@ -65,6 +65,15 @@
   --foreground: #f8fafc;
   --selection-bg: rgba(245, 158, 11, 0.4);
   --selection-text: #fffbeb;
+  --lumos-surface: rgba(255, 255, 255, 0.04);
+  --lumos-surface-strong: rgba(255, 255, 255, 0.07);
+  --lumos-border: rgba(255, 255, 255, 0.1);
+  --lumos-border-soft: rgba(255, 255, 255, 0.06);
+  --lumos-muted: rgba(248, 250, 252, 0.58);
+  --lumos-gold: #f59e0b;
+  --lumos-radius-lg: 1.25rem;
+  --lumos-radius-xl: 1.5rem;
+  --lumos-page-inline: clamp(1rem, 2vw, 1.5rem);
 }
 
 /* FIX: RTL גלובלי
@@ -99,6 +108,19 @@ body {
 /* 🪄 Magic Hover Cursor */
 a, button, [role="button"], input[type="submit"], input[type="button"], label, select {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><text y='20' font-size='20'>🪄</text></svg>") 0 0, pointer !important;
+}
+
+@media (hover: none), (pointer: coarse) {
+  body,
+  a,
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  label,
+  select {
+    cursor: auto !important;
+  }
 }
 
 /* 👁️ Accessibility: Global Focus Ring */
@@ -152,8 +174,12 @@ main {
 img,
 video {
   max-width: 100%;
-  height: auto;
   display: block;
+}
+
+img:not([class*="h-"]),
+video:not([class*="h-"]) {
+  height: auto;
 }
 
 /* FIX: Flex children — מונע overflow מ-truncate וטקסט ארוך */
@@ -272,6 +298,42 @@ button,
   background: rgba(255, 255, 255, 0.03);
 }
 
+.lumos-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: var(--lumos-page-inline);
+}
+
+.lumos-surface {
+  border: 1px solid var(--lumos-border-soft);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.36);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.lumos-soft-panel {
+  border: 1px solid var(--lumos-border-soft);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.lumos-reading {
+  text-wrap: pretty;
+}
+
+.lumos-balanced,
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p,
+li {
+  overflow-wrap: anywhere;
+}
+
 /* ═══════════════════════════════════════════
    נוכחות מחוברת (MagicPresence dot)
 ═══════════════════════════════════════════ */
@@ -327,6 +389,20 @@ button,
   .ql-editor img {
     max-width: 100%;
     height: auto;
+  }
+
+  .glass-panel,
+  .lumos-surface,
+  .lumos-soft-panel {
+    border-radius: var(--lumos-radius-lg) !important;
+  }
+
+  .font-cinzel.tracking-widest {
+    letter-spacing: 0.12em !important;
+  }
+
+  h1 {
+    line-height: 1.12;
   }
 }
 
