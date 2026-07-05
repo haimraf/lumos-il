@@ -517,7 +517,7 @@ export default function ForumsPage() {
         const totalPosts = forums.reduce((a, f) => a + (f.post_count || 0), 0);
 
         return (
-            <main className="min-h-screen bg-[#060910] text-white font-assistant pt-24 pb-20" dir="rtl" aria-label="היכל הפורומים של Lumos IL">
+            <main className="min-h-screen bg-[#060910] text-white font-assistant pt-8 pb-20 md:pt-12" dir="rtl" aria-label="היכל הפורומים של Lumos IL">
                 <style>{`
                 .forums-grid-bg {
                     background-image: radial-gradient(rgba(245,158,11,0.025) 1px, transparent 1px);
@@ -525,7 +525,7 @@ export default function ForumsPage() {
                 }
                 .forum-block {
                     border: 1px solid rgba(255,255,255,0.05);
-                    border-radius: 16px;
+                    border-radius: 20px;
                     overflow: hidden;
                 }
                 .forum-block-header {
@@ -548,6 +548,21 @@ export default function ForumsPage() {
                     .forum-col-header { display: none; }
                     .forum-row-grid { grid-template-columns: 1fr !important; }
                     .forum-col-stats, .forum-col-lastpost { display: none; }
+                    .forum-col-main { padding: 16px; align-items: flex-start; }
+                    .forum-icon { width: 38px; height: 38px; border-radius: 12px; }
+                    .stats-bar {
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        gap: 8px;
+                    }
+                    .stats-bar .w-px { display: none; }
+                    .stats-bar-item {
+                        min-width: 0;
+                        border: 1px solid rgba(255,255,255,0.05);
+                        border-radius: 12px;
+                        padding: 10px;
+                        background: rgba(255,255,255,0.025);
+                    }
                 }
                 .forum-row-grid {
                     display: grid;

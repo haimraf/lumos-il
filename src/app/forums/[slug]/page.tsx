@@ -530,7 +530,7 @@ export default function ForumThreadsPage() {
     });
 
     return (
-        <div className="min-h-screen bg-[#060910] text-white font-assistant pt-24 pb-20" dir="rtl">
+        <div className="min-h-screen bg-[#060910] text-white font-assistant pt-8 pb-20 md:pt-12" dir="rtl">
             <style>{`
                 .tlist-bg { background-image: radial-gradient(rgba(245,158,11,0.02) 1px, transparent 1px); background-size: 36px 36px; }
 
@@ -542,7 +542,7 @@ export default function ForumThreadsPage() {
                 /* thread list table */
                 .thread-table {
                     border: 1px solid rgba(255,255,255,0.05);
-                    border-radius: 14px;
+                    border-radius: 20px;
                     overflow: hidden;
                     background: rgba(255,255,255,0.01);
                 }
@@ -557,6 +557,10 @@ export default function ForumThreadsPage() {
                     .thread-col-headers { display: none; }
                     .thread-row { grid-template-columns: 1fr !important; }
                     .thread-col-stat, .thread-col-views, .thread-col-lastpost { display: none !important; }
+                    .thread-col-main { padding: 16px; align-items: flex-start; }
+                    .thread-title-row { gap: 8px; }
+                    .sort-bar { align-items: stretch; flex-wrap: wrap; }
+                    .sort-btn { flex: 1 1 auto; min-width: 7rem; justify-content: center; }
                 }
                 .thread-col-header-label {
                     font-size: 9px; font-weight: 700;

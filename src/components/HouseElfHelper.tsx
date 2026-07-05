@@ -186,9 +186,9 @@ export default function HouseElfHelper() {
                 <Image
                     src="/images/house-elf-helper.png"
                     alt="דובי"
-                    width={112}
-                    height={112}
-                    className={`relative w-full h-full object-contain filter drop-shadow-2xl transition-all duration-500
+                    fill
+                    sizes="(min-width: 768px) 112px, 64px"
+                    className={`object-contain filter drop-shadow-2xl transition-all duration-500
                         ${isFree ? 'animate-bounce brightness-125 scale-125 rotate-12' : 'group-hover:scale-110 group-hover:-rotate-3'}`}
                 />
             </div>

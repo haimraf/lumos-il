@@ -308,7 +308,7 @@ export default function HomePage() {
     ];
 
     return (
-        <main className="min-h-screen bg-[#060403] pt-32 pb-24 px-6 relative overflow-hidden" dir="rtl">
+        <main className="relative min-h-screen overflow-hidden bg-[#060403] px-4 pb-20 pt-24 md:px-6 md:pb-24 md:pt-28" dir="rtl">
             {/* רקע התקרה המכושפת */}
             <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-60" aria-hidden="true">
                 {candles.map((candle) => (
@@ -325,8 +325,8 @@ export default function HomePage() {
                 ))}
             </div>
 
-            <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-amber-600/8 rounded-full blur-[180px] pointer-events-none z-0" />
-            <div className="absolute bottom-0 right-[-10%] w-[600px] h-[600px] bg-blue-900/8 rounded-full blur-[180px] pointer-events-none z-0" />
+            <div className="pointer-events-none absolute left-1/2 top-[-10%] z-0 hidden h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-amber-600/8 blur-[180px] sm:block" />
+            <div className="pointer-events-none absolute bottom-0 right-[-10%] z-0 hidden h-[600px] w-[600px] rounded-full bg-blue-900/8 blur-[180px] md:block" />
 
             <div className="relative z-10" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
 
@@ -365,26 +365,26 @@ export default function HomePage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7 }}
-                    className="text-center mb-16 relative"
+                    className="relative mb-10 text-center md:mb-16"
                 >
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-full border border-amber-500/20 bg-amber-500/5 mb-8">
                         <Map size={36} className="text-amber-500/60" />
                     </div>
-                    <h1 className="font-cinzel text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-400 to-amber-700 mb-5 tracking-widest uppercase drop-shadow-[0_5px_15px_rgba(245,158,11,0.2)]">
+                    <h1 className="mb-5 bg-gradient-to-b from-amber-100 via-amber-400 to-amber-700 bg-clip-text font-cinzel text-4xl font-black uppercase tracking-[0.12em] text-transparent drop-shadow-[0_5px_15px_rgba(245,158,11,0.2)] md:text-6xl md:tracking-widest">
                         רחבת הכניסה
                     </h1>
 
                     {/* באנר ה-SEO הקצר והקולע */}
                     <div className="max-w-3xl mx-auto bg-amber-950/20 border border-amber-500/10 rounded-2xl p-6 mb-8 backdrop-blur-sm">
                         <h2 className="font-cinzel text-2xl text-amber-300/90 mb-2">הבית של קהילת הארי פוטר בישראל</h2>
-                        <p className="font-crimson text-white/70 text-lg md:text-xl leading-relaxed">
+                        <p className="lumos-reading font-crimson text-base leading-relaxed text-white/70 md:text-xl">
                             הגעתם לפורטל המרכזי של קהילת הקוסמים של ישראל. מכאן תוכלו לנווט בין מסדרונות הטירה, לצלול אל ספריית הפאנפיקים העצומה שלנו, להתעדכן בנביא היומי או להיכנס אל חדר המועדון האישי שלכם.
                         </p>
                     </div>
 
                     <div className="w-40 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent mx-auto mb-6" />
 
-                    <p className="font-crimson text-xl md:text-2xl text-amber-100/50 italic tracking-wide min-h-[4rem] md:min-h-[3rem]">
+                    <p className="min-h-[4rem] font-crimson text-lg italic tracking-wide text-amber-100/50 md:min-h-[3rem] md:text-2xl">
                         {randomQuote}
                     </p>
                 </motion.header>
@@ -392,7 +392,7 @@ export default function HomePage() {
                 {/* תפריט ניווט תגיות סמנטי (Bento Grid) */}
                 {showLiveEventCard && <LiveEventTeaser eventConfig={eventConfig} />}
 
-                <nav aria-label="ניווט בטירה" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-[180px] md:auto-rows-[210px]">
+                <nav aria-label="ניווט בטירה" className="grid grid-cols-1 gap-4 md:auto-rows-[200px] md:grid-cols-2 lg:grid-cols-3">
                     {destinations.map((dest, idx) => {
                         const Icon = dest.icon;
                         return (
@@ -405,7 +405,7 @@ export default function HomePage() {
                             >
                                 <Link
                                     href={dest.href}
-                                    className={`group relative h-full p-8 rounded-[2rem] border border-white/6 transition-all duration-500 overflow-hidden flex flex-col justify-between bg-gradient-to-br ${dest.customGradient || ''} to-[#0a0a0c] backdrop-blur-sm
+                                    className={`group relative flex min-h-[160px] flex-col justify-between overflow-hidden rounded-[1.5rem] border border-white/6 bg-gradient-to-br p-5 transition-all duration-500 md:h-full md:p-7 ${dest.customGradient || ''} to-[#0a0a0c] backdrop-blur-sm
                                         ${dest.hoverBorder} ${dest.hoverShadow} hover:-translate-y-1.5 active:scale-[0.98]`}
                                     aria-label={`מעבר אל ${dest.title}`}
                                 >

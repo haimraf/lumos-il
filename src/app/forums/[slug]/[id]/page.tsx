@@ -795,7 +795,7 @@ export default function ThreadViewPage() {
                 }
             `}</style>
 
-            <div className="max-w-5xl mx-auto px-4 pt-24 pb-24">
+            <div className="mx-auto max-w-5xl px-4 pb-24 pt-8 md:pt-12">
 
                 {/* ── Breadcrumb ── */}
                 <nav className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/25 mb-8">
@@ -976,7 +976,7 @@ export default function ThreadViewPage() {
                         return (
                             <article
                                 key={post.id}
-                                className={`group rounded-2xl border border-white/[0.06] overflow-hidden flex flex-col md:flex-row transition-all duration-300 hover:border-white/10 ${isPensieveMode ? "opacity-75 grayscale-[25%] hover:opacity-100 hover:grayscale-0" : ""}`}
+                                className={`group overflow-hidden rounded-[1.25rem] border border-white/[0.06] transition-all duration-300 hover:border-white/10 md:flex md:flex-row ${isPensieveMode ? "opacity-75 grayscale-[25%] hover:opacity-100 hover:grayscale-0" : ""}`}
                                 style={{
                                     background: config
                                         ? `linear-gradient(135deg, ${config.accent}08 0%, rgba(6,9,16,0.8) 60%)`
@@ -984,7 +984,7 @@ export default function ThreadViewPage() {
                                 }}
                             >
                                 {/* Sidebar */}
-                                <aside className="w-full md:w-44 shrink-0 p-4 flex flex-row flex-wrap items-center gap-3 md:flex-col md:items-center md:gap-1.5 border-b md:border-b-0 md:border-l border-white/[0.04] bg-black/20">
+                                <aside className="flex w-full shrink-0 flex-row flex-wrap items-center gap-3 border-b border-white/[0.04] bg-black/20 p-4 md:w-44 md:flex-col md:items-center md:gap-1.5 md:border-b-0 md:border-l">
                                     <Avatar house={post.profiles?.house} avatarUrl={post.profiles?.avatar_url} isOnline={isOnline} className="w-14 h-14 text-2xl mb-1" />
 
                                     {/* name */}
@@ -1060,7 +1060,7 @@ export default function ThreadViewPage() {
                                 </aside>
 
                                 {/* Content */}
-                                <div className="flex-1 p-5 flex flex-col min-w-0">
+                                <div className="flex min-w-0 flex-1 flex-col p-4 md:p-5">
                                     {/* post header bar */}
                                     <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/[0.05]">
                                         <span className="flex items-center gap-1.5 text-[10px] text-white/25">

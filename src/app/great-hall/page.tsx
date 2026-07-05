@@ -466,9 +466,9 @@ export default function GreatHall() {
         <>
             {/* ── Ambient background glows ── */}
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-0 right-0 w-[700px] h-[600px] bg-amber-500/[0.035] rounded-full blur-[160px]" />
-                <div className="absolute bottom-0 left-0 w-[600px] h-[500px] bg-emerald-500/[0.025] rounded-full blur-[140px]" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] bg-indigo-500/[0.018] rounded-full blur-[120px]" />
+                <div className="absolute top-0 right-0 hidden h-[600px] w-[700px] rounded-full bg-amber-500/[0.035] blur-[160px] sm:block" />
+                <div className="absolute bottom-0 left-0 hidden h-[500px] w-[600px] rounded-full bg-emerald-500/[0.025] blur-[140px] sm:block" />
+                <div className="absolute left-1/2 top-1/2 hidden h-[400px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/[0.018] blur-[120px] md:block" />
             </div>
 
             <style>{`
@@ -485,6 +485,13 @@ export default function GreatHall() {
                     border-color: rgba(255,255,255,0.08) !important;
                     box-shadow: 0 20px 60px rgba(0,0,0,0.9) !important;
                     border-radius: 1.5rem !important;
+                }
+
+                @media (max-width: 640px) {
+                    .emoji-picker-react {
+                        width: min(92vw, 340px) !important;
+                        max-height: 48vh !important;
+                    }
                 }
 
                 /* ── Message bubble animation ── */
@@ -515,7 +522,7 @@ export default function GreatHall() {
             `}</style>
 
             <div
-                className="relative w-full max-w-full md:max-w-7xl mx-auto px-2 md:px-4 pt-3 pb-2 sm:pt-5 md:pt-10 md:pb-4 flex flex-col h-[calc(100dvh-210px)] md:h-[calc(100dvh-240px)] overflow-hidden"
+                className="relative mx-auto flex h-[calc(100dvh-148px)] w-full max-w-full flex-col overflow-hidden px-2 pb-2 pt-2 sm:h-[calc(100dvh-172px)] sm:pt-5 md:h-[calc(100dvh-188px)] md:max-w-7xl md:px-4 md:pb-4 md:pt-8"
                 dir="rtl"
                 role="main"
                 aria-label="האולם הגדול • צ'אט קהילתי"
@@ -779,7 +786,7 @@ export default function GreatHall() {
                         {/* Input */}
                         <form
                             onSubmit={sendMessage}
-                            className="p-3 md:p-4 border-t border-white/[0.06] flex gap-2 items-center z-10"
+                            className="z-10 flex items-center gap-2 border-t border-white/[0.06] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4"
                             style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(12px)" }}
                             aria-label="שגר לחש לאולם"
                         >

@@ -626,7 +626,7 @@ function DashboardContent() {
         </div>
       </div>
 
-      <div className="relative w-full max-w-7xl mx-auto px-4 md:px-6 py-8 lg:py-12 min-h-screen" dir="rtl">
+      <div className="relative mx-auto min-h-screen w-full max-w-7xl px-4 py-6 md:px-6 md:py-8 lg:py-12" dir="rtl">
 
         {activeRitual && (
           <SpellRitual
@@ -654,8 +654,8 @@ function DashboardContent() {
 
           {/* ── Sidebar ── */}
           <aside className="hidden lg:block w-full lg:w-80 shrink-0">
-            <div className={`glass-panel rounded-[2.5rem] border-t border-l ${theme.borderColor} p-6 md:p-8 sticky top-12 shadow-2xl overflow-hidden ${theme.glow}`}>
-              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none rounded-[2.5rem]" />
+            <div className={`glass-panel sticky top-8 overflow-hidden rounded-[1.75rem] border-l border-t ${theme.borderColor} p-6 shadow-2xl md:p-8 ${theme.glow}`}>
+              <div className="pointer-events-none absolute inset-0 rounded-[1.75rem] bg-gradient-to-br from-white/[0.03] to-transparent" />
 
                 <div className="relative z-10 flex flex-col items-center gap-4 border-b border-white/10 pb-6 text-center">
                   <input
@@ -760,22 +760,22 @@ function DashboardContent() {
               <div className="space-y-8 md:space-y-10 animate-in fade-in duration-1000">
 
                 {/* Hero */}
-                <section className={`relative overflow-hidden p-8 md:p-12 lg:p-16 rounded-[3rem] lg:rounded-[4rem] border-t border-r ${theme.borderColor} ${theme.heroGradient} ${theme.glow}`}>
+                <section className={`relative overflow-hidden rounded-[1.75rem] border-r border-t p-6 md:rounded-[2rem] md:p-10 lg:p-14 ${theme.borderColor} ${theme.heroGradient} ${theme.glow}`}>
                   <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/[0.02] rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2 pointer-events-none" />
                   <div className="relative z-10 flex flex-col gap-4 text-right">
                     <div className="flex items-center justify-end gap-3 opacity-40 mb-6">
-                      <span className="font-cinzel text-[10px] tracking-[0.4em] text-amber-500 uppercase">Room of Requirement</span>
+                      <span className="font-cinzel text-[10px] uppercase tracking-[0.18em] text-amber-500 md:tracking-[0.32em]">Room of Requirement</span>
                       <span className="h-[1px] w-10 bg-amber-500" />
                     </div>
                     <div className="space-y-8">
                       <h2 className="font-cinzel text-xl text-white/40 tracking-widest">חדר המועדון של הבית</h2>
-                      <h1 className={`font-cinzel text-4xl sm:text-5xl md:text-[7rem] font-black tracking-tighter leading-[1.1] ${theme.accentText} ${theme.glowColor}`}>
+                      <h1 className={`font-cinzel text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl md:text-6xl lg:text-[6.5rem] ${theme.accentText} ${theme.glowColor}`}>
                         {theme.nameHe}
                       </h1>
                     </div>
                     <div className={`mt-10 border-r-4 ${theme.borderColor} pr-6 max-w-xl mr-0 ml-auto`}>
-                      <p className="font-crimson text-xl md:text-2xl leading-relaxed text-white/70 italic text-right">"{theme.description}"</p>
+                      <p className="lumos-reading text-right font-crimson text-lg italic leading-relaxed text-white/70 md:text-2xl">"{theme.description}"</p>
                     </div>
 
                     {/* Progress — שנת לימודים */}
