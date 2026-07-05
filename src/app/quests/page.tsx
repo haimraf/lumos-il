@@ -12,8 +12,10 @@ import {
   Hourglass,
   Search,
   Sparkles,
+  ScrollText,
   Trophy,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
@@ -303,6 +305,68 @@ function getQuestVisualState(quest: ComputedQuest, justCompletedQuestIds: string
   };
 }
 
+function getQuestBoardMeta(quest: ComputedQuest): {
+  Icon: LucideIcon;
+  sigil: string;
+  realm: string;
+  frameClass: string;
+  iconClass: string;
+  glowClass: string;
+} {
+  if (quest.id.includes("duel") || quest.actionHref === "/arena") {
+    return {
+      Icon: Trophy,
+      sigil: "ARENA",
+      realm: "זירת הלחשים",
+      frameClass: "border-rose-400/20 bg-rose-500/[0.055]",
+      iconClass: "text-rose-200",
+      glowClass: "bg-rose-400/15",
+    };
+  }
+
+  if (quest.id.includes("notice") || quest.id.includes("quill") || quest.actionHref === "/forums") {
+    return {
+      Icon: ScrollText,
+      sigil: "BOARD",
+      realm: "מסדרונות הקהילה",
+      frameClass: "border-amber-400/20 bg-amber-500/[0.06]",
+      iconClass: "text-amber-200",
+      glowClass: "bg-amber-400/15",
+    };
+  }
+
+  if (quest.type === "weekly" || quest.type === "house") {
+    return {
+      Icon: Flame,
+      sigil: "HOUSE",
+      realm: "מומנטום ביתי",
+      frameClass: "border-emerald-400/20 bg-emerald-500/[0.055]",
+      iconClass: "text-emerald-200",
+      glowClass: "bg-emerald-400/15",
+    };
+  }
+
+  if (quest.type === "main") {
+    return {
+      Icon: Sparkles,
+      sigil: "MAIN",
+      realm: "מסע אישי",
+      frameClass: "border-fuchsia-400/20 bg-fuchsia-500/[0.055]",
+      iconClass: "text-fuchsia-200",
+      glowClass: "bg-fuchsia-400/15",
+    };
+  }
+
+  return {
+    Icon: BookOpen,
+    sigil: "QUEST",
+    realm: "משימת טירה",
+    frameClass: "border-cyan-400/20 bg-cyan-500/[0.055]",
+    iconClass: "text-cyan-200",
+    glowClass: "bg-cyan-400/15",
+  };
+}
+
 export default function QuestsPage() {
   const [supabase] = useState(() => createClient());
   const { sendOwl } = useOwlMail();
@@ -380,17 +444,12 @@ export default function QuestsPage() {
   }, [
     supabase,
     profile,
-    profile?.id,
-    profile?.last_reward_date,
-    profile?.last_trivia_date,
-    profile?.last_niffler_date,
-    profile?.last_snitch_date,
-    profile?.points_contributed,
-    profile?.daily_points_earned,
   ]);
 
   useEffect(() => {
-    void refreshComputedState();
+    queueMicrotask(() => {
+      void refreshComputedState();
+    });
   }, [refreshComputedState]);
 
   useEffect(() => {
@@ -978,6 +1037,7 @@ export default function QuestsPage() {
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute left-[-10%] top-[-10%] h-[70vw] w-[70vw] animate-pulse rounded-full bg-indigo-900/5 blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] h-[60vw] w-[60vw] rounded-full bg-amber-900/5 blur-[120px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
       </div>
 
       <div className="pointer-events-none fixed inset-x-0 top-20 z-20 px-4">
@@ -1045,9 +1105,34 @@ export default function QuestsPage() {
           </div>
         </div>
 
-        <div className="mb-16 text-center">
-          <h1 className="mb-4 font-cinzel text-4xl font-black text-white drop-shadow-2xl sm:text-6xl md:text-8xl">לוח <span className="text-amber-500 italic">המשימות</span></h1>
-          <p className="font-crimson text-2xl italic uppercase tracking-widest text-white/40">העבודה הקשה היא הדרך היחידה לתהילה.</p>
+        <div className="relative mb-12 overflow-hidden rounded-[2.75rem] border border-amber-400/20 bg-[linear-gradient(135deg,rgba(15,23,42,0.86),rgba(41,25,8,0.72),rgba(4,10,24,0.9))] p-5 shadow-[0_30px_100px_rgba(0,0,0,0.45)] md:p-8">
+          <div className="pointer-events-none absolute inset-x-6 top-36 h-px bg-gradient-to-r from-transparent via-amber-300/25 to-transparent" />
+          <div className="grid gap-7 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+            <div>
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1.5 font-cinzel text-[10px] font-black uppercase tracking-[0.24em] text-amber-100">
+                  <Sparkles size={12} className="text-amber-300" />
+                  Quest HUD
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 font-cinzel text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
+                  Browser RPG
+                </span>
+              </div>
+              <h1 className="font-cinzel text-4xl font-black leading-tight text-white drop-shadow-2xl sm:text-6xl md:text-7xl">
+                לוח <span className="text-amber-400 italic">המשימות</span>
+              </h1>
+              <p className="mt-4 max-w-3xl font-crimson text-xl leading-relaxed text-white/60 md:text-2xl">
+                מסך הקווסטים של הטירה: פעולות קהילתיות, דו-קרבות, קריאה ותגובות הופכות להתקדמות חיה לבית שלך.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <HeroChip label="מד יומי" value={dailyProgress} tone="blue" pulse={rewardPulse} />
+              <HeroChip label="משימות פעילות" value={`${activeQuestsCount}`} tone="rose" />
+              <HeroChip label="גליאונים" value={`${profile?.galleons || 0}`} tone="amber" pulse={rewardPulse} />
+              <HeroChip label="תרומת בית" value={`${profile?.points_contributed || 0}`} tone="emerald" />
+            </div>
+          </div>
         </div>
 
         {lastFeedback && (
@@ -1159,8 +1244,8 @@ export default function QuestsPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {activeLiveDailyQuests.slice(0, 3).map((quest) => {
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {activeLiveDailyQuests.slice(0, 4).map((quest) => {
                 const meta = getLiveDailyQuestMeta(quest);
                 const progressPercent = quest.target > 0 ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
 
@@ -1208,52 +1293,72 @@ export default function QuestsPage() {
         )}
 
         {computedQuests.length > 0 && (
-          <section className="mb-10 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 md:p-6">
+          <section className="mb-10 overflow-hidden rounded-[2.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.025))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.32)] md:p-6">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
-                <p className="font-cinzel text-[11px] uppercase tracking-[0.25em] text-white/35">סטטוס המשימות</p>
-                <h2 className="mt-1 font-cinzel text-2xl font-black text-white">לוח המשימות</h2>
+                <p className="font-cinzel text-[11px] uppercase tracking-[0.25em] text-amber-200/55">Campaign Board</p>
+                <h2 className="mt-1 font-cinzel text-2xl font-black text-white">מסעות פעילים בטירה</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/50">
+                  כל קלף הוא משימה חיה: פעולה אמיתית באתר מזיזה את המד, מדליקה תגמול, ומוסיפה נוכחות לבית שלך.
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-white/55">פעילים {activeQuestsCount}</span>
-                <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-emerald-100">הושלמו {completedQuestsCount}</span>
+                <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-white/60">Active {activeQuestsCount}</span>
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-cinzel uppercase tracking-[0.22em] text-emerald-100">Cleared {completedQuestsCount}</span>
               </div>
             </div>
 
             <div className="grid gap-4">
               {computedQuests.map((quest) => {
                 const visual = getQuestVisualState(quest, justCompletedQuestIds);
+                const boardMeta = getQuestBoardMeta(quest);
                 return (
-                  <div key={quest.id} className={`relative overflow-hidden rounded-[1.75rem] border p-5 transition-all duration-500 hover:-translate-y-0.5 ${visual.cardClass}`}>
-                    <div className="relative flex flex-col gap-4">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div className="max-w-3xl">
-                          <div className="mb-3 flex flex-wrap items-center gap-2">
-                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.2em] ${getQuestTypeClass(quest.type)}`}>{getQuestTypeLabel(quest.type)}</span>
-                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.2em] ${visual.statusClass}`}>{visual.statusLabel}</span>
+                  <div key={quest.id} className={`group relative overflow-hidden rounded-[2.1rem] border p-4 transition-all duration-500 hover:-translate-y-1 md:p-5 ${visual.cardClass}`}>
+                    <div className={`pointer-events-none absolute -left-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-100 ${boardMeta.glowClass} opacity-45`} />
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:36px_36px] opacity-15" />
+                    <div className="relative grid gap-4 lg:grid-cols-[92px_1fr_170px] lg:items-center">
+                      <div className={`flex h-20 w-20 items-center justify-center rounded-[1.6rem] border shadow-[0_16px_42px_rgba(0,0,0,0.28)] ${boardMeta.frameClass}`}>
+                        <boardMeta.Icon size={30} className={boardMeta.iconClass} />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.2em] ${getQuestTypeClass(quest.type)}`}>{getQuestTypeLabel(quest.type)}</span>
+                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black font-cinzel uppercase tracking-[0.2em] ${visual.statusClass}`}>{visual.statusLabel}</span>
+                          <span className="rounded-full border border-white/10 bg-black/25 px-2.5 py-1 font-cinzel text-[10px] font-black uppercase tracking-[0.2em] text-white/35">{boardMeta.sigil}</span>
+                        </div>
+                        <h3 className="font-cinzel text-xl font-black text-white md:text-2xl">{quest.title}</h3>
+                        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/60">{quest.description}</p>
+
+                        <div className="mt-4 rounded-[1.4rem] border border-white/10 bg-black/25 p-3">
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm font-bold text-white/80">{quest.objectiveLabel}</p>
+                            <span className={`text-[11px] font-bold ${visual.almostDone ? "text-amber-200" : visual.justCompleted ? "text-emerald-200" : "text-white/45"}`}>{visual.progressCopy}</span>
                           </div>
-                          <h3 className="font-cinzel text-xl font-black text-white">{quest.title}</h3>
-                          <p className="mt-2 text-sm leading-relaxed text-white/60">{quest.description}</p>
+                          <div className="h-3 overflow-hidden rounded-full bg-white/10 shadow-inner">
+                            <div className={`h-full rounded-full transition-all duration-700 ${visual.barClass}`} style={{ width: `${visual.percent}%` }} />
+                          </div>
                         </div>
-                        <div className={`shrink-0 rounded-2xl border px-4 py-3 text-center ${visual.meterClass}`}>
-                          <p className="font-cinzel text-2xl font-black text-white">{visual.percent}%</p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-white/45">{quest.progress}/{quest.target}</p>
-                        </div>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-sm font-bold text-white/75">{quest.objectiveLabel}</p>
-                          <span className={`text-[11px] font-bold ${visual.almostDone ? "text-amber-200" : visual.justCompleted ? "text-emerald-200" : "text-white/45"}`}>{visual.progressCopy}</span>
-                        </div>
-                        <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                          <div className={`h-full rounded-full transition-all duration-700 ${visual.barClass}`} style={{ width: `${visual.percent}%` }} />
+
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
+                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/70">{quest.progress}/{quest.target}</span>
+                          <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-amber-100">+{quest.reward.galleons} גליאונים</span>
+                          <span className="rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-blue-100">+{quest.reward.points} נקודות</span>
+                          <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-100">{quest.houseImpactLabel}</span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-[11px] font-bold">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-white/70">{quest.progress}/{quest.target}</span>
-                        <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-amber-100">+{quest.reward.galleons} גליאונים</span>
-                        <span className="rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-blue-100">+{quest.reward.points} נקודות</span>
-                        <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-100">{quest.houseImpactLabel}</span>
+
+                      <div className={`rounded-[1.7rem] border px-4 py-4 text-center ${visual.meterClass}`}>
+                        <p className="font-cinzel text-[10px] font-black uppercase tracking-[0.24em] text-white/35">{boardMeta.realm}</p>
+                        <p className="mt-2 font-cinzel text-4xl font-black text-white">{visual.percent}%</p>
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-white/45">{quest.progress}/{quest.target}</p>
+                        <Link
+                          href={quest.actionHref || "/quests"}
+                          className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black font-cinzel uppercase tracking-[0.16em] text-white/80 transition-all hover:border-amber-300/35 hover:bg-amber-500/10 hover:text-amber-100"
+                        >
+                          {quest.actionLabel || "לצאת למשימה"}
+                          <ChevronRight size={13} className="transition-transform group-hover:-translate-x-1" />
+                        </Link>
                       </div>
                     </div>
                   </div>
