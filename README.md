@@ -89,3 +89,19 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## Scheduled Forum Activity
+
+The site can publish one daily discussion starter into an existing forum through
+`/api/cron/forum-seeds`.
+
+Required production environment variables:
+
+- `CRON_SECRET`: shared bearer token used by Vercel Cron.
+- `FORUM_SEED_USER_ID`: profile id that owns the seeded thread and opening post.
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase key for cron writes.
+- `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL.
+
+Optional:
+
+- `FORUM_SEED_MIN_HOURS`: minimum hours between seeded posts. Defaults to `20`.

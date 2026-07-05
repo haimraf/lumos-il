@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
     })),
   },
   turbopack: {
-    root: "C:/projects/lumos-il.co.il",
+    root: process.cwd(),
   },
   async headers() {
     return [
