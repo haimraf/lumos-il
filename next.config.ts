@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
       pathname: storagePathname,
     })),
   },
+  turbopack: {
+    root: process.cwd(),
+  },
   async headers() {
     return [
       {
