@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -1040,7 +1040,7 @@ export default function QuestsPage() {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
       </div>
 
-      <div className="pointer-events-none fixed inset-x-0 top-20 z-20 px-4">
+      <div className="pointer-events-none fixed inset-x-0 top-20 z-20 hidden px-4 lg:block">
         <div className="mx-auto max-w-6xl">
           <div className={`pointer-events-auto rounded-[1.75rem] border px-4 py-3 shadow-2xl backdrop-blur-xl transition-all duration-500 ${rewardPulse ? "border-amber-400/35 bg-black/70 shadow-[0_0_40px_rgba(251,191,36,0.16)]" : "border-white/10 bg-black/45"}`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1346,9 +1346,17 @@ export default function QuestsPage() {
                           <span className="rounded-full border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-blue-100">+{quest.reward.points} נקודות</span>
                           <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-emerald-100">{quest.houseImpactLabel}</span>
                         </div>
+
+                        <Link
+                          href={quest.actionHref || "/quests"}
+                          className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-amber-300/25 bg-gradient-to-r from-amber-500/20 via-amber-400/15 to-cyan-400/15 px-4 py-3 text-center text-[11px] font-black font-cinzel uppercase tracking-[0.16em] text-amber-100 shadow-[0_14px_34px_rgba(0,0,0,0.18)] transition-all active:scale-[0.98] lg:hidden"
+                        >
+                          {quest.actionLabel || "לצאת למשימה"}
+                          <ChevronRight size={14} />
+                        </Link>
                       </div>
 
-                      <div className={`rounded-[1.7rem] border px-4 py-4 text-center ${visual.meterClass}`}>
+                      <div className={`hidden rounded-[1.7rem] border px-4 py-4 text-center lg:block ${visual.meterClass}`}>
                         <p className="font-cinzel text-[10px] font-black uppercase tracking-[0.24em] text-white/35">{boardMeta.realm}</p>
                         <p className="mt-2 font-cinzel text-4xl font-black text-white">{visual.percent}%</p>
                         <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-white/45">{quest.progress}/{quest.target}</p>
@@ -1558,4 +1566,3 @@ function QuestCard({ title, desc, reward, icon, completed, justCompleted = false
     </div>
   );
 }
-

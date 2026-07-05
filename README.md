@@ -97,10 +97,14 @@ The site can publish one daily discussion starter into an existing forum through
 
 Required production environment variables:
 
-- `CRON_SECRET`: shared bearer token used by Vercel Cron.
+- `CRON_SECRET`: shared bearer token used by Vercel Cron and the protected Supabase RPC.
 - `FORUM_SEED_USER_ID`: profile id that owns the seeded thread and opening post.
-- `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase key for cron writes.
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon key used by the protected RPC.
+
+Required database setting:
+
+- `private_app_settings.key = 'forum_seed_cron'` with `value.cron_secret_sha256` set to the SHA-256 hash of `CRON_SECRET`.
 
 Optional:
 

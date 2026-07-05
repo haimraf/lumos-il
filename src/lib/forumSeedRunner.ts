@@ -1,4 +1,4 @@
-import { createClient as createSupabaseAdminClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseServerClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildForumSeedTopic } from "@/lib/forumSeedTopics";
 import type { SeedForum, SeedProfile, SeedTopic } from "@/lib/forumSeedTopics";
@@ -34,6 +34,13 @@ type ThreadSummary = {
   created_at: string | null;
 };
 
+type SeedThreadRpcResult = {
+  ok?: boolean;
+  reason?: string;
+  thread_id?: string;
+  post_id?: string;
+};
+
 function requireEnv(name: string) {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -43,11 +50,11 @@ function requireEnv(name: string) {
   return value;
 }
 
-function createAdminClient() {
+function createServerClient() {
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-  return createSupabaseAdminClient(supabaseUrl, serviceRoleKey, {
+  return createSupabaseServerClient(supabaseUrl, anonKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -127,22 +134,6 @@ async function fetchProfile(supabase: SupabaseClient, userId: string) {
   return data;
 }
 
-async function hasRecentSeedRun(supabase: SupabaseClient, now: Date) {
-  const minHours = Number(process.env.FORUM_SEED_MIN_HOURS || DEFAULT_MIN_HOURS_BETWEEN_RUNS);
-  const cutoff = new Date(now.getTime() - Math.max(1, minHours) * 60 * 60 * 1000).toISOString();
-
-  const { data, error } = await supabase
-    .from("admin_audit_logs")
-    .select("id, created_at")
-    .eq("action", "forum_seed_thread_publish")
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (error) throw error;
-  return Boolean(data?.length);
-}
-
 async function fetchEligibleForums(supabase: SupabaseClient, profile: SeedProfile) {
   const { data, error } = await supabase
     .from("forums")
@@ -183,76 +174,47 @@ async function insertThreadAndPost(
   forum: SeedForum,
   profile: SeedProfile,
   topic: SeedTopic,
+  cronSecret: string,
 ) {
-  const { data: thread, error: threadError } = await supabase
-    .from("threads")
-    .insert({
-      forum_id: forum.id,
-      author_id: profile.id,
-      title: topic.title,
-      prefix: topic.prefix,
-      is_pinned: false,
-      is_locked: false,
-    })
-    .select("id")
-    .single<{ id: string }>();
+  const minHours = Math.max(1, Number(process.env.FORUM_SEED_MIN_HOURS || DEFAULT_MIN_HOURS_BETWEEN_RUNS));
+  const { data, error } = await supabase.rpc("create_forum_seed_thread_secure", {
+    p_cron_secret: cronSecret,
+    p_author_id: profile.id,
+    p_forum_id: forum.id,
+    p_title: topic.title,
+    p_content: topic.content,
+    p_prefix: topic.prefix,
+    p_min_hours: minHours,
+  });
 
-  if (threadError) throw threadError;
+  if (error) throw error;
 
-  const { data: post, error: postError } = await supabase
-    .from("forum_posts")
-    .insert({
-      thread_id: thread.id,
-      user_id: profile.id,
-      content: topic.content,
-    })
-    .select("id")
-    .single<{ id: string }>();
-
-  if (postError) {
-    await supabase.from("threads").delete().eq("id", thread.id);
-    throw postError;
+  const result = data as SeedThreadRpcResult | null;
+  if (!result?.ok) {
+    return {
+      skippedReason: result?.reason || "Forum seed RPC skipped without a reason.",
+    };
   }
 
-  return { threadId: thread.id, postId: post.id };
-}
+  if (!result.thread_id || !result.post_id) {
+    throw new Error("Forum seed RPC did not return created ids.");
+  }
 
-async function logSeedRun(
-  supabase: SupabaseClient,
-  forum: SeedForum,
-  profile: SeedProfile,
-  topic: SeedTopic,
-  threadId: string,
-  postId: string,
-) {
-  await supabase.from("admin_audit_logs").insert({
-    actor_id: profile.id,
-    actor_name: profile.full_name || "Lumos IL",
-    actor_role: profile.role || null,
-    action: "forum_seed_thread_publish",
-    target_type: "thread",
-    target_id: threadId,
-    target_label: topic.title,
-    details: {
-      forum_id: forum.id,
-      forum_slug: forum.slug,
-      forum_name: forum.name,
-      post_id: postId,
-      seed_version: "forum-seed-v1",
-    },
-  });
+  return { threadId: result.thread_id, postId: result.post_id };
 }
 
 export async function runForumSeed({
   dryRun = false,
   now = new Date(),
+  cronSecret,
 }: {
   dryRun?: boolean;
   now?: Date;
-} = {}): Promise<ForumSeedResult> {
+  cronSecret: string;
+}): Promise<ForumSeedResult> {
   try {
     const seedUserId = requireEnv("FORUM_SEED_USER_ID");
-    const supabase = createAdminClient();
+    const supabase = createServerClient();
     const profile = await fetchProfile(supabase, seedUserId);
 
     if (!profile) {
@@ -261,10 +223,6 @@ export async function runForumSeed({
 
     if (profile.status && BLOCKED_PROFILE_STATUSES.has(profile.status)) {
       return { ok: true, status: "skipped", reason: `Seed user status does not allow posting: ${profile.status}.` };
-    }
-
-    if (!dryRun && (await hasRecentSeedRun(supabase, now))) {
-      return { ok: true, status: "skipped", reason: "A forum seed thread was already published recently." };
     }
 
     const forums = await fetchEligibleForums(supabase, profile);
@@ -284,16 +242,22 @@ export async function runForumSeed({
       return { ok: true, status: "dry_run", forum: forumSummary, topic };
     }
 
-    const { threadId, postId } = await insertThreadAndPost(supabase, forum, profile, topic);
-    await logSeedRun(supabase, forum, profile, topic, threadId, postId);
+    const publishResult = await insertThreadAndPost(supabase, forum, profile, topic, cronSecret);
+    if ("skippedReason" in publishResult) {
+      return {
+        ok: true,
+        status: "skipped",
+        reason: publishResult.skippedReason || "Forum seed RPC skipped without a reason.",
+      };
+    }
 
     return {
       ok: true,
       status: "published",
       forum: forumSummary,
       topic,
-      threadId,
-      postId,
+      threadId: publishResult.threadId,
+      postId: publishResult.postId,
     };
   } catch (error) {
     return {
@@ -303,4 +267,3 @@ export async function runForumSeed({
     };
   }
 }
-

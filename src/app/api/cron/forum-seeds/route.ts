@@ -18,7 +18,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized cron request." }, { status: 401 });
   }
 
-  const result = await runForumSeed({ dryRun: isDryRun(request) });
+  const result = await runForumSeed({
+    dryRun: isDryRun(request),
+    cronSecret,
+  });
+
   return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }
-
