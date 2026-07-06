@@ -12,6 +12,7 @@ import dynamic from "next/dynamic";
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false, loading: () => <div className="h-40 bg-white/[0.02] border border-white/[0.05] rounded-xl animate-pulse" /> });
 import 'react-quill-new/dist/quill.snow.css';
 import { useOwlMail } from "@/components/OwlMail";
+import CommunityRecognition from "@/components/CommunityRecognition";
 import { getRoleColor, getRoleColorFromDB } from "@/lib/roleColor";
 import { logActivityEvent } from "@/lib/activityEvents";
 import { formatHebrewRelativeTime } from "@/lib/dateTime";
@@ -680,6 +681,8 @@ export default function ForumsPage() {
                         </div>
 
                         {/* ── Main layout: forums + sidebar ── */}
+                        <CommunityRecognition placement="forums" />
+
                         <div className="flex gap-6 items-start">
 
                             {/* Main column — dynamic categories */}

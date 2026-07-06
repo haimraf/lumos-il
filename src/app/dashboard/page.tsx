@@ -11,6 +11,7 @@ import {
   Trash2, CheckCircle2, Briefcase, Star, BookOpen, ShieldAlert, X, ExternalLink, Clock, Swords, Camera, Loader2, type LucideIcon
 } from "lucide-react";
 import { useOwlMail } from "@/components/OwlMail";
+import CommunityRecognition from "@/components/CommunityRecognition";
 import MaraudersMap from "@/components/MaraudersMap";
 import HouseCupLeaderboard from "@/components/HouseCupLeaderboard";
 import { useAuth } from "@/context/AuthContext";
@@ -919,6 +920,8 @@ function DashboardContent() {
                   dailyPointsPercent={dailyPointsPercent}
                   unreadNotifications={unreadNotificationsCount}
                 />
+
+                <CommunityRecognition placement="dashboard" />
 
                 <OverviewSectionLead
                   eyebrow="מירוץ חי"

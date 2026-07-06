@@ -13,6 +13,7 @@ import {
 import { useUIState } from "@/context/UIContext";
 import { useAuth } from "@/context/AuthContext";
 import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
+import CommunityRecognition from "@/components/CommunityRecognition";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
 import { getRoleColor, getRoleDisplay, getRoleColorFromDB } from "@/lib/roleColor";
 import { getHouseIcon, getHouseLabel, getHousePalette, withAlpha } from "@/lib/houses";
@@ -530,11 +531,17 @@ export default function GreatHall() {
 
                 <div className="flex flex-col lg:flex-row gap-4 flex-1 overflow-hidden min-h-0">
 
+                    <div className="lg:hidden">
+                        <CommunityRecognition placement="great-hall" compact />
+                    </div>
+
                     {/* Sidebar */}
                     <aside
                         className="hidden lg:flex flex-col gap-4 w-72 shrink-0 overflow-y-auto chat-scroll"
                         aria-label="פאנל צדדי • נוכחים ודרגות"
                     >
+                        <CommunityRecognition placement="great-hall" compact />
+
                         {/* Online users */}
                         <section className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
                             <h2 className="font-cinzel text-[10px] tracking-[0.35em] text-white/50 uppercase mb-5 border-b border-white/[0.06] pb-3 flex items-center gap-2 font-bold">
