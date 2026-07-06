@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -37,35 +37,35 @@ type CommunityRecognitionProps = {
 const PLACEMENT_COPY: Record<RecognitionPlacement, { eyebrow: string; title: string; description: string }> = {
   dashboard: {
     eyebrow: "Weekly Hall of Honor",
-    title: "׳”׳™׳›׳ ׳”׳›׳‘׳•׳“ ׳”׳©׳‘׳•׳¢׳™",
-    description: "׳׳§׳•׳ ׳§׳˜׳ ׳׳”׳׳™׳¨ ׳×׳׳׳™׳“׳™׳ ׳©׳”׳©׳׳™׳¨׳• ׳”׳©׳‘׳•׳¢ ׳¡׳™׳׳ ׳˜׳•׳‘ ׳‘׳˜׳™׳¨׳”. ׳׳ ׳׳•׳— ׳×׳—׳¨׳•׳×, ׳׳׳ ׳×׳•׳“׳” ׳’׳׳•׳™׳” ׳¢׳ ׳₪׳¢׳™׳׳•׳× ׳©׳׳—׳–׳§׳× ׳׳× ׳”׳§׳”׳™׳׳”.",
+    title: "היכל הכבוד השבועי",
+    description: "מקום קטן להאיר תלמידים שהשאירו השבוע סימן טוב בטירה. לא לוח תחרות, אלא תודה גלויה על פעילות שמחזקת את הקהילה.",
   },
   "great-hall": {
     eyebrow: "Great Hall Honor",
-    title: "׳§׳•׳׳•׳× ׳©׳”׳׳™׳¨׳• ׳”׳©׳‘׳•׳¢",
-    description: "׳”׳׳•׳׳ ׳”׳’׳“׳•׳ ׳–׳•׳›׳¨ ׳׳™ ׳”׳“׳׳™׳§ ׳©׳™׳—׳”, ׳¢׳ ׳”, ׳¢׳•׳“׳“ ׳•׳”׳—׳–׳™׳§ ׳׳× ׳”׳׳”׳‘׳” ׳”׳§׳”׳™׳׳×׳™׳× ׳‘׳—׳™׳™׳.",
+    title: "קולות שהאירו השבוע",
+    description: "האולם הגדול זוכר מי הדליק שיחה, ענה, עודד והחזיק את הלהבה הקהילתית בחיים.",
   },
   forums: {
     eyebrow: "Forum Recognition",
-    title: "׳”׳₪׳•׳¨׳•׳׳™׳ ׳׳¦׳“׳™׳¢׳™׳ ׳׳₪׳¢׳™׳׳•׳× ׳˜׳•׳‘׳”",
-    description: "׳×׳’׳•׳‘׳•׳×, ׳׳©׳›׳•׳׳•׳× ׳•׳§׳¨׳™׳׳” ׳׳©׳•׳×׳₪׳× ׳׳§׳‘׳׳™׳ ׳›׳׳ ׳¨׳’׳¢ ׳©׳ ׳׳•׳¨ ׳‘׳׳™ ׳׳”׳₪׳•׳ ׳׳× ׳”׳©׳™׳— ׳׳׳¨׳“׳£ ׳׳—׳¨׳™ ׳׳§׳•׳ ׳¨׳׳©׳•׳.",
+    title: "הפורומים מצדיעים לפעילות טובה",
+    description: "תגובות, אשכולות וקריאה משותפת מקבלים כאן רגע של אור בלי להפוך את השיח למרדף אחרי מקום ראשון.",
   },
   quests: {
     eyebrow: "Quest Companions",
-    title: "׳×׳׳¨׳™׳ ׳•׳׳©׳™׳׳•׳× ׳§׳”׳™׳׳”",
-    description: "׳”׳׳©׳™׳׳•׳× ׳”׳©׳‘׳•׳¢׳™׳•׳× ׳׳§׳‘׳׳•׳× ׳©׳›׳‘׳× ׳”׳•׳§׳¨׳” ׳§׳׳”: ׳¨׳¦׳£, ׳×׳¨׳•׳׳” ׳׳׳•׳׳, ׳”׳©׳׳׳× ׳™׳¢׳“׳™׳ ׳•׳₪׳¢׳™׳׳•׳× ׳™׳“׳¢ ׳‘׳˜׳™׳¨׳”.",
+    title: "תארים ומשימות קהילה",
+    description: "המשימות השבועיות מקבלות שכבת הוקרה קלה: רצף, תרומה לאולם, השלמת יעדים ופעילות ידע בטירה.",
   },
 };
 
 function topHouseLabel(snapshot: CommunityRecognitionSnapshot | null) {
-  if (!snapshot) return "׳”׳‘׳×׳™׳ ׳¢׳“׳™׳™׳ ׳׳×׳¢׳•׳¨׳¨׳™׳";
+  if (!snapshot) return "הבתים עדיין מתעוררים";
   const top = HOUSE_IDS
     .map((houseId) => ({ houseId, value: snapshot.pulse.housePoints[houseId] || 0 }))
     .sort((left, right) => right.value - left.value)[0];
 
-  if (!top || top.value <= 0) return "׳”׳‘׳×׳™׳ ׳¢׳“׳™׳™׳ ׳׳×׳¢׳•׳¨׳¨׳™׳";
+  if (!top || top.value <= 0) return "הבתים עדיין מתעוררים";
   const theme = getHouseVisualTheme(top.houseId);
-  return `${theme?.palette.label || top.houseId} ׳¢׳ ${top.value} ׳ ׳§׳•׳“׳•׳× ׳₪׳¢׳™׳׳•׳×`;
+  return `${theme?.palette.label || top.houseId} עם ${top.value} נקודות פעילות`;
 }
 
 function toneClasses(tone: WeeklyMapTrail["tone"]) {
@@ -115,7 +115,7 @@ function HonorRow({
               background: theme?.surface || "rgba(255,255,255,0.04)",
             }}
           >
-            {getHouseDisplayIcon(honoree.house, "ג¨")}
+            {getHouseDisplayIcon(honoree.house, "✨")}
           </div>
           <div className="min-w-0">
             <div className="truncate font-cinzel text-sm font-black text-white">{honoree.username}</div>
@@ -124,7 +124,7 @@ function HonorRow({
                 {honoree.houseLabel}
               </span>
               <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-white/45">
-                {honoree.streakDays} ׳™׳׳™ ׳¨׳¦׳£
+                {honoree.streakDays} ימי רצף
               </span>
             </div>
           </div>
@@ -134,8 +134,8 @@ function HonorRow({
           type="button"
           onClick={() => onCopy(honoree)}
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/25 text-white/55 transition-all hover:border-amber-300/35 hover:bg-amber-500/10 hover:text-amber-100"
-          aria-label={`׳”׳¢׳×׳§׳× ׳˜׳§׳¡׳˜ ׳©׳™׳×׳•׳£ ׳¢׳‘׳•׳¨ ${honoree.earnedTitle}`}
-          title="׳”׳¢׳×׳§׳× ׳˜׳§׳¡׳˜ ׳©׳™׳×׳•׳£"
+          aria-label={`העתקת טקסט שיתוף עבור ${honoree.earnedTitle}`}
+          title="העתקת טקסט שיתוף"
         >
           {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
         </button>
@@ -182,7 +182,7 @@ function WeeklyMaraudersMap({
     >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <div className="font-['UnifrakturMaguntia'] text-2xl leading-none">׳׳₪׳× ׳”׳§׳•׳ ׳“׳¡׳׳™׳ ׳”׳©׳‘׳•׳¢׳™׳×</div>
+          <div className="font-['UnifrakturMaguntia'] text-2xl leading-none">מפת הקונדסאים השבועית</div>
           <div className="mt-1 text-xs italic text-amber-950/65">I solemnly swear the castle stayed active</div>
         </div>
         <MapIcon size={22} className="shrink-0 text-amber-950/70" />
@@ -197,7 +197,7 @@ function WeeklyMaraudersMap({
             className="relative flex items-center justify-between rounded-2xl border border-amber-950/10 bg-white/25 px-3 py-2 transition-all hover:bg-white/40"
           >
             <span className="flex items-center gap-2">
-              <span className="text-amber-950/55">{index % 2 === 0 ? "ג‹¯" : "ֲ· ֲ·"}</span>
+              <span className="text-amber-950/55">{index % 2 === 0 ? "⋯" : "· ·"}</span>
               <span className="text-sm font-black">{trail.label}</span>
             </span>
             <span className="rounded-full bg-amber-950 px-2 py-0.5 font-cinzel text-[10px] font-black text-amber-100">
@@ -209,8 +209,8 @@ function WeeklyMaraudersMap({
 
       <p className="mt-4 text-xs leading-relaxed text-amber-950/70">
         {activeTrails.length > 0
-          ? "׳¦׳¢׳“׳™׳ ׳¢׳“׳™׳ ׳™׳ ׳ ׳¨׳׳• ׳”׳©׳‘׳•׳¢ ׳‘׳™׳ ׳”׳׳•׳׳, ׳”׳¡׳₪׳¨׳™׳™׳” ׳•׳”׳₪׳•׳¨׳•׳׳™׳. ׳”׳׳₪׳” ׳׳¦׳™׳’׳” ׳×׳ ׳•׳¢׳” ׳§׳”׳™׳׳×׳™׳×, ׳׳ ׳׳¢׳§׳‘ ׳׳™׳©׳™."
-          : "׳”׳©׳‘׳•׳¢ ׳¢׳•׳“ ׳©׳§׳˜ ׳¢׳ ׳”׳§׳׳£. ׳”׳₪׳¢׳™׳׳•׳× ׳”׳¦׳™׳‘׳•׳¨׳™׳× ׳”׳‘׳׳” ׳×׳•׳¡׳™׳£ ׳¢׳§׳‘׳•׳× ׳׳׳₪׳”."}
+          ? "צעדים עדינים נראו השבוע בין האולם, הספרייה והפורומים. המפה מציגה תנועה קהילתית, לא מעקב אישי."
+          : "השבוע עוד שקט על הקלף. הפעילות הציבורית הבאה תוסיף עקבות למפה."}
       </p>
     </div>
   );
@@ -227,15 +227,15 @@ function InviteQuestCard({ compact }: { compact: boolean }) {
           Placeholder
         </span>
       </div>
-      <h3 className="font-cinzel text-lg font-black text-white">׳”׳‘׳™׳׳• ׳×׳׳׳™׳“ ׳—׳“׳© ׳׳˜׳™׳¨׳”</h3>
+      <h3 className="font-cinzel text-lg font-black text-white">הביאו תלמיד חדש לטירה</h3>
       <p className="mt-2 text-sm leading-relaxed text-white/58">
         {compact
-          ? "׳׳©׳™׳׳× ׳”׳–׳׳ ׳” ׳׳•׳›׳ ׳” ׳׳×׳¦׳•׳’׳”. tracking ׳׳׳ ׳™׳×׳—׳‘׳¨ ׳‘׳”׳׳©׳ ׳‘׳׳™ ׳׳©׳ ׳•׳× ׳׳× ׳”-UI."
-          : "׳”׳׳©׳™׳׳” ׳׳•׳¦׳’׳× ׳›׳‘׳¨ ׳¢׳›׳©׳™׳• ׳‘׳¦׳•׳¨׳” ׳ ׳§׳™׳™׳”: ׳§׳™׳©׳•׳¨ ׳”׳–׳׳ ׳” ׳•׳©׳¢׳¨ ׳”׳×׳§׳“׳׳•׳× ׳¢׳“׳™׳. ׳›׳©׳”׳׳¢׳§׳‘ ׳”׳׳׳ ׳™׳•׳₪׳¢׳, ׳׳•׳×׳• ׳›׳¨׳˜׳™׳¡ ׳™׳•׳›׳ ׳׳§׳‘׳ ׳¡׳˜׳˜׳•׳¡ ׳׳׳™׳×׳™ ׳‘׳׳™ ׳׳‘׳ ׳•׳× ׳׳—׳“׳© ׳׳× ׳”׳—׳•׳•׳™׳”."}
+          ? "משימת הזמנה מוכנה לתצוגה. tracking מלא יתחבר בהמשך בלי לשנות את ה-UI."
+          : "המשימה מוצגת כבר עכשיו בצורה נקייה: קישור הזמנה ושער התקדמות עדין. כשהמעקב המלא יופעל, אותו כרטיס יוכל לקבל סטטוס אמיתי בלי לבנות מחדש את החוויה."}
       </p>
       <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
         <div className="mb-2 flex items-center justify-between text-xs font-bold text-white/55">
-          <span>׳×׳׳׳™׳“׳™׳ ׳©׳”׳¦׳˜׳¨׳₪׳• ׳“׳¨׳ ׳”׳”׳–׳׳ ׳”</span>
+          <span>תלמידים שהצטרפו דרך ההזמנה</span>
           <span>0/1</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -333,7 +333,7 @@ export default function CommunityRecognition({
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-[10px] font-cinzel font-black uppercase tracking-[0.2em] text-white/50">
             <Users size={12} />
-            {totalHousePoints} ׳ ׳§׳•׳“׳•׳× ׳₪׳¢׳™׳׳•׳×
+            {totalHousePoints} נקודות פעילות
           </span>
         </div>
       </div>
@@ -360,7 +360,7 @@ export default function CommunityRecognition({
                 <div className="md:col-span-2 rounded-[1.35rem] border border-dashed border-white/10 bg-white/[0.02] p-6 text-center">
                   <Sparkles className="mx-auto mb-3 text-amber-200/55" size={22} />
                   <p className="text-sm leading-relaxed text-white/55">
-                    ׳¢׳“׳™׳™׳ ׳׳™׳ ׳׳¡׳₪׳™׳§ ׳₪׳¢׳™׳׳•׳× ׳¦׳™׳‘׳•׳¨׳™׳× ׳”׳©׳‘׳•׳¢. ׳×׳’׳•׳‘׳” ׳׳—׳×, ׳׳©׳™׳׳” ׳׳—׳× ׳׳• ׳‘׳™׳§׳•׳¨ ׳‘׳׳•׳׳ ׳™׳›׳•׳׳™׳ ׳׳₪׳×׳•׳— ׳׳× ׳”׳™׳›׳ ׳”׳›׳‘׳•׳“.
+                    עדיין אין מספיק פעילות ציבורית השבוע. תגובה אחת, משימה אחת או ביקור באולם יכולים לפתוח את היכל הכבוד.
                   </p>
                 </div>
               )}
@@ -370,16 +370,16 @@ export default function CommunityRecognition({
               <div className="rounded-[1.6rem] border border-white/10 bg-black/20 p-4">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div className="text-right">
-                    <p className="font-cinzel text-[10px] uppercase tracking-[0.24em] text-white/35">׳׳” ׳§׳¨׳” ׳‘׳˜׳™׳¨׳” ׳”׳©׳‘׳•׳¢</p>
+                    <p className="font-cinzel text-[10px] uppercase tracking-[0.24em] text-white/35">מה קרה בטירה השבוע</p>
                     <h3 className="mt-1 font-cinzel text-lg font-black text-white">Castle pulse</h3>
                   </div>
                   <Activity size={18} className="text-cyan-200" />
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <PulseMetric icon={ScrollText} label="׳׳©׳™׳׳•׳× ׳©׳”׳•׳©׳׳׳•" value={snapshot?.pulse.completedQuests || 0} />
-                  <PulseMetric icon={Flame} label="׳ ׳§׳•׳“׳•׳× ׳₪׳¢׳™׳׳•׳× ׳׳‘׳™׳×" value={totalHousePoints} />
-                  <PulseMetric icon={WandSparkles} label="׳”׳׳•׳׳ ׳”׳’׳“׳•׳" value={snapshot?.pulse.greatHallMessages || 0} />
-                  <PulseMetric icon={Sparkles} label="׳₪׳•׳¨׳•׳׳™׳ / ׳—׳“׳©׳•׳× / ׳¡׳₪׳¨׳™׳™׳”" value={(snapshot?.pulse.forumActivity || 0) + (snapshot?.pulse.newsActivity || 0) + (snapshot?.pulse.libraryActivity || 0)} />
+                  <PulseMetric icon={ScrollText} label="משימות שהושלמו" value={snapshot?.pulse.completedQuests || 0} />
+                  <PulseMetric icon={Flame} label="נקודות פעילות לבית" value={totalHousePoints} />
+                  <PulseMetric icon={WandSparkles} label="האולם הגדול" value={snapshot?.pulse.greatHallMessages || 0} />
+                  <PulseMetric icon={Sparkles} label="פורומים / חדשות / ספרייה" value={(snapshot?.pulse.forumActivity || 0) + (snapshot?.pulse.newsActivity || 0) + (snapshot?.pulse.libraryActivity || 0)} />
                 </div>
               </div>
             )}

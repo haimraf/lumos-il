@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { useOwlMail } from "@/components/OwlMail";
@@ -7,31 +7,35 @@ import { useAuth } from "@/context/AuthContext";
 
 /**
  * LUMOS IL - GLOBAL MAGIC ENGINE V3.1
- * ג… Hebrew + English keyboard support
- * ג… Fallback by spell name when terminal_command empty in DB
- * ג… Full effects: lumos, nox, alohomora, accio, expelliarmus, protego, wingardium, expecto
+ * ✅ Hebrew + English keyboard support
+ * ✅ Fallback by spell name when terminal_command empty in DB
+ * ✅ Full effects: lumos, nox, alohomora, accio, expelliarmus, protego, wingardium, expecto
  */
 
-// Fallback: ׳׳ terminal_command ׳¨׳™׳§ ׳‘-DB ג€” ׳ ׳–׳”׳” ׳׳₪׳™ ׳©׳ ׳”׳׳—׳©
+// Fallback: אם terminal_command ריק ב-DB — נזהה לפי שם הלחש
 const SPELL_NAME_FALLBACK: Record<string, string> = {
-    "alohomora":   "׳׳׳•׳”׳•׳׳•׳¨׳”",
-    "lumos":       "׳׳•׳׳•׳¡",
-    "nox":         "׳ ׳•׳§׳¡",
-    "wingardium":  "׳•׳™׳ ׳’׳׳¨׳“׳™׳•׳",
-    "expelliarmus":"׳׳§׳¡׳₪׳׳™׳׳¨׳׳•׳¡",
-    "protego":     "׳₪׳¨׳•׳˜׳’׳•",
-    "expecto":     "׳׳§׳¡׳₪׳§׳˜׳•",
+    "alohomora":   "אלוהומורה",
+    "lumos":       "לומוס",
+    "nox":         "נוקס",
+    "wingardium":  "וינגארדיום",
+    "expelliarmus":"אקספליארמוס",
+    "protego":     "פרוטגו",
+    "expecto":     "אקספקטו",
 };
 
+type SpellRecord = { id: string; name: string | null; terminal_command: string | null };
+
+type MagicProfile = { role?: string | null; learned_spells?: string[] | null };
+
 const CASTLE_LINKS = [
-    { label: "׳”׳׳•׳׳ ׳”׳’׳“׳•׳",  href: "/great-hall", emoji: "נ°" },
-    { label: "׳₪׳•׳¨׳•׳׳™׳",      href: "/forums",      emoji: "נ“¬" },
-    { label: "׳”׳¡׳₪׳¨׳™׳™׳”",      href: "/library",     emoji: "נ“" },
-    { label: "׳”׳ ׳‘׳™׳ ׳”׳™׳•׳׳™",  href: "/news",        emoji: "נ“°" },
-    { label: "׳’׳‘׳™׳¢ ׳”׳‘׳×׳™׳",   href: "/house-cup",   emoji: "נ†" },
-    { label: "׳—׳™׳₪׳•׳© ׳‘׳˜׳™׳¨׳”",  href: "/search",      emoji: "נ”" },
-    { label: "׳“׳©׳‘׳•׳¨׳“",       href: "/dashboard",   emoji: "ג¨" },
-    { label: "׳׳₪׳× ׳”׳׳¨׳•׳“׳™׳",  href: "/map",         emoji: "נ—÷ן¸" },
+    { label: "האולם הגדול",  href: "/great-hall", emoji: "🏰" },
+    { label: "פורומים",      href: "/forums",      emoji: "📬" },
+    { label: "הספרייה",      href: "/library",     emoji: "📚" },
+    { label: "הנביא היומי",  href: "/news",        emoji: "📰" },
+    { label: "גביע הבתים",   href: "/house-cup",   emoji: "🏆" },
+    { label: "חיפוש בטירה",  href: "/search",      emoji: "🔍" },
+    { label: "דשבורד",       href: "/dashboard",   emoji: "✨" },
+    { label: "מפת המרודים",  href: "/map",         emoji: "🗺️" },
 ];
 
 export default function MagicSpells() {
@@ -49,8 +53,8 @@ export default function MagicSpells() {
     const [wingardiumActive, setWingardiumActive]  = useState(false);
 
     const inputBuffer  = useRef("");
-    const allSpellsRef = useRef<any[]>([]);
-    const profileRef   = useRef<any>(null);
+    const allSpellsRef = useRef<SpellRecord[]>([]);
+    const profileRef   = useRef<MagicProfile | null>(null);
     const sendOwlRef   = useRef(sendOwl);
 
     useEffect(() => {
@@ -60,7 +64,7 @@ export default function MagicSpells() {
 
     useEffect(() => { sendOwlRef.current = sendOwl; }, [sendOwl]);
 
-    // ׳˜׳¢׳™׳ ׳× ׳׳—׳©׳™׳ ׳-DB
+    // טעינת לחשים מ-DB
     useEffect(() => {
         if (!session) {
             allSpellsRef.current = [];
@@ -76,13 +80,13 @@ export default function MagicSpells() {
                     });
                     allSpellsRef.current = [];
                 } else {
-                    allSpellsRef.current = data || [];
+                    allSpellsRef.current = (data || []) as SpellRecord[];
                     console.log("[MagicSpells] spells loaded:", data?.length, "spells found");
                 }
             });
     }, [session, supabase]);
 
-    // ׳¢׳›׳‘׳¨ ׳¢׳ ׳׳•׳׳•׳¡
+    // עכבר עם לומוס
     useEffect(() => {
         if (!isLumosOn) return;
         const onMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
@@ -90,19 +94,19 @@ export default function MagicSpells() {
         return () => window.removeEventListener("mousemove", onMove);
     }, [isLumosOn]);
 
-    // ׳׳ ׳•׳¢ ׳׳§׳׳“׳×
+    // מנוע מקלדת
     useEffect(() => {
         const hasLearned = (command: string): boolean => {
             const p = profileRef.current;
             const spells = allSpellsRef.current;
             const cmd = command.toLowerCase();
 
-            // ׳׳—׳©׳™ ׳‘׳¡׳™׳¡ ג€” ׳—׳™׳ ׳ ׳׳›׳•׳׳
+            // לחשי בסיס — חינם לכולם
             if (cmd === 'lumos' || cmd === 'nox' || cmd === 'accio') return true;
             if (!p) return false;
-            if (p.role === '׳׳ ׳”׳' || p.role?.toLowerCase() === 'admin') return true;
+            if (p.role === 'מנהל' || p.role?.toLowerCase() === 'admin') return true;
 
-            // ג… ׳—׳™׳₪׳•׳© ׳׳₪׳™ terminal_command (case-insensitive) ׳׳• fallback ׳׳₪׳™ ׳©׳
+            // ✅ חיפוש לפי terminal_command (case-insensitive) או fallback לפי שם
             const fallbackName = SPELL_NAME_FALLBACK[cmd];
             const spell = spells.find(s =>
                 s.terminal_command?.toLowerCase() === cmd ||
@@ -110,12 +114,12 @@ export default function MagicSpells() {
             );
 
             if (!spell) {
-                console.log(`[MagicSpells] spell "${cmd}" not found. DB spells:`, spells.map(s => `${s.name}ג†’"${s.terminal_command}"`));
+                console.log(`[MagicSpells] spell "${cmd}" not found. DB spells:`, spells.map(s => `${s.name}→"${s.terminal_command}"`));
                 return false;
             }
 
             const hasIt = p.learned_spells?.includes(spell.id) || false;
-            console.log(`[MagicSpells] "${cmd}" (id=${spell.id}) ג€” learned: ${hasIt}`);
+            console.log(`[MagicSpells] "${cmd}" (id=${spell.id}) — learned: ${hasIt}`);
             return hasIt;
         };
 
@@ -133,89 +137,89 @@ export default function MagicSpells() {
             const buf = inputBuffer.current;
             console.log("[MagicSpells] buf:", buf);
 
-            /* ג”€ג”€ LUMOS ג”€ג”€ EN: lumos | HE: ׳׳•׳¦׳׳“ (l=׳ u=׳• m=׳¦ o=׳ s=׳“) */
-            if (buf.endsWith("lumos") || buf.endsWith("׳׳•׳¦׳׳“")) {
+            /* ── LUMOS ── EN: lumos | HE: ךוצםד (l=ך u=ו m=צ o=ם s=ד) */
+            if (buf.endsWith("lumos") || buf.endsWith("ךוצםד")) {
                 if (hasLearned("lumos")) {
                     setIsLumosOn(true);
-                    sendOwlRef.current("׳׳•׳׳•׳¡ ׳׳§׳¡׳™׳׳”! ג¨", "׳”׳׳•׳¨ ׳ ׳“׳׳§. ׳”׳ ׳™׳¢ ׳׳× ׳”׳¢׳›׳‘׳¨.", "magic");
+                    sendOwlRef.current("לומוס מקסימה! ✨", "האור נדלק. הניע את העכבר.", "magic");
                 } else {
-                    sendOwlRef.current("׳ ׳™׳¡׳™׳•׳ ׳›׳•׳©׳", "׳׳™׳ ׳ ׳׳›׳™׳¨ ׳׳× ׳”׳׳—׳© ׳”׳–׳”.", "error");
+                    sendOwlRef.current("ניסיון כושל", "אינך מכיר את הלחש הזה.", "error");
                 }
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ NOX ג”€ג”€ EN: nox | HE: ׳׳׳¡ */
-            } else if (buf.endsWith("nox") || buf.endsWith("׳׳׳¡")) {
+            /* ── NOX ── EN: nox | HE: מםס */
+            } else if (buf.endsWith("nox") || buf.endsWith("מםס")) {
                 if (hasLearned("nox")) {
                     setIsLumosOn(false);
-                    sendOwlRef.current("׳ ׳•׳§׳¡.", "׳”׳׳•׳¨ ׳›׳‘׳”.", "info");
+                    sendOwlRef.current("נוקס.", "האור כבה.", "info");
                 } else {
-                    sendOwlRef.current("׳ ׳™׳¡׳™׳•׳ ׳›׳•׳©׳", "׳׳™׳ ׳ ׳׳›׳™׳¨ ׳׳× ׳׳—׳© ׳”׳›׳™׳‘׳•׳™.", "error");
+                    sendOwlRef.current("ניסיון כושל", "אינך מכיר את לחש הכיבוי.", "error");
                 }
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ ALOHOMORA ג”€ג”€ EN: alohomora | HE: ׳©׳׳׳™׳׳¦׳׳¨׳© */
-            } else if (buf.endsWith("alohomora") || buf.endsWith("׳©׳׳׳™׳׳¦׳׳¨׳©")) {
+            /* ── ALOHOMORA ── EN: alohomora | HE: שךםיםצםרש */
+            } else if (buf.endsWith("alohomora") || buf.endsWith("שךםיםצםרש")) {
                 if (hasLearned("alohomora")) {
                     setFlash("white");
                     setTimeout(() => { setFlash(null); setAlohomoraOpen(true); }, 350);
-sendOwlRef.current("׳׳׳•׳”׳•׳׳•׳¨׳”! נ”“", "׳©׳¢׳¨׳™ ׳”׳˜׳™׳¨׳” ׳ ׳₪׳×׳—׳•.", "magic");
+sendOwlRef.current("אלוהומורה! 🔓", "שערי הטירה נפתחו.", "magic");
                 } else {
-                    sendOwlRef.current("׳”׳׳ ׳¢׳•׳ ׳—׳¡׳•׳ נ”’", "׳¢׳׳™׳ ׳׳׳׳•׳“ ׳׳× ׳׳—׳© ׳”׳₪׳×׳™׳—׳” ׳§׳•׳“׳.", "error");
+                    sendOwlRef.current("המנעול חסום 🔒", "עליך ללמוד את לחש הפתיחה קודם.", "error");
                 }
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ ACCIO ג”€ג”€ EN: accio | HE: ׳©׳‘׳‘׳ ׳ ג€” ׳׳—׳© ׳‘׳¡׳™׳¡ */
-            } else if (buf.endsWith("accio") || buf.endsWith("׳©׳‘׳‘׳ ׳")) {
-                sendOwlRef.current("׳׳§׳™׳•! נ”", "׳׳–׳׳™׳ ׳׳× ׳”׳¨׳©׳•׳׳•׳×...", "magic");
+            /* ── ACCIO ── EN: accio | HE: שבבנם — לחש בסיס */
+            } else if (buf.endsWith("accio") || buf.endsWith("שבבנם")) {
+                sendOwlRef.current("אקיו! 🔍", "מזמין את הרשומות...", "magic");
                 setTimeout(() => { window.location.href = "/search"; }, 600);
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ EXPELLIARMUS ג”€ג”€ EN: expelliarmus | HE: ׳§׳¡׳§׳׳׳™׳©׳¨׳¦׳•׳“ */
-            } else if (buf.endsWith("expelliarmus") || buf.endsWith("׳§׳¡׳§׳׳׳™׳©׳¨׳¦׳•׳“")) {
+            /* ── EXPELLIARMUS ── EN: expelliarmus | HE: קסקךךישרצוד */
+            } else if (buf.endsWith("expelliarmus") || buf.endsWith("קסקךךישרצוד")) {
                 if (hasLearned("expelliarmus")) {
                     setFlash("red");
                     setTimeout(() => setFlash(null), 600);
-                    sendOwlRef.current("׳׳§׳¡׳₪׳׳™׳׳¨׳׳•׳¡! ג¡", "׳”׳ ׳©׳§ ׳”׳•׳©׳‘׳×!", "magic");
+                    sendOwlRef.current("אקספליארמוס! ⚡", "הנשק הושבת!", "magic");
                 } else {
-                    sendOwlRef.current("׳ ׳™׳¡׳™׳•׳ ׳›׳•׳©׳", "׳¢׳׳™׳ ׳׳׳׳•׳“ ׳׳—׳© ׳–׳” ׳§׳•׳“׳.", "error");
+                    sendOwlRef.current("ניסיון כושל", "עליך ללמוד לחש זה קודם.", "error");
                 }
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ PROTEGO ג”€ג”€ EN: protego | HE: ׳¡׳¨׳—׳׳§׳¢׳— */
-            } else if (buf.endsWith("protego") || buf.endsWith("׳¡׳¨׳—׳׳§׳¢׳—")) {
+            /* ── PROTEGO ── EN: protego | HE: סרחאקעח */
+            } else if (buf.endsWith("protego") || buf.endsWith("סרחאקעח")) {
                 if (hasLearned("protego")) {
                     setProtegoActive(true);
                     setTimeout(() => setProtegoActive(false), 3000);
-                    sendOwlRef.current("׳₪׳¨׳•׳˜׳’׳•! נ›¡ן¸", "׳”׳׳’׳ ׳”׳•׳˜׳ ׳¢׳׳™׳.", "magic");
+                    sendOwlRef.current("פרוטגו! 🛡️", "המגן הוטל עליך.", "magic");
                 } else {
-                    sendOwlRef.current("׳ ׳™׳¡׳™׳•׳ ׳›׳•׳©׳", "׳¢׳׳™׳ ׳׳׳׳•׳“ ׳׳—׳© ׳–׳” ׳§׳•׳“׳.", "error");
+                    sendOwlRef.current("ניסיון כושל", "עליך ללמוד לחש זה קודם.", "error");
                 }
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ WINGARDIUM LEVIOSA ג”€ג”€ EN: wingardium | HE: '׳׳׳¢׳©׳¨׳’׳׳•׳¦ */
-            } else if (buf.endsWith("wingardium") || buf.endsWith("'׳׳׳¢׳©׳¨׳’׳׳•׳¦")) {
+            /* ── WINGARDIUM LEVIOSA ── EN: wingardium | HE: 'ןמעשרגןוצ */
+            } else if (buf.endsWith("wingardium") || buf.endsWith("'ןמעשרגןוצ")) {
                 if (hasLearned("wingardium")) {
                     setWingardiumActive(true);
                     setTimeout(() => setWingardiumActive(false), 3500);
-                    sendOwlRef.current("׳•׳™׳ ׳’׳׳¨׳“׳™׳•׳ ׳׳‘׳™׳•׳¡׳”! נ×„", "׳”׳׳•׳‘׳™׳™׳§׳˜ ׳׳¨׳—׳£!", "magic");
+                    sendOwlRef.current("וינגארדיום לביוסה! 🪄", "האובייקט מרחף!", "magic");
                 } else {
-                    sendOwlRef.current("׳ ׳™׳¡׳™׳•׳ ׳›׳•׳©׳", "׳¢׳׳™׳ ׳׳׳׳•׳“ ׳׳—׳© ׳–׳” ׳§׳•׳“׳.", "error");
+                    sendOwlRef.current("ניסיון כושל", "עליך ללמוד לחש זה קודם.", "error");
                 }
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ EXPECTO PATRONUM ג”€ג”€ EN: expecto | HE: ׳§׳¡׳§׳§׳‘׳׳— */
-            } else if (buf.endsWith("expecto") || buf.endsWith("׳§׳¡׳§׳§׳‘׳׳—")) {
+            /* ── EXPECTO PATRONUM ── EN: expecto | HE: קסקקבאח */
+            } else if (buf.endsWith("expecto") || buf.endsWith("קסקקבאח")) {
                 if (hasLearned("expecto")) {
                     setExpectoActive(true);
                     setTimeout(() => setExpectoActive(false), 4000);
-                    sendOwlRef.current("׳׳§׳¡׳₪׳§׳˜׳• ׳₪׳˜׳¨׳•׳ ׳•׳! נ¦", "׳”׳₪׳˜׳¨׳•׳ ׳•׳¡ ׳©׳׳ ׳׳•׳₪׳™׳¢!", "magic");
+                    sendOwlRef.current("אקספקטו פטרונום! 🦌", "הפטרונוס שלך מופיע!", "magic");
                 } else {
-                    sendOwlRef.current("׳ ׳™׳¡׳™׳•׳ ׳›׳•׳©׳", "׳¢׳׳™׳ ׳׳׳׳•׳“ ׳׳—׳© ׳–׳” ׳§׳•׳“׳.", "error");
+                    sendOwlRef.current("ניסיון כושל", "עליך ללמוד לחש זה קודם.", "error");
                 }
                 inputBuffer.current = "";
 
-            /* ג”€ג”€ ׳×׳ ׳•׳ ׳©׳׳ ׳”׳§׳•׳ ׳“׳¡ ג”€ג”€ */
-            } else if (buf.endsWith("׳×׳ ׳•׳ ׳©׳׳ ׳”׳§׳•׳ ׳“׳¡")) {
+            /* ── תם ונשלם הקונדס ── */
+            } else if (buf.endsWith("תם ונשלם הקונדס")) {
                 setIsMischiefManaged(true);
                 setTimeout(async () => {
                     const sb = createClient();
@@ -232,19 +236,19 @@ sendOwlRef.current("׳׳׳•׳”׳•׳׳•׳¨׳”! נ”“", "׳�
 
     return (
         <>
-            {/* ג”€ג”€ ׳×׳ ׳•׳ ׳©׳׳ ׳”׳§׳•׳ ׳“׳¡ ג”€ג”€ */}
+            {/* ── תם ונשלם הקונדס ── */}
             {isMischiefManaged && (
                 <div className="fixed inset-0 z-[30000] pointer-events-auto flex flex-col items-center justify-center">
                     <div className="absolute top-0 left-0 w-full h-1/2 bg-[#1a1a1a] border-b-4 border-amber-900/50 animate-parchment-top flex items-end justify-center pb-10 shadow-2xl">
-                        <div className="text-amber-500 font-cinzel text-2xl md:text-4xl animate-pulse tracking-[0.5em]">׳×׳ ׳•׳ ׳©׳׳ ׳”׳§׳•׳ ׳“׳¡...</div>
+                        <div className="text-amber-500 font-cinzel text-2xl md:text-4xl animate-pulse tracking-[0.5em]">תם ונשלם הקונדס...</div>
                     </div>
                     <div className="absolute bottom-0 left-0 w-full h-1/2 bg-[#1a1a1a] border-t-4 border-amber-900/50 animate-parchment-bottom flex items-start justify-center pt-10 shadow-2xl">
-                        <div className="text-amber-500/50 text-sm font-crimson italic">׳”׳˜׳™׳¨׳” ׳ ׳ ׳¢׳׳×. ׳ ׳×׳¨׳׳” ׳‘׳§׳¨׳•׳‘.</div>
+                        <div className="text-amber-500/50 text-sm font-crimson italic">הטירה ננעלת. נתראה בקרוב.</div>
                     </div>
                 </div>
             )}
 
-            {/* ג”€ג”€ Flash (white = alohomora, red = expelliarmus) ג”€ג”€ */}
+            {/* ── Flash (white = alohomora, red = expelliarmus) ── */}
             {flash === "white" && (
                 <div className="fixed inset-0 z-[10001] bg-white/90 pointer-events-none"
                     style={{ animation: "spellFlash 0.5s ease-out forwards" }} />
@@ -254,13 +258,13 @@ sendOwlRef.current("׳׳׳•׳”׳•׳׳•׳¨׳”! נ”“", "׳�
                     style={{ background: "radial-gradient(ellipse at center, rgba(220,38,38,0.5) 0%, rgba(220,38,38,0.15) 60%, transparent 100%)", animation: "spellFlash 0.6s ease-out forwards" }} />
             )}
 
-            {/* ג”€ג”€ LUMOS darkness ג”€ג”€ */}
+            {/* ── LUMOS darkness ── */}
             {isLumosOn && (
                 <div className="fixed inset-0 z-[9998] pointer-events-none"
                     style={{ background: `radial-gradient(circle 320px at ${mousePos.x}px ${mousePos.y}px, transparent 0%, rgba(0,0,0,0.2) 55%, rgba(0,0,0,0.97) 100%)` }} />
             )}
 
-            {/* ג”€ג”€ PROTEGO shield ג”€ג”€ */}
+            {/* ── PROTEGO shield ── */}
             {protegoActive && (
                 <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
                     <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(99,179,237,0.08) 0%, transparent 70%)" }} />
@@ -269,7 +273,7 @@ sendOwlRef.current("׳׳׳•׳”׳•׳׳•׳¨׳”! נ”“", "׳�
                 </div>
             )}
 
-            {/* ג”€ג”€ WINGARDIUM LEVIOSA ג”€ג”€ */}
+            {/* ── WINGARDIUM LEVIOSA ── */}
             {wingardiumActive && (
                 <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
                     {[...Array(12)].map((_, i) => (
@@ -280,26 +284,26 @@ sendOwlRef.current("׳׳׳•׳”׳•׳׳•׳¨׳”! נ”“", "׳�
                                 animation: `wingardiumFloat 3.5s cubic-bezier(0.2,0.8,0.4,1) ${i * 0.12}s forwards`,
                                 opacity: 0,
                             }}>
-                            {["ג¨","ג­","נ’«","נ","ג¦","ג€¢"][i % 6]}
+                            {["✨","⭐","💫","🌟","✦","•"][i % 6]}
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* ג”€ג”€ EXPECTO PATRONUM ג”€ג”€ */}
+            {/* ── EXPECTO PATRONUM ── */}
             {expectoActive && (
                 <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center"
                     style={{ animation: "fadeInOut 4s ease forwards" }}>
                     <div className="text-center" style={{ animation: "patronusArise 4s cubic-bezier(0.22,1,0.36,1) forwards" }}>
                         <div className="text-[12rem] leading-none" style={{ filter: "drop-shadow(0 0 40px rgba(186,230,253,0.9)) drop-shadow(0 0 80px rgba(186,230,253,0.6))", animation: "patronusGlow 4s ease forwards" }}>
-                            נ¦
+                            🦌
                         </div>
-                        <p className="font-cinzel text-blue-200/80 text-sm uppercase tracking-[0.5em] mt-4">׳׳§׳¡׳₪׳§׳˜׳• ׳₪׳˜׳¨׳•׳ ׳•׳</p>
+                        <p className="font-cinzel text-blue-200/80 text-sm uppercase tracking-[0.5em] mt-4">אקספקטו פטרונום</p>
                     </div>
                 </div>
             )}
 
-            {/* ג”€ג”€ ALOHOMORA portal ג”€ג”€ */}
+            {/* ── ALOHOMORA portal ── */}
             {alohomoraOpen && (
                 <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4"
                     style={{ animation: "fadeIn 0.3s ease forwards" }}
@@ -314,11 +318,11 @@ sendOwlRef.current("׳׳׳•׳”׳•׳׳•׳¨׳”! נ”“", "׳�
                         <div className="bg-[#07090f] p-7">
                             <div className="text-center mb-6 pb-5 border-b border-white/[0.06]">
                                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 mb-3">
-                                    <span className="text-amber-500 text-lg">נ”“</span>
-                                    <span className="font-cinzel text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/70">׳׳׳•׳”׳•׳׳•׳¨׳”</span>
+                                    <span className="text-amber-500 text-lg">🔓</span>
+                                    <span className="font-cinzel text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/70">אלוהומורה</span>
                                 </div>
-                                <h2 className="font-cinzel text-2xl font-black text-white">׳©׳¢׳¨׳™ ׳”׳˜׳™׳¨׳” ׳₪׳×׳•׳—׳™׳</h2>
-                                <p className="font-crimson text-white/30 text-base italic mt-1">׳׳׳ ׳×׳¨׳¦׳” ׳׳ ׳¡׳•׳¢?</p>
+                                <h2 className="font-cinzel text-2xl font-black text-white">שערי הטירה פתוחים</h2>
+                                <p className="font-crimson text-white/30 text-base italic mt-1">לאן תרצה לנסוע?</p>
                             </div>
                             <div className="grid grid-cols-2 gap-2.5">
                                 {CASTLE_LINKS.map(link => (
@@ -330,7 +334,7 @@ sendOwlRef.current("׳׳׳•׳”׳•׳׳•׳¨׳”! נ”“", "׳�
                                     </a>
                                 ))}
                             </div>
-                            <p className="text-center text-white/15 text-[10px] font-cinzel mt-5 uppercase tracking-widest">׳׳—׳¥ ׳‘׳›׳ ׳׳§׳•׳ ׳׳¡׳’׳™׳¨׳”</p>
+                            <p className="text-center text-white/15 text-[10px] font-cinzel mt-5 uppercase tracking-widest">לחץ בכל מקום לסגירה</p>
                         </div>
                     </div>
                 </div>

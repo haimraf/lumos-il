@@ -729,7 +729,7 @@ export default function QuestsPage() {
         eventType: "quest_reward_claimed",
         title: "קצבה ממשרד הקסמים",
         subtitle: "קיבלת 5 גליאונים מהקצבה היומית",
-        icon: "נ’°",
+        icon: "💰",
       });
 
       await refreshProfile();
@@ -805,7 +805,7 @@ export default function QuestsPage() {
           eventType: "quest_trivia_completed",
           title: "מבחן הלחשים היומי",
           subtitle: "ענית נכון על מבחן הלחשים היומי",
-          icon: "נ“˜",
+          icon: "📘",
         });
       }
 
@@ -861,7 +861,7 @@ export default function QuestsPage() {
         eventType: "quest_niffler_found",
         title: "מרדף הניפלר",
         subtitle: `תפסת את הניפלר וקיבלת ${data.amount} ${rewardTypeLabel}`,
-        icon: "נ¦¦",
+        icon: "🦦",
       });
 
       await refreshProfile();
