@@ -21,6 +21,7 @@ import { createClient } from "@/utils/supabase/client";
 import MemberOnlyNotice from "@/components/auth/MemberOnlyNotice";
 import { useOwlMail } from "@/components/OwlMail";
 import QuestCommunityPulse from "@/components/QuestCommunityPulse";
+import CommunityRecognition from "@/components/CommunityRecognition";
 import QuickDailyQuestModal, { type QuickDailyQuestMode } from "@/components/QuickDailyQuestModal";
 import { useAuth } from "@/context/AuthContext";
 import { logActivityEvent } from "@/lib/activityEvents";
@@ -1228,6 +1229,8 @@ export default function QuestsPage() {
         </section>
 
         <QuestCommunityPulse currentHouse={profile?.house} />
+
+        <CommunityRecognition placement="quests" />
 
         {activeLiveDailyQuests.length > 0 && (
           <section className="mb-6">
