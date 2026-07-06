@@ -708,7 +708,6 @@ function CommentsSection({
                         {"\u05d1\u05ea\u05d2\u05d5\u05d1\u05d4 \u05dc"}
                         {parentComment.profiles?.full_name || "\u05ea\u05d2\u05d5\u05d1\u05d4 \u05e7\u05d5\u05d3\u05de\u05ea"}
                       </span>
-                      ׳‘׳×׳’׳•׳‘׳” ׳{parentComment.profiles?.full_name || "׳×׳’׳•׳‘׳” ׳§׳•׳“׳׳×"}
                     </p>
                     <p className="mt-2 whitespace-pre-wrap font-assistant text-sm leading-relaxed text-sky-950/65">
                       {renderLinkedText(stripNewsCommentQuote(parentComment.content || "").trim().slice(0, 140))}
