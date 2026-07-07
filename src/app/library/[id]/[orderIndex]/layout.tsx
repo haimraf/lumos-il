@@ -1,63 +1,68 @@
 import type { Metadata } from "next";
 import { createClient } from "@/utils/supabase/server";
-
-const BASE = "https://lumos-il.co.il";
+import { getCanonicalUrl } from "@/lib/seo";
 
 type Props = {
   params: Promise<{ id: string; orderIndex: string }>;
   children: React.ReactNode;
 };
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string; orderIndex: string }> }): Promise<Metadata> {
-  const { id, orderIndex } = await params;
-  const supabase = await createClient();
+type ChapterStoryRow = {
+  title?: string | null;
+  cover_url?: string | null;
+};
+type ChapterStory = ChapterStoryRow | ChapterStoryRow[] | null;
 
-  const { data: chapter } = await supabase
+type ChapterRow = {
+  title?: string | null;
+  content?: string | null;
+  updated_at?: string | null;
+  stories?: ChapterStory;
+};
+
+function normalizeStory(story: ChapterStory): ChapterStoryRow | null {
+  return Array.isArray(story) ? story[0] ?? null : story;
+}
+
+function stripHtml(value: string | null | undefined) {
+  return String(value || "").replace(/<[^>]*>?/gm, " ").replace(/\s+/g, " ").trim();
+}
+
+async function getChapter(id: string, orderIndex: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
     .from("chapters")
-    .select("title, content, stories(title, cover_url)")
+    .select("title, content, updated_at, stories(title, cover_url)")
     .eq("story_id", id)
     .eq("order_index", Number(orderIndex))
     .maybeSingle();
 
-  if (!chapter) return {};
+  return (data as ChapterRow | null) || null;
+}
 
-  const storyData = Array.isArray(chapter.stories) ? chapter.stories[0] : (chapter.stories as any);
-  const storyTitle = storyData?.title || "סיפור";
+export async function generateMetadata({ params }: { params: Promise<{ id: string; orderIndex: string }> }): Promise<Metadata> {
+  const { id, orderIndex } = await params;
+  const chapter = await getChapter(id, orderIndex);
+
+  if (!chapter) {
+    return {
+      title: "פרק לא נמצא | LUMOS IL",
+      robots: { index: false, follow: true },
+    };
+  }
+
+  const story = normalizeStory(chapter.stories || null);
+  const storyTitle = story?.title || "סיפור בספריית LUMOS IL";
   const chapterTitle = chapter.title || `פרק ${orderIndex}`;
   const fullTitle = `${chapterTitle} | ${storyTitle}`;
-
-  const rawContent = typeof chapter.content === "string" ? chapter.content : "";
-  const description = rawContent
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 155) || `קרא את ${chapterTitle} מתוך "${storyTitle}" בספריית LUMOS IL`;
-
-  const imageUrl = storyData?.cover_url || `${BASE}/images/og-image.png`;
-  const url = `${BASE}/library/${id}/${orderIndex}`;
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: chapterTitle,
-    description,
-    url,
-    inLanguage: "he",
-    isPartOf: {
-      "@type": "Book",
-      name: storyTitle,
-      url: `${BASE}/library/${id}`,
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "LUMOS IL",
-      url: BASE,
-    },
-  };
+  const description = stripHtml(chapter.content).slice(0, 155) || `פרק מתוך "${storyTitle}" בספריית הפאנפיקים של LUMOS IL.`;
+  const imageUrl = story?.cover_url || "https://lumos-il.co.il/images/og-image.png";
+  const url = getCanonicalUrl(`/library/${id}/${orderIndex}`);
 
   return {
     title: fullTitle,
     description,
+    alternates: { canonical: url },
     openGraph: {
       title: `${fullTitle} | LUMOS IL`,
       description,
@@ -65,7 +70,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       type: "article",
       locale: "he_IL",
       siteName: "LUMOS IL",
-      images: [{ url: imageUrl, width: 1200, height: 630, alt: chapterTitle }],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: fullTitle }],
     },
     twitter: {
       card: "summary_large_image",
@@ -73,13 +78,46 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       description,
       images: [imageUrl],
     },
-    alternates: { canonical: url },
-    other: {
-      "application/ld+json": JSON.stringify(jsonLd),
-    },
   };
 }
 
-export default function ChapterLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function ChapterLayout({ children, params }: Props) {
+  const { id, orderIndex } = await params;
+  const chapter = await getChapter(id, orderIndex);
+  const story = normalizeStory(chapter?.stories || null);
+  const storyTitle = story?.title || "סיפור בספריית LUMOS IL";
+  const chapterTitle = chapter?.title || `פרק ${orderIndex}`;
+  const description = stripHtml(chapter?.content).slice(0, 160) || `פרק מתוך "${storyTitle}" בספריית הפאנפיקים של LUMOS IL.`;
+  const url = getCanonicalUrl(`/library/${id}/${orderIndex}`);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Chapter",
+    name: chapterTitle,
+    headline: chapterTitle,
+    description,
+    url,
+    inLanguage: "he-IL",
+    isPartOf: {
+      "@type": "CreativeWork",
+      name: storyTitle,
+      url: getCanonicalUrl(`/library/${id}`),
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "LUMOS IL",
+      url: "https://lumos-il.co.il",
+    },
+    ...(chapter?.updated_at ? { dateModified: chapter.updated_at } : {}),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {children}
+    </>
+  );
 }

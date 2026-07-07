@@ -270,7 +270,7 @@ export default function HouseCupLeaderboard() {
               <SummaryChip label="מומנטום חם" value={`${topMomentumHouse.label} · ${topMomentumHouse.momentum} פעולות`} color="#6ee7b7" />
               <SummaryChip
                 label="תרומתך"
-                value={ownHouseId ? `${profile?.points_contributed || 0} נק׳ · ${ownShare}% מהבית` : "התחבר/י כדי לראות השפעה"}
+                value={ownHouseId ? `${profile?.points_contributed || 0} נק׳ · ${ownShare}% מהבית` : "התחברו כדי לראות השפעה"}
                 color="#93c5fd"
               />
             </div>

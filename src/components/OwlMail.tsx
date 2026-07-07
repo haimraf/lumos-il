@@ -100,7 +100,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
                 });
                 
                 sessionStorage.setItem('owl_shown_system_messages', JSON.stringify(shownIds));
-            } catch (e) {
+            } catch {
                 console.warn("System messages feed unavailable right now.");
             }
         };
@@ -136,7 +136,7 @@ export const OwlMailProvider = ({ children }: { children: React.ReactNode }) => 
                 // ✅ זיהוי שחרור חסימה — רק כשהסטטוס הקודם היה banned או cooling במפורש
                 if (payload.new.status === 'active' &&
                     (payload.old.status === 'banned' || payload.old.status === 'cooling')) {
-                    sendOwl("החסימה הוסרה", "ברוך שובך לטירה! התנהג יפה.", "success");
+                    sendOwl("החסימה הוסרה", "ברוכים השבים לטירה. שמרו על הקסם נקי.", "success");
                     return;
                 }
 

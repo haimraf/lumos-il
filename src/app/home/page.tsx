@@ -35,17 +35,23 @@ const magicalQuotes = [
     '"זה הזמן לקסם..."'
 ];
 
+type SiteSettingsChangePayload = {
+    new?: { key?: string | null };
+    old?: { key?: string | null };
+};
+
 export default function HomePage() {
     const [userHouse, setUserHouse] = useState<string>("Unknown");
     const [randomQuote, setRandomQuote] = useState<string>("");
     const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRandomQuote(magicalQuotes[Math.floor(Math.random() * magicalQuotes.length)]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
         if (!localStorage.getItem("lumos_welcomed")) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setShowWelcomeBanner(true);
         }
     }, []);
@@ -99,7 +105,7 @@ export default function HomePage() {
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "site_settings" },
-                (payload: any) => {
+                (payload: SiteSettingsChangePayload) => {
                     const key = payload?.new?.key || payload?.old?.key;
                     if (key === LIVE_EVENT_SETTINGS_KEY || key === LIVE_EVENTS_CATALOG_KEY) {
                         void refreshHomeEvent();
@@ -148,7 +154,7 @@ export default function HomePage() {
         {
             id: 'library',
             title: "הספרייה",
-            desc: "מאות סיפורים ויצירות פאנפיקשן קסומות",
+            desc: "פאנפיקים, פרקים ויצירות קהילה בעברית",
             icon: BookOpen,
             href: "/library",
             className: "col-span-1",
@@ -330,7 +336,7 @@ export default function HomePage() {
 
             <div className="relative z-10" style={{ maxWidth: '72rem', marginLeft: 'auto', marginRight: 'auto' }}>
 
-                {/* באנר ברוך הבא — מוצג פעם אחת בלבד */}
+                {/* באנר ברוכים הבאים — מוצג פעם אחת בלבד */}
                 {showWelcomeBanner && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
@@ -339,12 +345,12 @@ export default function HomePage() {
                     >
                         <div className="flex flex-col gap-1">
                             <p className="font-cinzel text-sm font-black text-amber-300 tracking-wide">
-                                ברוך הבא לטירה, קוסם! ✨
+                                ברוכים הבאים לטירה ✨
                             </p>
                             <p className="font-crimson text-white/60 text-sm">
-                                המשימה הראשונה שלך: עבור ל
+                                המשימה הראשונה שלכם: עברו אל
                                 <Link href="/quests" className="text-amber-400 hover:text-amber-300 underline underline-offset-2 mx-1">לוח המשימות</Link>
-                                והשלם אתגר יומי אחד.
+                                והשלימו אתגר יומי אחד.
                             </p>
                         </div>
                         <button
@@ -352,7 +358,7 @@ export default function HomePage() {
                                 setShowWelcomeBanner(false);
                                 localStorage.setItem("lumos_welcomed", "1");
                             }}
-                            aria-label="סגור באנר ברוך הבא"
+                            aria-label="סגירת באנר ברוכים הבאים"
                             className="shrink-0 text-white/30 hover:text-white/70 transition-colors"
                         >
                             <X size={18} />
@@ -378,7 +384,7 @@ export default function HomePage() {
                     <div className="max-w-3xl mx-auto bg-amber-950/20 border border-amber-500/10 rounded-2xl p-6 mb-8 backdrop-blur-sm">
                         <h2 className="font-cinzel text-2xl text-amber-300/90 mb-2">הבית של קהילת הארי פוטר בישראל</h2>
                         <p className="lumos-reading font-crimson text-base leading-relaxed text-white/70 md:text-xl">
-                            הגעתם לפורטל המרכזי של קהילת הקוסמים של ישראל. מכאן תוכלו לנווט בין מסדרונות הטירה, לצלול אל ספריית הפאנפיקים העצומה שלנו, להתעדכן בנביא היומי או להיכנס אל חדר המועדון האישי שלכם.
+                            ברוכים הבאים לפורטל המרכזי של קהילת הארי פוטר בעברית. מכאן אפשר לשוטט בין מסדרונות הפורומים, לצלול אל ספריית הפאנפיקים, להתעדכן בנביא היומי, להשלים משימות ולחזק את בית הטירה שלכם.
                         </p>
                     </div>
 

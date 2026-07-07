@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { Crown, Save, Search, Shield, UserCog, X } from "lucide-react";
@@ -79,7 +79,7 @@ export default function AdminUsersTab({
       if (userFilter === "unsorted") return isUnsortedHouse(profile.house);
       return profile.role === userFilter;
     });
-  const displayRoleLabel = (role?: string | null) => (role === "קוסמ׳" ? "תלמיד בטירה" : role || "ללא דרגה");
+  const displayRoleLabel = (role?: string | null) => (role === "\u05e7\u05d5\u05e1\u05de\u05f3" || role === "תלמיד בטירה" ? "דמות בטירה" : role || "ללא דרגה");
 
   const totalUsers = allProfiles.length;
   const withGroup = allProfiles.filter((profile) => profile.group_id).length;
@@ -249,7 +249,7 @@ export default function AdminUsersTab({
                   ) : editingRole?.id === profile.id ? (
                     <div className="flex items-center gap-1">
                       <select
-                        value={editingRole?.role ?? "קוסמ׳"}
+                        value={editingRole?.role ?? "תלמיד בטירה"}
                         onChange={(event) => onEditingRoleChange({ id: profile.id, role: event.target.value })}
                         style={{
                           backgroundColor: "#0f172a",
@@ -262,7 +262,7 @@ export default function AdminUsersTab({
                           colorScheme: "dark",
                         }}
                       >
-                        <option value="קוסמ׳" style={{ backgroundColor: "#0f172a" }}>תלמיד בטירה</option>
+                        <option value="תלמיד בטירה" style={{ backgroundColor: "#0f172a" }}>דמות בטירה</option>
                         <option value="מנחה" style={{ backgroundColor: "#0f172a" }}>מנחה</option>
                         <option value="מנהל" style={{ backgroundColor: "#0f172a" }}>מנהל</option>
                       </select>
@@ -330,7 +330,7 @@ export default function AdminUsersTab({
                       </button>
                       {isAdmin && (
                         <button
-                          onClick={() => onEditingRoleChange({ id: profile.id, role: profile.role || "קוסמ׳" })}
+                          onClick={() => onEditingRoleChange({ id: profile.id, role: profile.role || "תלמיד בטירה" })}
                           title="שנה תפקיד"
                           className="p-1.5 bg-teal-500/10 text-teal-400 rounded-lg hover:bg-teal-500 hover:text-white transition-all"
                         >

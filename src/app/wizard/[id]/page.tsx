@@ -91,7 +91,7 @@ const RANK_CONFIG: Record<string, { label: string; class: string; icon: string }
     "מנהל": { label: "מנהל", class: "bg-amber-500 text-amber-950 border-amber-400", icon: "👑" },
     "פרופסור": { label: "פרופסור", class: "bg-purple-600/80 text-white border-purple-400", icon: "📚" },
     "מדריך": { label: "מדריך", class: "bg-blue-600/80 text-white border-blue-400", icon: "🪄" },
-    "תלמיד/ה": { label: "לומד בטירה", class: "bg-white/10 text-white/70 border-white/20", icon: "🧙" },
+    "תלמיד/ה": { label: "דמות לומדת בטירה", class: "bg-white/10 text-white/70 border-white/20", icon: "🧙" },
 };
 
 const TRAITS = [

@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin-panel", "/dashboard", "/sorting", "/api/"],
+        disallow: ["/admin-panel", "/dashboard", "/sorting", "/api/", "/auth/"],
       },
     ],
     sitemap: "https://lumos-il.co.il/sitemap.xml",

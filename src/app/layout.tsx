@@ -29,17 +29,14 @@ export const viewport = {
 };
 
 const BASE_URL = "https://lumos-il.co.il";
-const DEFAULT_DESCRIPTION = "LUMOS IL היא קהילת הארי פוטר הישראלית עם חוויית דפדפן משחקית: לוח משימות, גביע הבתים, זירת דו-קרב, איוונטים חיים, פורומים, ספריית פאנפיקים ועולם קסום בעברית מלאה.";
+const DEFAULT_DESCRIPTION = 'LUMOS IL היא קהילת הארי פוטר בעברית: טירה דיגיטלית עם פורומים, הנביא היומי, ספריית פאנפיקים, משימות, נקודות בתים וגביע קהילה חי. האתר נבנה ומתוחזק עבור מעריצות ומעריצים שרוצים מקום בטוח, פעיל וקסום לשיחה, יצירה ומשחק.';
 const DEFAULT_KEYWORDS = [
-  "הארי פוטר", "פורום הארי פוטר", "קהילת הארי פוטר",
-  "הארי פוטר ישראל", "קהילה", "ישראל",
-  "lumos", "lumos IL", "LUMOS IL",
-  "גריפינדור", "סלית'רין", "רייבנקלו", "הפלפאף",
-  "הוגוורטס", "מיון לבתים", "גביע הבתים", "לוח משימות", "קווסטים",
-  "זירת דו-קרב", "איוונטים חיים", "דפדפן RPG", "קהילת הארי פוטר בעברית",
-  "פאנפיק הארי פוטר", "פאנפיקים",
-  "Harry Potter Israel", "Harry Potter Hebrew", "HP Israel",
-  "Harry Potter forum", "Harry Potter quests", "Harry Potter fan community", "קסמים", "אוהדי הארי פוטר",
+  'הארי פוטר', 'קהילת הארי פוטר', 'הארי פוטר בעברית', 'הארי פוטר ישראל',
+  'פורום הארי פוטר', 'פורומים בעברית', 'פאנפיק הארי פוטר', 'פאנפיקים בעברית',
+  'ספריית פאנפיקים', 'הנביא היומי', 'משימות הארי פוטר', 'גביע הבתים',
+  'גריפינדור', "סלית'רין", 'רייבנקלו', 'הפלפאף', 'הוגוורטס',
+  'קהילת מעריצים', 'לומוס ישראל', 'LUMOS IL', 'Harry Potter Hebrew',
+  'Harry Potter Israel', 'Harry Potter fan community', 'Harry Potter forum', 'Harry Potter fanfiction',
 ];
 const DEFAULT_OG_IMAGE = "/images/og-image.png";
 
@@ -78,30 +75,37 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(BASE_URL),
     title: {
-      default: "LUMOS IL | הבית הדיגיטלי של קהילת הקוסמים",
+      default: 'LUMOS IL - טירת הארי פוטר בעברית',
       template: "%s | LUMOS IL",
     },
     description,
     keywords,
-    authors: [{ name: "LUMOS IL", url: BASE_URL }],
+    applicationName: 'LUMOS IL',
+    category: 'community',
+    authors: [{ name: 'LUMOS IL', url: BASE_URL }],
     creator: "LUMOS IL",
     publisher: "LUMOS IL",
+    alternates: { canonical: BASE_URL },
     openGraph: {
       type: "website",
       locale: "he_IL",
       url: BASE_URL,
       siteName: "LUMOS IL",
-      title: "LUMOS IL — קהילת הארי פוטר של ישראל",
+      title: 'LUMOS IL - טירת הארי פוטר בעברית',
       description,
-      images: [{ url: ogImage, width: 1200, height: 630, alt: "LUMOS IL — קהילת הארי פוטר הישראלית" }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: 'LUMOS IL - קהילת הארי פוטר בעברית' }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "LUMOS IL — קהילת הארי פוטר של ישראל",
+      title: 'LUMOS IL - טירת הארי פוטר בעברית',
       description,
       images: [ogImage],
     },
     robots: { index: true, follow: true },
+    other: {
+      'ai-summary': 'קהילת הארי פוטר עברית עם פורומים, ספריית פאנפיקים, הנביא היומי, משימות, בתים ונקודות קהילה.',
+      'content-language': 'he-IL',
+    },
   };
 }
 

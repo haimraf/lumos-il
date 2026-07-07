@@ -1,16 +1,16 @@
 import { Metadata } from "next";
-import { Sparkles, Star, Zap, Users, ShieldCheck, Wand2, Compass, Scroll, Flame } from "lucide-react";
+import { Sparkles, Star, Users, ShieldCheck, Wand2, Compass, Scroll, Flame } from "lucide-react";
 import Link from "next/link";
 import Script from "next/script";
 import { withCanonical } from "@/lib/seo";
 
 export const metadata: Metadata = withCanonical({
   title: "הסיפור מאחורי האור",
-  description: "איך הפכנו את החלום לטירה? גלו את הסיפור של LUMOS IL — הבית הדיגיטלי האינטראקטיבי של קהילת הקוסמים והקוסמות בישראל.",
+  description: "איך הפכנו את החלום לטירה? גלו את הסיפור של LUMOS IL — מרחב הארי פוטר בעברית עם פורומים, פאנפיקים, משימות וקהילה.",
   keywords: ["אודות", "LUMOS IL", "קהילת הארי פוטר", "ישראל", "הסיפור שלנו"],
   openGraph: {
     title: "הסיפור מאחורי האור | LUMOS IL",
-    description: "הבית הדיגיטלי של קהילת הקוסמים בישראל",
+    description: "הבית הדיגיטלי של קהילת הארי פוטר בעברית",
     url: "https://lumos-il.co.il/about",
     siteName: "LUMOS IL",
     locale: "he_IL",
@@ -24,7 +24,7 @@ const orgJsonLd = {
   "@type": "Organization",
   "name": "LUMOS IL",
   "alternateName": "לומוס ישראל",
-  "description": "קהילת הארי פוטר הגדולה בישראל — הבית הדיגיטלי האינטראקטיבי של חובבי הקסם",
+  "description": "קהילת הארי פוטר בעברית — בית דיגיטלי אינטראקטיבי לפורומים, פאנפיקים, משימות ופעילות קהילה",
   "url": "https://lumos-il.co.il",
   "logo": "https://lumos-il.co.il/logo.png",
   "foundingDate": "2024",
@@ -69,7 +69,7 @@ export default function AboutPage() {
           </div>
 
           <p className="font-crimson text-2xl md:text-3xl text-amber-100/70 italic max-w-3xl mx-auto leading-relaxed">
-            "לומוס ישראל הוא לא עוד אתר מעריצים. כאן נמצא המקום שבו המכתב שחיכיתם לו בגיל 11 סוף סוף מגיע."
+            &quot;לומוס ישראל הוא לא עוד אתר מעריצים. כאן נמצא המקום שבו המכתב שחיכיתם לו בגיל 11 סוף סוף מגיע.&quot;
           </p>
         </section>
 
@@ -91,7 +91,7 @@ export default function AboutPage() {
                 <span className="text-amber-400 font-bold">Lumos IL</span>.
               </p>
               <div className="bg-amber-500/8 p-6 rounded-2xl border border-amber-500/20 text-amber-50/80">
-                כאן, אין מדובר ב"משתמשים" אנונימיים — כאן הזהות היא זהות קסם. יש כאן בית להתגאות בו, שרביט שבחר בכם, וסיפור שרק מחכה ליצירה שלכם.
+                כאן, אין מדובר ב&quot;משתמשים&quot; אנונימיים — כאן הזהות היא זהות קסם. יש כאן בית להתגאות בו, שרביט שבחר בכם, וסיפור שרק מחכה ליצירה שלכם.
               </div>
             </div>
           </div>
@@ -128,10 +128,10 @@ export default function AboutPage() {
 
           <div className="space-y-6">
             {[
-              { icon: Scroll, color: "text-blue-400  bg-blue-950/30  border-blue-500/20", step: "01", title: "הרעיון נולד", desc: "מגעגוע לקהילות הדיגיטליות של פעם — נולד הרצון לבנות בית חדש לקוסמים הישראלים." },
+              { icon: Scroll, color: "text-blue-400  bg-blue-950/30  border-blue-500/20", step: "01", title: "הרעיון נולד", desc: "מגעגוע לקהילות הדיגיטליות של פעם — נולד הרצון לבנות בית חדש למעריצות ולמעריצי הארי פוטר בעברית." },
               { icon: Flame, color: "text-red-400   bg-red-950/30   border-red-500/20", step: "02", title: "הטירה נבנית", desc: "שורות קוד, לילות ארוכים, ואהבה עצומה לפרטים — כך נבנה המקום שאתם בו עכשיו." },
-              { icon: Users, color: "text-emerald-400 bg-emerald-950/30 border-emerald-500/20", step: "03", title: "הקהילה מתעוררת", desc: "הקוסמים הגיעו, המיון התחיל, והטירה החלה לנשום חיים אמיתיים." },
-              { icon: Sparkles, color: "text-amber-400 bg-amber-950/30 border-amber-500/20", step: "04", title: "הקסם נמשך", desc: "כל יום חדש מביא פיצ'ר חדש, כתבה חדשה, קוסם חדש. הסיפור רק מתחיל." },
+              { icon: Users, color: "text-emerald-400 bg-emerald-950/30 border-emerald-500/20", step: "03", title: "הקהילה מתעוררת", desc: "הקהילה הגיעה, המיון התחיל, והטירה החלה לנשום חיים אמיתיים." },
+              { icon: Sparkles, color: "text-amber-400 bg-amber-950/30 border-amber-500/20", step: "04", title: "הקסם נמשך", desc: "כל יום חדש מביא פיצ'ר חדש, כתבה חדשה, יצירה חדשה ושיחה חדשה. הסיפור רק מתחיל." },
             ].map((item) => {
               const Icon = item.icon;
               return (

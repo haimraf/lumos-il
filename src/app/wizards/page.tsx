@@ -96,7 +96,7 @@ function humanizeRoleLabel(value: string | null | undefined) {
   const trimmed = value?.trim();
   if (!trimmed) return null;
 
-  if (trimmed === "תלמיד/ה") return "תלמיד הטירה";
+  if (trimmed === "תלמיד/ה") return "תלמידי הטירה";
   if (trimmed === "חבר/ת קהילה") return "חלק מקהילת הטירה";
 
   return trimmed.replace(/\/[הת]/g, "").replace(/\s{2,}/g, " ").trim();

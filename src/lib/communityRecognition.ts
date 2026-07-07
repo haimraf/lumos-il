@@ -143,7 +143,7 @@ function normalizeProfileRelation(profile: MessageRow["profiles"]) {
 
 function displayName(rawName: string | null | undefined) {
   const name = String(rawName || "").trim();
-  if (!name || name === "Wizard") return "תלמיד/ה מהטירה";
+  if (!name || name === "Wizard") return "דמות מהטירה";
   return name;
 }
 
