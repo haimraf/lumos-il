@@ -322,7 +322,7 @@ sendOwlRef.current("אלוהומורה! 🔓", "שערי הטירה נפתחו."
                                     <span className="font-cinzel text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/70">אלוהומורה</span>
                                 </div>
                                 <h2 className="font-cinzel text-2xl font-black text-white">שערי הטירה פתוחים</h2>
-                                <p className="font-crimson text-white/30 text-base italic mt-1">לאן תרצה לנסוע?</p>
+                                <p className="font-crimson text-white/30 text-base italic mt-1">לאן תרצו לנוע בטירה?</p>
                             </div>
                             <div className="grid grid-cols-2 gap-2.5">
                                 {CASTLE_LINKS.map(link => (

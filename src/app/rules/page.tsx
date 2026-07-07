@@ -13,7 +13,7 @@ export default function RulesPage() {
     {
       id: 1,
       title: "כבוד הדדי (Respect)",
-      description: "השרביטים למעלה, לא אחד על השני. אנחנו קהילה אחת - התייחסו לכל קוסם ומכשפה בכבוד הראוי להם.",
+      description: "השרביטים למעלה, לא אחד על השני. אנחנו קהילה אחת - התייחסו לכל מכשפה, קוסם ודמות קסומה בכבוד הראוי.",
       icon: <Shield className="w-12 h-12" />,
       tag: "WANDS_UP",
       decree: "DECREE NO. 01"
@@ -21,7 +21,7 @@ export default function RulesPage() {
     {
       id: 2,
       title: "בטיחות (Safety)",
-      description: "אל תחשפו פרטים אישיים שלכם או של אחרים. שמרו על בטיחות הקסם שלכם ושל חבריכם במסדרונות הטירה.",
+      description: "אל תחשפו פרטים אישיים שלכם או של אחרים. שמרו על בטיחות הקסם שלכם ושל חברות וחברי הקהילה במסדרונות הטירה.",
       icon: <Eye className="w-12 h-12" />,
       tag: "PROTEGO",
       decree: "DECREE NO. 02"
@@ -29,7 +29,7 @@ export default function RulesPage() {
     {
       id: 3,
       title: "איסור אומנויות האופל (No Dark Arts)",
-      description: "אפס סובלנות להטרדות, בריונות או התנהגות פוגענית. קוסמים אפלים יגורשו מהטירה לאלתר ללא אפשרות חזרה.",
+      description: "אפס סובלנות להטרדות, בריונות או התנהגות פוגענית. מי שיבחרו באומנויות האופל יורחקו מהטירה ללא אפשרות חזרה.",
       icon: <Hammer className="w-12 h-12" />,
       tag: "EXPULSO",
       decree: "DECREE NO. 03"

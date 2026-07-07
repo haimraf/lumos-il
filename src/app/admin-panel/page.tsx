@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -359,7 +359,7 @@ const TAB_GUIDES: Record<AdminTab, AdminTabGuideContent> = {
         bullets: [
             "טורנירים צריכים להיות ברורים יותר ממשימות רגילות, כי שחקנים משקיעים בהם יותר זמן ורגש.",
             "כדאי לנהל כאן גם חוקים וגם תצוגת סטטוס, כדי שלא יהיו פערים בין מה שהכרזת לבין מה שיומן הטירה סופר.",
-            "אם תרצה להפוך את זה ללב האתר, הטאב הזה צריך להיות מחובר ללוגים, נוכחות ופרסים.",
+            "כדי להפוך את זה ללב האתר, הטאב הזה צריך להיות מחובר ללוגים, נוכחות ופרסים.",
         ],
         tone: "amber",
     },
@@ -1535,7 +1535,7 @@ export default function AdminPanel() {
         const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
         if (error) { sendOwl("שגיאה", error.message, "error"); }
         else {
-            sendOwl("עודכן", `תפקיד הדמות שונה ל-${role === "קוסמ׳" ? "תלמיד בטירה" : role}.`, "success");
+            sendOwl("עודכן", `תפקיד הדמות שונה ל-${role === "\u05e7\u05d5\u05e1\u05de\u05f3" || role === "תלמיד בטירה" ? "דמות בטירה" : role}.`, "success");
             setEditingRole(null);
             fetchData();
         }

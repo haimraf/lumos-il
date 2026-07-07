@@ -146,7 +146,7 @@ export default function LibraryPage() {
                             </div>
                             <h2 id="library-age-gate-title" className="font-cinzel text-2xl md:text-3xl font-black text-red-400 mb-4 tracking-tighter uppercase">הספרייה האסורה</h2>
                             <p id="library-age-gate-description" className="font-crimson text-lg md:text-xl text-white/70 mb-10 leading-relaxed italic">
-                                &ldquo;מדף זה מכיל תכנים המיועדים לקוסמים בוגרים בלבד (18+). האם תרצה להמשיך?&rdquo;
+                                &ldquo;מדף זה מכיל תכנים המיועדים לקוראות ולקוראים בוגרים בלבד (18+). האם להמשיך?&rdquo;
                             </p>
                             <div className="flex flex-col gap-4">
                                 <button
@@ -217,23 +217,23 @@ export default function LibraryPage() {
                             בין המדפים של לומוס
                         </p>
                         <h2 id="library-story-intro" className="mb-5 font-cinzel text-3xl font-black text-white">
-                            לא רק ספרייה, אלא אגף של סיפורים חיים
+                            אגף הפאנפיקים של הטירה
                         </h2>
                         <div className="space-y-4 font-crimson text-lg leading-relaxed text-white/72">
                             <p>
-                                הספרייה של LUMOS IL היא המקום שבו פאנפיקים על הארי פוטר מקבלים בית משלהם. בין המדפים שלה
+                                הספרייה של LUMOS IL היא המקום שבו פאנפיקים בעברית על הארי פוטר מקבלים בית משלהם. בין המדפים שלה
                                 מחכים סיפורי הוגוורטס, מסעות בין הבתים, דרמות של ידידות ואהבה, וגם הרפתקאות חדשות שמרחיבות
                                 את העולם הקסום הרבה מעבר למה שנכתב בספרים.
                             </p>
                             <p>
-                                יש כאן מקום גם לכותבים שמעדיפים לחש עדין של נוסטלגיה וגם למי שאוהבים סערה של עלילה, סודות,
-                                יריבויות ומסתורין. כל עמוד שנפתח בספרייה מזמין את הקורא לעצור רגע, לשכוח מהמוגלגים בחוץ,
+                                יש כאן מקום גם לכותבות ולכותבים שמעדיפים לחש עדין של נוסטלגיה, וגם למי שאוהבים סערה של עלילה, סודות,
+                                יריבויות ומסתורין. כל עמוד שנפתח בספרייה מזמין את הקוראות והקוראים לעצור רגע, לשכוח מהמוגלגים בחוץ,
                                 ולהיסחף לתוך עולם שבו עט נוצה אחד יכול לשנות גורל שלם.
                             </p>
                             <p>
-                                חשוב לנו שגם קוראים חדשים וגם גוגל יבינו מיד מה מסתתר כאן: אוסף מתחדש של סיפורי הארי פוטר
-                                בעברית, יצירות מקוריות של חברי הקהילה, ודלת פתוחה לכל מי שרוצה לקרוא, להגיב, לגלות סגנון
-                                חדש או לפרסם סיפור משלו בין מדפי הטירה.
+                                חשוב לנו שגם קוראות וקוראים חדשים וגם מנועי חיפוש יבינו מיד מה מסתתר כאן: אוסף מתחדש של סיפורי הארי פוטר
+                                בעברית, יצירות מקוריות של חברות וחברי הקהילה, ודלת פתוחה לקריאה, תגובות, גילוי סגנון
+                                חדש או פרסום סיפור חדש בין מדפי הטירה.
                             </p>
                         </div>
                     </div>
@@ -377,15 +377,15 @@ export default function LibraryPage() {
                     >
                         <BookOpen size={80} className="text-amber-500/20 mx-auto mb-8 animate-pulse" />
                         <p className="font-crimson text-3xl text-white/30 italic max-w-2xl mx-auto leading-relaxed">
-                            &ldquo;הספרייה עדיין שקטה... המדפים מחכים לסיפור הראשון שלך.&rdquo;
+                            &ldquo;הספרייה עדיין שקטה... המדפים מחכים לסיפור הראשון של הטירה.&rdquo;
                         </p>
                         <Link
                             href="/library/create"
-                            aria-label="מעבר ליצירת הסיפור הראשון בספרייה"
+                            aria-label="מעבר ליצירת סיפור ראשון בספרייה"
                             className="inline-flex items-center gap-3 mt-12 px-10 py-5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl text-amber-400 font-cinzel font-black uppercase tracking-widest transition-all hover:scale-105"
                         >
                             <PlusCircle size={20} />
-                            צור את הסיפור הראשון
+                            יצירת סיפור ראשון
                         </Link>
                     </motion.div>
                 )}

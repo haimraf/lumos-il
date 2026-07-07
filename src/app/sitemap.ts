@@ -49,6 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/contact`,            lastModified: new Date(), changeFrequency: "monthly", priority: 0.68 },
     { url: `${BASE}/about`,              lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}/rules`,              lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE}/wizards`,            lastModified: new Date(), changeFrequency: "daily",   priority: 0.55 },
+    { url: `${BASE}/llms.txt`,           lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
   ];
 
   if (!hasSupabaseServerEnv()) {
@@ -72,13 +74,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     supabase
       .from("stories")
       .select("id, updated_at")
-      .eq("published", true)
+      .eq("is_published", true)
       .order("updated_at", { ascending: false })
       .limit(300),
     supabase
       .from("chapters")
       .select("story_id, order_index, updated_at")
-      .eq("published", true)
       .order("updated_at", { ascending: false })
       .limit(1000),
     fetchLiveEventCatalog(supabase),

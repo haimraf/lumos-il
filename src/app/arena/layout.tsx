@@ -4,7 +4,7 @@ import { withCanonical } from "@/lib/seo";
 export const metadata: Metadata = withCanonical({
   title: "זירת הקרבות",
   description:
-    "דו-קרבות לחשים בזמן אמת בין קוסמי ישראל. אתגרו קוסמים אחרים, הגיעו לראש לוח המובילים וזכו בתואר אלוף הזירה.",
+    "דו-קרבות לחשים בזמן אמת בין חברות וחברי קהילת LUMOS IL. אתגרו יריבים, הגיעו לראש לוח המובילים וזכו בתואר אלופי הזירה.",
   keywords: [
     "דו-קרב",
     "קרב לחשים",
@@ -16,7 +16,7 @@ export const metadata: Metadata = withCanonical({
   ],
   openGraph: {
     title: "זירת הקרבות | LUMOS IL",
-    description: "דו-קרבות לחשים בזמן אמת. אתגרו קוסמים, צברו ניצחונות וטפסו בדירוג.",
+    description: "דו-קרבות לחשים בזמן אמת. אתגרו יריבים, צברו ניצחונות וטפסו בדירוג.",
     url: "https://lumos-il.co.il/arena",
     siteName: "LUMOS IL",
     type: "website",
@@ -32,7 +32,7 @@ export const metadata: Metadata = withCanonical({
   twitter: {
     card: "summary_large_image",
     title: "זירת הקרבות | LUMOS IL",
-    description: "דו-קרבות לחשים בזמן אמת בין קוסמי ישראל.",
+    description: "דו-קרבות לחשים בזמן אמת בקהילת LUMOS IL.",
   },
 }, "/arena");
 

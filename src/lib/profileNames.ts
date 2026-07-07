@@ -7,7 +7,7 @@ type ProfileNameSource = {
 const GENERIC_NAMES = new Set([
   "wizard",
   "קוסם",
-  "קוסמ׳",
+  "\u05e7\u05d5\u05e1\u05de\u05f3",
   "קוסמת",
   "דמות אלמונית בטירה",
 ]);

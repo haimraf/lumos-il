@@ -100,7 +100,7 @@ export default function CastlePulseTeaser() {
 
           return normalizePulseEvent({
             ...event,
-            actor_name: getProfileDisplayName(actorProfile, event.actor_name || "קוסמ׳"),
+            actor_name: getProfileDisplayName(actorProfile, event.actor_name || "דמות מהטירה"),
             title: normalizedTitle,
           });
         }),

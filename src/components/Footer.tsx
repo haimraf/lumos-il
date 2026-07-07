@@ -5,8 +5,9 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
     Sparkles, Shield, Feather, Map,
-    ScrollText, Zap, ArrowUp, Users, Library, BookOpen,
-    MessageSquare, Castle, Wand2, HelpCircle, Swords, Volume2, VolumeX
+    ScrollText, Zap, ArrowUp, Users, Library,
+    MessageSquare, Castle, Wand2, HelpCircle, Swords, Volume2, VolumeX,
+    type LucideIcon
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import { triggerAudioPlay } from "@/utils/audioTrigger";
@@ -88,7 +89,10 @@ export default function Footer() {
                             />
                         </Link>
                         <p className="font-crimson text-white/55 text-lg leading-relaxed max-w-xs text-center md:text-right">
-                            הבית הדיגיטלי האינטראקטיבי של קהילת הקוסמים בישראל.
+                            הבית הדיגיטלי האינטראקטיבי של קהילת הארי פוטר בעברית.
+                        </p>
+                        <p className="font-crimson text-white/38 text-sm leading-relaxed max-w-xs text-center md:text-right">
+                            מרחב מעריצים עצמאי עם כללי קהילה, FAQ ותוכן שנכתב מתוך פעילות אמיתית בטירה.
                         </p>
                         <p className="font-crimson italic text-amber-500/50 text-base font-bold tracking-tight text-center md:text-right">
                             נא לא לשכוח לכבות את האור ביציאה.
@@ -179,7 +183,7 @@ export default function Footer() {
     );
 }
 
-function FooterLink({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
+function FooterLink({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
     return (
         <Link
             href={href}

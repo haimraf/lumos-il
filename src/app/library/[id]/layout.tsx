@@ -1,120 +1,115 @@
-import { Metadata } from 'next';
+import type { Metadata } from "next";
 import { createClient as createServerClient } from "@/utils/supabase/server";
 import { getCanonicalUrl } from "@/lib/seo";
-import React from 'react'; // הוספנו את זה
-// יצירת קליינט שרת בטוח שלא תלוי ב-Auth (לשליפת נתונים ציבוריים בלבד לטובת SEO)
 
 type Props = {
-    // התיקון: params הוא עכשיו Promise
-    params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 };
 
-// הלחש שיוצר את התצוגה המקדימה לוואטסאפ, טלגרם וטיקטוק
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    // התיקון: חילוץ ה-id מתוך ה-Promise
-    const { id } = await params;
-    const supabase = await createServerClient();
+type StoryProfileRow = { full_name?: string | null };
+type StoryProfile = StoryProfileRow | StoryProfileRow[] | null;
+type StoryRow = {
+  title?: string | null;
+  description?: string | null;
+  cover_url?: string | null;
+  profiles?: StoryProfile;
+};
 
-    const { data: story } = await supabase
-        .from('stories')
-        .select(`
-            title, 
-            description, 
-            cover_url, 
-            profiles:author_id(full_name)
-        `)
-        .eq('id', id)
-        .single();
-
-    if (!story) {
-        return { title: 'סיפור אבוד במרתף | לומוס IL' };
-    }
-
-    // ניקוי תגיות HTML מהתקציר כדי שהטקסט ייראה נקי בוואטסאפ
-    const cleanDescription = story.description
-        ? story.description.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...'
-        : 'היכנסו לקרוא את הסיפור המלא בקהילת הקוסמים של ישראל...';
-
-    // טיפול במידע על המחבר (Supabase עשוי להחזיר מערך בהצטרפות)
-    const authorData = Array.isArray(story.profiles) ? story.profiles[0] : (story.profiles as any);
-    const authorName = authorData?.full_name || 'קוסם אנונימי';
-    const imageUrl = story.cover_url || 'https://lumos-il.co.il/images/og-image.png'; // שים לב לשנות לנתיב תמונת הדיפולט שלך
-
-    return {
-        title: `${story.title} | לומוס IL`,
-        description: cleanDescription,
-        authors: [{ name: authorName }],
-        alternates: {
-            canonical: getCanonicalUrl(`/library/${id}`),
-        },
-        openGraph: {
-            title: `${story.title} | לומוס IL`,
-            description: cleanDescription,
-            url: `https://lumos-il.co.il/library/${id}`,
-            siteName: 'LUMOS IL',
-            images: [
-                {
-                    url: imageUrl,
-                    width: 1200,
-                    height: 630,
-                    alt: story.title,
-                }
-            ],
-            type: 'article',
-            publishedTime: new Date().toISOString(),
-        },
-        twitter: {
-            card: 'summary_large_image',
-            title: `${story.title} | לומוס IL`,
-            description: cleanDescription,
-            images: [imageUrl],
-        }
-    };
+function normalizeProfile(profile: StoryProfile): StoryProfileRow | null {
+  return Array.isArray(profile) ? profile[0] ?? null : profile;
 }
 
-// התיקון: params הוא עכשיו Promise
-export default async function StoryLayout({ children, params }: { children: React.ReactNode, params: Promise<{ id: string }> }) {
-    // התיקון: חילוץ ה-id מתוך ה-Promise
-    const { id } = await params;
-    const supabase = await createServerClient();
+function stripHtml(value: string | null | undefined) {
+  return String(value || "").replace(/<[^>]*>?/gm, " ").replace(/\s+/g, " ").trim();
+}
 
-    // שליפת הנתונים פעם נוספת עבור ה-JSON-LD (Next.js חכם מספיק לעשות Cache מאחורי הקלעים)
-    const { data: story } = await supabase
-        .from('stories')
-        .select('title, description, cover_url, profiles:author_id(full_name)')
-        .eq('id', id)
-        .single();
+async function getStory(id: string) {
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("stories")
+    .select("title, description, cover_url, profiles:author_id(full_name)")
+    .eq("id", id)
+    .maybeSingle();
+  return (data as StoryRow | null) || null;
+}
 
-    const cleanDescription = story?.description?.replace(/<[^>]*>?/gm, '').substring(0, 160);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const story = await getStory(id);
 
-    // Level Up: יצירת Schema.org Structured Data כדי שגוגל יבין שזה יצירה ספרותית
-    const jsonLd = {
-        "@context": "https://schema.org",
-        "@type": "Book",
-        "name": story?.title || "סיפור בלומוס IL",
-        "author": {
-            "@type": "Person",
-            "name": (Array.isArray(story?.profiles) ? story.profiles[0] : (story?.profiles as any))?.full_name || "קוסם אנונימי"
-        },
-        "image": story?.cover_url || "https://lumos-il.co.il/images/og-image.png",
-        "description": cleanDescription || "סיפור מרתק בקהילת הקוסמים של ישראל",
-        "publisher": {
-            "@type": "Organization",
-            "name": "LUMOS IL"
-        },
-        "inLanguage": "he"
+  if (!story) {
+    return {
+      title: "סיפור לא נמצא | LUMOS IL",
+      robots: { index: false, follow: true },
     };
+  }
 
-    return (
-        <>
-            {/* הזרקת הקסם של גוגל ישירות ל-Head של האתר */}
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
+  const title = story.title || "סיפור בספריית LUMOS IL";
+  const cleanDescription = stripHtml(story.description).slice(0, 160) || "פאנפיק בעברית מתוך ספריית LUMOS IL וקהילת הארי פוטר בישראל.";
+  const authorName = normalizeProfile(story.profiles || null)?.full_name || "כותבי הטירה";
+  const imageUrl = story.cover_url || "https://lumos-il.co.il/images/og-image.png";
+  const url = getCanonicalUrl(`/library/${id}`);
 
-            {/* כאן מרונדר דף ה-page.tsx הרגיל שלך */}
-            {children}
-        </>
-    );
+  return {
+    title: `${title} | LUMOS IL`,
+    description: cleanDescription,
+    authors: [{ name: authorName }],
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${title} | LUMOS IL`,
+      description: cleanDescription,
+      url,
+      siteName: "LUMOS IL",
+      locale: "he_IL",
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: title }],
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | LUMOS IL`,
+      description: cleanDescription,
+      images: [imageUrl],
+    },
+  };
+}
+
+export default async function StoryLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const story = await getStory(id);
+  const title = story?.title || "סיפור בלומוס IL";
+  const cleanDescription = stripHtml(story?.description).slice(0, 160) || "סיפור קהילתי בעברית בספריית LUMOS IL.";
+  const authorName = normalizeProfile(story?.profiles || null)?.full_name || "כותבי הטירה";
+  const imageUrl = story?.cover_url || "https://lumos-il.co.il/images/og-image.png";
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: title,
+    author: { "@type": "Person", name: authorName },
+    image: imageUrl,
+    description: cleanDescription,
+    url: `https://lumos-il.co.il/library/${id}`,
+    inLanguage: "he-IL",
+    genre: ["Fan Fiction", "Fantasy"],
+    isPartOf: {
+      "@type": "CollectionPage",
+      name: "ספריית הפאנפיקים של LUMOS IL",
+      url: "https://lumos-il.co.il/library",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "LUMOS IL",
+      url: "https://lumos-il.co.il",
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {children}
+    </>
+  );
 }

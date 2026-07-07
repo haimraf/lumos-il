@@ -49,7 +49,7 @@ const landingStructuredData = {
       name: "LUMOS IL",
       url: "https://lumos-il.co.il",
       inLanguage: "he-IL",
-      description: "קהילת הארי פוטר הישראלית עם לוח משימות, בתים, גביע הבתים, איוונטים, פורומים, ספריית פאנפיקים וזירת דו-קרב.",
+      description: "קהילת הארי פוטר בעברית עם פורומים, הנביא היומי, ספריית פאנפיקים, משימות, בתים, נקודות וגביע קהילה חי.",
       potentialAction: {
         "@type": "SearchAction",
         target: "https://lumos-il.co.il/search?q={search_term_string}",
@@ -523,7 +523,7 @@ export default function Home() {
                       </div>
                       <div className="space-y-6 font-crimson text-lg md:text-2xl leading-relaxed italic">
                         <p className="font-bold not-italic text-xl md:text-3xl mb-2">מכשפה או קוסם יקרים,</p>
-                        <p>אנו שמחים להודיעכם כי נמצא עבורכם מקום בבית הספר הגבוה לקוסמות ולכישוף של קהילת <strong>Lumos IL</strong>. מכתב זה מהווה אישור רשמי להצטרפותכם לקהילה הגדולה ביותר בישראל.</p>
+                        <p>אנו שמחים להודיעכם כי נמצא עבורכם מקום בבית הספר הגבוה לקוסמות ולכישוף של קהילת <strong>Lumos IL</strong>. מכתב זה פותח שער לטירה עברית של פורומים, פאנפיקים, משימות, בתים ונקודות.</p>
                         <p>בהוגוורטס שלנו, תמצאו שותפים לדרך, שיעורי כשפים, תחרויות בין בתים ומרחב בטוח לחלוק את אהבתכם לעולם הקסמים.</p>
                         <div className="bg-amber-900/[0.04] p-5 rounded-lg border-r-4 border-amber-800/25 not-italic">
                           <h4 className="font-cinzel text-base font-bold mb-4 uppercase tracking-widest text-amber-950">רשימת ציוד נדרשת:</h4>
@@ -626,7 +626,7 @@ export default function Home() {
                     פתחנו את ספר שאלות ותשובות הטירה!
                   </h3>
                   <p className="font-crimson text-white/40 text-sm md:text-base leading-snug mt-0.5">
-                    כל הפיצ'רים, הקסמים, בחינות O.W.L ו-N.E.W.T, ושאר סודות הטירה • במקום אחד
+                    כל הפיצ&apos;רים, הקסמים, בחינות O.W.L ו-N.E.W.T, ושאר סודות הטירה • במקום אחד
                   </p>
                 </div>
 
@@ -652,7 +652,7 @@ export default function Home() {
               {
                 icon: MessageSquare,
                 title: "האולם הגדול",
-                desc: "פורומים חיים לדיונים, תיאוריות, ספויילרים וכל מה שאוהבים",
+                desc: "דיונים חיים, תיאוריות, ספויילרים ושיחות קהילה במסדרונות הטירה",
                 href: "/forums",
                 color: "text-amber-400",
                 glow: "rgba(245,158,11,0.08)",
@@ -661,7 +661,7 @@ export default function Home() {
               {
                 icon: BookOpen,
                 title: "הספרייה",
-                desc: "לור, כתבות ועולם עשיר לחובבי הסדרה",
+                desc: "פאנפיקים, פרקים ויצירות קהילה בעברית בין מדפי הטירה",
                 href: "/library",
                 color: "text-blue-400",
                 glow: "rgba(37,99,235,0.08)",
@@ -670,7 +670,7 @@ export default function Home() {
               {
                 icon: Map,
                 title: "מפת הקונדסאים",
-                desc: "ראו בזמן אמת היכן נמצאים חברי הקהילה ברחבי הטירה",
+                desc: "הצצה עדינה לפעילות הקהילה ברחבי הטירה",
                 href: "/map",
                 color: "text-teal-400",
                 glow: "rgba(20,184,166,0.08)",
@@ -706,7 +706,7 @@ export default function Home() {
               {
                 icon: Swords,
                 title: "זירת הקרבות",
-                desc: "אתגרו קוסמים אחרים לדו-קרב לחשים • הטובים ביותר עולים לטבלת האלופים",
+                desc: "דו-קרבות לחשים למי שרוצים להתאמן, להשתפר ולעלות בטבלת האלופים",
                 href: "/arena",
                 color: "text-orange-400",
                 glow: "rgba(251,146,60,0.08)",
@@ -755,7 +755,7 @@ export default function Home() {
         <section className="relative z-10 py-16 px-6 max-w-4xl mx-auto text-center">
           <p className="font-crimson text-lg md:text-xl text-white/30 leading-relaxed italic">
             היסטוריית הקסם מעולם לא הייתה שלמה לולא המכשפות המבריקות שעיצבו אותה.<br />
-            ב-Lumos IL בונים קהילה שוויונית, בטוחה ומעצימה • שבה לכל מכשפה וקוסם יש קול ומקום.
+            ב-Lumos IL בונים קהילה שוויונית, בטוחה ומעצימה • שבה לכל מכשפה, קוסם ודמות קסומה יש קול ומקום.
           </p>
         </section>
 
