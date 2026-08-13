@@ -22,7 +22,7 @@ export const metadata: Metadata = withCanonical({
     type: "website",
     images: [
       {
-        url: "/images/og-image.png",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
         alt: "זירת הקרבות — LUMOS IL",

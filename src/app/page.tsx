@@ -37,7 +37,7 @@ const landingStructuredData = {
       "@type": "Organization",
       name: "LUMOS IL",
       url: "https://lumos-il.co.il",
-      logo: "https://lumos-il.co.il/images/og-image.png",
+      logo: "https://lumos-il.co.il/opengraph-image",
       sameAs: [
         "https://lumos-il.co.il/house-cup",
         "https://lumos-il.co.il/forums",

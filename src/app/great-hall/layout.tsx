@@ -12,9 +12,9 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "האולם הגדול של LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "האולם הגדול של LUMOS IL" }],
   },
-  twitter: { card: "summary_large_image", title: "האולם הגדול | LUMOS IL", description: "שיחה חיה ונוכחות קהילתית בטירה.", images: ["/images/og-image.png"] },
+  twitter: { card: "summary_large_image", title: "האולם הגדול | LUMOS IL", description: "שיחה חיה ונוכחות קהילתית בטירה.", images: ["/opengraph-image"] },
 }, "/great-hall");
 
 export default function GreatHallLayout({ children }: { children: React.ReactNode }) {

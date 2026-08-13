@@ -47,7 +47,7 @@ export async function generateMetadata(
     openGraph: {
       title: `${title} | LUMOS IL`,
       description,
-      images: profile.avatar_url ? [{ url: profile.avatar_url, alt: `אווטאר של ${displayName}` }] : [{ url: "/images/og-image.png" }],
+      images: profile.avatar_url ? [{ url: profile.avatar_url, alt: `אווטאר של ${displayName}` }] : [{ url: "/opengraph-image" }],
       type: "profile",
       url: `https://lumos-il.co.il/wizard/${id}`,
     },
@@ -55,7 +55,7 @@ export async function generateMetadata(
       card: "summary",
       title: `${title} | LUMOS IL`,
       description,
-      images: profile.avatar_url ? [profile.avatar_url] : ["/images/og-image.png"],
+      images: profile.avatar_url ? [profile.avatar_url] : ["/opengraph-image"],
     },
   };
 }

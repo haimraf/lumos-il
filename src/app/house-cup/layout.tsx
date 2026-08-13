@@ -12,9 +12,9 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "גביע הבתים של LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "גביע הבתים של LUMOS IL" }],
   },
-  twitter: { card: "summary_large_image", title: "גביע הבתים | LUMOS IL", description: "הבתים מתקדמים דרך פעילות קהילתית אמיתית.", images: ["/images/og-image.png"] },
+  twitter: { card: "summary_large_image", title: "גביע הבתים | LUMOS IL", description: "הבתים מתקדמים דרך פעילות קהילתית אמיתית.", images: ["/opengraph-image"] },
 }, "/house-cup");
 
 export default function HouseCupLayout({ children }: { children: React.ReactNode }) {

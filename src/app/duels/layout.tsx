@@ -11,13 +11,13 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "דו-קרב לחשים - LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "דו-קרב לחשים - LUMOS IL" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "דו-קרב לחשים | LUMOS IL",
     description: "דו-קרב לחשים חי בין חברות וחברי קהילת LUMOS IL.",
-    images: ["/images/og-image.png"],
+    images: ["/opengraph-image"],
   },
 }, "/duels");
 

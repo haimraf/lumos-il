@@ -12,7 +12,7 @@ export const metadata: Metadata = withCanonical({
         url: "https://lumos-il.co.il/faq",
         siteName: "LUMOS IL",
         type: "website",
-        images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "שאלות ותשובות — LUMOS IL" }],
+        images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "שאלות ותשובות — LUMOS IL" }],
     },
 }, "/faq");
 
