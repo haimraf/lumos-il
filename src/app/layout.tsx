@@ -38,7 +38,7 @@ const DEFAULT_KEYWORDS = [
   'קהילת מעריצים', 'לומוס ישראל', 'LUMOS IL', 'Harry Potter Hebrew',
   'Harry Potter Israel', 'Harry Potter fan community', 'Harry Potter forum', 'Harry Potter fanfiction',
 ];
-const DEFAULT_OG_IMAGE = "/images/og-image.png";
+const DEFAULT_OG_IMAGE = "/opengraph-image";
 
 // Cached for 60s — avoids a DB hit on every page render
 const getCachedSiteConfig = unstable_cache(
