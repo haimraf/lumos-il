@@ -31,6 +31,7 @@ import AdminSystemHealthPanel from "@/components/admin/AdminSystemHealthPanel";
 import AdminTabGuide, { type AdminTabGuideContent } from "@/components/admin/AdminTabGuide";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminForumsTab from "@/components/admin/AdminForumsTab";
+import AdminForumQueuePanel from "@/components/admin/AdminForumQueuePanel";
 import AdminSiteSettingsTab from "@/components/admin/AdminSiteSettingsTab";
 import { getYearFromProfile, getYearTitle } from "@/lib/yearSystem";
 import { logAdminAudit, type AdminAuditInput } from "@/lib/adminAudit";
@@ -2501,6 +2502,7 @@ export default function AdminPanel() {
                                 onDeleteThread={handleDeleteThread}
                             />
                         )}
+                        {activeTab === "forums" && <AdminForumQueuePanel />}
                         {/* ── TAB 7: חנות ── */}
                         {activeTab === "shop" && (() => {
                             const itemTypes = ["all", "wands", "potions", "companion", "cards", "travel"];

@@ -1,8 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/forum-seeds",
-      "schedule": "15 7 * * *"
+      "path": "/api/cron/forum-publisher",
+      "schedule": "0 9 * * *"
     }
   ]
 }
