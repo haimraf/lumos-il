@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useUIState } from "@/context/UIContext";
 import HotTopicsTeaser from "@/components/HotTopicsTeaser";
+import CastlePulse from "@/components/CastlePulse";
 import { useAuth } from "@/context/AuthContext";
 import { isUnsortedHouse } from "@/lib/houses";
 import { canBypassSortingRole, fetchProfileWithFallback } from "@/lib/profileAccess";
@@ -607,6 +608,9 @@ export default function Home() {
           <div className="magic-divider w-full mb-16" />
           <h2 id="landing-topics-title" className="sr-only">נושאים חמים בקהילה</h2>
           <HotTopicsTeaser />
+          {/* Placed under the topics because it answers the question the topics
+              raise and never answer: when was any of this? */}
+          <CastlePulse />
           <div className="magic-divider w-full mt-16" />
         </section>
 
