@@ -1,6 +1,17 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Lumos IL ? ????? ??????? ??????";
+/*
+ * The Hebrew here arrived as "Lumos IL ? ????? ??????? ??????" — every
+ * non-ASCII character replaced by a question mark when the file was written.
+ * It shipped as the share image's alt text, so assistive technology and any
+ * platform reading it got a row of question marks.
+ *
+ * Reconstructed rather than invented: the mangled form is 5, 7 and 6
+ * characters, which fits "קהילת הקוסמים בעברית", and that is the exact Hebrew
+ * of the line the image already renders in English — THE HEBREW WIZARDING
+ * COMMUNITY. The wording also matches how the site describes itself elsewhere.
+ */
+export const alt = "Lumos IL — קהילת הקוסמים בעברית";
 export const size = {
   width: 1200,
   height: 630,
@@ -86,7 +97,9 @@ export default function OpenGraphImage() {
               marginTop: 36,
             }}
           >
-            COMMUNITY ? QUESTS ? MAGIC
+            {/* Same corruption as the alt above: the separator was a middot,
+                and it rendered as a literal question mark on every shared link. */}
+            COMMUNITY · QUESTS · MAGIC
           </div>
         </div>
       </div>
