@@ -154,7 +154,27 @@ export default function Home() {
   const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [isPermanentlyBanned, setIsPermanentlyBanned] = useState(() => hasStickyMarker());
+  /*
+   * Read after mount, never as the initial state.
+   *
+   * hasStickyMarker() reads localStorage, so it returns false on the server and
+   * can return true on the client. As a lazy initializer that means the server
+   * renders the landing page while the client's very first render replaces it
+   * with the block screen — the two disagree, which is a hydration mismatch.
+   * Measured with a control: no marker gives zero hydration errors, marker
+   * present gives React #418.
+   *
+   * The marker cannot be known during SSR at all — localStorage does not exist
+   * there — so deferring it is the only correct option rather than a
+   * workaround. Nothing is weakened by the one-frame delay: this marker is a
+   * client-side deterrent, not the enforcement. A user can clear it. The real
+   * block is the profile/session check and the sign-out in AzkabanGuard.
+   */
+  const [isPermanentlyBanned, setIsPermanentlyBanned] = useState(false);
+
+  useEffect(() => {
+    if (hasStickyMarker()) setIsPermanentlyBanned(true);
+  }, []);
 
   const [supabase] = useState(() => createClient());
   const { isMuted, toggleMute } = useUIState();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Skull, ShieldAlert } from "lucide-react";
 import { hasStickyMarker } from "@/utils/magic-fingerprint";
@@ -12,7 +12,31 @@ const STAFF_ROLES = ["מייסד", "ראש הוגוורטס", "שומר הטיר
 export default function AzkabanGuard({ children }: { children: React.ReactNode }) {
     const { profile, session } = useAuth();
     const [supabase] = useState(() => createClient());
-    const [isFingerprintBanned] = useState(() => hasStickyMarker());
+    /*
+     * hasStickyMarker() reads localStorage, so it returns false on the server
+     * and can return true on the client. Read as a lazy useState initializer —
+     * as it was — the server renders the children while the client's first
+     * render swaps in the block screen, which is a hydration mismatch. This
+     * guard wraps the app, so it was the widest instance of that bug.
+     *
+     * useSyncExternalStore rather than an effect, because the value is derived
+     * and never set from anywhere else: react-hooks/set-state-in-effect
+     * correctly rejects effect-plus-setState here, and this is the API React
+     * provides for exactly this shape — a client-only value with an explicit
+     * server snapshot. The server snapshot is false, so both sides agree on
+     * the first render and the real value arrives immediately after.
+     *
+     * The marker never changes within a page's lifetime, so there is nothing
+     * to subscribe to. Nothing is weakened by the one-frame delay either: this
+     * marker is a client-side deterrent that a user can clear, not the
+     * enforcement. The real block is the profile/status check below and the
+     * sign-out it triggers.
+     */
+    const isFingerprintBanned = useSyncExternalStore(
+        () => () => {},
+        () => hasStickyMarker(),
+        () => false,
+    );
 
     const userRole = profile?.role || "";
     const userStatus = profile?.status || null;
