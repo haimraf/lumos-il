@@ -775,7 +775,7 @@ export default function AdminSiteSettingsTab() {
               value={draft.og_image_url}
               onChange={(e) => setDraft(d => ({ ...d, og_image_url: e.target.value }))}
               onBlur={() => { if (draft.og_image_url !== config.og_image_url) void save({ og_image_url: draft.og_image_url }, "seo"); }}
-              placeholder="/images/og-image.png"
+              placeholder="/opengraph-image"
               dir="ltr"
               className="w-full bg-black/20 border border-white/5 rounded-xl p-3 text-sm font-mono text-white/75 outline-none focus:border-sky-500/30 transition-all"
             />

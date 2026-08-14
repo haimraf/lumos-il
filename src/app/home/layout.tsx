@@ -12,13 +12,13 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "רחבת הכניסה של LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "רחבת הכניסה של LUMOS IL" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "רחבת הכניסה | LUMOS IL",
     description: "שער מרכזי לטירת הארי פוטר בעברית.",
-    images: ["/images/og-image.png"],
+    images: ["/opengraph-image"],
   },
 }, "/home");
 

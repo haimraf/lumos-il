@@ -56,7 +56,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const chapterTitle = chapter.title || `פרק ${orderIndex}`;
   const fullTitle = `${chapterTitle} | ${storyTitle}`;
   const description = stripHtml(chapter.content).slice(0, 155) || `פרק מתוך "${storyTitle}" בספריית הפאנפיקים של LUMOS IL.`;
-  const imageUrl = story?.cover_url || "https://lumos-il.co.il/images/og-image.png";
+  const imageUrl = story?.cover_url || "https://lumos-il.co.il/opengraph-image";
   const url = getCanonicalUrl(`/library/${id}/${orderIndex}`);
 
   return {

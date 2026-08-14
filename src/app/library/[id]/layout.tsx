@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = story.title || "סיפור בספריית LUMOS IL";
   const cleanDescription = stripHtml(story.description).slice(0, 160) || "פאנפיק בעברית מתוך ספריית LUMOS IL וקהילת הארי פוטר בישראל.";
   const authorName = normalizeProfile(story.profiles || null)?.full_name || "כותבי הטירה";
-  const imageUrl = story.cover_url || "https://lumos-il.co.il/images/og-image.png";
+  const imageUrl = story.cover_url || "https://lumos-il.co.il/opengraph-image";
   const url = getCanonicalUrl(`/library/${id}`);
 
   return {
@@ -79,7 +79,7 @@ export default async function StoryLayout({ children, params }: { children: Reac
   const title = story?.title || "סיפור בלומוס IL";
   const cleanDescription = stripHtml(story?.description).slice(0, 160) || "סיפור קהילתי בעברית בספריית LUMOS IL.";
   const authorName = normalizeProfile(story?.profiles || null)?.full_name || "כותבי הטירה";
-  const imageUrl = story?.cover_url || "https://lumos-il.co.il/images/og-image.png";
+  const imageUrl = story?.cover_url || "https://lumos-il.co.il/opengraph-image";
 
   const jsonLd = {
     "@context": "https://schema.org",
