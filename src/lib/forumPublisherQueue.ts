@@ -23,14 +23,23 @@ export type PublisherSettings = {
 export const PUBLISHER_SETTINGS_COLUMNS =
   "is_enabled, author_id, min_hours_between_posts, blocked_keywords, allowed_link_hosts";
 
-export function createServiceClient(): SupabaseClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) return null;
+/**
+ * מחזיר את שמות משתני הסביבה שחסרים לחיבור service-role.
+ * מוחזר כרשימה כדי שהודעת השגיאה תצביע על המשתנה המדויק במקום על "אחד משניים".
+ */
+export function missingServiceEnvVars(): string[] {
+  const required = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] as const;
+  return required.filter((name) => !process.env[name]?.trim());
+}
 
-  return createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+export function createServiceClient(): SupabaseClient | null {
+  if (missingServiceEnvVars().length > 0) return null;
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
 }
 
 export async function loadPublisherSettings(supabase: SupabaseClient) {

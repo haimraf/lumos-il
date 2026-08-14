@@ -7,6 +7,7 @@ import {
   loadForumIdBySlug,
   loadMemberNames,
   loadPublisherSettings,
+  missingServiceEnvVars,
 } from "@/lib/forumPublisherQueue";
 import { generateForumDrafts } from "@/lib/forumThreadGenerator";
 import { createClient } from "@/utils/supabase/server";
@@ -45,7 +46,7 @@ export async function POST() {
     const serviceClient = createServiceClient();
     if (!serviceClient) {
       return NextResponse.json(
-        { error: "חסר SUPABASE_SERVICE_ROLE_KEY בסביבה." },
+        { error: `חסרים משתני סביבה: ${missingServiceEnvVars().join(", ")}.` },
         { status: 503 },
       );
     }

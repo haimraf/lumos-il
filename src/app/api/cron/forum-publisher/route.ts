@@ -7,6 +7,7 @@ import {
   loadForumIdBySlug,
   loadMemberNames,
   loadPublisherSettings,
+  missingServiceEnvVars,
 } from "@/lib/forumPublisherQueue";
 import { generateForumDrafts } from "@/lib/forumThreadGenerator";
 
@@ -102,7 +103,7 @@ export async function GET(request: Request) {
   const supabase = createServiceClient();
   if (!supabase) {
     return NextResponse.json(
-      { error: "חסרים NEXT_PUBLIC_SUPABASE_URL או SUPABASE_SERVICE_ROLE_KEY." },
+      { error: `חסרים משתני סביבה: ${missingServiceEnvVars().join(", ")}.` },
       { status: 503 },
     );
   }

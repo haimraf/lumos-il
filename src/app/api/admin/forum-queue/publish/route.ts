@@ -1,7 +1,7 @@
-import { createClient as createServiceRoleClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 import { logAdminAudit } from "@/lib/adminAudit";
+import { createServiceClient, missingServiceEnvVars } from "@/lib/forumPublisherQueue";
 import { createClient } from "@/utils/supabase/server";
 
 /**
@@ -41,18 +41,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "חסר מזהה פריט בתור." }, { status: 400 });
     }
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !serviceRoleKey) {
+    const serviceClient = createServiceClient();
+    if (!serviceClient) {
       return NextResponse.json(
-        { error: "חסר SUPABASE_SERVICE_ROLE_KEY בסביבה." },
+        { error: `חסרים משתני סביבה: ${missingServiceEnvVars().join(", ")}.` },
         { status: 503 },
       );
     }
-
-    const serviceClient = createServiceRoleClient(url, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
 
     // הפונקציה מפרסמת רק פריט במצב approved, אז מסמנים אותו לפני הקריאה.
     const { error: approveError } = await serviceClient
