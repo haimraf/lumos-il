@@ -87,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = article.meta_title?.trim() || article.title;
   const description = article.meta_description?.trim() || truncate(stripHtml(article.content), 160);
-  const image = article.image_url || "/images/og-image.png";
+  const image = article.image_url || "/opengraph-image";
   const author = getAuthorProfile(article)?.full_name || article.author || "מערכת LUMOS IL";
 
   return withCanonical(
@@ -152,7 +152,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
       name: "LUMOS IL",
       url: "https://lumos-il.co.il",
     },
-    image: article.image_url || "https://lumos-il.co.il/images/og-image.png",
+    image: article.image_url || "https://lumos-il.co.il/opengraph-image",
     inLanguage: "he",
   };
 

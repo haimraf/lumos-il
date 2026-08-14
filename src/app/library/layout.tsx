@@ -12,13 +12,13 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "ספריית הפאנפיקים של LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ספריית הפאנפיקים של LUMOS IL" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "ספריית הפאנפיקים בעברית | LUMOS IL",
     description: "סיפורי הארי פוטר בעברית, פרקים מקוריים ויצירות קהילה.",
-    images: ["/images/og-image.png"],
+    images: ["/opengraph-image"],
   },
 }, "/library");
 

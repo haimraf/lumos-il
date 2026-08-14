@@ -24,6 +24,7 @@ import { canBypassSortingRole, fetchProfileWithFallback } from "@/lib/profileAcc
  * ✅ עיצוב feature cards
  * ✅ ניווט קל לפורומים / ספרייה
  * ✅ כל הלוגיקה הקיימת שמורה
+ * ✅ First paint: real welcome before auth resolves (no blocking loader)
  */
 
 const LEGACY_BANNED_ROLE_HE = "\u05d0\u05e1\u05d9\u05e8 \u05d0\u05d6\u05e7\u05d1\u05d0\u05df";
@@ -37,7 +38,7 @@ const landingStructuredData = {
       "@type": "Organization",
       name: "LUMOS IL",
       url: "https://lumos-il.co.il",
-      logo: "https://lumos-il.co.il/images/og-image.png",
+      logo: "https://lumos-il.co.il/opengraph-image",
       sameAs: [
         "https://lumos-il.co.il/house-cup",
         "https://lumos-il.co.il/forums",
@@ -146,14 +147,12 @@ export default function Home() {
   const [isOpen, setIsOpen] = useState(false);
   const [letterVisible, setLetterVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [stars] = useState<{ x: number; y: number; size: number; delay: number; duration: number }[]>(() => createInitialStars());
-
+  const [stars, setStars] = useState<{ x: number; y: number; size: number; delay: number; duration: number }[]>([]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoginMode, setIsLoginMode] = useState(true);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
   /*
    * Read after mount, never as the initial state.
    *
@@ -181,12 +180,14 @@ export default function Home() {
   const { session, profile, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!session) {
-      setIsCheckingSession(false);
-      return;
-    }
+    // Stars are browser-only random positions — set after mount to avoid SSR/client hydration mismatch.
+    setStars(createInitialStars());
+  }, []);
 
+  // Show the real landing immediately for visitors.
+  // Only redirect after auth resolves with an active session (keeps logged-in routing intact).
+  useEffect(() => {
+    if (authLoading || !session) return;
     router.push(shouldRouteToSorting(profile) ? "/sorting" : "/home");
   }, [authLoading, profile, router, session]);
 
@@ -345,13 +346,6 @@ export default function Home() {
       setIsLoading(false);
     }
   };
-
-  if (isCheckingSession) return (
-    <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center gap-6">
-      <div className="w-16 h-16 border-t-4 border-amber-500 rounded-full animate-spin shadow-[0_0_30px_rgba(245,158,11,0.5)]" />
-      <span className="font-cinzel tracking-[0.3em] text-amber-500/50 uppercase text-sm animate-pulse">פותח את שערי הטירה...</span>
-    </div>
-  );
 
   if (isPermanentlyBanned) return (
     <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center text-center p-6" dir="rtl">

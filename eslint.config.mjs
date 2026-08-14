@@ -11,6 +11,9 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    // Nested collaborator worktrees may contain their own source and build output.
+    // They are separate checkouts, not part of this application's lint scope.
+    ".claude/**",
     "next-env.d.ts",
   ]),
 ]);

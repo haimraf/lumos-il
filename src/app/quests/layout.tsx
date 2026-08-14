@@ -12,9 +12,9 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "קווסטים ומשימות קהילה ב-LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "קווסטים ומשימות קהילה ב-LUMOS IL" }],
   },
-  twitter: { card: "summary_large_image", title: "קווסטים | LUMOS IL", description: "משימות, נקודות בתים ופעילות קהילה בטירה.", images: ["/images/og-image.png"] },
+  twitter: { card: "summary_large_image", title: "קווסטים | LUMOS IL", description: "משימות, נקודות בתים ופעילות קהילה בטירה.", images: ["/opengraph-image"] },
 }, "/quests");
 
 export default function QuestsLayout({ children }: { children: React.ReactNode }) {

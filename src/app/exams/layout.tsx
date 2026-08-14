@@ -12,13 +12,13 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "בחינות הוגוורטס - LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "בחינות הוגוורטס - LUMOS IL" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "בחינות הוגוורטס | LUMOS IL",
     description: "בחינות O.W.L ו-N.E.W.T בעברית למעריצות ומעריצי הארי פוטר.",
-    images: ["/images/og-image.png"],
+    images: ["/opengraph-image"],
   },
 }, "/exams");
 

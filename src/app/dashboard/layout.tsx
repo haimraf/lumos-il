@@ -13,13 +13,13 @@ export const metadata: Metadata = {
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "לוח הבקרה האישי של LUMOS IL" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "לוח הבקרה האישי של LUMOS IL" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "לוח הבקרה האישי | LUMOS IL",
     description: "מרכז אישי לקווסטים, נקודות בית והמשך המסע בטירה.",
-    images: ["/images/og-image.png"],
+    images: ["/opengraph-image"],
   },
 };
 

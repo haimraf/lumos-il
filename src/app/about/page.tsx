@@ -15,7 +15,7 @@ export const metadata: Metadata = withCanonical({
     siteName: "LUMOS IL",
     locale: "he_IL",
     type: "website",
-    images: [{ url: "/images/og-image.png", width: 1200, height: 630, alt: "LUMOS IL — הסיפור שלנו" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "LUMOS IL — הסיפור שלנו" }],
   },
 }, "/about");
 
