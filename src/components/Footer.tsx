@@ -149,6 +149,20 @@ export default function Footer() {
                             <Zap size={12} className="fill-amber-500/60" />
                             v2.3.0-PHASE2
                         </div>
+                        {/* Build credit. The heart stays here and is dropped on
+                            מקור בדיקה — same words, but the warmth belongs to a
+                            community rather than to a fact-checking archive. */}
+                        <a
+                            href="https://studio-haim.com/"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="group font-crimson text-white/25 text-base hover:text-amber-400 transition-colors duration-300"
+                        >
+                            נבנה ב־❤️ על ידי{" "}
+                            <span className="font-cinzel text-[11px] font-bold tracking-wider uppercase text-white/40 group-hover:text-amber-400 transition-colors">
+                                Studio Haim
+                            </span>
+                        </a>
                     </div>
 
                     {/* Desktop only — same buttons */}
