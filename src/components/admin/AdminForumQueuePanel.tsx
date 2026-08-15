@@ -50,6 +50,9 @@ type QueueItem = {
 
 const UNIQUE_VIOLATION = "23505";
 
+/** תואם ל-v_cooldown_seconds של forum_thread_created ב-log_activity_event_secure. */
+const FEED_COOLDOWN_SECONDS = 45;
+
 const FILTERS: Array<{ id: "ready" | "published" | "rejected" | "all"; label: string }> = [
   { id: "ready", label: "מוכנים לפרסום" },
   { id: "published", label: "פורסמו" },
@@ -80,6 +83,26 @@ export default function AdminForumQueuePanel() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftContent, setDraftContent] = useState("");
   const [feedback, setFeedback] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [lastPublishAt, setLastPublishAt] = useState<number | null>(null);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+
+  // log_activity_event_secure חוסם רישום של אשכול נוסף בתוך 45 שניות מהקודם.
+  // האשכול עצמו יתפרסם בכל מקרה, אבל הוא לא יוכרז בפיד — כשל שקט לגמרי.
+  useEffect(() => {
+    if (lastPublishAt === null) return;
+
+    const tick = () => {
+      const left = Math.max(0, FEED_COOLDOWN_SECONDS - Math.floor((Date.now() - lastPublishAt) / 1000));
+      setCooldownLeft(left);
+      return left;
+    };
+
+    if (tick() === 0) return;
+    const timer = setInterval(() => {
+      if (tick() === 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lastPublishAt]);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -290,8 +313,15 @@ export default function AdminForumQueuePanel() {
         targetUrl: `/forums/thread/${threadId}`,
       });
 
+      const wasThrottled = lastPublishAt !== null && Date.now() - lastPublishAt < FEED_COOLDOWN_SECONDS * 1000;
+      setLastPublishAt(Date.now());
       setEditingId(null);
-      setFeedback({ tone: "ok", text: "האשכול פורסם." });
+      setFeedback({
+        tone: "ok",
+        text: wasThrottled
+          ? "האשכול פורסם, אבל הוא לא נכנס לפיד הפעילות — פרסמת אשכול קודם לפני פחות מדקה."
+          : "האשכול פורסם ונכנס לפיד.",
+      });
       void load();
     } finally {
       setBusyId(null);
@@ -356,6 +386,16 @@ export default function AdminForumQueuePanel() {
         שום דבר לא מתפרסם לבד. אתה מייצר טיוטות, קורא, עורך אם בא לך, ולוחץ פרסם. האשכול נרשם על שמך
         ומופיע בפיד כמו כל אשכול רגיל.
       </p>
+
+      {cooldownLeft > 0 && (
+        <div className="rounded-xl px-4 py-2.5 text-xs border bg-amber-500/10 border-amber-500/25 text-amber-200 flex items-center gap-2">
+          <AlertTriangle size={13} className="shrink-0" />
+          <span>
+            כדאי להמתין <strong>{cooldownLeft}</strong> שניות לפני האשכול הבא — האתר מכריז על אשכול
+            אחד לכל היותר בכל 45 שניות, וכל אשכול שיפורסם עכשיו לא יופיע בפיד הפעילות.
+          </span>
+        </div>
+      )}
 
       {feedback && (
         <div
