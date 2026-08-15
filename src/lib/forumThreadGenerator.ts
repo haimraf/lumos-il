@@ -362,13 +362,10 @@ async function generateCanonDeepDive(context: GeneratorContext): Promise<Generat
     },
   ];
 
-  // עדכוני סדרה הם חדשות ולא קאנון ספרותי, ולכן מקומם בפורום עולם הקסמים.
-  const forumSlug = topic.kind === "series-news" ? "general-talk" : "library";
-
   return {
     generator: "canon-deep-dive",
     dedupeKey: `canon-deep-dive:${topic.id}`,
-    forumSlug,
+    forumSlug: topic.forumSlug,
     title: topic.title,
     content,
     canonSource: topic.source,

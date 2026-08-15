@@ -44,6 +44,11 @@ export type CanonTopic = {
   facts?: Record<string, string | number>;
   /** מקור חיצוני מאמת. נשמר במטא-דאטה של הטיוטה, לא בגוף הטקסט. */
   sourceUrl?: string;
+  /**
+   * הפורום שאליו הנושא מתפרסם. מנותב במפורש כדי שכל לוח הפורומים יתעורר ולא
+   * רק הספרייה — חדר ריק עם תאריך ישן מסמן למבקר חדש שהמקום מת.
+   */
+  forumSlug: string;
 };
 
 export const CANON_TOPIC_KIND_LABELS: Record<CanonTopicKind, string> = {
@@ -60,6 +65,7 @@ export const CANON_TOPIC_KIND_LABELS: Record<CanonTopicKind, string> = {
 export const CANON_TOPICS: CanonTopic[] = [
   {
     id: "boggart-lesson",
+    forumSlug: "library",
     kind: "moment",
     source: "books",
     title: "שיעור הבוגארט — למה דווקא הפחד של לופין הסגיר אותו",
@@ -75,6 +81,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "room-of-requirement",
+    forumSlug: "main-lobby",
     kind: "object",
     source: "books",
     title: "חדר הנחיצות — החוקים שלו לא באמת עקביים",
@@ -90,6 +97,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "time-turner-problem",
+    forumSlug: "library",
     kind: "object",
     source: "books",
     title: "מהפך הזמן — הבעיה שהסאגה נאלצה לפתור בכוח",
@@ -105,6 +113,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "thestrals",
+    forumSlug: "library",
     kind: "creature",
     source: "books",
     title: "תסטרלים — היצור שמוגדר לפי מי שרואה אותו",
@@ -120,6 +129,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "snape-first-lesson",
+    forumSlug: "library",
     kind: "character",
     source: "books",
     title: "השיעור הראשון של סנייפ — השאלות לא היו אקראיות",
@@ -135,6 +145,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "book-vs-film-ending",
+    forumSlug: "library",
     kind: "book-vs-film",
     source: "both",
     title: "הבדל ספר־סרט: הקרב האחרון נראה אחרת לגמרי",
@@ -150,6 +161,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "hogwarts-subjects",
+    forumSlug: "main-lobby",
     kind: "hogwarts-life",
     source: "books",
     title: "המקצועות שאף אחד לא באמת לומד בהם כלום",
@@ -165,6 +177,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "polyjuice-limits",
+    forumSlug: "diagon-alley",
     kind: "object",
     source: "books",
     title: "שיקוי ריבוי המיץ — המגבלות שלו הן מה שמייצר את המתח",
@@ -180,6 +193,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "house-elves-magic",
+    forumSlug: "main-lobby",
     kind: "creature",
     source: "books",
     title: "קסם בני הלילית חזק יותר משל קוסמים, ואף אחד לא מתייחס לזה",
@@ -195,6 +209,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "quidditch-scoring",
+    forumSlug: "forum-games",
     kind: "hogwarts-life",
     source: "both",
     title: "שיטת הניקוד בקווידיץ' שבורה, וזה חלק מהקסם",
@@ -210,6 +225,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "patronus-meaning",
+    forumSlug: "library",
     kind: "spell",
     source: "books",
     title: "פטרונוס — למה הצורה משתנה ומה זה מסגיר",
@@ -225,6 +241,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "sorting-choice",
+    forumSlug: "main-lobby",
     kind: "moment",
     source: "books",
     title: "המיון — האם הכובע בוחר, או שאתם בוחרים",
@@ -244,6 +261,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   // אין הדלפות, ואין ניחושים שמוצגים כעובדה.
   {
     id: "series-premiere-christmas",
+    forumSlug: "general-talk",
     kind: "series-news",
     source: "series",
     title: "הסדרה עולה בחג המולד — מה זה אומר על העיבוד",
@@ -262,6 +280,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "series-eight-episodes",
+    forumSlug: "general-talk",
     kind: "series-news",
     source: "series",
     title: "שמונה פרקים לספר אחד — מה סוף סוף ייכנס",
@@ -279,6 +298,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "series-new-trio",
+    forumSlug: "general-talk",
     kind: "series-news",
     source: "series",
     title: "טריו חדש לגמרי — ולא הכרנו אף אחד מהם",
@@ -296,6 +316,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "series-adult-cast",
+    forumSlug: "general-talk",
     kind: "series-news",
     source: "series",
     title: "המבוגרים בסדרה — שמות גדולים בתפקידים שכבר יש להם פרצוף",
@@ -314,6 +335,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   // ── הסרטים ──────────────────────────────────────────────────────────────
   {
     id: "films-tonal-shift",
+    forumSlug: "library",
     kind: "book-vs-film",
     source: "films",
     title: "הסרט השלישי שינה את הטון של כל הסדרה",
@@ -329,6 +351,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "films-goblet-cuts",
+    forumSlug: "library",
     kind: "book-vs-film",
     source: "films",
     title: "מה נחתך מגביע האש, ולמה זה כואב",
@@ -344,6 +367,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "films-hedwig-theme",
+    forumSlug: "hogwarts-choir",
     kind: "book-vs-film",
     source: "films",
     title: "הנעימה שהפכה לזהות של כל הסאגה",
@@ -359,6 +383,7 @@ export const CANON_TOPICS: CanonTopic[] = [
   },
   {
     id: "films-hogwarts-look",
+    forumSlug: "three-broomsticks",
     kind: "book-vs-film",
     source: "films",
     title: "הטירה שכולנו מדמיינים היא של הסרטים, לא של הספרים",
@@ -371,6 +396,93 @@ export const CANON_TOPICS: CanonTopic[] = [
       "זו אחת ההשפעות הכי עמוקות של העיבוד, ורובנו בכלל לא שמים לב אליה.",
     ],
     hook: "אתם זוכרים איך דמיינתם את הטירה לפני שראיתם אותה על המסך?",
+  },
+
+  // ── מועדוני הבתים ───────────────────────────────────────────────────────
+  // ארבעת החדרים האלה היו ריקים מאז מרץ. יש עליהם ביקוש חיפוש מוכח בעברית
+  // ("הפלפאף תכונות", "גריפינדור תכונות", "סלית'רין"), ולכן כל אחד מקבל נושא
+  // משלו שמסביר את הבית מהקאנון במקום להשאיר חדר מת.
+  {
+    id: "house-gryffindor",
+    forumSlug: "gryffindor-room",
+    kind: "hogwarts-life",
+    source: "books",
+    title: "גריפינדור — אומץ זה לא היעדר פחד",
+    appearsIn: "שיר מצנפת המיון, לאורך הספרים",
+    premise:
+      "מצנפת המיון מונה עבור גריפינדור אומץ, העזה וגבורה. אבל הרגעים שבהם הבית באמת מוכיח את עצמו בסאגה הם דווקא רגעים של פחד גלוי.",
+    points: [
+      "הדמויות הגריפינדוריות המרכזיות מתוארות שוב ושוב כמפוחדות ממש לפני שהן פועלות, וזה מה שהופך את הפעולה לאמיצה.",
+      "מצנפת המיון מדגישה שהבחירה קובעת לא פחות מהתכונה, ולכן גריפינדור אינו בית של אנשים חסרי פחד אלא של אנשים שבוחרים לפעול בכל זאת.",
+      "החרב שמופיעה למי שזקוק לה היא סמל מדויק לרעיון: היא מגיעה ברגע הצורך, לא ברגע הביטחון.",
+    ],
+    hook: "מי לדעתכם הדמות הכי גריפינדורית בסאגה, ולמה דווקא היא ולא הבחירה המתבקשת?",
+  },
+  {
+    id: "house-hufflepuff",
+    forumSlug: "hufflepuff-room",
+    kind: "hogwarts-life",
+    source: "books",
+    title: "הפלפאף — הבית היחיד שלא בחר",
+    appearsIn: "שיר מצנפת המיון, ותיאור מייסדי הבתים",
+    premise:
+      "שלושת הבתים האחרים הגדירו למי הם מוכנים לפתוח את הדלת. הפלפאף הוא היחיד שהצהיר שילמד את כולם, בלי סינון.",
+    points: [
+      "התכונות המוצהרות הן עמל, סבלנות, נאמנות והגינות — תכונות שקשה להפוך לרגע דרמטי, ולכן הבית מקבל פחות זמן מסך.",
+      "דווקא ההיעדר של קריטריון כניסה הוא ההצהרה החזקה ביותר מבין ארבעת המייסדים.",
+      "בקרב המסכם, שיעור התלמידים שנשארו להילחם מהבית הזה גבוה משמעותית ממה שהמוניטין שלו מרמז.",
+    ],
+    hook: "לדעתכם המוניטין של הפלפאף כבית ה\"רגוע\" הוא אי־הבנה, או שהוא בדיוק מה שהבית רוצה?",
+  },
+  {
+    id: "house-ravenclaw",
+    forumSlug: "ravenclaw-room",
+    kind: "hogwarts-life",
+    source: "books",
+    title: "רייבנקלו — למה הדלת שואלת חידה ולא סיסמה",
+    appearsIn: "מסדר עוף החול, הכניסה לחדר המועדון",
+    premise:
+      "בכל בית אחר נכנסים עם סיסמה שמישהו מסר לכם. ברייבנקלו הדלת שואלת חידה, וכל אחד חייב לחשוב בעצמו כדי להיכנס.",
+    points: [
+      "המשמעות המעשית היא שאי אפשר להיכנס בזכות מישהו אחר — לא בזכות חבר ולא בזכות ותק.",
+      "החידות אינן בעלות תשובה אחת נכונה, ולעיתים מתקבלת תשובה מנומקת גם אם אינה הצפויה.",
+      "זו הדרך היחידה בטירה שבה מנגנון הכניסה עצמו מלמד משהו על הבית.",
+    ],
+    hook: "אתם מעדיפים דלת ששואלת חידה או סיסמה פשוטה? ולמה זה אומר משהו עליכם?",
+  },
+  {
+    id: "house-slytherin",
+    forumSlug: "slytherin-room",
+    kind: "hogwarts-life",
+    source: "books",
+    title: "סלית'רין — שאפתנות היא לא נבל",
+    appearsIn: "שיר מצנפת המיון, לאורך הספרים",
+    premise:
+      "התכונות שמצנפת המיון מונה לסלית'רין הן שאפתנות, ערמומיות, תושייה ונחישות. אף אחת מהן אינה שלילית כשלעצמה.",
+    points: [
+      "מצנפת המיון שוקלת להציב את הארי בבית הזה, מה שאומר שהתכונות האלה קיימות גם בגיבור הסאגה.",
+      "הדמות שמקבלת את אחד הרגעים המכריעים ביותר בסוף הסאגה היא סלית'רינית, וזה לא במקרה.",
+      "הזיהוי בין הבית לבין הצד האפל הוא תוצאה של תקופה מסוימת ושל דמויות מסוימות, לא של הגדרת הבית.",
+    ],
+    hook: "אתם חושבים שהסאגה מתקנת מספיק את הדימוי של הבית, או שהיא נשארת חייבת לו?",
+  },
+
+  // ── מטבח הקוסמים ────────────────────────────────────────────────────────
+  {
+    id: "wizarding-food",
+    forumSlug: "wizards-kitchen",
+    kind: "hogwarts-life",
+    source: "books",
+    title: "האוכל בהוגוורטס לא מופיע יש מאין — וזה חשוב",
+    appearsIn: "גביע האש, השיחה על עבודת המטבח",
+    premise:
+      "אחד החוקים הבסיסיים של הקסם בסאגה הוא שאי אפשר ליצור אוכל מכלום. אפשר להכפיל אותו, להזיז אותו או להגדיל מנה קיימת — אבל לא לברוא.",
+    points: [
+      "המשמעות היא שכל ארוחה באולם הגדול מבושלת בפועל, במטבח שנמצא ישירות מתחתיו.",
+      "האוכל עולה אל השולחנות בהעברה, וזו הסיבה שהצלחות נראות כאילו הן מתמלאות מעצמן.",
+      "החוק הזה הוא מה שהופך את עבודת המטבח לעבודה אמיתית, ולכן גם למקום שבו הסאגה נוגעת בשאלת התנאים של מי שעושה אותה.",
+    ],
+    hook: "איזה מאכל מהסאגה הייתם הכי רוצים לטעום, ואיזה נשמע לכם מפוקפק לגמרי?",
   },
 ];
 
