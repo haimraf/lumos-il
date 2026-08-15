@@ -4,7 +4,7 @@ import { withCanonical } from "@/lib/seo";
 import SecretQuestWord from "@/components/SecretQuestWord"; // <-- ייבוא המילה הסודית
 
 export const metadata: Metadata = withCanonical({
-  title: "חוקי הטירה | LUMOS IL - משרד הקסמים",
+  title: "חוקי הטירה — משרד הקסמים",
   description: "הכללים לשמירה על סדר וביטחון בטירת לומוס ישראל. קראו את חוקי הקהילה הרשמיים.",
 }, "/rules");
 

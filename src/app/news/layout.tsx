@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { withCanonical } from "@/lib/seo";
 
 export const metadata: Metadata = withCanonical({
-  title: "הנביא היומי של Lumos IL",
+  title: "הנביא היומי — חדשות ועדכונים מהטירה",
   description: "הנביא היומי מרכז עדכונים קצרים, כתבות, סקרים ורשמים מפעילות הטירה: פורומים, משימות, נקודות בתים, ספרייה וקהילת הארי פוטר בעברית.",
   keywords: ["הנביא היומי", "חדשות הארי פוטר", "כתבות הארי פוטר", "לומוס ישראל", "קהילת הארי פוטר", "עדכוני קהילה"],
   openGraph: {

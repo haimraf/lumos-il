@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { withCanonical } from "@/lib/seo";
 
 export const metadata: Metadata = withCanonical({
-  title: "רחבת הכניסה של Lumos IL",
+  title: "רחבת הכניסה",
   description: "העמוד המרכזי של טירת Lumos IL: מעבר מהיר לפורומים, לספריית הפאנפיקים, לנביא היומי, לקווסטים, לגביע הבתים ולחדר המועדון האישי.",
   keywords: ["LUMOS IL", "לומוס ישראל", "הארי פוטר בעברית", "פאנפיקים", "פורומים", "הנביא היומי", "גביע הבתים"],
   openGraph: {

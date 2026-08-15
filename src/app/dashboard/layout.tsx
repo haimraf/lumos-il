@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getCanonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "לוח הבקרה האישי | LUMOS IL",
+  title: "לוח הבקרה האישי",
   description: "לוח הבקרה האישי של LUMOS IL מרכז קווסטים, התקדמות, נקודות בית, התראות ופעילות קהילה בתוך הטירה.",
   alternates: { canonical: getCanonicalUrl("/dashboard") },
   robots: { index: false, follow: false },
