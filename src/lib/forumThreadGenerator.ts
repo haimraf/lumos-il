@@ -355,7 +355,8 @@ async function generateCanonDeepDive(context: GeneratorContext): Promise<Generat
   const sources: ForumDraftSource[] = [
     {
       kind: "canon",
-      label: `${CANON_TOPIC_KIND_LABELS[topic.kind]} — ${topic.title}`,
+      // בלי הכותרת — היא כבר מוצגת ממש מעל שורת המקורות בפאנל ובאשכול.
+      label: CANON_TOPIC_KIND_LABELS[topic.kind],
       ref: topic.appearsIn,
       url: topic.sourceUrl || null,
       reliability: "high",
