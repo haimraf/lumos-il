@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { ForumDraftCandidate, ForumDraftSource } from "@/lib/forumAutoGate";
-import { CANON_TOPIC_KIND_LABELS, pickCanonTopic } from "@/lib/forumCanonTopics";
+import { CANON_TOPICS, CANON_TOPIC_KIND_LABELS } from "@/lib/forumCanonTopics";
 import { HOUSE_IDS, HOUSE_PALETTES, type HouseId } from "@/lib/houses";
 import { getSpellCanonMeta } from "@/lib/wizardingCanon";
 
@@ -101,6 +101,11 @@ async function generateHouseCupWeekly(context: GeneratorContext): Promise<Genera
 
   const total = ranked.reduce((sum, entry) => sum + entry.points, 0);
   if (total <= 0) return null;
+
+  // אחרי איפוס נקודות מצב הגביע לא מעניין ואשכול עליו נראה עלוב ("מוביל עם
+  // 9 נקודות"). דורשים לפחות שני בתים עם נקודות לפני שמדווחים על מרוץ.
+  const housesWithPoints = ranked.filter((entry) => entry.points > 0).length;
+  if (housesWithPoints < 2) return null;
 
   const leader = ranked[0];
   const runnerUp = ranked[1];
@@ -252,11 +257,14 @@ const SPOTLIGHT_SPELLS = [
 ] as const;
 
 async function generateCanonSpotlight(context: GeneratorContext): Promise<GeneratedDraft | null> {
-  const { now } = context;
+  const { supabase, now } = context;
   const { year, week } = isoWeek(now);
 
-  // סבב קבוע לפי שבוע — כל לחש חוזר רק אחרי שכולם עברו.
-  const token = SPOTLIGHT_SPELLS[week % SPOTLIGHT_SPELLS.length];
+  // הלחש הראשון שעוד לא הופיע, ולא סבב לפי שבוע.
+  const used = await fetchUsedTopicIds(supabase, "canon-spotlight");
+  const token = SPOTLIGHT_SPELLS.find((entry) => !used.has(entry));
+  if (!token) return null;
+
   const meta = getSpellCanonMeta({ latin_name: token });
   if (!meta) return null;
 
@@ -286,7 +294,7 @@ async function generateCanonSpotlight(context: GeneratorContext): Promise<Genera
 
   return {
     generator: "canon-spotlight",
-    dedupeKey: `canon-spotlight:${year}-W${week}:${token}`,
+    dedupeKey: `canon-spotlight:${token}`,
     forumSlug: "library",
     title: `זרקור על לחש — ${displayName}`,
     content,
@@ -305,12 +313,35 @@ async function generateCanonSpotlight(context: GeneratorContext): Promise<Genera
 
 // ── צלילה קאנונית לעומק ─────────────────────────────────────────────────────
 
+/** מזהי נושאים שכבר נוצלו, מתוך צילומי הנתונים של פריטי התור. */
+async function fetchUsedTopicIds(
+  supabase: SupabaseClient,
+  generator: string,
+): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("forum_thread_queue")
+    .select("data_snapshot")
+    .eq("generator", generator)
+    .limit(500);
+
+  const used = new Set<string>();
+  for (const row of data || []) {
+    const snapshot = (row as { data_snapshot?: Record<string, unknown> }).data_snapshot;
+    const topicId = snapshot?.topicId ?? snapshot?.token;
+    if (typeof topicId === "string") used.add(topicId);
+  }
+  return used;
+}
+
 async function generateCanonDeepDive(context: GeneratorContext): Promise<GeneratedDraft | null> {
-  const { now } = context;
+  const { supabase, now } = context;
   const { year, week } = isoWeek(now);
 
-  // סבב רציף שממשיך לרוץ גם במעבר שנה, כך שנושא חוזר רק אחרי מחזור מלא.
-  const topic = pickCanonTopic(year * 53 + week);
+  // בוחרים את הנושא הראשון שעוד לא נוצל, במקום סבב לפי שבוע. כך נושא חדש שנוסף
+  // לבנק זמין מיד, ואפשר לייצר כמה אשכולות ברצף בלי לחכות שבוע בין אחד לשני.
+  const used = await fetchUsedTopicIds(supabase, "canon-deep-dive");
+  const topic = CANON_TOPICS.find((entry) => !used.has(entry.id));
+  if (!topic) return null;
 
   const points = topic.points.map((point) => `<li>${point}</li>`).join("");
 
@@ -326,18 +357,22 @@ async function generateCanonDeepDive(context: GeneratorContext): Promise<Generat
       kind: "canon",
       label: `${CANON_TOPIC_KIND_LABELS[topic.kind]} — ${topic.title}`,
       ref: topic.appearsIn,
+      url: topic.sourceUrl || null,
       reliability: "high",
     },
   ];
 
+  // עדכוני סדרה הם חדשות ולא קאנון ספרותי, ולכן מקומם בפורום עולם הקסמים.
+  const forumSlug = topic.kind === "series-news" ? "general-talk" : "library";
+
   return {
     generator: "canon-deep-dive",
-    dedupeKey: `canon-deep-dive:${year}-W${week}:${topic.id}`,
-    forumSlug: "library",
+    dedupeKey: `canon-deep-dive:${topic.id}`,
+    forumSlug,
     title: topic.title,
     content,
     canonSource: topic.source,
-    prefix: "דיון",
+    prefix: topic.kind === "series-news" ? "עדכון" : "דיון",
     sources,
     dataSnapshot: {
       isoYear: year,
@@ -345,6 +380,8 @@ async function generateCanonDeepDive(context: GeneratorContext): Promise<Generat
       topicId: topic.id,
       kind: topic.kind,
       appearsIn: topic.appearsIn,
+      // בלי זה כל ספרה בטקסט תיחשב טענה לא מבוססת ותעצור את הטיוטה.
+      ...(topic.facts || {}),
     },
   };
 }
