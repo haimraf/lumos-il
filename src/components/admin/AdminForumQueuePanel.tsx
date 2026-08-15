@@ -1,18 +1,33 @@
 "use client";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { AlertTriangle, BookOpen, Loader2, Pencil, Send, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BookOpen, Check, Clock, Loader2, Send, Sparkles, Trash2, Wand2 } from "lucide-react";
 
 import CanonBadge from "@/components/CanonBadge";
-import { GATE_REASON_LABELS, type ForumDraftSource, type GateReason } from "@/lib/forumAutoGate";
+import {
+  evaluateForumDraft,
+  GATE_REASON_LABELS,
+  stripHtml,
+  type ForumDraftSource,
+  type GateReason,
+} from "@/lib/forumAutoGate";
+import { generateForumDrafts } from "@/lib/forumThreadGenerator";
+import { logActivityEvent } from "@/lib/activityEvents";
 import type { CanonSource } from "@/lib/wizardingCanon";
 import { createClient } from "@/utils/supabase/client";
+import { sanitizeHtml } from "@/utils/sanitize";
 
 /**
- * ניהול תור האשכולות האוטומטיים.
+ * מרכז האשכולות המוכנים.
  *
- * הפאנל עצמאי ומושך את הנתונים בעצמו (RLS מגביל את הטבלה לצוות בלבד), כדי לא
- * להעמיס עוד עשרה פרופס על עמוד הניהול.
+ * הכל רץ מהדפדפן תחת הסשן של המשתמש המחובר — אין קרון, אין service role ואין
+ * משתני סביבה. הפרסום עצמו עובר דרך create_forum_thread_secure, בדיוק אותו
+ * מסלול שהאתר משתמש בו כשפותחים אשכול ידנית, כך שהאשכול נרשם על שם המפרסם
+ * ומופיע בפיד הפעילות כמו כל אשכול אחר.
+ *
+ * השער (forumAutoGate) עדיין רץ, אבל תפקידו השתנה: הוא כבר לא חוסם פרסום אלא
+ * מסמן מה כדאי לקרוא לפני ששולחים.
  */
 
 type QueueStatus = "needs_review" | "approved" | "published" | "rejected";
@@ -25,56 +40,22 @@ type QueueItem = {
   prefix: string | null;
   canon_source: CanonSource;
   sources: ForumDraftSource[] | null;
-  data_snapshot: Record<string, unknown> | null;
   status: QueueStatus;
   gate_reasons: GateReason[] | null;
   generator: string | null;
-  scheduled_for: string | null;
   published_thread_id: string | null;
   published_at: string | null;
   created_at: string;
 };
 
-type PublisherSettings = {
-  is_enabled: boolean;
-  author_id: string | null;
-  min_hours_between_posts: number;
-  blocked_keywords: string[] | null;
-};
+const UNIQUE_VIOLATION = "23505";
 
-const STATUS_META: Record<QueueStatus, { label: string; className: string }> = {
-  needs_review: {
-    label: "ממתין לבדיקה",
-    className: "bg-amber-400/10 border-amber-400/25 text-amber-200",
-  },
-  approved: {
-    label: "מאושר לפרסום",
-    className: "bg-emerald-400/10 border-emerald-400/25 text-emerald-200",
-  },
-  published: {
-    label: "פורסם",
-    className: "bg-sky-400/10 border-sky-400/25 text-sky-200",
-  },
-  rejected: {
-    label: "נדחה",
-    className: "bg-rose-400/10 border-rose-400/25 text-rose-200",
-  },
-};
-
-const FILTERS: Array<{ id: QueueStatus | "all"; label: string }> = [
-  { id: "needs_review", label: "ממתינים" },
-  { id: "approved", label: "מאושרים" },
+const FILTERS: Array<{ id: "ready" | "published" | "rejected" | "all"; label: string }> = [
+  { id: "ready", label: "מוכנים לפרסום" },
   { id: "published", label: "פורסמו" },
   { id: "rejected", label: "נדחו" },
   { id: "all", label: "הכל" },
 ];
-
-function stripHtml(value: string) {
-  return (value || "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -89,39 +70,31 @@ function formatDate(value: string | null) {
 export default function AdminForumQueuePanel() {
   const supabase = useMemo(() => createClient(), []);
 
-  const [settings, setSettings] = useState<PublisherSettings | null>(null);
   const [items, setItems] = useState<QueueItem[]>([]);
   const [forumNames, setForumNames] = useState<Record<string, string>>({});
-  const [filter, setFilter] = useState<QueueStatus | "all">("needs_review");
+  const [filter, setFilter] = useState<"ready" | "published" | "rejected" | "all">("ready");
   const [isLoading, setIsLoading] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  const [keywordDraft, setKeywordDraft] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftContent, setDraftContent] = useState("");
+  const [feedback, setFeedback] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [settingsResult, queueResult, forumsResult] = await Promise.all([
-        supabase
-          .from("forum_publisher_settings")
-          .select("is_enabled, author_id, min_hours_between_posts, blocked_keywords")
-          .eq("id", true)
-          .maybeSingle(),
+      const [queueResult, forumsResult] = await Promise.all([
         supabase
           .from("forum_thread_queue")
-          .select("*")
+          .select(
+            "id, forum_id, title, content, prefix, canon_source, sources, status, gate_reasons, generator, published_thread_id, published_at, created_at",
+          )
           .order("created_at", { ascending: false })
           .limit(100),
         supabase.from("forums").select("id, name"),
       ]);
 
-      if (settingsResult.data) {
-        const loaded = settingsResult.data as PublisherSettings;
-        setSettings(loaded);
-        setKeywordDraft((loaded.blocked_keywords || []).join("\n"));
-      }
       setItems((queueResult.data as QueueItem[]) || []);
 
       const names: Record<string, string> = {};
@@ -138,78 +111,186 @@ export default function AdminForumQueuePanel() {
     void load();
   }, [load]);
 
-  const updateSettings = async (patch: Partial<PublisherSettings>) => {
-    if (!settings) return;
-    const next = { ...settings, ...patch };
-    setSettings(next);
-    const { error } = await supabase.from("forum_publisher_settings").update(patch).eq("id", true);
-    if (error) {
-      setFeedback({ tone: "error", text: error.message });
+  /** מייצר טיוטות מהנתונים החיים ומכניס אותן לתור. לא מפרסם כלום. */
+  const generateDrafts = async () => {
+    setIsGenerating(true);
+    setFeedback(null);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setFeedback({ tone: "error", text: "צריך להיות מחובר." });
+        return;
+      }
+
+      const client = supabase as unknown as SupabaseClient;
+
+      const [{ data: profiles }, { data: forums }, drafts] = await Promise.all([
+        supabase.from("profiles").select("full_name").not("full_name", "is", null).limit(2000),
+        supabase.from("forums").select("id, slug"),
+        generateForumDrafts({ supabase: client, now: new Date() }),
+      ]);
+
+      const memberNames = (profiles || [])
+        .map((row) => String((row as { full_name: string }).full_name || "").trim())
+        .filter((name) => name.length >= 3);
+
+      const forumIdBySlug: Record<string, string> = {};
+      for (const forum of (forums as Array<{ id: string; slug: string }>) || []) {
+        forumIdBySlug[forum.slug] = forum.id;
+      }
+
+      let inserted = 0;
+      let skipped = 0;
+      let flagged = 0;
+
+      for (const draft of drafts) {
+        const forumId = forumIdBySlug[draft.forumSlug];
+        if (!forumId) {
+          skipped += 1;
+          continue;
+        }
+
+        const verdict = evaluateForumDraft(draft, { knownMemberNames: memberNames });
+
+        const { error } = await supabase.from("forum_thread_queue").insert({
+          forum_id: forumId,
+          author_id: user.id,
+          title: draft.title,
+          content: draft.content,
+          prefix: draft.prefix || null,
+          canon_source: draft.canonSource,
+          sources: draft.sources,
+          data_snapshot: draft.dataSnapshot || {},
+          status: verdict.status,
+          gate_reasons: verdict.reasons,
+          generator: draft.generator,
+          dedupe_key: draft.dedupeKey,
+          created_by: user.id,
+        });
+
+        if (error) {
+          // הנושא כבר בתור או כבר פורסם — המצב התקין ברוב ההרצות.
+          if (error.code !== UNIQUE_VIOLATION) {
+            console.error("[forum-queue] insert failed", error);
+          }
+          skipped += 1;
+          continue;
+        }
+
+        inserted += 1;
+        if (verdict.reasons.length > 0) flagged += 1;
+      }
+
+      setFeedback({
+        tone: "ok",
+        text: inserted
+          ? `נוספו ${inserted} טיוטות${flagged ? `, ${flagged} עם סימון לבדיקה` : ""}. שום דבר לא פורסם.`
+          : `אין נושאים חדשים כרגע${skipped ? ` — ${skipped} כבר קיימים בתור` : ""}.`,
+      });
+      setFilter("ready");
       void load();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "ייצור הטיוטות נכשל.";
+      setFeedback({ tone: "error", text: message });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const setItemStatus = async (item: QueueItem, status: QueueStatus) => {
+  const startEditing = (item: QueueItem) => {
+    setEditingId(item.id);
+    setDraftTitle(item.title);
+    setDraftContent(item.content);
+  };
+
+  const saveEdits = async (item: QueueItem) => {
     setBusyId(item.id);
     try {
       const { error } = await supabase
         .from("forum_thread_queue")
-        .update({ status, reviewed_at: new Date().toISOString() })
+        .update({ title: draftTitle.trim(), content: draftContent })
         .eq("id", item.id);
 
       if (error) {
         setFeedback({ tone: "error", text: error.message });
         return;
       }
-      setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, status } : row)));
-      setFeedback({
-        tone: "ok",
-        text: status === "approved" ? "האשכול יעלה בהרצת הקרון הבאה." : "עודכן.",
-      });
+
+      setItems((prev) =>
+        prev.map((row) =>
+          row.id === item.id ? { ...row, title: draftTitle.trim(), content: draftContent } : row,
+        ),
+      );
+      setEditingId(null);
+      setFeedback({ tone: "ok", text: "העריכה נשמרה." });
     } finally {
       setBusyId(null);
     }
   };
 
-  const generateDrafts = async () => {
-    setIsGenerating(true);
-    try {
-      const response = await fetch("/api/admin/forum-queue/generate", { method: "POST" });
-      const payload = await response.json().catch(() => null);
+  /** מפרסם דרך אותו RPC שהאתר משתמש בו לפתיחת אשכול ידנית. */
+  const publish = async (item: QueueItem) => {
+    const title = editingId === item.id ? draftTitle.trim() : item.title;
+    const content = editingId === item.id ? draftContent : item.content;
 
-      if (!response.ok) {
-        setFeedback({ tone: "error", text: payload?.error || "ייצור הטיוטות נכשל." });
-        return;
-      }
-
-      const { inserted = 0, approved = 0, needsReview = 0, skipped = 0 } = payload?.enqueued || {};
-      setFeedback({
-        tone: "ok",
-        text: inserted
-          ? `נוספו ${inserted} טיוטות (${approved} מאושרות, ${needsReview} לבדיקה). שום דבר לא פורסם.`
-          : `לא נוספו טיוטות חדשות${skipped ? ` — ${skipped} כבר קיימות בתור` : ""}.`,
-      });
-      setFilter("all");
-      void load();
-    } finally {
-      setIsGenerating(false);
+    if (stripHtml(content).length < 20) {
+      setFeedback({ tone: "error", text: "התוכן קצר מדי לפרסום." });
+      return;
     }
-  };
 
-  const publishNow = async (item: QueueItem) => {
     setBusyId(item.id);
     try {
-      const response = await fetch("/api/admin/forum-queue/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ queueId: item.id }),
+      const { data, error } = await supabase.rpc("create_forum_thread_secure", {
+        p_forum_id: item.forum_id,
+        p_title: title,
+        p_content: content,
+        p_prefix: item.prefix,
+        p_is_pinned: false,
+        p_is_locked: false,
       });
-      const payload = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        setFeedback({ tone: "error", text: payload?.error || "הפרסום נכשל." });
+      if (error) {
+        setFeedback({ tone: "error", text: error.message });
         return;
       }
+
+      const threadId = (data as { thread_id?: string } | null)?.thread_id;
+      if (!threadId) {
+        setFeedback({ tone: "error", text: "יצירת השרשור נכשלה." });
+        return;
+      }
+
+      await supabase
+        .from("forum_thread_queue")
+        .update({
+          title,
+          content,
+          status: "published",
+          published_thread_id: threadId,
+          published_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // בלי זה האשכול לא יופיע בפיד הפעילות של האתר.
+      await logActivityEvent(supabase as unknown as SupabaseClient, {
+        actorId: user?.id || null,
+        eventType: "forum_thread_created",
+        icon: "💬",
+        title: "פתח/ה שרשור חדש בפורום",
+        subtitle: title,
+        description: forumNames[item.forum_id] || null,
+        targetType: "thread",
+        targetId: threadId,
+        targetUrl: `/forums/thread/${threadId}`,
+      });
+
+      setEditingId(null);
       setFeedback({ tone: "ok", text: "האשכול פורסם." });
       void load();
     } finally {
@@ -217,15 +298,41 @@ export default function AdminForumQueuePanel() {
     }
   };
 
-  const visibleItems = filter === "all" ? items : items.filter((item) => item.status === filter);
-  const pendingCount = items.filter((item) => item.status === "needs_review").length;
-  const approvedCount = items.filter((item) => item.status === "approved").length;
+  const reject = async (item: QueueItem) => {
+    setBusyId(item.id);
+    try {
+      const { error } = await supabase
+        .from("forum_thread_queue")
+        .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+        .eq("id", item.id);
+
+      if (error) {
+        setFeedback({ tone: "error", text: error.message });
+        return;
+      }
+      setItems((prev) =>
+        prev.map((row) => (row.id === item.id ? { ...row, status: "rejected" } : row)),
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const visibleItems = items.filter((item) => {
+    if (filter === "all") return true;
+    if (filter === "ready") return item.status === "needs_review" || item.status === "approved";
+    return item.status === filter;
+  });
+
+  const readyCount = items.filter(
+    (item) => item.status === "needs_review" || item.status === "approved",
+  ).length;
 
   return (
     <section className="admin-card rounded-2xl p-5 space-y-4" dir="rtl">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h3 className="font-cinzel text-xs font-black text-orange-400 flex items-center gap-2 uppercase tracking-widest">
-          <Sparkles size={13} /> תור אשכולות אוטומטי
+          <Sparkles size={13} /> אשכולות מוכנים ({readyCount})
         </h3>
         <div className="flex items-center gap-2">
           <button
@@ -234,7 +341,7 @@ export default function AdminForumQueuePanel() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/15 border border-orange-500/25 text-orange-300 hover:bg-orange-500 hover:text-white transition-all text-[10px] font-cinzel disabled:opacity-40"
           >
             {isGenerating ? <Loader2 size={11} className="animate-spin" /> : <Wand2 size={11} />}
-            ייצר טיוטות עכשיו
+            ייצר טיוטות
           </button>
           <button
             onClick={() => void load()}
@@ -246,75 +353,9 @@ export default function AdminForumQueuePanel() {
       </div>
 
       <p className="text-[11px] text-white/35 leading-relaxed">
-        טיוטה שעברה את השער מתפרסמת לבד בהרצת הקרון. טיוטה שנעצרה מופיעה כאן עם הסיבה המדויקת.
+        שום דבר לא מתפרסם לבד. אתה מייצר טיוטות, קורא, עורך אם בא לך, ולוחץ פרסם. האשכול נרשם על שמך
+        ומופיע בפיד כמו כל אשכול רגיל.
       </p>
-
-      {/* ── הגדרות המנוע ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
-          <div className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">מצב המנוע</div>
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-white/70">
-            <input
-              type="checkbox"
-              checked={settings?.is_enabled ?? false}
-              onChange={(event) => void updateSettings({ is_enabled: event.target.checked })}
-            />
-            {settings?.is_enabled ? "פעיל — מפרסם לבד" : "כבוי"}
-          </label>
-        </div>
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
-          <div className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">מרווח בין אשכולות</div>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={1}
-              max={720}
-              value={settings?.min_hours_between_posts ?? 48}
-              onChange={(event) =>
-                void updateSettings({
-                  min_hours_between_posts: Math.max(1, parseInt(event.target.value, 10) || 48),
-                })
-              }
-              className="w-20 bg-black/20 border border-white/5 rounded-lg p-2 text-sm text-white/80 outline-none focus:border-orange-500/30"
-            />
-            <span className="text-xs text-white/40">שעות</span>
-          </div>
-        </div>
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-1">
-          <div className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">בתור</div>
-          <div className="flex items-baseline gap-3">
-            <span className="font-cinzel font-black text-xl text-amber-300">{pendingCount}</span>
-            <span className="text-[10px] text-white/30">ממתינים</span>
-            <span className="font-cinzel font-black text-xl text-emerald-300">{approvedCount}</span>
-            <span className="text-[10px] text-white/30">מאושרים</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── מילות מפתח שעוצרות פרסום אוטומטי ── */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
-        <div className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest">
-          מילים שעוצרות פרסום אוטומטי
-        </div>
-        <textarea
-          value={keywordDraft}
-          onChange={(event) => setKeywordDraft(event.target.value)}
-          onBlur={() => {
-            const next = keywordDraft
-              .split(/[\n,]/)
-              .map((word) => word.trim())
-              .filter(Boolean);
-            void updateSettings({ blocked_keywords: next });
-          }}
-          dir="rtl"
-          placeholder="מילה בכל שורה, או מופרדות בפסיק"
-          className="w-full h-20 resize-none bg-black/20 border border-white/5 rounded-xl p-3 text-xs text-white/75 outline-none focus:border-orange-500/30 transition-all"
-        />
-        <p className="text-[10px] text-white/25 leading-relaxed">
-          ההשוואה היא ברמת מילה שלמה (כולל אותיות שימוש כמו &quot;הפרס&quot;), ולכן צריך להוסיף צורות רבים
-          בנפרד. רשימה ריקה מחזירה את ברירת המחדל.
-        </p>
-      </div>
 
       {feedback && (
         <div
@@ -328,7 +369,6 @@ export default function AdminForumQueuePanel() {
         </div>
       )}
 
-      {/* ── מסננים ── */}
       <div className="flex items-center gap-1.5 flex-wrap">
         {FILTERS.map((entry) => (
           <button
@@ -345,20 +385,22 @@ export default function AdminForumQueuePanel() {
         ))}
       </div>
 
-      {/* ── רשימת התור ── */}
       {isLoading ? (
         <div className="flex items-center justify-center py-10 text-white/30">
           <Loader2 size={18} className="animate-spin" />
         </div>
       ) : visibleItems.length === 0 ? (
-        <p className="text-center text-white/20 font-cinzel text-xs py-8">אין פריטים בתצוגה הזאת</p>
+        <p className="text-center text-white/20 font-cinzel text-xs py-8">
+          אין כאן כלום — לחץ &quot;ייצר טיוטות&quot;
+        </p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {visibleItems.map((item) => {
             const reasons = item.gate_reasons || [];
             const sources = item.sources || [];
-            const isExpanded = expandedId === item.id;
+            const isEditing = editingId === item.id;
             const isBusy = busyId === item.id;
+            const isDone = item.status === "published" || item.status === "rejected";
 
             return (
               <div
@@ -368,36 +410,43 @@ export default function AdminForumQueuePanel() {
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] border ${STATUS_META[item.status].className}`}
-                      >
-                        {STATUS_META[item.status].label}
-                      </span>
                       <CanonBadge source={item.canon_source} />
                       {item.generator && (
                         <span className="px-2 py-0.5 rounded-full text-[9px] bg-white/5 border border-white/10 text-white/40">
                           {item.generator}
                         </span>
                       )}
+                      {item.status === "published" && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] bg-sky-400/10 border border-sky-400/25 text-sky-200">
+                          פורסם {formatDate(item.published_at)}
+                        </span>
+                      )}
+                      {item.status === "rejected" && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] bg-rose-400/10 border border-rose-400/25 text-rose-200">
+                          נדחה
+                        </span>
+                      )}
                     </div>
-                    <p className="font-bold text-sm text-white/85">{item.title}</p>
+                    {isEditing ? (
+                      <input
+                        value={draftTitle}
+                        onChange={(event) => setDraftTitle(event.target.value)}
+                        dir="rtl"
+                        className="w-full bg-black/25 border border-orange-500/25 rounded-lg p-2 text-sm font-bold text-white/85 outline-none focus:border-orange-500/50"
+                      />
+                    ) : (
+                      <p className="font-bold text-sm text-white/85">{item.title}</p>
+                    )}
                     <p className="text-[10px] text-white/25">
                       {forumNames[item.forum_id] || "פורום לא ידוע"} · נוצר {formatDate(item.created_at)}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                    className="px-3 py-1.5 rounded-lg bg-white/5 text-white/40 hover:text-white/80 transition-all text-[10px] font-cinzel shrink-0"
-                  >
-                    {isExpanded ? "סגור" : "הצג"}
-                  </button>
                 </div>
 
-                {/* סיבות עצירה */}
-                {reasons.length > 0 && (
+                {reasons.length > 0 && !isDone && (
                   <div className="rounded-lg border border-amber-400/15 bg-amber-500/[0.06] p-3 space-y-1.5">
                     <div className="flex items-center gap-1.5 text-[9px] font-cinzel text-amber-300/80 uppercase tracking-widest">
-                      <AlertTriangle size={10} /> למה נעצר
+                      <AlertTriangle size={10} /> כדאי לקרוא לפני
                     </div>
                     {reasons.map((reason, index) => (
                       <p key={`${reason.code}-${index}`} className="text-[11px] text-white/60">
@@ -410,63 +459,72 @@ export default function AdminForumQueuePanel() {
                   </div>
                 )}
 
-                {isExpanded && (
-                  <div className="space-y-3">
-                    <div className="rounded-lg border border-white/[0.05] bg-black/20 p-3">
-                      <div className="text-[9px] font-cinzel text-white/20 uppercase tracking-widest mb-2">
-                        תוכן
-                      </div>
-                      <p className="text-[12px] text-white/65 leading-relaxed whitespace-pre-wrap">
-                        {stripHtml(item.content)}
-                      </p>
-                    </div>
+                {isEditing ? (
+                  <textarea
+                    value={draftContent}
+                    onChange={(event) => setDraftContent(event.target.value)}
+                    dir="rtl"
+                    className="w-full h-52 resize-y bg-black/25 border border-orange-500/25 rounded-lg p-3 text-[12px] leading-relaxed text-white/75 outline-none focus:border-orange-500/50 font-mono"
+                  />
+                ) : (
+                  <div
+                    className="rounded-lg border border-white/[0.05] bg-black/20 p-3 text-[12px] leading-relaxed text-white/70 [&_ul]:list-disc [&_ul]:pr-5 [&_p]:mb-2"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.content) }}
+                  />
+                )}
 
-                    <div className="rounded-lg border border-white/[0.05] bg-black/20 p-3 space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-[9px] font-cinzel text-white/20 uppercase tracking-widest">
-                        <BookOpen size={10} /> מקורות ({sources.length})
-                      </div>
-                      {sources.length === 0 ? (
-                        <p className="text-[11px] text-rose-300/70">אין מקורות מצורפים.</p>
-                      ) : (
-                        sources.map((source, index) => (
-                          <p key={index} className="text-[11px] text-white/55">
-                            <span className="text-sky-200/70">{source.label}</span>
-                            {source.ref ? <span className="text-white/30"> — {source.ref}</span> : null}
-                          </p>
-                        ))
-                      )}
-                    </div>
+                {sources.length > 0 && (
+                  <div className="flex items-start gap-1.5 text-[10px] text-white/35">
+                    <BookOpen size={10} className="mt-0.5 shrink-0" />
+                    <span>
+                      {sources
+                        .map((source) => (source.ref ? `${source.label} — ${source.ref}` : source.label))
+                        .join(" · ")}
+                    </span>
                   </div>
                 )}
 
-                {/* פעולות */}
-                {item.status !== "published" && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {item.status !== "approved" && (
+                {!isDone && (
+                  <div className="flex items-center gap-2 flex-wrap pt-1">
+                    <button
+                      onClick={() => void publish(item)}
+                      disabled={isBusy}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500/15 border border-orange-500/25 text-orange-300 hover:bg-orange-500 hover:text-white transition-all text-[11px] font-cinzel font-black disabled:opacity-40"
+                    >
+                      {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                      פרסם
+                    </button>
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={() => void saveEdits(item)}
+                          disabled={isBusy}
+                          className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500 hover:text-white transition-all text-[10px] font-cinzel disabled:opacity-40"
+                        >
+                          שמור עריכה
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="px-3 py-2 rounded-xl bg-white/5 text-white/40 hover:text-white/70 transition-all text-[10px] font-cinzel"
+                        >
+                          בטל
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        onClick={() => void setItemStatus(item, "approved")}
-                        disabled={isBusy}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500 hover:text-white transition-all text-[10px] font-cinzel disabled:opacity-40"
+                        onClick={() => startEditing(item)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 text-white/45 hover:bg-white/10 hover:text-white/80 transition-all text-[10px] font-cinzel"
                       >
-                        <Check size={11} /> אשר
+                        <Pencil size={11} /> ערוך
                       </button>
                     )}
                     <button
-                      onClick={() => void publishNow(item)}
+                      onClick={() => void reject(item)}
                       disabled={isBusy}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/15 border border-orange-500/25 text-orange-300 hover:bg-orange-500 hover:text-white transition-all text-[10px] font-cinzel disabled:opacity-40"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-cinzel disabled:opacity-40 mr-auto"
                     >
-                      {isBusy ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />} פרסם עכשיו
+                      <Trash2 size={11} /> מחק
                     </button>
-                    {item.status !== "rejected" && (
-                      <button
-                        onClick={() => void setItemStatus(item, "rejected")}
-                        disabled={isBusy}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-cinzel disabled:opacity-40"
-                      >
-                        <Trash2 size={11} /> דחה
-                      </button>
-                    )}
                   </div>
                 )}
 
@@ -475,9 +533,9 @@ export default function AdminForumQueuePanel() {
                     href={`/forums/thread/${item.published_thread_id}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[10px] font-cinzel text-sky-300 hover:text-sky-200 transition-colors"
+                    className="inline-block text-[10px] font-cinzel text-sky-300 hover:text-sky-200 transition-colors"
                   >
-                    <Clock size={10} /> פורסם {formatDate(item.published_at)} — פתח אשכול
+                    פתח את האשכול ←
                   </a>
                 )}
               </div>
